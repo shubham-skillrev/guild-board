@@ -1,26 +1,183 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* ═══════════════════════════════════════════════════════
+     GuildBoard — Wabi-Sabi × Rangoli Dark Theme
+     Japanese minimalism meets Indian warmth
+     ═══════════════════════════════════════════════════════ */
+
+  /* ─── Ink & Paper (Text hierarchy) ─── */
+  --color-ink: #EDE8E1;          /* Warm parchment white — like handmade washi */
+  --color-ink-soft: #9E9790;     /* Stone-washed gray */
+  --color-ink-muted: #6E6860;    /* Tea-stained subtle */
+
+  /* ─── Surfaces (Dark backgrounds, layered) ─── */
+  --color-parchment: #08080C;    /* Deep void — sumi ink on night sky */
+  --color-paper: #101016;        /* Raised surface — lacquered wood */
+  --color-sumi: #161620;         /* Card surface — charcoal paper */
+  --color-kinu: #1E1E2A;         /* Hover surface — silk shimmer */
+  --color-cha: #4A4556;          /* Muted text & icons — twilight */
+
+  /* ─── Saffron & Vermillion (Indian warmth) ─── */
+  --color-saffron: #E8913A;      /* Marigold garland / Turmeric glow */
+  --color-saffron-light: #1A1208;
+  --color-vermillion: #DC4A3A;   /* Sindoor red / Alert */
+  --color-vermillion-light: #1C0C0A;
+
+  /* ─── Matcha & Indigo (Japanese calm) ─── */
+  --color-matcha: #3DB88A;       /* Zen garden moss */
+  --color-matcha-light: #0A1A14;
+  --color-indigo-jp: #5B8DEF;    /* Aizome — natural indigo dye */
+  --color-indigo-light: #0C1220;
+  --color-wisteria: #9A7BD4;     /* Fuji / Lotus purple */
+  --color-wisteria-light: #12101E;
+
+  /* ─── Borders ─── */
+  --color-border: #1E1E2A;
+  --color-border-strong: #2E2E3C;
+
+  /* ─── Fonts ─── */
+  --font-sans: var(--font-geist-sans), 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-serif: var(--font-display), 'Playfair Display', Georgia, serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* ═══ Base reset & typography ═══ */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--color-ink);
+  background: var(--color-parchment);
+  letter-spacing: -0.01em;
+}
+
+/* ═══ Background patterns ═══ */
+
+/* Subtle rangoli dot-grid — sacred geometry */
+.pattern-asanoha {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgba(232, 145, 58, 0.06) 1px, transparent 0),
+    radial-gradient(circle at 21px 21px, rgba(154, 123, 212, 0.03) 1px, transparent 0);
+  background-size: 40px 40px;
+}
+
+/* Torii gate gradient glow — for hero sections */
+.glow-saffron {
+  background: radial-gradient(ellipse at 50% 0%, rgba(232, 145, 58, 0.08) 0%, transparent 60%);
+}
+.glow-indigo {
+  background: radial-gradient(ellipse at 50% 100%, rgba(91, 141, 239, 0.06) 0%, transparent 60%);
+}
+
+/* ═══ Scrollbar — bamboo thin ═══ */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-cha); }
+
+/* ═══ Selection ═══ */
+::selection { background: rgba(232, 145, 58, 0.2); color: var(--color-ink); }
+
+/* ═══ Utility animations ═══ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.animate-fade-up { animation: fadeUp 0.4s ease-out both; }
+.animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+
+/* Staggered children animation */
+.stagger-children > * {
+  animation: fadeUp 0.35s ease-out both;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0.02s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.06s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.10s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.14s; }
+.stagger-children > *:nth-child(5) { animation-delay: 0.18s; }
+.stagger-children > *:nth-child(6) { animation-delay: 0.22s; }
+.stagger-children > *:nth-child(7) { animation-delay: 0.26s; }
+.stagger-children > *:nth-child(8) { animation-delay: 0.30s; }
+
+/* ─── Prose styling for markdown descriptions ─── */
+.prose-guild {
+  color: var(--color-ink-soft);
+  font-size: 14px;
+  line-height: 1.7;
+}
+.prose-guild h1, .prose-guild h2, .prose-guild h3 {
+  color: var(--color-ink);
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+.prose-guild h1 { font-size: 1.4em; }
+.prose-guild h2 { font-size: 1.2em; }
+.prose-guild h3 { font-size: 1.05em; }
+.prose-guild p { margin-bottom: 0.75em; }
+.prose-guild a {
+  color: var(--color-saffron);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-guild a:hover { opacity: 0.8; }
+.prose-guild strong { color: var(--color-ink); font-weight: 600; }
+.prose-guild code {
+  background: var(--color-sumi);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.15em 0.35em;
+  font-size: 0.9em;
+}
+.prose-guild pre {
+  background: var(--color-sumi);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1em;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+.prose-guild pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+.prose-guild ul, .prose-guild ol {
+  padding-left: 1.5em;
+  margin-bottom: 0.75em;
+}
+.prose-guild ul { list-style-type: disc; }
+.prose-guild ol { list-style-type: decimal; }
+.prose-guild li { margin-bottom: 0.25em; }
+.prose-guild blockquote {
+  border-left: 3px solid var(--color-saffron);
+  padding-left: 1em;
+  color: var(--color-cha);
+  font-style: italic;
+  margin: 1em 0;
+}
+.prose-guild hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: 1.5em 0;
+}
+.prose-guild table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+.prose-guild th, .prose-guild td {
+  border: 1px solid var(--color-border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+  font-size: 0.9em;
+}
+.prose-guild th {
+  background: var(--color-sumi);
+  color: var(--color-ink);
+  font-weight: 600;
 }
