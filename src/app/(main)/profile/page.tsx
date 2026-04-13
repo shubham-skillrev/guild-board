@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { UserAvatar } from '@/components/ui/UserAvatar'
+import { LuPencilLine } from 'react-icons/lu'
 
 async function getProfile() {
   const supabase = await createClient()
@@ -42,6 +43,15 @@ export default async function ProfilePage() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-semibold text-ink">@{profile.username}</h1>
+              <Link
+                href="/board?setup=username&source=profile"
+                aria-label="Edit username"
+                className="inline-flex items-center justify-center w-6 h-6 text-cha hover:text-ink hover:border-border-strong hover:bg-paper transition-all"
+              >
+                <span className="text-[12px] leading-none">
+                  <LuPencilLine className="w-3.5 h-3.5" />
+                </span>
+              </Link>
               {profile.hall_of_flame && (
                 <span title="Hall of Flame" className="text-base">🔥</span>
               )}
@@ -52,12 +62,6 @@ export default async function ProfilePage() {
         <div className="text-right space-y-3">
           <p className="text-2xl font-bold text-ink tabular-nums">{profile.spark_count}</p>
           <p className="text-[11px] text-cha uppercase tracking-wider">sparks</p>
-          <Link
-            href="/board?setup=username&source=profile"
-            className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-border bg-paper text-[12px] font-medium text-ink-soft hover:text-ink hover:border-border-strong transition-all"
-          >
-            Edit username
-          </Link>
         </div>
       </div>
 

@@ -141,7 +141,7 @@ export default async function LeaderboardPage() {
 
           <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr_1fr] items-end">
             {hallOfFame[1] && (
-              <div className="rounded-2xl border border-border bg-paper/75 p-4 shadow-[0_16px_32px_rgba(0,0,0,0.18)]">
+              <div className="order-2 lg:order-1 rounded-2xl border border-border bg-paper/75 p-4 shadow-[0_16px_32px_rgba(0,0,0,0.18)]">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-2xl">🥈</span>
                   <span className="text-[10px] uppercase tracking-widest text-cha">Runner-up</span>
@@ -157,7 +157,7 @@ export default async function LeaderboardPage() {
             )}
 
             {hallOfFame[0] && (
-              <div className="rounded-[1.75rem] border border-saffron/25 bg-linear-to-b from-saffron-light/50 to-paper/90 p-5 md:p-6 shadow-[0_22px_50px_rgba(232,145,58,0.12)] relative">
+              <div className="order-1 lg:order-2 rounded-[1.75rem] border border-saffron/25 bg-linear-to-b from-saffron-light/50 to-paper/90 p-5 md:p-6 shadow-[0_22px_50px_rgba(232,145,58,0.12)] relative">
                 <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-saffron/50 to-transparent" />
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-3xl">🥇</span>
@@ -179,7 +179,7 @@ export default async function LeaderboardPage() {
             )}
 
             {hallOfFame[2] && (
-              <div className="rounded-2xl border border-border bg-paper/75 p-4 shadow-[0_16px_32px_rgba(0,0,0,0.18)]">
+              <div className="order-3 rounded-2xl border border-border bg-paper/75 p-4 shadow-[0_16px_32px_rgba(0,0,0,0.18)]">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-2xl">🥉</span>
                   <span className="text-[10px] uppercase tracking-widest text-cha">Podium</span>

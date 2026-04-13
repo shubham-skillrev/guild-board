@@ -9,24 +9,39 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { isAllowedEmailDomain } from '@/lib/utils/email'
 
+function resolveAppOrigin(request: Request): string {
+  const url = new URL(request.url)
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (configured) return configured.replace(/\/$/, '')
+
+  const forwardedHost = request.headers.get('x-forwarded-host')
+  const forwardedProto = request.headers.get('x-forwarded-proto')
+  const host = forwardedHost ?? request.headers.get('host')
+  if (!host) return url.origin
+
+  const proto = forwardedProto ?? (host.includes('localhost') ? 'http' : 'https')
+  return `${proto}://${host}`
+}
+
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
+  const appOrigin = resolveAppOrigin(request)
   const code = searchParams.get('code')
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+    return NextResponse.redirect(`${appOrigin}/login?error=auth_failed`)
   }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error || !data.user) {
-    return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+    return NextResponse.redirect(`${appOrigin}/login?error=auth_failed`)
   }
 
   if (!isAllowedEmailDomain(data.user.email ?? null)) {
     await supabase.auth.signOut()
-    return NextResponse.redirect(`${origin}/login?error=domain_not_allowed`)
+    return NextResponse.redirect(`${appOrigin}/login?error=domain_not_allowed`)
   }
 
   const admin = createAdminClient()
@@ -47,14 +62,14 @@ export async function GET(request: Request) {
     })
     if (insertError) {
       console.error('Insert Error details:', insertError)
-      return NextResponse.redirect(`${origin}/login?error=user_creation_failed`)
+      return NextResponse.redirect(`${appOrigin}/login?error=user_creation_failed`)
     }
-    return NextResponse.redirect(`${origin}/board?setup=username`)
+    return NextResponse.redirect(`${appOrigin}/board?setup=username`)
   }
 
   if (!existingUser.username || existingUser.username.startsWith('user_')) {
-    return NextResponse.redirect(`${origin}/board?setup=username`)
+    return NextResponse.redirect(`${appOrigin}/board?setup=username`)
   }
 
-  return NextResponse.redirect(`${origin}/board`)
+  return NextResponse.redirect(`${appOrigin}/board`)
 }

@@ -53,28 +53,40 @@ export default async function LandingPage() {
             </Link>
           </div>
 
-          {/* Three pillars — Japanese gate-style cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
-            <div className="group p-5 bg-paper/60 border border-border hover:border-saffron/30 transition-all rounded-xl">
-              <div className="w-8 h-8 rounded-lg bg-saffron/10 flex items-center justify-center text-saffron text-sm mb-3">▲</div>
-              <h3 className="text-sm font-semibold text-ink mb-1">Upvote Ideas</h3>
-              <p className="text-xs text-ink-soft leading-relaxed">
-                3 votes per cycle. Choose wisely.
-              </p>
+          {/* Three pillars — simple cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-2 sm:pt-4">
+            <div className="group p-4 sm:p-5 bg-paper/55 border border-border hover:border-saffron/35 transition-all rounded-2xl sm:rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.22)] sm:shadow-none">
+              <div className="flex items-center justify-center sm:block gap-3 sm:gap-0">
+                <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl sm:rounded-lg bg-saffron/12 flex items-center justify-center text-saffron text-base sm:text-sm shrink-0">▲</div>
+                <div className="text-left">
+                  <h3 className="text-[15px] sm:text-sm font-semibold text-ink mb-1">Upvote Ideas</h3>
+                  <p className="text-[13px] sm:text-xs text-ink-soft leading-relaxed">
+                    3 votes per cycle. Choose wisely.
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="group p-5 bg-paper/60 border border-border hover:border-matcha/30 transition-all rounded-xl">
-              <div className="w-8 h-8 rounded-lg bg-matcha/10 flex items-center justify-center text-matcha text-sm mb-3">🤝</div>
-              <h3 className="text-sm font-semibold text-ink mb-1">Raise Your Hand</h3>
-              <p className="text-xs text-ink-soft leading-relaxed">
-                Volunteer to lead the discussion.
-              </p>
+            <div className="group p-4 sm:p-5 bg-paper/55 border border-matcha/35 sm:border-border hover:border-matcha/45 transition-all rounded-2xl sm:rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.22)] sm:shadow-none">
+              <div className="flex items-center justify-center sm:block gap-3 sm:gap-0">
+                <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl sm:rounded-lg bg-matcha/12 flex items-center justify-center text-matcha text-base sm:text-sm shrink-0">🤝</div>
+                <div className="text-left">
+                  <h3 className="text-[15px] sm:text-sm font-semibold text-ink mb-1">Contribute</h3>
+                  <p className="text-[13px] sm:text-xs text-ink-soft leading-relaxed">
+                    Volunteer to lead the discussion.
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="group p-5 bg-paper/60 border border-border hover:border-wisteria/30 transition-all rounded-xl">
-              <div className="w-8 h-8 rounded-lg bg-wisteria/10 flex items-center justify-center text-wisteria text-sm mb-3">⚡</div>
-              <h3 className="text-sm font-semibold text-ink mb-1">Earn Sparks</h3>
-              <p className="text-xs text-ink-soft leading-relaxed">
-                Great contributors get recognized.
-              </p>
+            <div className="group p-4 sm:p-5 bg-paper/55 border border-border hover:border-wisteria/35 transition-all rounded-2xl sm:rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.22)] sm:shadow-none">
+              <div className="flex items-center justify-center sm:block gap-3 sm:gap-0">
+                <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl sm:rounded-lg bg-wisteria/12 flex items-center justify-center text-wisteria text-base sm:text-sm shrink-0">⚡</div>
+                <div className="text-left">
+                  <h3 className="text-[15px] sm:text-sm font-semibold text-ink mb-1">Earn Sparks</h3>
+                  <p className="text-[13px] sm:text-xs text-ink-soft leading-relaxed">
+                    Great contributors get recognized.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
