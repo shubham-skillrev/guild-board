@@ -26,10 +26,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const profile = await getUser()
 
   return (
-    <div className="min-h-screen bg-parchment flex flex-col overflow-x-hidden">
-      <Suspense fallback={null}>
-        <UsernameSetupModal />
-      </Suspense>
+    <>
+      <div className="min-h-screen bg-parchment flex flex-col overflow-x-hidden">
+        <Suspense fallback={null}>
+          <UsernameSetupModal />
+        </Suspense>
 
       {/* ─── Top bar — clean Peerlist-style nav ─── */}
       <header className="bg-paper/80 backdrop-blur-xl border-b border-border sticky top-0 z-30">
@@ -50,7 +51,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             {profile && (
               <Link
                 href="/profile"
-                className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13px] text-ink-soft hover:bg-kinu transition-all group"
+                className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13px] text-ink-soft hover:bg-kinu transition-all group"
               >
                 <span className="w-7 h-7 rounded-full overflow-hidden border border-border-strong group-hover:border-saffron/40 transition-colors">
                   <UserAvatar username={profile.username ?? 'user'} size={28} />
@@ -63,21 +64,22 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         </div>
       </header>
 
-      {/* ─── Main content ─── */}
-      <main className="flex-1 min-w-0 w-full pb-24 sm:pb-0">
-        {children}
-      </main>
-
-      {/* Mobile bottom nav */}
-      <MobileBottomNav role={profile?.role} username={profile?.username} />
+        {/* ─── Main content ─── */}
+        <main className="flex-1 min-w-0 w-full pb-24 md:pb-0">
+          {children}
+        </main>
 
       {/* ─── Footer ─── */}
-      <footer className="hidden sm:block border-t border-border px-5 py-5 mt-auto">
-        <p className="text-[11px] text-cha text-center tracking-wider uppercase">
-          GuildBoard <span className="mx-1.5 text-border-strong">·</span> Crafted for builders
-        </p>
-      </footer>
-    </div>
+        <footer className="hidden md:block border-t border-border px-5 py-5 mt-auto">
+          <p className="text-[11px] text-cha text-center tracking-wider uppercase">
+            GuildBoard <span className="mx-1.5 text-border-strong">·</span> Crafted for builders
+          </p>
+        </footer>
+      </div>
+
+      {/* Mobile bottom nav stays outside scrolling container for stable viewport pinning */}
+      <MobileBottomNav role={profile?.role} username={profile?.username} />
+    </>
   )
 }
 

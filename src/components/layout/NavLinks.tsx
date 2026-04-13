@@ -1,5 +1,7 @@
 'use client'
 
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserAvatar } from '@/components/ui/UserAvatar'
@@ -18,7 +20,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
   const isAdmin = pathname.startsWith('/admin')
 
   return (
-    <nav className="hidden sm:flex items-center gap-0.5 text-[13px] font-medium">
+    <nav className="hidden md:flex items-center gap-0.5 text-[13px] font-medium">
       <Link
         href="/board"
         className={cn(
@@ -59,8 +61,11 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
   const isAdmin = pathname.startsWith('/admin')
   const isProfile = pathname.startsWith('/profile')
 
-  return (
-    <nav className="sm:hidden fixed left-0 right-0 bottom-0 z-50 bg-paper/95 backdrop-blur-xl border-t border-border pb-[env(safe-area-inset-bottom)]">
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  const nav = (
+    <nav className="md:hidden fixed inset-x-0 bottom-0 z-[9999] bg-paper/95 backdrop-blur-xl border-t border-border pb-[env(safe-area-inset-bottom)]">
       <div className={cn('grid px-2 py-1.5', role === 'admin' ? 'grid-cols-4' : 'grid-cols-3')}>
         <Link
           href="/board"
@@ -104,9 +109,12 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
           <span className="w-5.5 h-5.5 rounded-full overflow-hidden border border-border-strong">
             <UserAvatar username={username ?? 'user'} size={22} />
           </span>
-          <span>Avatar</span>
+          <span>You</span>
         </Link>
       </div>
     </nav>
   )
+
+  if (!mounted) return null
+  return createPortal(nav, document.body)
 }
