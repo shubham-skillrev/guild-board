@@ -8,15 +8,15 @@
 
   /* ─── Ink & Paper (Text hierarchy) ─── */
   --color-ink: #EDE8E1;          /* Warm parchment white — like handmade washi */
-  --color-ink-soft: #9E9790;     /* Stone-washed gray */
-  --color-ink-muted: #6E6860;    /* Tea-stained subtle */
+  --color-ink-soft: #B0AAA3;     /* Stone-washed gray */
+  --color-ink-muted: #807972;    /* Tea-stained subtle */
 
   /* ─── Surfaces (Dark backgrounds, layered) ─── */
   --color-parchment: #08080C;    /* Deep void — sumi ink on night sky */
   --color-paper: #101016;        /* Raised surface — lacquered wood */
   --color-sumi: #161620;         /* Card surface — charcoal paper */
   --color-kinu: #1E1E2A;         /* Hover surface — silk shimmer */
-  --color-cha: #4A4556;          /* Muted text & icons — twilight */
+  --color-cha: #6A6474;          /* Muted text & icons — twilight */
 
   /* ─── Saffron & Vermillion (Indian warmth) ─── */
   --color-saffron: #E8913A;      /* Marigold garland / Turmeric glow */

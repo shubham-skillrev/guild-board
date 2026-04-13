@@ -74,12 +74,14 @@ async function getLeaderboard(): Promise<{ entries: LeaderboardEntry[]; sparkWin
     })
     .sort((a, b) => b.guild_score - a.guild_score)
 
-  // Check for active spark window (closed cycle with spark_closes_at in the future)
+  // Check for active spark window (open cycle after meeting date)
   const { data: activeCycle } = await adminDb
     .from('cycles')
     .select('id')
-    .eq('status', 'closed')
-    .gt('spark_closes_at', new Date().toISOString())
+    .eq('status', 'open')
+    .lte('meeting_at', new Date().toISOString())
+    .order('year', { ascending: false })
+    .order('month', { ascending: false })
     .maybeSingle()
 
   let sparkWindow: SparkWindowInfo | null = null
@@ -103,6 +105,8 @@ async function getLeaderboard(): Promise<{ entries: LeaderboardEntry[]; sparkWin
 
 export default async function LeaderboardPage() {
   const { entries, sparkWindow } = await getLeaderboard()
+  const hallOfFame = entries.slice(0, 3)
+  const rankedList = entries.slice(3)
   const hasSparkWindow = sparkWindow !== null
   const gridCols = hasSparkWindow
     ? 'grid-cols-[3rem_1fr_4rem_4rem_4.5rem_5rem]'
@@ -125,6 +129,74 @@ export default async function LeaderboardPage() {
         )}
       </div>
 
+      {hallOfFame.length > 0 && (
+        <section className="mb-8 rounded-[1.75rem] border border-saffron/20 bg-linear-to-br from-saffron-light/30 via-paper/90 to-wisteria-light/25 p-5 md:p-6 shadow-[0_24px_70px_rgba(0,0,0,0.28)] overflow-hidden">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="font-serif text-xl md:text-2xl text-ink">Hall of Fame</h2>
+              <p className="text-[12px] text-ink-soft mt-1">The most celebrated builders in the guild.</p>
+            </div>
+            <span className="text-[11px] font-semibold tracking-[0.24em] uppercase text-saffron/80">Top 3</span>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr_1fr] items-end">
+            {hallOfFame[1] && (
+              <div className="rounded-2xl border border-border bg-paper/75 p-4 shadow-[0_16px_32px_rgba(0,0,0,0.18)]">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-2xl">🥈</span>
+                  <span className="text-[10px] uppercase tracking-widest text-cha">Runner-up</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <UserAvatar username={hallOfFame[1].username ?? 'user'} size={40} />
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-medium text-ink truncate">@{hallOfFame[1].username}</p>
+                    <p className="text-[12px] text-ink-soft">Score {hallOfFame[1].guild_score}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {hallOfFame[0] && (
+              <div className="rounded-[1.75rem] border border-saffron/25 bg-linear-to-b from-saffron-light/50 to-paper/90 p-5 md:p-6 shadow-[0_22px_50px_rgba(232,145,58,0.12)] relative">
+                <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-saffron/50 to-transparent" />
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-3xl">🥇</span>
+                  <span className="text-[10px] uppercase tracking-widest text-saffron">Champion</span>
+                </div>
+                <div className="flex flex-col items-center text-center gap-3">
+                  <UserAvatar username={hallOfFame[0].username ?? 'user'} size={64} />
+                  <div>
+                    <p className="text-[17px] font-semibold text-ink">@{hallOfFame[0].username}</p>
+                    <p className="text-[12px] text-ink-soft">Guild score {hallOfFame[0].guild_score}</p>
+                  </div>
+                  <div className="flex items-center gap-3 text-[12px] text-cha">
+                    <span>⚡ {hallOfFame[0].spark_count}</span>
+                    <span>•</span>
+                    <span>Ideas {hallOfFame[0].topic_count}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {hallOfFame[2] && (
+              <div className="rounded-2xl border border-border bg-paper/75 p-4 shadow-[0_16px_32px_rgba(0,0,0,0.18)]">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-2xl">🥉</span>
+                  <span className="text-[10px] uppercase tracking-widest text-cha">Podium</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <UserAvatar username={hallOfFame[2].username ?? 'user'} size={40} />
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-medium text-ink truncate">@{hallOfFame[2].username}</p>
+                    <p className="text-[12px] text-ink-soft">Score {hallOfFame[2].guild_score}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       {entries.length === 0 ? (
         <div className="text-center py-24">
           <div className="text-3xl mb-3">⚡</div>
@@ -135,8 +207,8 @@ export default async function LeaderboardPage() {
         <>
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
-            {entries.map((entry, i) => {
-              const rank = i + 1
+            {rankedList.map((entry, i) => {
+              const rank = i + 4
               const isSelf = sparkWindow?.currentUserId === entry.id
               const alreadyGiven = sparkWindow?.sparkedUserId === entry.id
               const isDisabled = !isSelf && sparkWindow?.sparkedUserId !== null && sparkWindow?.sparkedUserId !== entry.id
@@ -187,22 +259,17 @@ export default async function LeaderboardPage() {
 
             {/* Rows */}
             <div className="stagger-children min-w-160">
-              {entries.map((entry, i) => {
-                const rank = i + 1
-                const isTop3 = rank <= 3
+              {rankedList.map((entry, i) => {
+                const rank = i + 4
                 const isSelf = sparkWindow?.currentUserId === entry.id
                 const alreadyGiven = sparkWindow?.sparkedUserId === entry.id
                 const isDisabled = !isSelf && sparkWindow?.sparkedUserId !== null && sparkWindow?.sparkedUserId !== entry.id
                 return (
                   <div
                     key={entry.id}
-                    className={`grid ${gridCols} gap-2 px-4 py-3 items-center border-b border-border last:border-0 transition-colors hover:bg-kinu/30 ${
-                      isTop3 ? 'bg-saffron-light/40' : ''
-                    }`}
+                    className={`grid ${gridCols} gap-2 px-4 py-3 items-center border-b border-border last:border-0 transition-colors hover:bg-kinu/30`}
                   >
-                    <span className={`text-[13px] font-semibold ${isTop3 ? 'text-saffron' : 'text-cha'}`}>
-                      {rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `#${rank}`}
-                    </span>
+                    <span className="text-[13px] font-semibold text-cha">#{rank}</span>
 
                     <div className="flex items-center gap-2.5 min-w-0">
                       <UserAvatar username={entry.username ?? 'user'} size={28} />

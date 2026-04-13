@@ -23,14 +23,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Cannot give a spark to yourself' }, { status: 400 })
   }
 
-  // Validate spark window: cycle must be closed and spark_closes_at in the future
-  const { data: cycle } = await supabase.from('cycles').select('status, spark_closes_at').eq('id', cycle_id).single()
+  // Spark is available once the cycle meeting date has passed.
+  const { data: cycle } = await supabase.from('cycles').select('status, meeting_at').eq('id', cycle_id).single()
 
-  if (!cycle || cycle.status !== 'closed') {
+  if (!cycle || cycle.status !== 'open') {
     return NextResponse.json({ error: 'Spark window is not active' }, { status: 400 })
   }
-  if (!cycle.spark_closes_at || new Date() >= new Date(cycle.spark_closes_at)) {
-    return NextResponse.json({ error: 'Spark window has closed' }, { status: 400 })
+  if (!cycle.meeting_at || new Date() < new Date(cycle.meeting_at)) {
+    return NextResponse.json({ error: 'Spark window opens after the cycle date' }, { status: 400 })
   }
 
   // DB trigger enforces 1 spark per user per cycle via UNIQUE(from_user_id, cycle_id)

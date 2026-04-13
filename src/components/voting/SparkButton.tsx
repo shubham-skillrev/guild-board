@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 interface Props {
   toUserId: string
@@ -12,6 +13,7 @@ interface Props {
 export function SparkButton({ toUserId, cycleId, alreadyGiven, isDisabled }: Props) {
   const [given, setGiven] = useState(alreadyGiven)
   const [loading, setLoading] = useState(false)
+  const router = useRouter()
 
   if (given) {
     return <span className="text-saffron text-[12px] font-semibold">⚡ Sparked</span>
@@ -31,6 +33,7 @@ export function SparkButton({ toUserId, cycleId, alreadyGiven, isDisabled }: Pro
       })
       if (res.ok || res.status === 409) {
         setGiven(true)
+        router.refresh()
       }
     } finally {
       setLoading(false)

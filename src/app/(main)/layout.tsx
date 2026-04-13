@@ -1,8 +1,10 @@
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { LogoutButton } from '@/components/layout/LogoutButton'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { DesktopNavLinks, MobileBottomNav } from '@/components/layout/NavLinks'
+import { UsernameSetupModal } from '@/components/auth/UsernameSetupModal'
 
 async function getUser() {
   try {
@@ -25,6 +27,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="min-h-screen bg-parchment flex flex-col overflow-x-hidden">
+      <Suspense fallback={null}>
+        <UsernameSetupModal />
+      </Suspense>
+
       {/* ─── Top bar — clean Peerlist-style nav ─── */}
       <header className="bg-paper/80 backdrop-blur-xl border-b border-border sticky top-0 z-30">
         <div className="flex items-center justify-between px-5 md:px-10 h-14 w-full max-w-7xl mx-auto">
@@ -58,7 +64,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
       </header>
 
       {/* ─── Main content ─── */}
-      <main className="flex-1 min-w-0 w-full pb-20 sm:pb-0">
+      <main className="flex-1 min-w-0 w-full pb-24 sm:pb-0">
         {children}
       </main>
 
@@ -66,7 +72,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
       <MobileBottomNav role={profile?.role} username={profile?.username} />
 
       {/* ─── Footer ─── */}
-      <footer className="border-t border-border px-5 py-5 mt-auto">
+      <footer className="hidden sm:block border-t border-border px-5 py-5 mt-auto">
         <p className="text-[11px] text-cha text-center tracking-wider uppercase">
           GuildBoard <span className="mx-1.5 text-border-strong">·</span> Crafted for builders
         </p>

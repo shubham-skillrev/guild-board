@@ -5,11 +5,8 @@ import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useTopics } from '@/hooks/useTopics'
 import { useUserTokens } from '@/hooks/useUserTokens'
 import { useAuth } from '@/hooks/useAuth'
-import { CycleStatusBanner } from '@/components/layout/CycleStatusBanner'
 import { TopicList } from '@/components/topics/TopicList'
-import { UsernameSetupModal } from '@/components/auth/UsernameSetupModal'
 import { SubmitModal } from '@/components/topics/SubmitModal'
-import { Suspense } from 'react'
 import type { Cycle, Topic } from '@/types'
 
 const MONTHS_SHORT = [
@@ -100,18 +97,13 @@ export default function BoardPage() {
 
   const isLoading = authLoading || cycleLoading
   const displayTopics = isViewingActive ? topics : archiveTopics
-  const displayPhase = isViewingActive ? phase : 'closed'
+  const displayPhase = isViewingActive ? phase : 'discussion'
 
   // Countdown text
-  const freezeDays = phase === 'open' ? daysUntil(cycle?.freezes_at) : null
-  const meetingDays = phase === 'frozen' ? daysUntil(cycle?.meeting_at) : null
+  const meetingDays = phase === 'open' ? daysUntil(cycle?.meeting_at) : null
 
   return (
     <>
-      <Suspense>
-        <UsernameSetupModal />
-      </Suspense>
-
       <div className="px-5 md:px-10 py-8 w-full max-w-5xl mx-auto">
         {/* ─── Page Header ─── */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-6 gap-3">
@@ -127,25 +119,20 @@ export default function BoardPage() {
             {/* Phase pill */}
             {isViewingActive && phase !== 'upcoming' && (
               <div className="flex items-center gap-2">
-                {(freezeDays !== null || meetingDays !== null) && (
+                {meetingDays !== null && (
                   <span className="text-[11px] text-cha hidden sm:block">
-                    {freezeDays !== null && `Freezes in ${freezeDays}d`}
-                    {meetingDays !== null && `Meeting in ${meetingDays}d`}
+                    {`Locks in ${meetingDays}d`}
                   </span>
                 )}
                 <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full ${
                   phase === 'open' ? 'bg-matcha-light text-matcha' :
-                  phase === 'frozen' ? 'bg-indigo-light text-indigo-jp' :
-                  phase === 'spark_active' ? 'bg-wisteria-light text-wisteria' :
-                  'bg-kinu text-cha'
+                  'bg-indigo-light text-indigo-jp'
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${
                     phase === 'open' ? 'bg-matcha animate-pulse-soft' :
-                    phase === 'frozen' ? 'bg-indigo-jp' :
-                    phase === 'spark_active' ? 'bg-wisteria animate-pulse-soft' :
-                    'bg-cha'
+                    'bg-indigo-jp'
                   }`} />
-                  {phase === 'open' ? 'Open for votes' : phase === 'frozen' ? 'Locked' : phase === 'spark_active' ? 'Spark window' : 'Closed'}
+                  {phase === 'open' ? 'Open for votes' : 'Discussion mode'}
                 </span>
               </div>
             )}

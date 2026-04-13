@@ -1,7 +1,12 @@
 import Link from 'next/link'
 import { SignupForm } from '@/components/auth/SignupForm'
+import { createClient } from '@/lib/supabase/server'
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const isAuthed = !!user
+
   return (
     <div className="min-h-screen bg-parchment flex flex-col font-sans">
       {/* Nav */}
@@ -13,10 +18,10 @@ export default function LandingPage() {
           </span>
         </div>
         <Link
-          href="/login"
+          href={isAuthed ? '/board' : '/login'}
           className="px-4 py-2 text-[13px] font-semibold text-ink bg-paper border border-border-strong rounded-lg hover:bg-kinu hover:border-cha transition-all"
         >
-          Sign in
+          {isAuthed ? 'Continue to Board' : 'Sign in'}
         </Link>
       </header>
 
@@ -41,10 +46,10 @@ export default function LandingPage() {
 
           <div className="lg:hidden">
             <Link
-              href="/login"
+              href={isAuthed ? '/board' : '/login'}
               className="inline-flex items-center justify-center px-5 py-2.5 text-[13px] font-semibold text-parchment bg-saffron rounded-lg hover:bg-saffron/90 transition-all"
             >
-              Sign in to continue
+              {isAuthed ? 'Continue to Board' : 'Get Started'}
             </Link>
           </div>
 
@@ -76,7 +81,23 @@ export default function LandingPage() {
 
         {/* Signup Form */}
         <div className="hidden lg:block w-full lg:max-w-sm pt-4 lg:pt-0">
-          <SignupForm />
+          {isAuthed ? (
+            <div className="w-full max-w-sm mx-auto bg-paper/80 backdrop-blur-sm p-7 rounded-xl border border-border relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-0.5 bg-linear-to-r from-saffron via-wisteria to-indigo-jp opacity-60" />
+              <div className="space-y-3 text-center">
+                <h2 className="font-serif text-xl font-bold text-ink">Welcome back</h2>
+                <p className="text-xs text-ink-soft">You are already signed in and ready to continue.</p>
+                <Link
+                  href="/board"
+                  className="inline-flex items-center justify-center w-full py-2.5 bg-saffron text-parchment rounded-lg text-sm font-semibold hover:bg-saffron/90 transition-all"
+                >
+                  Continue to Board
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <SignupForm />
+          )}
         </div>
       </main>
 

@@ -44,11 +44,11 @@ export async function GET(request: Request) {
     return NextResponse.json(data)
   }
 
-  // Return current active cycle: open > frozen > first upcoming
+  // Return current active cycle: open > first upcoming > latest cycle
   const { data, error } = await supabase
     .from('cycles')
     .select('*')
-    .in('status', ['open', 'frozen', 'upcoming'])
+    .in('status', ['open', 'upcoming', 'closed', 'frozen'])
     .order('year', { ascending: false })
     .order('month', { ascending: false })
 
@@ -56,8 +56,8 @@ export async function GET(request: Request) {
 
   const cycle =
     data.find(c => c.status === 'open') ??
-    data.find(c => c.status === 'frozen') ??
     data.find(c => c.status === 'upcoming') ??
+    data[0] ??
     null
 
   return NextResponse.json(cycle)

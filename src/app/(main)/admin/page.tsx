@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { CATEGORY_LABELS, OUTCOME_LABELS } from '@/lib/constants'
 import { AdminControls } from '@/components/admin/AdminControls'
+import { CycleListCards } from '@/components/admin/CycleListCards'
 import type { Cycle, Topic } from '@/types'
 
 const MONTHS = [
@@ -43,7 +44,7 @@ export default async function AdminPage() {
   if (!data) notFound()
 
   const { cycles, allTopics } = data
-  const activeCycle = cycles.find(c => c.status === 'open' || c.status === 'frozen') ?? cycles[0] ?? null
+  const activeCycle = cycles.find(c => c.status === 'open') ?? cycles[0] ?? null
   const activeCycleTopics = activeCycle
     ? allTopics.filter((t: any) => t.cycle_id === activeCycle.id)
     : []
@@ -70,35 +71,7 @@ export default async function AdminPage() {
         {cycles.length === 0 ? (
           <p className="text-[13px] text-cha">No cycles created yet.</p>
         ) : (
-          <div className="space-y-2">
-            {cycles.map((cycle: Cycle) => (
-              <div
-                key={cycle.id}
-                className="flex items-center justify-between p-4 bg-paper/50 rounded-xl border border-border hover:border-border-strong transition-colors"
-              >
-                <div>
-                  <p className="text-[14px] font-medium text-ink">{cycle.label}</p>
-                  <p className="text-[12px] text-cha mt-0.5">
-                    {cycle.opens_at
-                      ? `Opened ${new Date(cycle.opens_at).toLocaleDateString()}`
-                      : 'Not opened yet'}
-                    {cycle.meeting_at && ` · Meeting ${new Date(cycle.meeting_at).toLocaleDateString()}`}
-                  </p>
-                </div>
-                <span className={`text-[11px] font-medium px-2 py-1 rounded-full ${
-                  cycle.status === 'open'
-                    ? 'bg-matcha-light text-matcha'
-                    : cycle.status === 'frozen'
-                    ? 'bg-indigo-light text-indigo-jp'
-                    : cycle.status === 'closed'
-                    ? 'bg-kinu text-cha'
-                    : 'bg-saffron-light text-saffron'
-                }`}>
-                  {cycle.status}
-                </span>
-              </div>
-            ))}
-          </div>
+          <CycleListCards cycles={cycles as Cycle[]} />
         )}
       </section>
     </div>

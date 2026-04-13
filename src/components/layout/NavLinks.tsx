@@ -60,7 +60,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
   const isProfile = pathname.startsWith('/profile')
 
   return (
-    <nav className="sm:hidden fixed bottom-0 inset-x-0 z-40 bg-paper/95 backdrop-blur-xl border-t border-border">
+    <nav className="sm:hidden fixed left-0 right-0 bottom-0 z-50 bg-paper/95 backdrop-blur-xl border-t border-border pb-[env(safe-area-inset-bottom)]">
       <div className={cn('grid px-2 py-1.5', role === 'admin' ? 'grid-cols-4' : 'grid-cols-3')}>
         <Link
           href="/board"

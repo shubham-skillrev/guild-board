@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import type { Cycle } from '@/types'
-import { isSparkWindowActive } from '@/lib/utils/cycle'
+import { isInteractionLocked } from '@/lib/utils/cycle'
 
-export type CyclePhase = 'upcoming' | 'open' | 'frozen' | 'closed' | 'spark_active'
+export type CyclePhase = 'upcoming' | 'open' | 'discussion'
 
 interface CycleState {
   cycle: Cycle | null
@@ -25,8 +25,8 @@ export function useCurrentCycle() {
       .then((cycle: Cycle | null) => {
         let phase: CyclePhase = 'upcoming'
         if (cycle) {
-          if (isSparkWindowActive(cycle)) phase = 'spark_active'
-          else phase = cycle.status as CyclePhase
+          if (cycle.status === 'upcoming') phase = 'upcoming'
+          else phase = isInteractionLocked(cycle) ? 'discussion' : 'open'
         }
         setState({ cycle, phase, isLoading: false })
       })

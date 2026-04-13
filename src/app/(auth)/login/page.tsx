@@ -1,7 +1,9 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import Link from 'next/link'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 export default function LoginPage() {
   return (
@@ -12,12 +14,8 @@ export default function LoginPage() {
 }
 
 function LoginPageContent() {
-  const [mode, setMode] = useState<'google' | 'email'>('google')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [isSignup, setIsSignup] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [isAuthed, setIsAuthed] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
   const router = useRouter()
   const searchParams = useSearchParams()
   const oauthError = searchParams.get('error')
@@ -28,32 +26,28 @@ function LoginPageContent() {
         ? 'Google sign-in failed. Please try again.'
         : ''
 
-  const handleEmailAuth = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
+  useEffect(() => {
+    let mounted = true
+    const supabase = createClient()
 
-    try {
-      const endpoint = isSignup ? '/api/auth/email-signup' : '/api/auth/email-login'
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      })
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!mounted) return
+      setIsAuthed(!!user)
+      setCheckingAuth(false)
+    })
 
-      const data = await response.json()
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthed(!!session?.user)
+    })
 
-      if (!response.ok) {
-        setError(data.message || 'Authentication failed')
-        return
-      }
-
-      router.push(data.needsUsernameSetup ? '/board?setup=username' : '/board')
-    } catch {
-      setError('An error occurred. Please try again.')
-    } finally {
-      setLoading(false)
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
     }
+  }, [])
+
+  if (checkingAuth) {
+    return <LoginPageFallback />
   }
 
   return (
@@ -71,32 +65,7 @@ function LoginPageContent() {
           <p className="text-[11px] text-cha">Only @skillrev.dev accounts are allowed</p>
         </div>
 
-        {/* Mode Toggle */}
-        <div className="flex gap-0.5 bg-sumi p-0.5 rounded-lg border border-border">
-          <button
-            onClick={() => { setMode('google'); setError('') }}
-            className={`flex-1 py-2 px-3 rounded-md text-[13px] font-medium transition-all ${
-              mode === 'google'
-                ? 'bg-kinu text-ink shadow-sm'
-                : 'text-cha hover:text-ink'
-            }`}
-          >
-            Google
-          </button>
-          <button
-            onClick={() => { setMode('email'); setError('') }}
-            className={`flex-1 py-2 px-3 rounded-md text-[13px] font-medium transition-all ${
-              mode === 'email'
-                ? 'bg-kinu text-ink shadow-sm'
-                : 'text-cha hover:text-ink'
-            }`}
-          >
-            Email
-          </button>
-        </div>
-
-        {/* Google OAuth */}
-        {mode === 'google' && (
+        {!isAuthed ? (
           <form action="/api/auth/login" method="POST" className="space-y-3">
             <button
               type="submit"
@@ -116,65 +85,22 @@ function LoginPageContent() {
               </div>
             )}
           </form>
-        )}
-
-        {/* Email/Password Form */}
-        {mode === 'email' && (
-          <form onSubmit={handleEmailAuth} className="space-y-4">
-            <div>
-              <label htmlFor="email" className="block text-xs font-medium text-ink-soft mb-1.5">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-3 py-2 bg-sumi border border-border-strong rounded-lg text-sm text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron/50 placeholder:text-cha transition-all"
-                placeholder="you@company.com"
-              />
+        ) : (
+          <div className="space-y-3">
+            <div className="rounded-lg border border-border bg-paper px-4 py-3 text-center text-[13px] text-ink-soft">
+              You are already signed in.
             </div>
-
-            <div>
-              <label htmlFor="password" className="block text-xs font-medium text-ink-soft mb-1.5">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full px-3 py-2 bg-sumi border border-border-strong rounded-lg text-sm text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron/50 placeholder:text-cha transition-all"
-                placeholder="••••••••"
-              />
-            </div>
-
-            {error && (
-              <div className="p-3 bg-vermillion-light border border-vermillion/20 rounded-lg text-xs text-vermillion">
-                {error}
-              </div>
-            )}
-
             <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 bg-saffron text-parchment rounded-lg text-sm font-semibold hover:bg-saffron/90 disabled:opacity-50 transition-all"
+              type="button"
+              onClick={() => router.push('/board')}
+              className="w-full inline-flex items-center justify-center px-5 py-2.5 bg-saffron text-parchment rounded-lg text-sm font-semibold hover:bg-saffron/90 transition-all"
             >
-              {loading ? 'Signing in...' : isSignup ? 'Create Account' : 'Sign In'}
+              Continue to Board
             </button>
-
-            <div className="text-center">
-              <button
-                type="button"
-                onClick={() => { setIsSignup(!isSignup); setError('') }}
-                className="text-[13px] text-saffron/80 hover:text-saffron transition-colors"
-              >
-                {isSignup ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-              </button>
+            <div className="text-center text-[12px] text-cha">
+              Or <Link href="/" className="text-saffron hover:text-saffron/80 transition-colors">go to home</Link>
             </div>
-          </form>
+          </div>
         )}
       </div>
     </div>

@@ -33,6 +33,27 @@ export async function POST(request: Request) {
     )
   }
 
+  const normalizedUsername = username.toLowerCase()
+
+  const { data: profile } = await supabase
+    .from('users')
+    .select('real_name')
+    .eq('id', user.id)
+    .single()
+
+  const realNameTokens = String(profile?.real_name ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(' ')
+    .filter(token => token.length >= 3)
+
+  if (realNameTokens.some(token => normalizedUsername.includes(token))) {
+    return NextResponse.json(
+      { error: 'Username should not include your real name. Pick something more creative.' },
+      { status: 400 }
+    )
+  }
+
   // Check uniqueness
   const { data: existing } = await supabase
     .from('users')

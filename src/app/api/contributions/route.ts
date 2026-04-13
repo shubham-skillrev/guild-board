@@ -19,8 +19,11 @@ export async function POST(request: Request) {
   const { topic_id, cycle_id } = body
   if (!topic_id || !cycle_id) return NextResponse.json({ error: 'topic_id and cycle_id required' }, { status: 400 })
 
-  const { data: cycle } = await supabase.from('cycles').select('status').eq('id', cycle_id).single()
+  const { data: cycle } = await supabase.from('cycles').select('status, meeting_at').eq('id', cycle_id).single()
   if (cycle?.status !== 'open') return NextResponse.json({ error: 'Contributions are not open' }, { status: 400 })
+  if (cycle.meeting_at && new Date() >= new Date(cycle.meeting_at)) {
+    return NextResponse.json({ error: 'Contributions are locked after the cycle date' }, { status: 400 })
+  }
 
   // DB trigger enforces contribution limit
   const { data, error } = await supabase
@@ -57,8 +60,11 @@ export async function DELETE(request: Request) {
   const { data: topic } = await supabase.from('topics').select('cycle_id').eq('id', topic_id).single()
   if (!topic) return NextResponse.json({ error: 'Topic not found' }, { status: 404 })
 
-  const { data: cycle } = await supabase.from('cycles').select('status').eq('id', topic.cycle_id).single()
+  const { data: cycle } = await supabase.from('cycles').select('status, meeting_at').eq('id', topic.cycle_id).single()
   if (cycle?.status !== 'open') return NextResponse.json({ error: 'Contributions are not open' }, { status: 400 })
+  if (cycle.meeting_at && new Date() >= new Date(cycle.meeting_at)) {
+    return NextResponse.json({ error: 'Contributions are locked after the cycle date' }, { status: 400 })
+  }
 
   const { error } = await supabase
     .from('contributions')

@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     const { data: cycle } = await supabase
       .from('cycles')
       .select('id')
-      .in('status', ['open', 'frozen'])
+      .eq('status', 'open')
       .order('year', { ascending: false })
       .order('month', { ascending: false })
       .limit(1)

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CATEGORY_LABELS, OUTCOME_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils/cn'
-import type { Cycle, CycleStatus, OutcomeTag } from '@/types'
+import type { Cycle, OutcomeTag } from '@/types'
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -27,8 +27,6 @@ function nextMonth(): { month: number; year: number } {
   const y = now.getFullYear()
   return m > 12 ? { month: 1, year: y + 1 } : { month: m, year: y }
 }
-
-const VALID_OUTCOMES: OutcomeTag[] = ['discussed', 'blog_born', 'project_started', 'carry_forward', 'dropped']
 
 const OUTCOME_COLORS: Record<OutcomeTag, string> = {
   discussed: 'border-indigo-jp/40 bg-indigo-light text-indigo-jp',
@@ -61,13 +59,15 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
   const [newCycleYear, setNewCycleYear] = useState(suggested.year)
   const [meetingDate, setMeetingDate] = useState(getFirstFriday(suggested.month, suggested.year))
 
-  // Outcome form
-  const [editingOutcome, setEditingOutcome] = useState<string | null>(null)
-  const [outcomeTag, setOutcomeTag] = useState<OutcomeTag>('discussed')
-  const [outcomeNote, setOutcomeNote] = useState('')
+  const [activeMeetingDate, setActiveMeetingDate] = useState('')
 
-  // Close confirmation modal
-  const [confirmClose, setConfirmClose] = useState<{ cycleId: string; label: string } | null>(null)
+  useEffect(() => {
+    if (!activeCycle?.meeting_at) {
+      setActiveMeetingDate('')
+      return
+    }
+    setActiveMeetingDate(new Date(activeCycle.meeting_at).toISOString().split('T')[0])
+  }, [activeCycle?.meeting_at])
 
   const doAction = async (
     key: string,
@@ -89,24 +89,23 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
     }
   }
 
-  const setCycleStatus = (cycleId: string, status: CycleStatus) =>
-    doAction(`status-${cycleId}-${status}`, () =>
-      fetch('/api/admin/cycle-control', {
+  const updateCycleDate = (cycleId: string) =>
+    doAction(`date-${cycleId}`, () =>
+      fetch('/api/admin/cycles', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cycle_id: cycleId, status }),
+        body: JSON.stringify({ cycle_id: cycleId, meeting_at: activeMeetingDate || null }),
       })
     )
 
-  const handleCloseClick = (cycle: Cycle) => {
-    setConfirmClose({ cycleId: cycle.id, label: cycle.label })
-  }
-
-  const confirmCloseAction = () => {
-    if (!confirmClose) return
-    setConfirmClose(null)
-    setCycleStatus(confirmClose.cycleId, 'closed')
-  }
+  const deleteCycle = (cycleId: string) =>
+    doAction(`delete-${cycleId}`, () =>
+      fetch('/api/admin/cycles', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cycle_id: cycleId }),
+      })
+    )
 
   const selectTopic = (topicId: string, isSelected: boolean) =>
     doAction(`select-${topicId}`, () =>
@@ -122,22 +121,6 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
       },
     })
 
-  const saveOutcome = (topicId: string) =>
-    doAction(`outcome-${topicId}`, async () => {
-      const res = await fetch('/api/admin/outcome', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic_id: topicId, outcome_tag: outcomeTag, outcome_note: outcomeNote }),
-      })
-      setEditingOutcome(null)
-      return res
-    }, {
-      refresh: false,
-      onSuccess: () => {
-        setLocalTopics(prev => prev.map(t => t.id === topicId ? { ...t, outcome_tag: outcomeTag, outcome_note: outcomeNote } : t))
-      },
-    })
-
   const createCycle = () =>
     doAction('create-cycle', () => {
       const label = `${MONTHS[newCycleMonth - 1]} ${newCycleYear}`
@@ -150,15 +133,6 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
         body: JSON.stringify(body),
       })
     })
-
-  const triggerCarryForward = (cycleId: string) =>
-    doAction(`carry-${cycleId}`, () =>
-      fetch('/api/admin/carry-forward', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cycle_id: cycleId }),
-      })
-    )
 
   const isLoading = (key: string) => loading === key
   const anyLoading = !!loading
@@ -270,92 +244,35 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
             Active Cycle — {activeCycle.label}
           </h2>
 
-          {/* Status card */}
+          {/* Cycle controls */}
           <div className="p-5 bg-paper border border-border rounded-xl mb-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] text-cha">Current status:</span>
-              <span className={cn(
-                'text-[11px] font-semibold px-2.5 py-0.5 rounded-full',
-                activeCycle.status === 'open' && 'bg-matcha-light text-matcha',
-                activeCycle.status === 'frozen' && 'bg-indigo-light text-indigo-jp',
-                activeCycle.status === 'closed' && 'bg-kinu text-cha',
-                activeCycle.status === 'upcoming' && 'bg-saffron-light text-saffron',
-              )}>
-                {activeCycle.status}
-              </span>
+            <div className="grid sm:grid-cols-[1fr_auto] gap-3 items-end">
+              <div>
+                <label className="block text-[11px] font-medium text-cha uppercase tracking-wider mb-1">Cycle date</label>
+                <input
+                  type="date"
+                  value={activeMeetingDate}
+                  onChange={e => setActiveMeetingDate(e.target.value)}
+                  className="w-full max-w-xs px-3 py-2 bg-sumi border border-border-strong rounded-lg text-[13px] text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron/50"
+                />
+              </div>
+              <button
+                onClick={() => updateCycleDate(activeCycle.id)}
+                disabled={anyLoading}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-saffron/15 border border-saffron/40 text-saffron text-[13px] font-medium rounded-lg hover:bg-saffron/25 disabled:opacity-40 transition-all"
+              >
+                {isLoading(`date-${activeCycle.id}`) ? 'Saving…' : 'Update date'}
+              </button>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {/* upcoming → open */}
-              {activeCycle.status === 'upcoming' && (
-                <button
-                  onClick={() => setCycleStatus(activeCycle.id, 'open')}
-                  disabled={anyLoading}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-matcha/15 border border-matcha/40 text-matcha text-[13px] font-medium rounded-lg hover:bg-matcha/25 disabled:opacity-40 transition-all"
-                >
-                  {anyLoading ? '…' : '▶ Open cycle'}
-                </button>
-              )}
-
-              {/* open → freeze / close */}
-              {activeCycle.status === 'open' && (
-                <>
-                  <button
-                    onClick={() => setCycleStatus(activeCycle.id, 'frozen')}
-                    disabled={anyLoading}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-light border border-indigo-jp/30 text-indigo-jp text-[13px] font-medium rounded-lg hover:bg-indigo-jp/20 disabled:opacity-40 transition-all"
-                  >
-                    {anyLoading ? '…' : '❄ Freeze cycle'}
-                  </button>
-                  <button
-                    onClick={() => handleCloseClick(activeCycle)}
-                    disabled={anyLoading}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-vermillion-light border border-vermillion/30 text-vermillion text-[13px] font-medium rounded-lg hover:bg-vermillion/20 disabled:opacity-40 transition-all"
-                  >
-                    🔒 Close cycle
-                  </button>
-                </>
-              )}
-
-              {/* frozen → reopen / close */}
-              {activeCycle.status === 'frozen' && (
-                <>
-                  <button
-                    onClick={() => setCycleStatus(activeCycle.id, 'open')}
-                    disabled={anyLoading}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-matcha/15 border border-matcha/40 text-matcha text-[13px] font-medium rounded-lg hover:bg-matcha/25 disabled:opacity-40 transition-all"
-                  >
-                    {anyLoading ? '…' : '↩ Reopen cycle'}
-                  </button>
-                  <button
-                    onClick={() => handleCloseClick(activeCycle)}
-                    disabled={anyLoading}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-vermillion-light border border-vermillion/30 text-vermillion text-[13px] font-medium rounded-lg hover:bg-vermillion/20 disabled:opacity-40 transition-all"
-                  >
-                    🔒 Close cycle
-                  </button>
-                </>
-              )}
-
-              {/* closed → reopen / carry-forward */}
-              {activeCycle.status === 'closed' && (
-                <>
-                  <button
-                    onClick={() => setCycleStatus(activeCycle.id, 'open')}
-                    disabled={anyLoading}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-matcha/15 border border-matcha/40 text-matcha text-[13px] font-medium rounded-lg hover:bg-matcha/25 disabled:opacity-40 transition-all"
-                  >
-                    {anyLoading ? '…' : '↩ Reopen cycle'}
-                  </button>
-                  <button
-                    onClick={() => triggerCarryForward(activeCycle.id)}
-                    disabled={anyLoading}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-saffron/15 border border-saffron/40 text-saffron text-[13px] font-medium rounded-lg hover:bg-saffron/25 disabled:opacity-40 transition-all"
-                  >
-                    {anyLoading ? '…' : '⟳ Run carry-forward'}
-                  </button>
-                </>
-              )}
+              <button
+                onClick={() => deleteCycle(activeCycle.id)}
+                disabled={anyLoading}
+                className="inline-flex items-center gap-1.5 px-4 py-2 bg-vermillion-light border border-vermillion/30 text-vermillion text-[13px] font-medium rounded-lg hover:bg-vermillion/20 disabled:opacity-40 transition-all"
+              >
+                {isLoading(`delete-${activeCycle.id}`) ? 'Deleting…' : 'Delete cycle'}
+              </button>
             </div>
           </div>
 
@@ -415,99 +332,13 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                   >
                     {isLoading(`select-${topic.id}`) ? '…' : topic.is_selected ? 'Deselect' : '⭐ Select'}
                   </button>
-                  <button
-                    onClick={() => {
-                      setEditingOutcome(topic.id === editingOutcome ? null : topic.id)
-                      setOutcomeTag(topic.outcome_tag ?? 'discussed')
-                      setOutcomeNote(topic.outcome_note ?? '')
-                    }}
-                    className="px-3 py-1.5 text-[12px] font-medium bg-kinu border border-border text-ink-soft rounded-lg hover:text-ink hover:border-border-strong transition-all"
-                  >
-                    {topic.outcome_tag ? `✎ ${OUTCOME_LABELS[topic.outcome_tag]}` : 'Tag outcome'}
-                  </button>
                 </div>
-
-                {/* Outcome form */}
-                {editingOutcome === topic.id && (
-                  <div className="mt-3 pt-3 border-t border-border space-y-3">
-                    <div className="flex flex-wrap gap-1.5">
-                      {VALID_OUTCOMES.map(tag => (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => setOutcomeTag(tag)}
-                          className={cn(
-                            'px-2.5 py-1 text-[11px] font-medium rounded-full border transition-all',
-                            outcomeTag === tag
-                              ? OUTCOME_COLORS[tag]
-                              : 'border-border text-cha hover:border-border-strong hover:text-ink-soft',
-                          )}
-                        >
-                          {OUTCOME_LABELS[tag]}
-                        </button>
-                      ))}
-                    </div>
-                    <textarea
-                      value={outcomeNote}
-                      onChange={e => setOutcomeNote(e.target.value)}
-                      maxLength={500}
-                      rows={2}
-                      placeholder="Optional outcome note…"
-                      className="w-full px-3 py-2 bg-sumi border border-border-strong rounded-lg text-[12px] text-ink resize-none focus:outline-none focus:ring-1 focus:ring-saffron/40 placeholder:text-cha"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => saveOutcome(topic.id)}
-                        disabled={anyLoading}
-                        className="px-4 py-1.5 bg-saffron text-parchment text-[12px] font-semibold rounded-lg hover:bg-saffron/90 disabled:opacity-40 transition-all"
-                      >
-                        {isLoading(`outcome-${topic.id}`) ? 'Saving…' : 'Save outcome'}
-                      </button>
-                      <button
-                        onClick={() => setEditingOutcome(null)}
-                        className="px-3 py-1.5 text-[12px] text-cha hover:text-ink-soft transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* ─── Close confirmation modal ─── */}
-      {confirmClose && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-parchment/75 backdrop-blur-sm" onClick={() => setConfirmClose(null)} />
-          <div className="relative w-full max-w-md mx-4 bg-paper border border-border-strong rounded-xl shadow-2xl p-6 animate-fade-up">
-            <h3 className="font-serif text-lg font-semibold text-ink mb-2">Close this cycle?</h3>
-            <p className="text-[13px] text-ink-soft mb-1">
-              You're about to close <span className="font-semibold text-ink">{confirmClose.label}</span>.
-            </p>
-            <p className="text-[12px] text-cha mb-6">
-              This starts the 48-hour spark window and prevents new votes or contributions. You can still reopen the cycle afterwards.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={confirmCloseAction}
-                disabled={anyLoading}
-                className="px-5 py-2.5 bg-vermillion/20 border border-vermillion/40 text-vermillion text-[13px] font-semibold rounded-lg hover:bg-vermillion/30 disabled:opacity-40 transition-all"
-              >
-                🔒 Yes, close cycle
-              </button>
-              <button
-                onClick={() => setConfirmClose(null)}
-                className="px-5 py-2.5 bg-kinu border border-border text-ink-soft text-[13px] font-medium rounded-lg hover:bg-kinu/80 hover:text-ink transition-all"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

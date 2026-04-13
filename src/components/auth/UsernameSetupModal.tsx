@@ -1,15 +1,21 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 
 export function UsernameSetupModal() {
   const searchParams = useSearchParams()
+  const pathname = usePathname()
   const router = useRouter()
   const [username, setUsername] = useState('')
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const isOpen = searchParams.get('setup') === 'username'
+  const isEditMode = searchParams.get('source') === 'profile'
+
+  const hintText = isEditMode
+    ? 'Time for a disguise refresh. Pick a playful handle that feels like a secret codename, not your resume name.'
+    : 'Make it feel like a secret codename from a hacker movie. Keep your real name out of it and have some fun with it.'
 
   const validate = (value: string) => {
     if (value.length < 3) return 'Must be at least 3 characters'
@@ -39,10 +45,11 @@ export function UsernameSetupModal() {
         return
       }
 
-      // Remove ?setup=username from URL
+      // Remove setup flag from the current URL without changing the page.
       const params = new URLSearchParams(searchParams.toString())
       params.delete('setup')
-      const newUrl = params.toString() ? `/?${params}` : '/'
+      params.delete('source')
+      const newUrl = params.toString() ? `${pathname}?${params}` : pathname
       router.replace(newUrl)
     } catch {
       setError('Network error. Please try again.')
@@ -60,6 +67,9 @@ export function UsernameSetupModal() {
         <p className="text-cha text-[13px] mb-5">
           This is how you&apos;ll appear on GuildBoard. Choose wisely — it&apos;s permanent.
         </p>
+        <div className="mb-5 rounded-xl border border-border bg-kinu/50 px-4 py-3 text-[12px] leading-6 text-ink-soft">
+          {hintText}
+        </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <input
@@ -81,7 +91,7 @@ export function UsernameSetupModal() {
             disabled={isSubmitting || !!validate(username)}
             className="w-full py-2.5 bg-saffron text-parchment rounded-lg text-[13px] font-semibold hover:bg-saffron/90 disabled:opacity-50 transition-all"
           >
-            {isSubmitting ? 'Setting up...' : 'Lock it in'}
+            {isSubmitting ? 'Saving...' : isEditMode ? 'Update username' : 'Lock it in'}
           </button>
         </form>
       </div>

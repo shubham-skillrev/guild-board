@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 
@@ -48,9 +49,15 @@ export default async function ProfilePage() {
             <p className="text-[13px] text-cha mt-0.5">{profile.email}</p>
           </div>
         </div>
-        <div className="text-right">
+        <div className="text-right space-y-3">
           <p className="text-2xl font-bold text-ink tabular-nums">{profile.spark_count}</p>
           <p className="text-[11px] text-cha uppercase tracking-wider">sparks</p>
+          <Link
+            href="/board?setup=username&source=profile"
+            className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg border border-border bg-paper text-[12px] font-medium text-ink-soft hover:text-ink hover:border-border-strong transition-all"
+          >
+            Edit username
+          </Link>
         </div>
       </div>
 
