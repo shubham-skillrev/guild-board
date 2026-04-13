@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { LogoutButton } from '@/components/layout/LogoutButton'
 import { UserAvatar } from '@/components/ui/UserAvatar'
+import { DesktopNavLinks, MobileBottomNav } from '@/components/layout/NavLinks'
 
 async function getUser() {
   try {
@@ -23,7 +24,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const profile = await getUser()
 
   return (
-    <div className="min-h-screen bg-parchment flex flex-col">
+    <div className="min-h-screen bg-parchment flex flex-col overflow-x-hidden">
       {/* ─── Top bar — clean Peerlist-style nav ─── */}
       <header className="bg-paper/80 backdrop-blur-xl border-b border-border sticky top-0 z-30">
         <div className="flex items-center justify-between px-5 md:px-10 h-14 w-full max-w-7xl mx-auto">
@@ -35,28 +36,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
                 GuildBoard
               </span>
             </Link>
-            <nav className="hidden sm:flex items-center gap-0.5 text-[13px] font-medium">
-              <Link
-                href="/board"
-                className="px-3 py-1.5 rounded-md text-ink-soft hover:bg-kinu hover:text-ink transition-all"
-              >
-                Board
-              </Link>
-              <Link
-                href="/leaderboard"
-                className="px-3 py-1.5 rounded-md text-ink-soft hover:bg-kinu hover:text-ink transition-all"
-              >
-                Leaderboard
-              </Link>
-              {profile?.role === 'admin' && (
-                <Link
-                  href="/admin"
-                  className="px-3 py-1.5 rounded-md text-saffron/80 hover:bg-saffron-light hover:text-saffron transition-all"
-                >
-                  Admin
-                </Link>
-              )}
-            </nav>
+            <DesktopNavLinks role={profile?.role} />
           </div>
 
           {/* Right: Profile + Logout */}
@@ -64,7 +44,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             {profile && (
               <Link
                 href="/profile"
-                className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13px] text-ink-soft hover:bg-kinu transition-all group"
+                className="hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13px] text-ink-soft hover:bg-kinu transition-all group"
               >
                 <span className="w-7 h-7 rounded-full overflow-hidden border border-border-strong group-hover:border-saffron/40 transition-colors">
                   <UserAvatar username={profile.username ?? 'user'} size={28} />
@@ -78,9 +58,12 @@ export default async function MainLayout({ children }: { children: React.ReactNo
       </header>
 
       {/* ─── Main content ─── */}
-      <main className="flex-1 min-w-0 w-full">
+      <main className="flex-1 min-w-0 w-full pb-20 sm:pb-0">
         {children}
       </main>
+
+      {/* Mobile bottom nav */}
+      <MobileBottomNav role={profile?.role} username={profile?.username} />
 
       {/* ─── Footer ─── */}
       <footer className="border-t border-border px-5 py-5 mt-auto">

@@ -6,13 +6,22 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+import { getAllowedEmailDomainLabel, isAllowedEmailDomain } from '@/lib/utils/email'
 
 export async function POST(request: Request) {
   const { email, password } = await request.json()
+  const normalizedEmail = String(email ?? '').trim().toLowerCase()
 
-  if (!email || !password) {
+  if (!normalizedEmail || !password) {
     return NextResponse.json(
       { message: 'Email and password are required' },
+      { status: 400 }
+    )
+  }
+
+  if (!isAllowedEmailDomain(normalizedEmail)) {
+    return NextResponse.json(
+      { message: `Only @${getAllowedEmailDomainLabel()} email addresses are allowed` },
       { status: 400 }
     )
   }
@@ -29,7 +38,7 @@ export async function POST(request: Request) {
 
     // Create auth user with auto email confirmation (no email verification step)
     const { data, error } = await admin.auth.admin.createUser({
-      email,
+      email: normalizedEmail,
       password,
       email_confirm: true,
     })
@@ -46,7 +55,7 @@ export async function POST(request: Request) {
       .from('users')
       .insert({
         id: data.user.id,
-        email,
+        email: normalizedEmail,
         username: `user_${data.user.id.slice(0, 8)}`,
         role: 'user',
       })

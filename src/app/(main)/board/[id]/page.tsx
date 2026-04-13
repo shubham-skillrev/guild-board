@@ -52,6 +52,8 @@ export default function TopicDetailPage({
 
   // Delete state
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deletePending, setDeletePending] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   // Vote/contrib state
   const [votePending, setVotePending] = useState(false)
@@ -139,12 +141,25 @@ export default function TopicDetailPage({
 
   const handleDelete = async () => {
     if (!topic) return
-    const res = await fetch('/api/topics', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: topic.id }),
-    })
-    if (res.ok) router.push('/board')
+    setDeletePending(true)
+    setDeleteError('')
+    try {
+      const res = await fetch('/api/topics', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: topic.id }),
+      })
+      if (res.ok) {
+        router.push('/board')
+        return
+      }
+      const data = await res.json().catch(() => ({}))
+      setDeleteError(data.error ?? 'Delete failed. Please try again.')
+    } catch {
+      setDeleteError('Delete failed. Please check your connection and try again.')
+    } finally {
+      setDeletePending(false)
+    }
   }
 
   if (loading) {
@@ -157,7 +172,7 @@ export default function TopicDetailPage({
 
   if (error || !topic) {
     return (
-      <div className="px-5 md:px-10 py-12 w-full max-w-6xl mx-auto text-center py-24">
+      <div className="px-5 md:px-10 py-24 w-full max-w-6xl mx-auto text-center">
         <p className="text-ink-soft text-base mb-4">{error || 'Topic not found'}</p>
         <Link href="/board" className="text-saffron text-sm hover:underline">← Back to board</Link>
       </div>
@@ -174,7 +189,7 @@ export default function TopicDetailPage({
         Back to board
       </Link>
 
-      <div className="flex gap-8">
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">
         {/* ─── Main content ─── */}
         <div className="flex-1 min-w-0">
           {/* Badges */}
@@ -231,20 +246,22 @@ export default function TopicDetailPage({
               <div className="flex items-start justify-between gap-3 mb-4">
                 <h1 className="font-serif text-2xl font-bold text-ink leading-snug">{topic.title}</h1>
                 {isOwner && phase === 'open' && (
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => setEditing(true)}
-                      className="p-2 text-cha hover:text-ink-soft hover:bg-kinu/40 rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1 p-2 text-cha hover:text-ink-soft hover:bg-kinu/40 rounded-lg transition-colors"
                       title="Edit topic"
                     >
                       <FiEdit2 className="w-4 h-4" />
+                      <span className="text-[12px] hidden sm:inline">Edit</span>
                     </button>
                     <button
                       onClick={() => setConfirmDelete(true)}
-                      className="p-2 text-cha hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1 p-2 text-cha hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
                       title="Delete topic"
                     >
                       <FiTrash2 className="w-4 h-4" />
+                      <span className="text-[12px] hidden sm:inline">Delete</span>
                     </button>
                   </div>
                 )}
@@ -252,17 +269,23 @@ export default function TopicDetailPage({
 
               {/* Delete confirmation */}
               {confirmDelete && (
-                <div className="flex items-center gap-3 mb-4 px-4 py-3 bg-red-400/10 border border-red-400/20 rounded-lg text-[13px]">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 px-4 py-3 bg-red-400/10 border border-red-400/20 rounded-lg text-[13px]">
                   <span className="text-red-400">Permanently delete this topic?</span>
                   <button
                     onClick={handleDelete}
-                    className="px-3 py-1 bg-red-400 text-parchment rounded-md text-[12px] font-medium hover:bg-red-500 transition-colors"
+                    disabled={deletePending}
+                    className="px-3 py-1 bg-red-400 text-parchment rounded-md text-[12px] font-medium hover:bg-red-500 transition-colors disabled:opacity-60"
                   >
-                    Yes, delete
+                    {deletePending ? 'Deleting...' : 'Yes, delete'}
                   </button>
                   <button onClick={() => setConfirmDelete(false)} className="text-cha hover:text-ink-soft text-[12px]">
                     Cancel
                   </button>
+                </div>
+              )}
+              {deleteError && (
+                <div className="mb-4 px-4 py-3 bg-vermillion-light border border-vermillion/20 rounded-lg text-[12px] text-vermillion">
+                  {deleteError}
                 </div>
               )}
 
@@ -283,7 +306,7 @@ export default function TopicDetailPage({
           )}
 
           {/* Vote + Contrib bar */}
-          <div className="flex items-center gap-3 mb-8 pb-6 border-b border-border">
+          <div className="flex flex-wrap items-center gap-3 mb-8 pb-6 border-b border-border">
             <button
               onClick={handleVote}
               disabled={!canVote || votePending}
@@ -332,8 +355,8 @@ export default function TopicDetailPage({
         </div>
 
         {/* ─── Right sidebar: Contributors ─── */}
-        <aside className="hidden lg:block w-64 shrink-0">
-          <div className="sticky top-20">
+        <aside className="w-full lg:w-64 shrink-0">
+          <div className="lg:sticky lg:top-20">
             <div className="bg-paper/50 border border-border rounded-xl p-4">
               <h3 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-3">
                 Contributors ({topic.contributors.length})

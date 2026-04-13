@@ -208,7 +208,7 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit 
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-3 mt-1.5 opacity-0 group-hover/comment:opacity-100 transition-opacity">
+        <div className="flex items-center gap-3 mt-1.5 opacity-100 md:opacity-0 md:group-hover/comment:opacity-100 transition-opacity">
           {depth < maxDepth && (
             <button
               onClick={() => onReply(comment.id, comment.author_username ?? 'user')}

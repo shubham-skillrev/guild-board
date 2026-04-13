@@ -7,6 +7,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+import { isAllowedEmailDomain } from '@/lib/utils/email'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -21,6 +22,11 @@ export async function GET(request: Request) {
 
   if (error || !data.user) {
     return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+  }
+
+  if (!isAllowedEmailDomain(data.user.email ?? null)) {
+    await supabase.auth.signOut()
+    return NextResponse.redirect(`${origin}/login?error=domain_not_allowed`)
   }
 
   const admin = createAdminClient()

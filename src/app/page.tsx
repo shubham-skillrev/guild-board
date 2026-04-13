@@ -39,6 +39,15 @@ export default function LandingPage() {
             Your monthly engineering guild meeting, reinvented.
           </p>
 
+          <div className="lg:hidden">
+            <Link
+              href="/login"
+              className="inline-flex items-center justify-center px-5 py-2.5 text-[13px] font-semibold text-parchment bg-saffron rounded-lg hover:bg-saffron/90 transition-all"
+            >
+              Sign in to continue
+            </Link>
+          </div>
+
           {/* Three pillars — Japanese gate-style cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4">
             <div className="group p-5 bg-paper/60 border border-border hover:border-saffron/30 transition-all rounded-xl">
@@ -66,7 +75,7 @@ export default function LandingPage() {
         </div>
 
         {/* Signup Form */}
-        <div className="w-full lg:max-w-sm pt-4 lg:pt-0">
+        <div className="hidden lg:block w-full lg:max-w-sm pt-4 lg:pt-0">
           <SignupForm />
         </div>
       </main>

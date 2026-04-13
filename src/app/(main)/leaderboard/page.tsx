@@ -132,77 +132,116 @@ export default async function LeaderboardPage() {
           <p className="text-[13px] mt-1 text-cha">Start contributing to earn sparks and climb the ranks.</p>
         </div>
       ) : (
-        <div className="bg-paper/50 border border-border rounded-xl overflow-hidden">
-          {/* Table header */}
-          <div className={`grid ${gridCols} gap-2 px-4 py-3 border-b border-border text-[11px] font-semibold text-cha uppercase tracking-wider`}>
-            <span>#</span>
-            <span>Builder</span>
-            <span className="text-right">Ideas</span>
-            <span className="text-right">Picked</span>
-            <span className="text-right">Sparks</span>
-            {hasSparkWindow && <span className="text-right">Give Spark</span>}
-          </div>
-
-          {/* Rows */}
-          <div className="stagger-children">
+        <>
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-2">
             {entries.map((entry, i) => {
               const rank = i + 1
-              const isTop3 = rank <= 3
               const isSelf = sparkWindow?.currentUserId === entry.id
               const alreadyGiven = sparkWindow?.sparkedUserId === entry.id
               const isDisabled = !isSelf && sparkWindow?.sparkedUserId !== null && sparkWindow?.sparkedUserId !== entry.id
               return (
-                <div
-                  key={entry.id}
-                  className={`grid ${gridCols} gap-2 px-4 py-3 items-center border-b border-border last:border-0 transition-colors hover:bg-kinu/30 ${
-                    isTop3 ? 'bg-saffron-light/40' : ''
-                  }`}
-                >
-                  {/* Rank */}
-                  <span className={`text-[13px] font-semibold ${isTop3 ? 'text-saffron' : 'text-cha'}`}>
-                    {rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `#${rank}`}
-                  </span>
-
-                  {/* User */}
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <UserAvatar username={entry.username ?? 'user'} size={28} />
-                    <div className="min-w-0 flex items-center gap-1.5">
-                      <span className="text-[13px] font-medium text-ink truncate">@{entry.username}</span>
-                      {entry.hall_of_flame && (
-                        <span title="Hall of Flame" className="text-xs">🔥</span>
-                      )}
+                <div key={entry.id} className="bg-paper/60 border border-border rounded-xl p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-[12px] font-semibold text-cha w-8 shrink-0">
+                        {rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `#${rank}`}
+                      </span>
+                      <UserAvatar username={entry.username ?? 'user'} size={28} />
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-medium text-ink truncate">@{entry.username}</div>
+                        <div className="text-[11px] text-cha">Score {entry.guild_score}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[12px] text-ink">⚡ {entry.spark_count}</div>
+                      <div className="text-[11px] text-cha">Picked {entry.selected_count}</div>
                     </div>
                   </div>
-
-                  {/* Stats */}
-                  <span className="text-[13px] text-ink-soft text-right tabular-nums">{entry.topic_count}</span>
-                  <span className="text-[13px] text-ink-soft text-right tabular-nums">{entry.selected_count}</span>
-                  <span className={`text-[13px] font-semibold text-right tabular-nums ${
-                    entry.spark_count >= HALL_OF_FLAME_THRESHOLD ? 'text-saffron' : 'text-ink'
-                  }`}>
-                    ⚡ {entry.spark_count}
-                  </span>
-
-                  {/* Spark button — only shown during spark window, not for own row */}
-                  {hasSparkWindow && (
-                    <div className="flex justify-end">
-                      {isSelf ? (
-                        <span className="text-cha text-[12px]">You</span>
-                      ) : (
-                        <SparkButton
-                          toUserId={entry.id}
-                          cycleId={sparkWindow!.cycleId}
-                          alreadyGiven={alreadyGiven}
-                          isDisabled={!!isDisabled}
-                        />
-                      )}
+                  {hasSparkWindow && !isSelf && (
+                    <div className="mt-2 flex justify-end">
+                      <SparkButton
+                        toUserId={entry.id}
+                        cycleId={sparkWindow!.cycleId}
+                        alreadyGiven={alreadyGiven}
+                        isDisabled={!!isDisabled}
+                      />
                     </div>
                   )}
                 </div>
               )
             })}
           </div>
-        </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block bg-paper/50 border border-border rounded-xl overflow-x-auto">
+            {/* Table header */}
+            <div className={`grid ${gridCols} gap-2 px-4 py-3 border-b border-border text-[11px] font-semibold text-cha uppercase tracking-wider min-w-160`}>
+              <span>#</span>
+              <span>Builder</span>
+              <span className="text-right">Ideas</span>
+              <span className="text-right">Picked</span>
+              <span className="text-right">Sparks</span>
+              {hasSparkWindow && <span className="text-right">Give Spark</span>}
+            </div>
+
+            {/* Rows */}
+            <div className="stagger-children min-w-160">
+              {entries.map((entry, i) => {
+                const rank = i + 1
+                const isTop3 = rank <= 3
+                const isSelf = sparkWindow?.currentUserId === entry.id
+                const alreadyGiven = sparkWindow?.sparkedUserId === entry.id
+                const isDisabled = !isSelf && sparkWindow?.sparkedUserId !== null && sparkWindow?.sparkedUserId !== entry.id
+                return (
+                  <div
+                    key={entry.id}
+                    className={`grid ${gridCols} gap-2 px-4 py-3 items-center border-b border-border last:border-0 transition-colors hover:bg-kinu/30 ${
+                      isTop3 ? 'bg-saffron-light/40' : ''
+                    }`}
+                  >
+                    <span className={`text-[13px] font-semibold ${isTop3 ? 'text-saffron' : 'text-cha'}`}>
+                      {rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `#${rank}`}
+                    </span>
+
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <UserAvatar username={entry.username ?? 'user'} size={28} />
+                      <div className="min-w-0 flex items-center gap-1.5">
+                        <span className="text-[13px] font-medium text-ink truncate">@{entry.username}</span>
+                        {entry.hall_of_flame && (
+                          <span title="Hall of Flame" className="text-xs">🔥</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <span className="text-[13px] text-ink-soft text-right tabular-nums">{entry.topic_count}</span>
+                    <span className="text-[13px] text-ink-soft text-right tabular-nums">{entry.selected_count}</span>
+                    <span className={`text-[13px] font-semibold text-right tabular-nums ${
+                      entry.spark_count >= HALL_OF_FLAME_THRESHOLD ? 'text-saffron' : 'text-ink'
+                    }`}>
+                      ⚡ {entry.spark_count}
+                    </span>
+
+                    {hasSparkWindow && (
+                      <div className="flex justify-end">
+                        {isSelf ? (
+                          <span className="text-cha text-[12px]">You</span>
+                        ) : (
+                          <SparkButton
+                            toUserId={entry.id}
+                            cycleId={sparkWindow!.cycleId}
+                            alreadyGiven={alreadyGiven}
+                            isDisabled={!!isDisabled}
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Scoring note */}

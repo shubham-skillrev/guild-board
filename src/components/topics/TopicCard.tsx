@@ -61,6 +61,8 @@ export function TopicCard({
   const canContrib = phase === 'open' && !isOwner
   const style = CATEGORY_STYLES[topic.category] ?? CATEGORY_STYLES.discussion
   const commentCount = (topic as Topic & { comment_count?: number }).comment_count ?? 0
+  const titlePreview = topic.title.length > 52 ? `${topic.title.slice(0, 52)}...` : topic.title
+  const descriptionPreview = topic.description.length > 50 ? `${topic.description.slice(0, 50)}...` : topic.description
 
   const hasVoted = !!topic.user_has_voted
   const hasContributed = !!topic.user_has_contribed
@@ -87,8 +89,9 @@ export function TopicCard({
     <Link
       href={`/board/${topic.id}`}
       className={cn(
-        'group flex gap-4 bg-paper/50 border border-border rounded-xl p-4 transition-all hover:border-border-strong hover:bg-paper/80',
+        'group flex gap-3 sm:gap-4 bg-paper/50 border border-border rounded-xl p-3.5 sm:p-4 transition-all hover:border-border-strong hover:bg-paper/80',
         topic.is_selected && 'ring-1 ring-saffron/30 border-saffron/20',
+        (votePending || contribPending) && 'opacity-75',
       )}
     >
       {/* Rank */}
@@ -102,7 +105,7 @@ export function TopicCard({
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0 space-y-2">
+      <div className="flex-1 min-w-0 space-y-1.5">
         {/* Badges */}
         <div className="flex flex-wrap items-center gap-1.5">
           <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full', style.badge)}>
@@ -118,13 +121,13 @@ export function TopicCard({
         </div>
 
         {/* Title */}
-        <h3 className="font-semibold text-ink text-[15px] leading-snug group-hover:text-saffron transition-colors">
-          {topic.title}
+        <h3 className="font-semibold text-ink text-[14px] sm:text-[15px] leading-snug group-hover:text-saffron transition-colors truncate">
+          {titlePreview}
         </h3>
 
         {/* Description preview */}
-        <p className="text-ink-soft text-[13px] leading-relaxed line-clamp-2">
-          {topic.description}
+        <p className="text-ink-soft text-[12px] sm:text-[13px] leading-relaxed truncate">
+          {descriptionPreview}
         </p>
 
         {/* Bottom: author + comments */}
@@ -141,21 +144,21 @@ export function TopicCard({
       </div>
 
       {/* Right: Vote + Contrib */}
-      <div className="flex flex-col items-center gap-1.5 shrink-0 pt-0.5">
+      <div className="flex flex-col items-center gap-1.5 shrink-0 pt-0.5 justify-end">
         {/* Upvote button */}
         <button
           onClick={handleVote}
           disabled={!canVote || voteDisabled}
           aria-label={hasVoted ? 'Remove vote' : 'Upvote'}
           className={cn(
-            'flex flex-col items-center justify-center gap-0.5 w-14 h-[72px] rounded-xl border text-center transition-all',
+            'flex flex-col items-center justify-center gap-0.5 w-12 sm:w-14 h-16 sm:h-18 rounded-xl border text-center transition-all',
             canVote && !voteDisabled && 'cursor-pointer',
             hasVoted
-              ? 'bg-saffron/15 border-saffron/40 text-saffron shadow-[0_0_12px_rgba(232,145,58,0.15)]'
+              ? 'bg-saffron/20 border-saffron/60 text-saffron shadow-[0_0_12px_rgba(232,145,58,0.2)]'
               : canVote && !voteDisabled
-                ? 'bg-paper border-border text-ink-soft hover:border-saffron/30 hover:text-saffron hover:bg-saffron/5'
-                : 'bg-paper/50 border-border text-cha',
-            (votePending || (!canVote && !hasVoted)) && 'opacity-50 cursor-default',
+                ? 'bg-kinu/40 border-border-strong text-ink hover:border-saffron/45 hover:text-saffron hover:bg-saffron/10'
+                : 'bg-kinu/30 border-border-strong text-ink-soft',
+            votePending && 'opacity-70 cursor-default',
           )}
         >
           {hasVoted ? (
@@ -163,7 +166,7 @@ export function TopicCard({
           ) : (
             <BiUpvote className="w-5 h-5" />
           )}
-          <span className="text-sm font-bold tabular-nums leading-none">{topic.vote_count}</span>
+          <span className="text-[15px] font-bold tabular-nums leading-none">{topic.vote_count}</span>
         </button>
 
         {/* Contrib button */}
@@ -172,18 +175,18 @@ export function TopicCard({
           disabled={!canContrib || contribDisabled}
           aria-label={hasContributed ? 'Withdraw' : "I'll contribute"}
           className={cn(
-            'flex items-center justify-center gap-1 w-14 h-9 rounded-lg border text-[12px] font-medium transition-all',
+            'flex items-center justify-center gap-1 w-12 sm:w-14 h-9 rounded-lg border text-[12px] font-medium transition-all',
             canContrib && !contribDisabled && 'cursor-pointer',
             hasContributed
-              ? 'bg-matcha/15 border-matcha/40 text-matcha shadow-[0_0_10px_rgba(61,184,138,0.12)]'
+              ? 'bg-matcha/20 border-matcha/60 text-matcha shadow-[0_0_10px_rgba(61,184,138,0.18)]'
               : canContrib && !contribDisabled
-                ? 'bg-paper border-border text-ink-soft hover:border-matcha/30 hover:text-matcha hover:bg-matcha/5'
-                : 'bg-paper/50 border-border text-cha',
-            (contribPending || (!canContrib && !hasContributed)) && 'opacity-50 cursor-default',
+                ? 'bg-kinu/40 border-border-strong text-ink hover:border-matcha/45 hover:text-matcha hover:bg-matcha/10'
+                : 'bg-kinu/30 border-border-strong text-ink-soft',
+            contribPending && 'opacity-70 cursor-default',
           )}
         >
           <FaHandshake className={cn('w-3.5 h-3.5', hasContributed && 'scale-110')} />
-          <span className="tabular-nums">{topic.contrib_count}</span>
+          <span className="tabular-nums font-semibold">{topic.contrib_count}</span>
         </button>
       </div>
     </Link>

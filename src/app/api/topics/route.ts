@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'title, description, and category are required' }, { status: 400 })
   }
   if (title.length > 80) return NextResponse.json({ error: 'Title too long' }, { status: 400 })
-  if (description.length > 2000) return NextResponse.json({ error: 'Description too long' }, { status: 400 })
+  if (description.length > 1000) return NextResponse.json({ error: 'Description too long (max 1000 characters)' }, { status: 400 })
 
   // Get current open cycle
   const { data: cycle } = await supabase
@@ -152,7 +152,7 @@ export async function PATCH(request: Request) {
     updates.title = title.trim()
   }
   if (description?.trim()) {
-    if (description.length > 2000) return NextResponse.json({ error: 'Description too long' }, { status: 400 })
+    if (description.length > 1000) return NextResponse.json({ error: 'Description too long (max 1000 characters)' }, { status: 400 })
     updates.description = description.trim()
   }
   if (category) updates.category = category

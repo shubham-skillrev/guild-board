@@ -37,11 +37,12 @@ export function SignupForm() {
       })
 
       if (loginResp.ok) {
-         router.push('/board')
+         const loginData = await loginResp.json()
+         router.push(loginData.needsUsernameSetup ? '/board?setup=username' : '/board')
       } else {
          router.push('/login')
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred. Please try again.')
     } finally {
       setLoading(false)
@@ -60,6 +61,7 @@ export function SignupForm() {
         <p className="text-xs text-ink-soft">
           Start pitching ideas and voting on what matters.
         </p>
+        <p className="text-[11px] text-cha">Only @skillrev.dev accounts are allowed</p>
       </div>
 
       {/* Mode Toggle */}

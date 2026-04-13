@@ -6,13 +6,22 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { getAllowedEmailDomainLabel, isAllowedEmailDomain } from '@/lib/utils/email'
 
 export async function POST(request: Request) {
   const { email, password } = await request.json()
+  const normalizedEmail = String(email ?? '').trim().toLowerCase()
 
-  if (!email || !password) {
+  if (!normalizedEmail || !password) {
     return NextResponse.json(
       { message: 'Email and password are required' },
+      { status: 400 }
+    )
+  }
+
+  if (!isAllowedEmailDomain(normalizedEmail)) {
+    return NextResponse.json(
+      { message: `Only @${getAllowedEmailDomainLabel()} email addresses are allowed` },
       { status: 400 }
     )
   }
@@ -21,7 +30,7 @@ export async function POST(request: Request) {
     // Use server client so session cookies are automatically set via next/headers
     const supabase = await createClient()
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password })
 
     if (error || !data.session) {
       return NextResponse.json(
@@ -30,7 +39,15 @@ export async function POST(request: Request) {
       )
     }
 
-    return NextResponse.json({ message: 'Sign in successful' }, { status: 200 })
+    const { data: profile } = await supabase
+      .from('users')
+      .select('username')
+      .eq('id', data.user.id)
+      .maybeSingle()
+
+    const needsUsernameSetup = !profile?.username || profile.username.startsWith('user_')
+
+    return NextResponse.json({ message: 'Sign in successful', needsUsernameSetup }, { status: 200 })
   } catch (error: any) {
     return NextResponse.json(
       { message: error?.message || 'An error occurred' },

@@ -28,7 +28,7 @@ export const OUTCOME_LABELS: Record<string, string> = {
 }
 
 export const TITLE_MAX_LENGTH = 80
-export const DESCRIPTION_MAX_LENGTH = 2000
+export const DESCRIPTION_MAX_LENGTH = 1000
 export const OUTCOME_NOTE_MAX_LENGTH = 500
 
 export const SPARK_WINDOW_HOURS = 48

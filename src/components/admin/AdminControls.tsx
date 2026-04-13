@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CATEGORY_LABELS, OUTCOME_LABELS } from '@/lib/constants'
 import { cn } from '@/lib/utils/cn'
@@ -48,6 +48,11 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [localTopics, setLocalTopics] = useState<any[]>(topics)
+
+  useEffect(() => {
+    setLocalTopics(topics)
+  }, [topics])
 
   // New cycle form
   const [showNewCycle, setShowNewCycle] = useState(false)
@@ -64,14 +69,19 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
   // Close confirmation modal
   const [confirmClose, setConfirmClose] = useState<{ cycleId: string; label: string } | null>(null)
 
-  const doAction = async (key: string, fn: () => Promise<Response>) => {
+  const doAction = async (
+    key: string,
+    fn: () => Promise<Response>,
+    options?: { refresh?: boolean; onSuccess?: (data: any) => void }
+  ) => {
     setError('')
     setLoading(key)
     try {
       const res = await fn()
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Request failed'); return }
-      router.refresh()
+      options?.onSuccess?.(data)
+      if (options?.refresh !== false) router.refresh()
     } catch {
       setError('Network error — please try again')
     } finally {
@@ -105,7 +115,12 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic_id: topicId, is_selected: isSelected }),
       })
-    )
+    , {
+      refresh: false,
+      onSuccess: () => {
+        setLocalTopics(prev => prev.map(t => t.id === topicId ? { ...t, is_selected: isSelected } : t))
+      },
+    })
 
   const saveOutcome = (topicId: string) =>
     doAction(`outcome-${topicId}`, async () => {
@@ -116,6 +131,11 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
       })
       setEditingOutcome(null)
       return res
+    }, {
+      refresh: false,
+      onSuccess: () => {
+        setLocalTopics(prev => prev.map(t => t.id === topicId ? { ...t, outcome_tag: outcomeTag, outcome_note: outcomeNote } : t))
+      },
     })
 
   const createCycle = () =>
@@ -341,10 +361,10 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
 
           {/* Topic rows */}
           <div className="space-y-2.5">
-            {topics.length === 0 && (
+            {localTopics.length === 0 && (
               <p className="text-[13px] text-cha italic px-1">No topics submitted yet.</p>
             )}
-            {topics.map((topic: any) => (
+            {localTopics.map((topic: any) => (
               <div
                 key={topic.id}
                 className={cn(
@@ -375,7 +395,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                     <p className="text-[14px] font-medium text-ink">{topic.title}</p>
                     <p className="text-[12px] text-ink-soft mt-0.5 line-clamp-1">{topic.description}</p>
                   </div>
-                  <div className="shrink-0 text-right min-w-[56px]">
+                  <div className="shrink-0 text-right min-w-14">
                     <p className="text-[15px] font-bold text-ink tabular-nums">{topic.score.toFixed(1)}</p>
                     <p className="text-[11px] text-cha tabular-nums">▲{topic.vote_count} · 🤝{topic.contrib_count}</p>
                   </div>

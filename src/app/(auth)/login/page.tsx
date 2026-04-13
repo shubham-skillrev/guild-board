@@ -1,9 +1,17 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
+  )
+}
+
+function LoginPageContent() {
   const [mode, setMode] = useState<'google' | 'email'>('google')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -11,6 +19,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const oauthError = searchParams.get('error')
+  const oauthErrorMessage =
+    oauthError === 'domain_not_allowed'
+      ? 'Only @skillrev.dev Google accounts are allowed.'
+      : oauthError
+        ? 'Google sign-in failed. Please try again.'
+        : ''
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,8 +48,8 @@ export default function LoginPage() {
         return
       }
 
-      router.push('/board')
-    } catch (err) {
+      router.push(data.needsUsernameSetup ? '/board?setup=username' : '/board')
+    } catch {
       setError('An error occurred. Please try again.')
     } finally {
       setLoading(false)
@@ -52,6 +68,7 @@ export default function LoginPage() {
           <p className="text-sm text-ink-soft">
             Sign in to your engineering guild
           </p>
+          <p className="text-[11px] text-cha">Only @skillrev.dev accounts are allowed</p>
         </div>
 
         {/* Mode Toggle */}
@@ -80,7 +97,7 @@ export default function LoginPage() {
 
         {/* Google OAuth */}
         {mode === 'google' && (
-          <form action="/api/auth/login" method="POST">
+          <form action="/api/auth/login" method="POST" className="space-y-3">
             <button
               type="submit"
               className="w-full inline-flex items-center justify-center gap-3 px-5 py-2.5 bg-paper border border-border-strong rounded-lg text-ink text-sm font-medium hover:bg-kinu transition-all"
@@ -93,6 +110,11 @@ export default function LoginPage() {
               </svg>
               Sign in with Google
             </button>
+            {oauthErrorMessage && (
+              <div className="p-3 bg-vermillion-light border border-vermillion/20 rounded-lg text-xs text-vermillion">
+                {oauthErrorMessage}
+              </div>
+            )}
           </form>
         )}
 
@@ -154,6 +176,21 @@ export default function LoginPage() {
             </div>
           </form>
         )}
+      </div>
+    </div>
+  )
+}
+
+function LoginPageFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-parchment pattern-asanoha glow-saffron">
+      <div className="w-full max-w-sm p-8">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 w-32 mx-auto rounded bg-kinu/60" />
+          <div className="h-10 rounded-lg bg-kinu/60" />
+          <div className="h-10 rounded-lg bg-kinu/60" />
+          <div className="h-10 rounded-lg bg-kinu/60" />
+        </div>
       </div>
     </div>
   )

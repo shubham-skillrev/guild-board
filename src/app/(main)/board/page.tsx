@@ -114,7 +114,7 @@ export default function BoardPage() {
 
       <div className="px-5 md:px-10 py-8 w-full max-w-5xl mx-auto">
         {/* ─── Page Header ─── */}
-        <div className="flex items-start justify-between mb-6 gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-6 gap-3">
           <div>
             <h1 className="font-serif text-2xl font-bold text-ink tracking-tight">
               The Board
@@ -123,7 +123,7 @@ export default function BoardPage() {
               {viewingCycle ? viewingCycle.label : 'What shall we build next?'}
             </p>
           </div>
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
             {/* Phase pill */}
             {isViewingActive && phase !== 'upcoming' && (
               <div className="flex items-center gap-2">
@@ -153,7 +153,7 @@ export default function BoardPage() {
             {isViewingActive && phase === 'open' && !topic_submitted && (
               <button
                 onClick={() => setShowSubmit(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-saffron text-parchment text-[13px] font-semibold rounded-lg hover:bg-saffron/90 transition-all shadow-[0_0_20px_rgba(232,145,58,0.15)]"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-saffron text-parchment text-[13px] font-semibold rounded-lg hover:bg-saffron/90 transition-all shadow-[0_0_20px_rgba(232,145,58,0.15)]"
               >
                 Pitch an Idea
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
@@ -189,19 +189,19 @@ export default function BoardPage() {
 
         {/* ─── Token bar — your remaining actions ─── */}
         {isViewingActive && phase === 'open' && (
-          <div className="flex items-center gap-4 mb-5 px-4 py-2.5 bg-paper/60 border border-border rounded-lg text-[12px] text-ink-soft">
-            <span className="flex items-center gap-1.5">
-              <span className="text-saffron text-xs">▲</span> {votes_remaining} vote{votes_remaining !== 1 ? 's' : ''} left
+          <div className="flex flex-wrap items-center gap-2 mb-5 px-3 py-2.5 bg-paper/60 border border-border rounded-lg text-[12px]">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-kinu/50 text-ink-soft">
+              <span className="text-saffron text-xs">▲</span>
+              {votes_remaining} vote{votes_remaining !== 1 ? 's' : ''} left
             </span>
-            <span className="w-px h-3 bg-border-strong" />
-            <span className="flex items-center gap-1.5">
-              <span className="text-matcha text-xs">🤝</span> {contribs_remaining} hand raise{contribs_remaining !== 1 ? 's' : ''} left
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-kinu/50 text-ink-soft">
+              <span className="text-matcha text-xs">🤝</span>
+              {contribs_remaining} hand raise{contribs_remaining !== 1 ? 's' : ''} left
             </span>
             {topic_submitted && (
-              <>
-                <span className="w-px h-3 bg-border-strong" />
-                <span className="text-cha">Idea pitched ✓</span>
-              </>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-kinu/50 text-cha">
+                Idea pitched ✓
+              </span>
             )}
           </div>
         )}
@@ -218,7 +218,24 @@ export default function BoardPage() {
             </p>
           </div>
         ) : (topicsLoading || archiveLoading) ? (
-          <div className="text-center py-12 text-cha text-sm animate-pulse-soft">Loading ideas...</div>
+          <div className="space-y-3 animate-pulse">
+            {Array.from({ length: 3 }).map((_, idx) => (
+              <div key={idx} className="bg-paper/50 border border-border rounded-xl p-4">
+                <div className="flex gap-3">
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <div className="h-5 w-28 bg-kinu/70 rounded-full" />
+                    <div className="h-4 w-3/4 bg-kinu/70 rounded" />
+                    <div className="h-4 w-1/2 bg-kinu/50 rounded" />
+                    <div className="h-3 w-32 bg-kinu/50 rounded" />
+                  </div>
+                  <div className="w-12 space-y-2 shrink-0">
+                    <div className="h-16 bg-kinu/70 rounded-xl" />
+                    <div className="h-9 bg-kinu/60 rounded-lg" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <TopicList
             topics={displayTopics as any}
