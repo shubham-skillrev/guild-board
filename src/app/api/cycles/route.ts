@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabase
       .from('cycles')
-      .select('*')
+      .select('id,label,month,year,status,opens_at,freezes_at,meeting_at,spark_closes_at,created_at')
       .order('year', { ascending: false })
       .order('month', { ascending: false })
       .limit(12)
@@ -45,20 +45,41 @@ export async function GET(request: Request) {
   }
 
   // Return current active cycle: open > first upcoming > latest cycle
-  const { data, error } = await supabase
+  const selectColumns = 'id,label,month,year,status,opens_at,freezes_at,meeting_at,spark_closes_at,created_at'
+
+  const { data: openCycle, error: openError } = await supabase
     .from('cycles')
-    .select('*')
-    .in('status', ['open', 'upcoming', 'closed', 'frozen'])
+    .select(selectColumns)
+    .eq('status', 'open')
     .order('year', { ascending: false })
     .order('month', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (openError) return NextResponse.json({ error: openError.message }, { status: 500 })
+  if (openCycle) return NextResponse.json(openCycle)
 
-  const cycle =
-    data.find(c => c.status === 'open') ??
-    data.find(c => c.status === 'upcoming') ??
-    data[0] ??
-    null
+  const { data: upcomingCycle, error: upcomingError } = await supabase
+    .from('cycles')
+    .select(selectColumns)
+    .eq('status', 'upcoming')
+    .order('year', { ascending: false })
+    .order('month', { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
-  return NextResponse.json(cycle)
+  if (upcomingError) return NextResponse.json({ error: upcomingError.message }, { status: 500 })
+  if (upcomingCycle) return NextResponse.json(upcomingCycle)
+
+  const { data: latestCycle, error: latestError } = await supabase
+    .from('cycles')
+    .select(selectColumns)
+    .order('year', { ascending: false })
+    .order('month', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (latestError) return NextResponse.json({ error: latestError.message }, { status: 500 })
+
+  return NextResponse.json(latestCycle ?? null)
 }

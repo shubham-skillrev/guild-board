@@ -17,7 +17,7 @@ export async function GET(
   // Fetch topic
   const { data: topic, error } = await supabase
     .from('topics')
-    .select('*, users!topics_user_id_fkey(username)')
+    .select('id,cycle_id,user_id,is_anonymous,title,description,category,vote_count,contrib_count,comment_count,score,is_selected,is_deleted,status,outcome_tag,outcome_note,override_reason,created_at,updated_at,users!topics_user_id_fkey(username)')
     .eq('id', id)
     .eq('is_deleted', false)
     .single()
