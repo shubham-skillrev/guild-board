@@ -14,10 +14,11 @@ const PHASE_LABEL: Record<CyclePhase, string> = {
   discussion: 'Discussion mode - voting is locked',
 }
 
-function daysUntil(dateStr: string | null | undefined): number | null {
+function formatMeetingDate(dateStr: string | null | undefined): string | null {
   if (!dateStr) return null
-  const diff = new Date(dateStr).getTime() - Date.now()
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
+  const d = new Date(dateStr)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
 interface CycleStatusBannerProps {
@@ -28,7 +29,7 @@ interface CycleStatusBannerProps {
 export function CycleStatusBanner({ cycle, phase }: CycleStatusBannerProps) {
   if (!cycle) return null
 
-  const daysToMeeting = phase === 'open' ? daysUntil(cycle.meeting_at) : null
+  const meetingLabel = phase === 'open' ? formatMeetingDate(cycle.meeting_at) : null
 
   return (
     <div className={cn('px-4 py-2 text-[13px] flex items-center justify-between', BANNER_STYLES[phase])}>
@@ -38,7 +39,7 @@ export function CycleStatusBanner({ cycle, phase }: CycleStatusBannerProps) {
         <span>{PHASE_LABEL[phase]}</span>
       </div>
       <div className="text-[11px] opacity-75">
-        {daysToMeeting !== null && `Locks in ${daysToMeeting}d`}
+        {meetingLabel && `Meeting · ${meetingLabel}`}
       </div>
     </div>
   )

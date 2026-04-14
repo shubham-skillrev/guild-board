@@ -11,13 +11,38 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-/** Returns the ISO date string (YYYY-MM-DD) of the first Friday of a given month/year */
-function getFirstFriday(month: number, year: number): string {
+/** Returns the 2nd Friday of a given month/year as a datetime-local string at 11:00 AM IST (05:30 UTC) */
+function getSecondFriday(month: number, year: number): string {
   const d = new Date(year, month - 1, 1)
   const dayOfWeek = d.getDay() // 0=Sun, 5=Fri
   const daysToFriday = (5 - dayOfWeek + 7) % 7
-  d.setDate(1 + daysToFriday)
-  return d.toISOString().split('T')[0]
+  d.setDate(1 + daysToFriday + 7) // 2nd Friday
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}T11:00` // 11 AM IST default
+}
+
+/** Convert datetime-local value to ISO string in IST (UTC+5:30) */
+function datetimeLocalToISO(dtLocal: string): string {
+  if (!dtLocal) return ''
+  // dtLocal is "YYYY-MM-DDTHH:mm" — treat as IST
+  return new Date(dtLocal + ':00+05:30').toISOString()
+}
+
+/** Convert ISO string to datetime-local string in IST for the input */
+function isoToDatetimeLocal(iso: string): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  // Convert to IST (UTC+5:30)
+  const ist = new Date(d.getTime() + 5.5 * 60 * 60 * 1000)
+  const yyyy = ist.getUTCFullYear()
+  const mm = String(ist.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(ist.getUTCDate()).padStart(2, '0')
+  const hh = String(ist.getUTCHours()).padStart(2, '0')
+  const min = String(ist.getUTCMinutes()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}T${hh}:${min}`
 }
 
 /** Next month/year relative to today */
@@ -57,7 +82,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
   const suggested = nextMonth()
   const [newCycleMonth, setNewCycleMonth] = useState(suggested.month)
   const [newCycleYear, setNewCycleYear] = useState(suggested.year)
-  const [meetingDate, setMeetingDate] = useState(getFirstFriday(suggested.month, suggested.year))
+  const [meetingDate, setMeetingDate] = useState(getSecondFriday(suggested.month, suggested.year))
 
   const [activeMeetingDate, setActiveMeetingDate] = useState('')
 
@@ -66,7 +91,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
       setActiveMeetingDate('')
       return
     }
-    setActiveMeetingDate(new Date(activeCycle.meeting_at).toISOString().split('T')[0])
+    setActiveMeetingDate(isoToDatetimeLocal(activeCycle.meeting_at))
   }, [activeCycle?.meeting_at])
 
   const doAction = async (
@@ -94,7 +119,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
       fetch('/api/admin/cycles', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cycle_id: cycleId, meeting_at: activeMeetingDate || null }),
+        body: JSON.stringify({ cycle_id: cycleId, meeting_at: activeMeetingDate ? datetimeLocalToISO(activeMeetingDate) : null }),
       })
     )
 
@@ -126,7 +151,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
       const label = `${MONTHS[newCycleMonth - 1]} ${newCycleYear}`
       const body: Record<string, any> = { label, month: newCycleMonth, year: newCycleYear }
       // Send date string; API will convert to start-of-day UTC
-      if (meetingDate) body.meeting_at = meetingDate
+      if (meetingDate) body.meeting_at = datetimeLocalToISO(meetingDate)
       return fetch('/api/admin/cycles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -169,7 +194,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                   const s = nextMonth()
                   setNewCycleMonth(s.month)
                   setNewCycleYear(s.year)
-                  setMeetingDate(getFirstFriday(s.month, s.year))
+                  setMeetingDate(getSecondFriday(s.month, s.year))
                 }}
                 className="text-[12px] text-saffron hover:text-saffron/80 transition-colors"
               >
@@ -185,7 +210,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                   onChange={e => {
                     const m = Number(e.target.value)
                     setNewCycleMonth(m)
-                    setMeetingDate(getFirstFriday(m, newCycleYear))
+                    setMeetingDate(getSecondFriday(m, newCycleYear))
                   }}
                   className="w-full px-3 py-2 bg-sumi border border-border-strong rounded-lg text-[13px] text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron/50"
                 >
@@ -202,7 +227,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                   onChange={e => {
                     const y = Number(e.target.value)
                     setNewCycleYear(y)
-                    setMeetingDate(getFirstFriday(newCycleMonth, y))
+                    setMeetingDate(getSecondFriday(newCycleMonth, y))
                   }}
                   min={2024}
                   max={2030}
@@ -212,17 +237,17 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
             </div>
             <div>
               <label className="block text-[11px] font-medium text-cha uppercase tracking-wider mb-1">
-                Meeting date <span className="normal-case font-normal">(first Friday auto-filled)</span>
+                Meeting date & time <span className="normal-case font-normal">(2nd Friday, 11 AM IST auto-filled)</span>
               </label>
               <input
-                type="date"
+                type="datetime-local"
                 value={meetingDate}
                 onChange={e => setMeetingDate(e.target.value)}
                 className="w-full px-3 py-2 bg-sumi border border-border-strong rounded-lg text-[13px] text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron/50"
               />
               {meetingDate && (
                 <p className="text-[11px] text-cha mt-1">
-                  {new Date(meetingDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                  {new Date(datetimeLocalToISO(meetingDate)).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
                 </p>
               )}
             </div>
@@ -248,9 +273,9 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
           <div className="p-5 bg-paper border border-border rounded-xl mb-4 space-y-3">
             <div className="grid sm:grid-cols-[1fr_auto] gap-3 items-end">
               <div>
-                <label className="block text-[11px] font-medium text-cha uppercase tracking-wider mb-1">Cycle date</label>
+                <label className="block text-[11px] font-medium text-cha uppercase tracking-wider mb-1">Meeting date & time</label>
                 <input
-                  type="date"
+                  type="datetime-local"
                   value={activeMeetingDate}
                   onChange={e => setActiveMeetingDate(e.target.value)}
                   className="w-full max-w-xs px-3 py-2 bg-sumi border border-border-strong rounded-lg text-[13px] text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron/50"

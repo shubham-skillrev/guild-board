@@ -7,18 +7,13 @@ import { useUserTokens } from '@/hooks/useUserTokens'
 import { useAuth } from '@/hooks/useAuth'
 import { TopicList } from '@/components/topics/TopicList'
 import { SubmitModal } from '@/components/topics/SubmitModal'
+import { MeetingPill } from '@/components/layout/MeetingPill'
 import type { Cycle, Topic } from '@/types'
 
 const MONTHS_SHORT = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]
-
-function daysUntil(dateStr: string | null | undefined): number | null {
-  if (!dateStr) return null
-  const diff = new Date(dateStr).getTime() - Date.now()
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)))
-}
 
 export default function BoardPage() {
   const { user, isLoading: authLoading } = useAuth()
@@ -99,9 +94,6 @@ export default function BoardPage() {
   const displayTopics = isViewingActive ? topics : archiveTopics
   const displayPhase = isViewingActive ? phase : 'discussion'
 
-  // Countdown text
-  const meetingDays = phase === 'open' ? daysUntil(cycle?.meeting_at) : null
-
   return (
     <>
       <div className="px-5 md:px-10 py-8 w-full max-w-5xl mx-auto">
@@ -119,11 +111,6 @@ export default function BoardPage() {
             {/* Phase pill */}
             {isViewingActive && phase !== 'upcoming' && (
               <div className="flex items-center gap-2">
-                {meetingDays !== null && (
-                  <span className="text-[11px] text-cha hidden sm:block">
-                    {`Locks in ${meetingDays}d`}
-                  </span>
-                )}
                 <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full ${
                   phase === 'open' ? 'bg-matcha-light text-matcha' :
                   'bg-indigo-light text-indigo-jp'
@@ -244,6 +231,11 @@ export default function BoardPage() {
           onClose={() => setShowSubmit(false)}
           onSubmitted={() => { setShowSubmit(false); mutate(); refreshTokens() }}
         />
+      )}
+
+      {/* Floating meeting countdown pill */}
+      {isViewingActive && (
+        <MeetingPill cycle={viewingCycle} phase={phase} />
       )}
     </>
   )
