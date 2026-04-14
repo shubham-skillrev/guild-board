@@ -51,6 +51,7 @@ export function UsernameSetupModal() {
       params.delete('source')
       const newUrl = params.toString() ? `${pathname}?${params}` : pathname
       router.replace(newUrl)
+      router.refresh()
     } catch {
       setError('Network error. Please try again.')
     } finally {
