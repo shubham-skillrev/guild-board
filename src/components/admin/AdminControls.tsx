@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CATEGORY_LABELS, OUTCOME_LABELS } from '@/lib/constants'
+import { CATEGORY_LABELS, OUTCOME_LABELS, MAX_SELECTED_TOPICS } from '@/lib/constants'
 import { cn } from '@/lib/utils/cn'
 import type { Cycle, OutcomeTag } from '@/types'
 
@@ -303,6 +303,19 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
 
           {/* Topic rows */}
           <div className="space-y-2.5">
+            {(() => {
+              const selectedCount = localTopics.filter((t: any) => t.is_selected).length
+              return (
+                <div className="flex items-center justify-between px-1 mb-1">
+                  <p className="text-[12px] text-cha">
+                    {selectedCount}/{MAX_SELECTED_TOPICS} topics selected
+                  </p>
+                  {selectedCount >= MAX_SELECTED_TOPICS && (
+                    <span className="text-[11px] font-medium text-saffron">Selection limit reached</span>
+                  )}
+                </div>
+              )
+            })()}
             {localTopics.length === 0 && (
               <p className="text-[13px] text-cha italic px-1">No topics submitted yet.</p>
             )}
@@ -347,7 +360,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                 <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/60">
                   <button
                     onClick={() => selectTopic(topic.id, !topic.is_selected)}
-                    disabled={anyLoading}
+                    disabled={anyLoading || (!topic.is_selected && localTopics.filter((t: any) => t.is_selected).length >= MAX_SELECTED_TOPICS)}
                     className={cn(
                       'px-3 py-1.5 text-[12px] font-medium rounded-lg border transition-all disabled:opacity-40',
                       topic.is_selected

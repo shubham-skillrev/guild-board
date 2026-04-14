@@ -34,4 +34,6 @@ export const OUTCOME_NOTE_MAX_LENGTH = 500
 export const SPARK_WINDOW_HOURS = 48
 export const CARRY_FORWARD_MIN_VOTES = 2
 
+export const MAX_SELECTED_TOPICS = 10 // Maximum topics admin can select per cycle
+
 export const HALL_OF_FLAME_THRESHOLD = 5 // Sparks needed for badge (admin-configurable in V2)

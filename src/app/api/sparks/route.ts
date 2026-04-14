@@ -1,11 +1,30 @@
-// ROUTE: POST /api/sparks
+// ROUTE: GET /api/sparks?cycle_id=... | POST /api/sparks
 // AUTH: authenticated
-// PURPOSE: Award a spark to another user during the spark window
+// PURPOSE: Check spark status (GET) or award a spark (POST)
 // DB TABLES: sparks, cycles, users
 // RLS: server client
 
 import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
+
+export async function GET(request: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const cycleId = request.nextUrl.searchParams.get('cycle_id')
+  if (!cycleId) return NextResponse.json({ error: 'cycle_id required' }, { status: 400 })
+
+  const { data: spark } = await supabase
+    .from('sparks')
+    .select('to_user_id')
+    .eq('from_user_id', user.id)
+    .eq('cycle_id', cycleId)
+    .maybeSingle()
+
+  return NextResponse.json({ sparked_user_id: spark?.to_user_id ?? null })
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient()

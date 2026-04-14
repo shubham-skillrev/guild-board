@@ -15,6 +15,7 @@ import { BiUpvote, BiSolidUpvote } from 'react-icons/bi'
 import { FaHandshake } from 'react-icons/fa6'
 import { IoArrowBack } from 'react-icons/io5'
 import { FiEdit2, FiTrash2 } from 'react-icons/fi'
+import { SparkButton } from '@/components/voting/SparkButton'
 import type { Topic, Comment } from '@/types'
 
 interface TopicDetail extends Topic {
@@ -59,6 +60,12 @@ export default function TopicDetailPage({
   const [votePending, setVotePending] = useState(false)
   const [contribPending, setContribPending] = useState(false)
 
+  // Spark window state
+  const [sparkWindow, setSparkWindow] = useState<{
+    cycleId: string
+    sparkedUserId: string | null
+  } | null>(null)
+
   const fetchTopic = useCallback(async () => {
     try {
       const res = await fetch(`/api/topics/${id}`)
@@ -78,6 +85,24 @@ export default function TopicDetailPage({
   }, [id])
 
   useEffect(() => { fetchTopic() }, [fetchTopic])
+
+  // Check spark window status
+  useEffect(() => {
+    if (phase !== 'discussion' || !cycle) return
+    async function checkSparkWindow() {
+      try {
+        const res = await fetch(`/api/sparks?cycle_id=${cycle!.id}`)
+        if (res.ok) {
+          const data = await res.json()
+          setSparkWindow({
+            cycleId: cycle!.id,
+            sparkedUserId: data.sparked_user_id ?? null,
+          })
+        }
+      } catch { /* ignore */ }
+    }
+    checkSparkWindow()
+  }, [phase, cycle])
 
   const isOwner = user?.id === topic?.user_id
   const canVote = phase === 'open' && !isOwner
@@ -294,6 +319,18 @@ export default function TopicDetailPage({
                 <UserAvatar username={topic.author_username ?? 'user'} size={24} />
                 <span className="text-[13px] text-ink-soft">@{topic.author_username}</span>
                 <span className="text-[11px] text-cha">· {new Date(topic.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                {/* Spark button — visible during discussion phase */}
+                {sparkWindow && topic.user_id !== user?.id && (
+                  <span className="ml-auto">
+                    <SparkButton
+                      toUserId={topic.user_id}
+                      cycleId={sparkWindow.cycleId}
+                      alreadyGiven={sparkWindow.sparkedUserId === topic.user_id}
+                      isDisabled={sparkWindow.sparkedUserId !== null && sparkWindow.sparkedUserId !== topic.user_id}
+                      onSpark={() => setSparkWindow(prev => prev ? { ...prev, sparkedUserId: topic.user_id } : prev)}
+                    />
+                  </span>
+                )}
               </div>
 
               {/* Description — rendered as markdown */}
@@ -395,6 +432,22 @@ export default function TopicDetailPage({
                 <span className="text-saffron font-medium tabular-nums">{topic.score.toFixed(1)}</span>
               </div>
             </div>
+
+            {/* Spark budget indicator */}
+            {sparkWindow && (
+              <div className="mt-4 bg-paper/50 border border-saffron/20 rounded-xl p-4">
+                <h3 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-2">Spark</h3>
+                {sparkWindow.sparkedUserId ? (
+                  <p className="text-[12px] text-saffron font-medium">
+                    ⚡ You&apos;ve used your spark this cycle
+                  </p>
+                ) : (
+                  <p className="text-[12px] text-ink-soft">
+                    ⚡ <span className="text-saffron font-medium">1 spark</span> available — give it to a builder who inspired you
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </aside>
       </div>

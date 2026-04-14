@@ -181,3 +181,24 @@ body {
   color: var(--color-ink);
   font-weight: 600;
 }
+
+/* ═══ Spark celebration animation ═══ */
+@keyframes spark-flash {
+  0%   { opacity: 0; transform: scale(0.3); }
+  30%  { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(2); }
+}
+
+@keyframes spark-particle {
+  0%   { opacity: 1; transform: rotate(var(--spark-angle)) translateX(0); }
+  100% { opacity: 0; transform: rotate(var(--spark-angle)) translateX(20px); }
+}
+
+.animate-spark-flash {
+  animation: spark-flash 0.6s ease-out forwards;
+}
+
+.animate-spark-particle {
+  animation: spark-particle 0.5s ease-out forwards;
+  animation-delay: 0.05s;
+}
