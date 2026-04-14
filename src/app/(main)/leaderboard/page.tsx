@@ -74,14 +74,17 @@ async function getLeaderboard(): Promise<{ entries: LeaderboardEntry[]; sparkWin
     })
     .sort((a, b) => b.guild_score - a.guild_score)
 
-  // Check for active spark window (open cycle after meeting date)
+  // Check for active spark window:
+  // 1. Open cycle after meeting date, OR
+  // 2. Closed cycle still within spark_closes_at window
+  const now = new Date().toISOString()
   const { data: activeCycle } = await adminDb
     .from('cycles')
     .select('id')
-    .eq('status', 'open')
-    .lte('meeting_at', new Date().toISOString())
+    .or(`and(status.eq.open,meeting_at.lte.${now}),and(status.eq.closed,spark_closes_at.gt.${now})`)
     .order('year', { ascending: false })
     .order('month', { ascending: false })
+    .limit(1)
     .maybeSingle()
 
   let sparkWindow: SparkWindowInfo | null = null
@@ -153,6 +156,16 @@ export default async function LeaderboardPage() {
                     <p className="text-[12px] text-ink-soft">Score {hallOfFame[1].guild_score}</p>
                   </div>
                 </div>
+                {hasSparkWindow && sparkWindow!.currentUserId !== hallOfFame[1].id && (
+                  <div className="mt-3 flex justify-end">
+                    <SparkButton
+                      toUserId={hallOfFame[1].id}
+                      cycleId={sparkWindow!.cycleId}
+                      alreadyGiven={sparkWindow!.sparkedUserId === hallOfFame[1].id}
+                      isDisabled={sparkWindow!.sparkedUserId !== null && sparkWindow!.sparkedUserId !== hallOfFame[1].id}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -174,6 +187,16 @@ export default async function LeaderboardPage() {
                     <span>•</span>
                     <span>Ideas {hallOfFame[0].topic_count}</span>
                   </div>
+                  {hasSparkWindow && (
+                    sparkWindow!.currentUserId === hallOfFame[0].id
+                      ? <span className="text-[12px] text-saffron/60 font-medium">✨ That&apos;s you!</span>
+                      : <SparkButton
+                          toUserId={hallOfFame[0].id}
+                          cycleId={sparkWindow!.cycleId}
+                          alreadyGiven={sparkWindow!.sparkedUserId === hallOfFame[0].id}
+                          isDisabled={sparkWindow!.sparkedUserId !== null && sparkWindow!.sparkedUserId !== hallOfFame[0].id}
+                        />
+                  )}
                 </div>
               </div>
             )}
@@ -191,6 +214,16 @@ export default async function LeaderboardPage() {
                     <p className="text-[12px] text-ink-soft">Score {hallOfFame[2].guild_score}</p>
                   </div>
                 </div>
+                {hasSparkWindow && sparkWindow!.currentUserId !== hallOfFame[2].id && (
+                  <div className="mt-3 flex justify-end">
+                    <SparkButton
+                      toUserId={hallOfFame[2].id}
+                      cycleId={sparkWindow!.cycleId}
+                      alreadyGiven={sparkWindow!.sparkedUserId === hallOfFame[2].id}
+                      isDisabled={sparkWindow!.sparkedUserId !== null && sparkWindow!.sparkedUserId !== hallOfFame[2].id}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>

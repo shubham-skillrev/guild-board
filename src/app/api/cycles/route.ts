@@ -59,6 +59,19 @@ export async function GET(request: Request) {
   if (openError) return NextResponse.json({ error: openError.message }, { status: 500 })
   if (openCycle) return NextResponse.json(openCycle)
 
+  // Check for a closed cycle still within its spark window
+  const { data: sparkCycle } = await supabase
+    .from('cycles')
+    .select(selectColumns)
+    .eq('status', 'closed')
+    .gt('spark_closes_at', new Date().toISOString())
+    .order('year', { ascending: false })
+    .order('month', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (sparkCycle) return NextResponse.json(sparkCycle)
+
   const { data: upcomingCycle, error: upcomingError } = await supabase
     .from('cycles')
     .select(selectColumns)

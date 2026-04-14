@@ -64,12 +64,10 @@ export function useTopics(cycleId: string | null | undefined) {
           } else if (payload.eventType === 'UPDATE') {
             setState(s => ({
               ...s,
-              topics: s.topics
-                .map(t => t.id === payload.new.id
-                  ? { ...t, vote_count: payload.new.vote_count, contrib_count: payload.new.contrib_count, score: payload.new.score }
-                  : t
-                )
-                .sort((a, b) => b.score - a.score),
+              topics: s.topics.map(t => t.id === payload.new.id
+                ? { ...t, vote_count: payload.new.vote_count, contrib_count: payload.new.contrib_count, score: payload.new.score }
+                : t
+              ),
             }))
           }
         }
@@ -93,33 +91,29 @@ export function useTopics(cycleId: string | null | undefined) {
     return () => clearInterval(interval)
   }, [cycleId, fetchTopics])
 
-  // Optimistic vote toggle (with score recalculation)
+  // Optimistic vote toggle (with score recalculation — no re-sort to keep card positions stable)
   const optimisticVote = useCallback((topicId: string, delta: 1 | -1) => {
     setState(s => ({
       ...s,
-      topics: s.topics
-        .map(t => {
-          if (t.id !== topicId) return t
-          const updated = { ...t, vote_count: t.vote_count + delta, user_has_voted: delta === 1 } as Topic & { user_has_voted: boolean }
-          updated.score = recalcScore(updated)
-          return updated
-        })
-        .sort((a, b) => b.score - a.score),
+      topics: s.topics.map(t => {
+        if (t.id !== topicId) return t
+        const updated = { ...t, vote_count: t.vote_count + delta, user_has_voted: delta === 1 } as Topic & { user_has_voted: boolean }
+        updated.score = recalcScore(updated)
+        return updated
+      }),
     }))
   }, [])
 
-  // Optimistic contrib toggle (with score recalculation)
+  // Optimistic contrib toggle (with score recalculation — no re-sort to keep card positions stable)
   const optimisticContrib = useCallback((topicId: string, delta: 1 | -1) => {
     setState(s => ({
       ...s,
-      topics: s.topics
-        .map(t => {
-          if (t.id !== topicId) return t
-          const updated = { ...t, contrib_count: t.contrib_count + delta, user_has_contribed: delta === 1 } as Topic & { user_has_contribed: boolean }
-          updated.score = recalcScore(updated)
-          return updated
-        })
-        .sort((a, b) => b.score - a.score),
+      topics: s.topics.map(t => {
+        if (t.id !== topicId) return t
+        const updated = { ...t, contrib_count: t.contrib_count + delta, user_has_contribed: delta === 1 } as Topic & { user_has_contribed: boolean }
+        updated.score = recalcScore(updated)
+        return updated
+      }),
     }))
   }, [])
 

@@ -26,7 +26,10 @@ export function isVotingAllowed(cycle: Cycle | null): boolean {
 }
 
 export function isSparkWindowActive(cycle: Cycle | null): boolean {
-  if (!cycle || !isOpen(cycle)) return false
-  if (!cycle.meeting_at) return false
-  return isInteractionLocked(cycle)
+  if (!cycle) return false
+  // Open cycle past meeting date
+  if (isOpen(cycle) && cycle.meeting_at && isInteractionLocked(cycle)) return true
+  // Closed cycle still within spark_closes_at window
+  if (isClosed(cycle) && cycle.spark_closes_at && new Date() < new Date(cycle.spark_closes_at)) return true
+  return false
 }

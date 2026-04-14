@@ -82,6 +82,7 @@ export async function POST(request: Request) {
     is_selected: false,
     is_deleted: false,
     status: 'active',
+    is_carry_forward: true,
     override_reason: `Carried forward from ${cycle.label}`,
   }))
 
