@@ -5,6 +5,18 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
+function getJoinedUser(joinedUser: unknown): { username?: string } | null {
+  if (Array.isArray(joinedUser)) {
+    return (joinedUser[0] as { username?: string } | undefined) ?? null
+  }
+
+  if (joinedUser && typeof joinedUser === 'object') {
+    return joinedUser as { username?: string }
+  }
+
+  return null
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -32,7 +44,7 @@ export async function GET(
 
   const contributors = (contribs ?? []).map((c: any) => ({
     user_id: c.user_id,
-    username: c.users?.username ?? 'unknown',
+    username: getJoinedUser(c.users)?.username ?? 'unknown',
   }))
 
   // Check current user's vote/contrib status
@@ -43,7 +55,7 @@ export async function GET(
 
   return NextResponse.json({
     ...topic,
-    author_username: topic.users?.username ?? 'unknown',
+    author_username: getJoinedUser(topic.users)?.username ?? 'unknown',
     users: undefined,
     user_has_voted: !!userVote,
     user_has_contribed: !!userContrib,
