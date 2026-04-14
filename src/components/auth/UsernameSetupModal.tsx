@@ -66,7 +66,7 @@ export function UsernameSetupModal() {
       <div className="bg-paper border border-border-strong rounded-xl shadow-2xl p-7 w-full max-w-md mx-4 animate-fade-up">
         <h2 className="text-lg font-semibold text-ink mb-1">Pick a username</h2>
         <p className="text-cha text-[13px] mb-5">
-          This is how you&apos;ll appear on GuildBoard. Choose wisely — it&apos;s permanent.
+          This is how you&apos;ll appear on GuildBoard.
         </p>
         <div className="mb-5 rounded-xl border border-border bg-kinu/50 px-4 py-3 text-[12px] leading-6 text-ink-soft">
           {hintText}
