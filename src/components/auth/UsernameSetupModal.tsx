@@ -79,7 +79,7 @@ export function UsernameSetupModal() {
                 setUsername(e.target.value.toLowerCase())
                 setError(validate(e.target.value.toLowerCase()))
               }}
-              placeholder="e.g. shubham_dev"
+              placeholder="e.g. dev_wizard or code_ninja"
               className="w-full px-3 py-2 bg-sumi border border-border-strong rounded-lg text-sm text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 placeholder:text-cha transition-all"
               autoFocus
               autoComplete="off"
