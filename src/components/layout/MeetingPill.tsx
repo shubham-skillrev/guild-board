@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Cycle } from '@/types'
 
 /* ── Helpers ── */
@@ -60,7 +61,55 @@ function getCountdown(meeting: Date): Countdown {
   return { totalMs, hours, minutes, seconds, isToday, isPast, isWithin48h: totalMs <= 48 * 60 * 60 * 1000 }
 }
 
-/* ── Component ── */
+function useMeetingCountdown(cycle: Cycle | null | undefined) {
+  const meetingDate = getMeetingDate(cycle)
+  const [countdown, setCountdown] = useState<Countdown | null>(null)
+
+  useEffect(() => {
+    if (!meetingDate) return
+    setCountdown(getCountdown(meetingDate))
+    const id = setInterval(() => {
+      const c = getCountdown(meetingDate)
+      setCountdown(c)
+      if (c.isPast) clearInterval(id)
+    }, 1000)
+    return () => clearInterval(id)
+  }, [meetingDate?.getTime()]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return { meetingDate, countdown }
+}
+
+/* ────────────────────────────────────────────────────────
+   1. MeetingDateBadge  — inline header chip (> 48 h away)
+   ──────────────────────────────────────────────────────── */
+
+interface MeetingBadgeProps {
+  cycle: Cycle | null | undefined
+  phase: string
+}
+
+export function MeetingDateBadge({ cycle, phase }: MeetingBadgeProps) {
+  const { meetingDate, countdown } = useMeetingCountdown(cycle)
+
+  if (!meetingDate || !countdown || phase === 'upcoming') return null
+  if (countdown.isPast || countdown.isWithin48h) return null
+
+  return (
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-paper/60 border border-border text-ink-soft">
+      <span className="text-[10px]">📅</span>
+      {formatDate(meetingDate)} · {formatTime(meetingDate)}
+    </span>
+  )
+}
+
+/* ────────────────────────────────────────────────────────
+   2. MeetingPill — portalled floating timer (≤ 48 h)
+      • bottom-20 mobile (clears the ~64px tab nav)
+      • bottom-6 desktop
+      • click pill → collapses to dot; click dot → expands
+      • portalled to document.body to escape Framer Motion
+        scale transform that traps position:fixed children
+   ──────────────────────────────────────────────────────── */
 
 interface MeetingPillProps {
   cycle: Cycle | null | undefined
@@ -68,77 +117,80 @@ interface MeetingPillProps {
 }
 
 export function MeetingPill({ cycle, phase }: MeetingPillProps) {
-  const meetingDate = getMeetingDate(cycle)
-  const [countdown, setCountdown] = useState<Countdown | null>(null)
+  const { meetingDate, countdown } = useMeetingCountdown(cycle)
+  const [collapsed, setCollapsed] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
-  useEffect(() => {
-    if (!meetingDate) return
-    // Initial computation
-    setCountdown(getCountdown(meetingDate))
+  useEffect(() => setMounted(true), [])
 
-    // Tick every second when within 48h, otherwise every 60s
-    const id = setInterval(() => {
-      const c = getCountdown(meetingDate)
-      setCountdown(c)
-      if (c.isPast) clearInterval(id)
-    }, 1000)
+  if (!mounted || !meetingDate || !countdown || phase === 'upcoming') return null
+  if (countdown.isPast || !countdown.isWithin48h) return null
 
-    return () => clearInterval(id)
-  }, [meetingDate?.getTime()]) // eslint-disable-line react-hooks/exhaustive-deps
+  const isToday = countdown.isToday
+  const timerText =
+    countdown.hours > 0 || countdown.minutes > 0
+      ? `${countdown.hours}h ${String(countdown.minutes).padStart(2, '0')}m ${String(countdown.seconds).padStart(2, '0')}s`
+      : 'Starting now'
 
-  if (!meetingDate || !countdown || phase === 'upcoming') return null
-  if (countdown.isPast) return null
-
-  // ── Meeting today ──
-  if (countdown.isToday) {
-    return (
-      <div className="fixed bottom-20 md:bottom-14 inset-x-4 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 z-40 animate-fade-up">
-        <div className="flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-full bg-saffron/95 text-parchment shadow-lg shadow-saffron/20 backdrop-blur-sm w-full md:w-auto">
-          <span className="w-2 h-2 rounded-full bg-parchment animate-pulse-soft" />
-          <span className="text-[13px] font-semibold">
-            Meeting today at {formatTime(meetingDate)}
-          </span>
-          {countdown.hours > 0 || countdown.minutes > 0 ? (
-            <span className="hidden sm:inline text-[12px] font-medium opacity-80">
-              · {countdown.hours > 0 ? `${countdown.hours}h ` : ''}{String(countdown.minutes).padStart(2, '0')}m
-            </span>
-          ) : (
-            <span className="text-[12px] font-medium opacity-80">· starting now</span>
-          )}
-        </div>
-      </div>
+  /* ── Collapsed: small pulsing dot ── */
+  if (collapsed) {
+    return createPortal(
+      <button
+        onClick={() => setCollapsed(false)}
+        aria-label="Show meeting countdown"
+        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-9998 w-9 h-9 rounded-full bg-paper/95 border border-saffron/40 shadow-lg shadow-black/30 backdrop-blur-sm flex items-center justify-center transition-transform hover:scale-110"
+      >
+        <span className="relative flex h-3 w-3">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-saffron opacity-50" />
+          <span className="relative inline-flex rounded-full h-3 w-3 bg-saffron" />
+        </span>
+      </button>,
+      document.body
     )
   }
 
-  // ── Live countdown (within 48h) ──
-  if (countdown.isWithin48h) {
-    return (
-      <div className="fixed bottom-20 md:bottom-14 inset-x-4 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 z-40 animate-fade-up">
-        <div className="flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-full bg-paper/95 border border-saffron/30 text-ink shadow-lg shadow-black/20 backdrop-blur-sm w-full md:w-auto">
-          <span className="w-2 h-2 rounded-full bg-saffron animate-pulse-soft" />
-          <span className="text-[13px] font-medium">
-            Meeting in{' '}
-            <span className="text-saffron font-semibold tabular-nums">
-              {countdown.hours}h {String(countdown.minutes).padStart(2, '0')}m {String(countdown.seconds).padStart(2, '0')}s
-            </span>
-          </span>
-          <span className="hidden sm:inline text-[11px] text-cha">
-            {formatDate(meetingDate)} · {formatTime(meetingDate)}
-          </span>
-        </div>
-      </div>
-    )
-  }
+  /* ── Expanded pill — click anywhere to collapse ── */
+  return createPortal(
+    <button
+      onClick={() => setCollapsed(true)}
+      aria-label="Collapse meeting countdown"
+      className={[
+        'fixed bottom-20 right-4 md:bottom-6 md:right-6 z-9998',
+        'flex items-center gap-2.5 px-3 py-2 rounded-xl border',
+        'shadow-lg backdrop-blur-sm transition-all active:scale-95',
+        isToday
+          ? 'bg-saffron border-saffron shadow-saffron/20 text-parchment'
+          : 'bg-paper/95 border-saffron/30 shadow-black/20',
+      ].join(' ')}
+    >
+      {/* Pulsing dot */}
+      <span className="relative flex h-2 w-2 shrink-0">
+        <span className={[
+          'animate-ping absolute inline-flex h-full w-full rounded-full opacity-50',
+          isToday ? 'bg-parchment' : 'bg-saffron',
+        ].join(' ')} />
+        <span className={[
+          'relative inline-flex rounded-full h-2 w-2',
+          isToday ? 'bg-parchment' : 'bg-saffron',
+        ].join(' ')} />
+      </span>
 
-  // ── Subtle date pill (> 48h away) ──
-  return (
-    <div className="fixed bottom-20 md:bottom-14 inset-x-4 md:inset-x-auto md:left-1/2 md:-translate-x-1/2 z-40 animate-fade-up">
-      <div className="flex items-center justify-center gap-2 px-3.5 py-2 rounded-full bg-paper/90 border border-border text-ink-soft shadow-lg shadow-black/15 backdrop-blur-sm w-full md:w-auto">
-        <span className="text-[12px]">📅</span>
-        <span className="text-[12px] font-medium">
-          Meeting · {formatDate(meetingDate)} · {formatTime(meetingDate)}
+      {/* Label + timer */}
+      <div className="flex flex-col items-start leading-none gap-0.75">
+        <span className={[
+          'text-[9px] font-semibold uppercase tracking-widest',
+          isToday ? 'opacity-70' : 'text-cha',
+        ].join(' ')}>
+          {isToday ? 'Today' : 'Meeting in'}
+        </span>
+        <span className={[
+          'text-[15px] font-bold tabular-nums',
+          isToday ? '' : 'text-saffron',
+        ].join(' ')}>
+          {timerText}
         </span>
       </div>
-    </div>
+    </button>,
+    document.body
   )
 }

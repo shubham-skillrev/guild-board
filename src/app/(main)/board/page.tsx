@@ -7,7 +7,7 @@ import { useUserTokens } from '@/hooks/useUserTokens'
 import { useAuth } from '@/hooks/useAuth'
 import { TopicList } from '@/components/topics/TopicList'
 import { SubmitModal } from '@/components/topics/SubmitModal'
-import { MeetingPill } from '@/components/layout/MeetingPill'
+import { MeetingPill, MeetingDateBadge } from '@/components/layout/MeetingPill'
 import type { Cycle, Topic } from '@/types'
 
 const MONTHS_SHORT = [
@@ -108,6 +108,10 @@ export default function BoardPage() {
             </p>
           </div>
           <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+            {/* Meeting date badge (inline, > 48h away) */}
+            {isViewingActive && (
+              <MeetingDateBadge cycle={viewingCycle} phase={phase} />
+            )}
             {/* Phase pill */}
             {isViewingActive && phase !== 'upcoming' && (
               <div className="flex items-center gap-2">

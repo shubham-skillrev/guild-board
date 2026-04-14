@@ -85,15 +85,15 @@ export function TopicCard({
     try { await onContrib(topic.id, cycleId, hasContributed) } finally { setContribPending(false) }
   }
 
-  return (
-    <Link
-      href={`/board/${topic.id}`}
-      className={cn(
-        'group flex gap-3 sm:gap-4 bg-paper/50 border border-border rounded-xl p-3.5 sm:p-4 transition-all hover:border-border-strong hover:bg-paper/80',
-        topic.is_selected && 'ring-1 ring-saffron/30 border-saffron/20',
-        (votePending || contribPending) && 'opacity-75',
-      )}
-    >
+  const cardClassName = cn(
+    'group flex gap-3 sm:gap-4 bg-paper/50 border border-border rounded-xl p-3.5 sm:p-4 transition-all',
+    'hover:border-border-strong hover:bg-paper/80',
+    topic.is_selected && 'ring-1 ring-saffron/30 border-saffron/20',
+    (votePending || contribPending) && 'opacity-75',
+  )
+
+  const cardContent = (
+    <>
       {/* Rank */}
       <div className="hidden sm:flex flex-col items-center pt-0.5 shrink-0 w-8">
         <span className={cn(
@@ -143,9 +143,7 @@ export function TopicCard({
         </div>
       </div>
 
-      {/* Right: Vote + Contrib */}
       <div className="flex flex-col items-center gap-1.5 shrink-0 pt-0.5 justify-end">
-        {/* Upvote button */}
         <button
           onClick={handleVote}
           disabled={!canVote || voteDisabled}
@@ -169,7 +167,6 @@ export function TopicCard({
           <span className="text-[15px] font-bold tabular-nums leading-none">{topic.vote_count}</span>
         </button>
 
-        {/* Contrib button */}
         <button
           onClick={handleContrib}
           disabled={!canContrib || contribDisabled}
@@ -189,6 +186,12 @@ export function TopicCard({
           <span className="tabular-nums font-semibold">{topic.contrib_count}</span>
         </button>
       </div>
+    </>
+  )
+
+  return (
+    <Link href={`/board/${topic.id}`} className={cardClassName}>
+      {cardContent}
     </Link>
   )
 }
