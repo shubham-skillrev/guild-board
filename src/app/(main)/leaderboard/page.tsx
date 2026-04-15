@@ -123,7 +123,7 @@ export default async function LeaderboardPage() {
           Top Builders
         </h1>
         <p className="text-[13px] text-ink-soft mt-1">
-          Guild legends across all cycles. Earn <span className="text-saffron font-medium">{HALL_OF_FLAME_THRESHOLD}+</span> sparks to reach <span className="text-saffron">Hall of Flame</span> 🔥
+          Guild legends across all cycles. Earn <span className="text-saffron font-medium">⚡ sparks</span> to reach <span className="text-saffron">Hall of Flame</span> 🔥
         </p>
         {hasSparkWindow && (
           <p className="text-[13px] text-saffron mt-2 font-medium">
