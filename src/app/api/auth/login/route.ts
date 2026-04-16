@@ -7,22 +7,14 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-function resolveAppOrigin(request: Request): string {
-  const url = new URL(request.url)
+function resolveAppOrigin(): string {
   const configured = process.env.NEXT_PUBLIC_APP_URL?.trim()
-  if (configured) return configured.replace(/\/$/, '')
-
-  const forwardedHost = request.headers.get('x-forwarded-host')
-  const forwardedProto = request.headers.get('x-forwarded-proto')
-  const host = forwardedHost ?? request.headers.get('host')
-  if (!host) return url.origin
-
-  const proto = forwardedProto ?? (host.includes('localhost') ? 'http' : 'https')
-  return `${proto}://${host}`
+  if (!configured) throw new Error('NEXT_PUBLIC_APP_URL env var is not set')
+  return configured.replace(/\/$/, '')
 }
 
-export async function POST(request: Request) {
-  const appOrigin = resolveAppOrigin(request)
+export async function POST() {
+  const appOrigin = resolveAppOrigin()
   const supabase = await createClient()
 
   const { data, error } = await supabase.auth.signInWithOAuth({
