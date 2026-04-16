@@ -1,6 +1,6 @@
 # GuildBoard
 
-GuildBoard is a dark-themed engineering guild app for pitching ideas, voting, discussing topics, giving sparks, and tracking cycle outcomes.
+GuildBoard is an engineering guild app for pitching ideas, voting, discussing topics, giving sparks, and tracking cycle outcomes.
 
 ## Run Locally
 
