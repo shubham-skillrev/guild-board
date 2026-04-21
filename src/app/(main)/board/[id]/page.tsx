@@ -11,6 +11,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar'
 import { CommentThread } from '@/components/topics/CommentThread'
 import { useAuth } from '@/hooks/useAuth'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
+import { useToast } from '@/hooks/useToast'
 import { BiUpvote, BiSolidUpvote } from 'react-icons/bi'
 import { FaHandshake } from 'react-icons/fa6'
 import { IoArrowBack } from 'react-icons/io5'
@@ -40,6 +41,7 @@ export default function TopicDetailPage({
   const router = useRouter()
   const { user } = useAuth()
   const { cycle, phase } = useCurrentCycle()
+  const toast = useToast()
 
   const [topic, setTopic] = useState<TopicDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -59,6 +61,8 @@ export default function TopicDetailPage({
   // Vote/contrib state
   const [votePending, setVotePending] = useState(false)
   const [contribPending, setContribPending] = useState(false)
+  const [votePop, setVotePop] = useState(false)
+  const [contribPop, setContribPop] = useState(false)
 
   // Spark window state
   const [sparkWindow, setSparkWindow] = useState<{
@@ -110,18 +114,55 @@ export default function TopicDetailPage({
 
   const handleVote = async () => {
     if (!topic || !canVote || votePending) return
+    const wasVoted = topic.user_has_voted
+    // Optimistic update
+    setTopic(t => t ? {
+      ...t,
+      user_has_voted: !wasVoted,
+      vote_count: t.vote_count + (wasVoted ? -1 : 1),
+    } : t)
+    setVotePop(true)
+    setTimeout(() => setVotePop(false), 400)
     setVotePending(true)
     try {
       const res = await fetch('/api/votes', {
-        method: topic.user_has_voted ? 'DELETE' : 'POST',
+        method: wasVoted ? 'DELETE' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
-          topic.user_has_voted
+          wasVoted
             ? { topic_id: topic.id }
             : { topic_id: topic.id, cycle_id: topic.cycle_id }
         ),
       })
-      if (res.ok) await fetchTopic()
+      if (res.ok) {
+        if (!wasVoted) {
+          toast('Vote committed to the ledger ⚡', 'success')
+        } else {
+          toast('Vote withdrawn', 'info')
+        }
+        fetchTopic() // background sync, no await
+      } else {
+        // Revert optimistic update
+        setTopic(t => t ? {
+          ...t,
+          user_has_voted: wasVoted,
+          vote_count: t.vote_count + (wasVoted ? 1 : -1),
+        } : t)
+        const data = await res.json().catch(() => ({}))
+        if (res.status === 409) {
+          toast(data.error ?? 'Vote limit reached for this cycle', 'warning', '🚫')
+        } else {
+          toast('Vote failed — check your connection', 'error')
+        }
+      }
+    } catch {
+      // Revert optimistic update
+      setTopic(t => t ? {
+        ...t,
+        user_has_voted: wasVoted,
+        vote_count: t.vote_count + (wasVoted ? 1 : -1),
+      } : t)
+      toast('Vote failed — check your connection', 'error')
     } finally {
       setVotePending(false)
     }
@@ -129,18 +170,55 @@ export default function TopicDetailPage({
 
   const handleContrib = async () => {
     if (!topic || !canContrib || contribPending) return
+    const wasContribed = topic.user_has_contribed
+    // Optimistic update
+    setTopic(t => t ? {
+      ...t,
+      user_has_contribed: !wasContribed,
+      contrib_count: t.contrib_count + (wasContribed ? -1 : 1),
+    } : t)
+    setContribPop(true)
+    setTimeout(() => setContribPop(false), 400)
     setContribPending(true)
     try {
       const res = await fetch('/api/contributions', {
-        method: topic.user_has_contribed ? 'DELETE' : 'POST',
+        method: wasContribed ? 'DELETE' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
-          topic.user_has_contribed
+          wasContribed
             ? { topic_id: topic.id }
             : { topic_id: topic.id, cycle_id: topic.cycle_id }
         ),
       })
-      if (res.ok) await fetchTopic()
+      if (res.ok) {
+        if (!wasContribed) {
+          toast("You're in the arena 🤝", 'success')
+        } else {
+          toast('Stepped back from discussion', 'info')
+        }
+        fetchTopic() // background sync, no await
+      } else {
+        // Revert optimistic update
+        setTopic(t => t ? {
+          ...t,
+          user_has_contribed: wasContribed,
+          contrib_count: t.contrib_count + (wasContribed ? 1 : -1),
+        } : t)
+        const data = await res.json().catch(() => ({}))
+        if (res.status === 409) {
+          toast(data.error ?? 'Contribution limit reached for this cycle', 'warning', '🚫')
+        } else {
+          toast('Failed to update — check your connection', 'error')
+        }
+      }
+    } catch {
+      // Revert optimistic update
+      setTopic(t => t ? {
+        ...t,
+        user_has_contribed: wasContribed,
+        contrib_count: t.contrib_count + (wasContribed ? 1 : -1),
+      } : t)
+      toast('Failed to update — check your connection', 'error')
     } finally {
       setContribPending(false)
     }
@@ -354,9 +432,16 @@ export default function TopicDetailPage({
                   : canVote
                     ? 'bg-paper border-border text-ink-soft hover:border-saffron/30 hover:text-saffron hover:bg-saffron/5'
                     : 'bg-paper/50 border-border text-cha opacity-50',
+                votePending ? 'opacity-60 cursor-wait' : canVote ? 'cursor-pointer' : 'cursor-not-allowed',
               )}
             >
-              {topic.user_has_voted ? <BiSolidUpvote className="w-4 h-4" /> : <BiUpvote className="w-4 h-4" />}
+              {votePending ? (
+                <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
+              ) : (
+                <span className={cn('transition-transform', votePop && 'animate-vote-pop')}>
+                  {topic.user_has_voted ? <BiSolidUpvote className="w-4 h-4" /> : <BiUpvote className="w-4 h-4" />}
+                </span>
+              )}
               <span className="font-bold tabular-nums">{topic.vote_count}</span>
               <span className="text-[12px]">{topic.user_has_voted ? 'Upvoted' : 'Upvote'}</span>
             </button>
@@ -370,9 +455,16 @@ export default function TopicDetailPage({
                   : canContrib
                     ? 'bg-paper border-border text-ink-soft hover:border-matcha/30 hover:text-matcha hover:bg-matcha/5'
                     : 'bg-paper/50 border-border text-cha opacity-50',
+                contribPending ? 'opacity-60 cursor-wait' : canContrib ? 'cursor-pointer' : 'cursor-not-allowed',
               )}
             >
-              <FaHandshake className="w-4 h-4" />
+              {contribPending ? (
+                <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
+              ) : (
+                <span className={cn('transition-transform', contribPop && 'animate-vote-pop')}>
+                  <FaHandshake className="w-4 h-4" />
+                </span>
+              )}
               <span className="font-bold tabular-nums">{topic.contrib_count}</span>
               <span className="text-[12px]">{topic.user_has_contribed ? "I'm in" : 'Join discussion'}</span>
             </button>

@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { cn } from '@/lib/utils/cn'
 import { UserAvatar } from '@/components/ui/UserAvatar'
-import { FiEdit2, FiTrash2 } from 'react-icons/fi'
+import { useToast } from '@/hooks/useToast'
+import { FiEdit2, FiTrash2, FiThumbsUp, FiThumbsDown } from 'react-icons/fi'
 import { IoReturnUpForward } from 'react-icons/io5'
 import type { Comment } from '@/types'
 
@@ -67,6 +68,28 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
     if (res.ok) await fetchComments()
   }
 
+  const handleReactionChange = useCallback((
+    commentId: string,
+    reaction: 1 | -1 | null,
+    likeDelta: number,
+    dislikeDelta: number,
+  ) => {
+    const patch = (list: Comment[]): Comment[] =>
+      list.map(c => {
+        if (c.id === commentId) {
+          return {
+            ...c,
+            user_reaction: reaction,
+            like_count: Math.max(0, (c.like_count ?? 0) + likeDelta),
+            dislike_count: Math.max(0, (c.dislike_count ?? 0) + dislikeDelta),
+          }
+        }
+        if (c.replies?.length) return { ...c, replies: patch(c.replies) }
+        return c
+      })
+    setComments(prev => patch(prev))
+  }, [])
+
   if (!isOpen) return null
 
   const commentsList = (
@@ -85,6 +108,7 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
             onReply={(id, username) => setReplyTo({ id, username })}
             onDelete={handleDelete}
             onEdit={handleEdit}
+            onReactionChange={handleReactionChange}
           />
         ))
       )}
@@ -160,11 +184,14 @@ interface CommentNodeProps {
   onReply: (id: string, username: string) => void
   onDelete: (id: string) => void
   onEdit: (id: string, body: string) => void
+  onReactionChange: (commentId: string, reaction: 1 | -1 | null, likeDelta: number, dislikeDelta: number) => void
 }
 
-function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit }: CommentNodeProps) {
+function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit, onReactionChange }: CommentNodeProps) {
   const [editing, setEditing] = useState(false)
   const [editBody, setEditBody] = useState(comment.body)
+  const [reactionPending, setReactionPending] = useState(false)
+  const toast = useToast()
   const isOwner = currentUserId === comment.user_id
   const maxDepth = 3
 
@@ -175,7 +202,54 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit 
     setEditing(false)
   }
 
+  const handleReaction = async (value: 1 | -1) => {
+    if (!currentUserId || reactionPending) return
+    const prev = comment.user_reaction ?? null
+
+    // Compute optimistic deltas
+    let likeDelta = 0
+    let dislikeDelta = 0
+    let nextReaction: 1 | -1 | null
+
+    if (prev === value) {
+      // Toggle off
+      nextReaction = null
+      if (value === 1) likeDelta = -1
+      else dislikeDelta = -1
+    } else {
+      nextReaction = value
+      if (prev === 1) likeDelta = -1
+      if (prev === -1) dislikeDelta = -1
+      if (value === 1) likeDelta += 1
+      else dislikeDelta += 1
+    }
+
+    // Optimistic
+    onReactionChange(comment.id, nextReaction, likeDelta, dislikeDelta)
+    setReactionPending(true)
+
+    try {
+      const res = await fetch('/api/comment-reactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment_id: comment.id, reaction: value }),
+      })
+      if (!res.ok) {
+        // Revert
+        onReactionChange(comment.id, prev, -likeDelta, -dislikeDelta)
+        toast('Reaction failed', 'error')
+      }
+    } catch {
+      onReactionChange(comment.id, prev, -likeDelta, -dislikeDelta)
+      toast('Reaction failed — check your connection', 'error')
+    } finally {
+      setReactionPending(false)
+    }
+  }
+
   const timeAgo = getTimeAgo(comment.created_at)
+  const likeCount = comment.like_count ?? 0
+  const dislikeCount = comment.dislike_count ?? 0
 
   return (
     <div className={cn('group/comment', depth > 0 && 'ml-5 pl-3 border-l border-border/50')}>
@@ -211,10 +285,44 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit 
 
         {/* Actions */}
         <div className="flex items-center gap-3 mt-1.5 opacity-100 md:opacity-0 md:group-hover/comment:opacity-100 transition-opacity">
+          {/* Like / dislike */}
+          {currentUserId && (
+            <>
+              <button
+                onClick={() => handleReaction(1)}
+                disabled={reactionPending}
+                className={cn(
+                  'inline-flex items-center gap-1 text-[11px] transition-colors cursor-pointer',
+                  comment.user_reaction === 1
+                    ? 'text-matcha'
+                    : 'text-cha hover:text-matcha',
+                  reactionPending && 'opacity-50 cursor-wait',
+                )}
+              >
+                <FiThumbsUp className={cn('w-3 h-3', comment.user_reaction === 1 && 'animate-vote-pop')} />
+                {likeCount > 0 && <span>{likeCount}</span>}
+              </button>
+              <button
+                onClick={() => handleReaction(-1)}
+                disabled={reactionPending}
+                className={cn(
+                  'inline-flex items-center gap-1 text-[11px] transition-colors cursor-pointer',
+                  comment.user_reaction === -1
+                    ? 'text-vermillion'
+                    : 'text-cha hover:text-vermillion',
+                  reactionPending && 'opacity-50 cursor-wait',
+                )}
+              >
+                <FiThumbsDown className={cn('w-3 h-3', comment.user_reaction === -1 && 'animate-vote-pop')} />
+                {dislikeCount > 0 && <span>{dislikeCount}</span>}
+              </button>
+            </>
+          )}
+
           {depth < maxDepth && (
             <button
               onClick={() => onReply(comment.id, comment.author_username ?? 'user')}
-              className="inline-flex items-center gap-1 text-[11px] text-cha hover:text-ink-soft transition-colors"
+              className="inline-flex items-center gap-1 text-[11px] text-cha hover:text-ink-soft transition-colors cursor-pointer"
             >
               <IoReturnUpForward className="w-3 h-3" />
               Reply
@@ -224,14 +332,14 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit 
             <>
               <button
                 onClick={() => { setEditBody(comment.body); setEditing(true) }}
-                className="inline-flex items-center gap-1 text-[11px] text-cha hover:text-ink-soft transition-colors"
+                className="inline-flex items-center gap-1 text-[11px] text-cha hover:text-ink-soft transition-colors cursor-pointer"
               >
                 <FiEdit2 className="w-3 h-3" />
                 Edit
               </button>
               <button
                 onClick={() => onDelete(comment.id)}
-                className="inline-flex items-center gap-1 text-[11px] text-red-400/70 hover:text-red-400 transition-colors"
+                className="inline-flex items-center gap-1 text-[11px] text-red-400/70 hover:text-red-400 transition-colors cursor-pointer"
               >
                 <FiTrash2 className="w-3 h-3" />
                 Delete
@@ -253,6 +361,7 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit 
               onReply={onReply}
               onDelete={onDelete}
               onEdit={onEdit}
+              onReactionChange={onReactionChange}
             />
           ))}
         </div>

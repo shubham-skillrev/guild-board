@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
+import { Providers } from "@/components/ui/Providers";
 
 const sansFont = Inter({
   variable: "--font-geist-sans",
@@ -37,7 +38,9 @@ export default function RootLayout({
       className={`${sansFont.variable} ${displayFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
-        {children}
+        <Providers>
+          {children}
+        </Providers>
         <Analytics />
       </body>
     </html>

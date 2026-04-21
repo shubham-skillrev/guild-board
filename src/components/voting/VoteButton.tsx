@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils/cn'
+import { BiUpvote, BiSolidUpvote } from 'react-icons/bi'
 
 interface VoteButtonProps {
   topicId: string
@@ -35,16 +36,23 @@ export function VoteButton({ topicId, cycleId, count, hasVoted, disabled, onVote
         hasVoted
           ? 'bg-saffron/10 border-saffron/30 text-saffron hover:bg-saffron/15'
           : 'bg-paper border-border text-ink-soft hover:border-border-strong hover:text-ink hover:bg-kinu/30',
-        (isPending || disabled) && 'opacity-40 cursor-not-allowed'
+        isPending
+          ? 'opacity-60 cursor-wait'
+          : disabled
+            ? 'opacity-40 cursor-not-allowed'
+            : 'cursor-pointer'
       )}
     >
-      <svg
-        className={cn('w-5 h-5 transition-transform', hasVoted && 'scale-110')}
-        viewBox="0 0 24 24"
-        fill="currentColor"
-      >
-        <path d="M12 4l8 10H4l8-10z" />
-      </svg>
+      {isPending ? (
+        <span className="w-5 h-5 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
+      ) : (
+        <span className={cn('transition-transform', hasVoted && 'animate-vote-pop')}>
+          {hasVoted
+            ? <BiSolidUpvote className="w-5 h-5" />
+            : <BiUpvote className="w-5 h-5" />
+          }
+        </span>
+      )}
       <span className="text-sm font-bold tabular-nums leading-none">{count}</span>
     </button>
   )

@@ -5,6 +5,7 @@ import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useTopics } from '@/hooks/useTopics'
 import { useUserTokens } from '@/hooks/useUserTokens'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/hooks/useToast'
 import { TopicList } from '@/components/topics/TopicList'
 import { SubmitModal } from '@/components/topics/SubmitModal'
 import { MeetingPill, MeetingDateBadge } from '@/components/layout/MeetingPill'
@@ -20,6 +21,7 @@ export default function BoardPage() {
   const { cycle, phase, isLoading: cycleLoading } = useCurrentCycle()
   const { topics, isLoading: topicsLoading, mutate, optimisticVote, optimisticContrib } = useTopics(cycle?.id)
   const { votes_remaining, contribs_remaining, topic_submitted, refresh: refreshTokens } = useUserTokens(cycle?.id)
+  const toast = useToast()
 
   // All cycles for tabs
   const [allCycles, setAllCycles] = useState<Cycle[]>([])
@@ -68,12 +70,20 @@ export default function BoardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(hasVoted ? { topic_id: topicId } : { topic_id: topicId, cycle_id: cycleId }),
       })
-      if (!res.ok) optimisticVote(topicId, hasVoted ? 1 : -1)
-      else refreshTokens()
+      if (!res.ok) {
+        optimisticVote(topicId, hasVoted ? 1 : -1)
+        const data = await res.json().catch(() => ({}))
+        toast(data.error ?? 'Vote failed', 'error')
+      } else {
+        if (!hasVoted) toast('Vote committed to the ledger ⚡', 'success')
+        else toast('Vote withdrawn', 'info')
+        refreshTokens()
+      }
     } catch {
       optimisticVote(topicId, hasVoted ? 1 : -1)
+      toast('Vote failed — check your connection', 'error')
     }
-  }, [optimisticVote, refreshTokens])
+  }, [optimisticVote, refreshTokens, toast])
 
   const handleContrib = useCallback(async (topicId: string, cycleId: string, hasContribed: boolean) => {
     optimisticContrib(topicId, hasContribed ? -1 : 1)
@@ -83,12 +93,20 @@ export default function BoardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(hasContribed ? { topic_id: topicId } : { topic_id: topicId, cycle_id: cycleId }),
       })
-      if (!res.ok) optimisticContrib(topicId, hasContribed ? 1 : -1)
-      else refreshTokens()
+      if (!res.ok) {
+        optimisticContrib(topicId, hasContribed ? 1 : -1)
+        const data = await res.json().catch(() => ({}))
+        toast(data.error ?? 'Failed to update', 'error')
+      } else {
+        if (!hasContribed) toast("You're in the arena 🤝", 'success')
+        else toast('Stepped back from discussion', 'info')
+        refreshTokens()
+      }
     } catch {
       optimisticContrib(topicId, hasContribed ? 1 : -1)
+      toast('Failed to update — check your connection', 'error')
     }
-  }, [optimisticContrib, refreshTokens])
+  }, [optimisticContrib, refreshTokens, toast])
 
   const isLoading = authLoading || cycleLoading
   const displayTopics = isViewingActive ? topics : archiveTopics

@@ -72,10 +72,13 @@ export interface Comment {
   parent_id: string | null   // null = top-level, otherwise reply
   body: string
   is_deleted: boolean
+  like_count: number
+  dislike_count: number
   created_at: string
   updated_at: string
   // Joined fields
   author_username?: string
+  user_reaction?: 1 | -1 | null  // current user's reaction
   replies?: Comment[]
 }
 

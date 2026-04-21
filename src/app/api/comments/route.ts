@@ -25,10 +25,25 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // Fetch current user's reactions for these comments in one query
+  const commentIds = (comments ?? []).map((c: any) => c.id)
+  let userReactions: Record<string, number> = {}
+  if (commentIds.length > 0) {
+    const { data: reactions } = await supabase
+      .from('comment_reactions')
+      .select('comment_id, reaction')
+      .eq('user_id', user.id)
+      .in('comment_id', commentIds)
+    for (const r of reactions ?? []) {
+      userReactions[r.comment_id] = r.reaction
+    }
+  }
+
   // Build threaded structure
   const flat = (comments ?? []).map((c: any) => ({
     ...c,
     author_username: c.users?.username ?? 'unknown',
+    user_reaction: userReactions[c.id] ?? null,
     users: undefined,
     replies: [] as any[],
   }))
