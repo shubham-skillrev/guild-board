@@ -3,6 +3,7 @@
 // PURPOSE: CRUD for threaded comments on topics
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 
 const COMMENT_MAX_LENGTH = 2000
@@ -79,8 +80,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Comment must be under ${COMMENT_MAX_LENGTH} characters` }, { status: 400 })
   }
 
+  const admin = createAdminClient()
+
   // Verify topic exists and is not deleted
-  const { data: topic } = await supabase
+  const { data: topic } = await admin
     .from('topics')
     .select('id')
     .eq('id', topic_id)
@@ -91,7 +94,7 @@ export async function POST(request: Request) {
 
   // If replying, verify parent exists
   if (parent_id) {
-    const { data: parent } = await supabase
+    const { data: parent } = await admin
       .from('comments')
       .select('id')
       .eq('id', parent_id)
@@ -101,7 +104,7 @@ export async function POST(request: Request) {
     if (!parent) return NextResponse.json({ error: 'Parent comment not found' }, { status: 404 })
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from('comments')
     .insert({
       topic_id,
@@ -138,8 +141,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: `Comment must be under ${COMMENT_MAX_LENGTH} characters` }, { status: 400 })
   }
 
-  // RLS ensures only owner can update
-  const { data, error } = await supabase
+  const { data, error } = await createAdminClient()
     .from('comments')
     .update({ body: newBody.trim(), updated_at: new Date().toISOString() })
     .eq('id', id)
@@ -164,8 +166,7 @@ export async function DELETE(request: Request) {
   const { id } = body
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
-  // Soft delete — RLS ensures only owner
-  const { data, error } = await supabase
+  const { data, error } = await createAdminClient()
     .from('comments')
     .update({ is_deleted: true, updated_at: new Date().toISOString() })
     .eq('id', id)

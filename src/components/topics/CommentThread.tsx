@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { cn } from '@/lib/utils/cn'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useToast } from '@/hooks/useToast'
@@ -33,7 +33,9 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(false)
   const [newComment, setNewComment] = useState('')
+  const toast = useToast()
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [submitting, setSubmitting] = useState(false)
   const [sort, setSort] = useState<SortKey>('newest')
 
@@ -60,7 +62,7 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ topic_id: topicId, parent_id: replyTo?.id ?? null, body: newComment.trim() }),
       })
-      if (res.ok) { setNewComment(''); setReplyTo(null); await fetchComments() }
+      if (res.ok) { setNewComment(''); setReplyTo(null); if (textareaRef.current) textareaRef.current.style.height = 'auto'; await fetchComments() }
     } finally {
       setSubmitting(false)
     }
@@ -71,7 +73,12 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
       method: 'DELETE', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: commentId }),
     })
-    if (res.ok) await fetchComments()
+    if (res.ok) {
+      await fetchComments()
+    } else {
+      const data = await res.json().catch(() => ({}))
+      toast(data.error ?? 'Failed to delete comment', 'error')
+    }
   }
 
   const handleEdit = async (commentId: string, body: string) => {
@@ -167,13 +174,21 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
           <button onClick={() => setReplyTo(null)} className="text-red-400 hover:text-red-300 ml-1">&times;</button>
         </div>
       )}
-      <div className="flex gap-2">
-        <input
+      <div className="flex gap-2 items-end">
+        <textarea
+          ref={textareaRef}
           value={newComment}
-          onChange={e => setNewComment(e.target.value)}
+          rows={2}
+          onChange={e => {
+            setNewComment(e.target.value)
+            const el = e.target
+            el.style.height = 'auto'
+            el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+          }}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
-          placeholder="Write a comment..."
-          className="flex-1 bg-kinu/30 border border-border rounded-lg px-3 py-2.5 text-[13px] text-ink placeholder:text-cha focus:outline-none focus:border-saffron/40 transition-colors"
+          placeholder="Write a comment… (markdown supported)"
+          className="flex-1 bg-kinu/30 border border-border rounded-lg px-3 py-2.5 text-[13px] text-ink placeholder:text-cha focus:outline-none focus:border-saffron/40 transition-colors resize-none overflow-y-auto"
+          style={{ maxHeight: '200px' }}
           maxLength={2000}
         />
         <button
@@ -234,6 +249,7 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
   const [editing, setEditing] = useState(false)
   const [editBody, setEditBody] = useState(comment.body)
   const [reactionPending, setReactionPending] = useState(false)
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null)
   const toast = useToast()
   const isOwner = currentUserId === comment.user_id
   const maxDepth = 3
@@ -309,16 +325,34 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
 
         {/* Body */}
         {editing ? (
-          <div className="mt-1.5 flex gap-2">
-            <input
+          <div className="mt-1.5 space-y-1.5">
+            <textarea
+              ref={editTextareaRef}
               value={editBody}
-              onChange={e => setEditBody(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(); if (e.key === 'Escape') setEditing(false) }}
-              className="flex-1 bg-kinu/30 border border-border rounded-md px-2.5 py-1.5 text-[13px] text-ink focus:outline-none focus:border-saffron/40"
+              rows={2}
+              onChange={e => {
+                setEditBody(e.target.value)
+                const el = e.target
+                el.style.height = 'auto'
+                el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit() }
+                if (e.key === 'Escape') setEditing(false)
+              }}
+              className="w-full bg-kinu/30 border border-border rounded-md px-2.5 py-1.5 text-[13px] text-ink focus:outline-none focus:border-saffron/40 resize-none overflow-y-auto"
+              style={{ maxHeight: '200px' }}
               autoFocus
+              onFocus={e => {
+                const el = e.target
+                el.style.height = 'auto'
+                el.style.height = Math.min(el.scrollHeight, 200) + 'px'
+              }}
             />
-            <button onClick={handleSaveEdit} className="text-[11px] text-saffron hover:text-saffron/80 font-medium">Save</button>
-            <button onClick={() => setEditing(false)} className="text-[11px] text-cha hover:text-ink-soft">Cancel</button>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setEditing(false)} className="text-[11px] text-cha hover:text-ink-soft">Cancel</button>
+              <button onClick={handleSaveEdit} className="text-[11px] text-saffron hover:text-saffron/80 font-medium">Save</button>
+            </div>
           </div>
         ) : (
           <div className="prose-guild mt-1">
