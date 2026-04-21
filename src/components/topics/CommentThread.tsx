@@ -16,12 +16,24 @@ interface CommentThreadProps {
   inline?: boolean
 }
 
+type SortKey = 'newest' | 'top' | 'replies'
+
+function sortComments(list: Comment[], by: SortKey): Comment[] {
+  const sorted = [...list].sort((a, b) => {
+    if (by === 'top')     return (b.like_count ?? 0) - (a.like_count ?? 0)
+    if (by === 'replies') return (b.replies?.length ?? 0) - (a.replies?.length ?? 0)
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  })
+  return sorted.map(c => c.replies?.length ? { ...c, replies: sortComments(c.replies, by) } : c)
+}
+
 export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline }: CommentThreadProps) {
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(false)
   const [newComment, setNewComment] = useState('')
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [sort, setSort] = useState<SortKey>('newest')
 
   const fetchComments = useCallback(async () => {
     setLoading(true)
@@ -92,14 +104,43 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
 
   if (!isOpen) return null
 
+  const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+    { key: 'newest',  label: 'Newest'  },
+    { key: 'top',     label: 'Top'     },
+    { key: 'replies', label: 'Replies' },
+  ]
+
+  const sorted = sortComments(comments, sort)
+
   const commentsList = (
     <div className="space-y-1">
+      {/* Sort bar */}
+      {!loading && comments.length > 1 && (
+        <div className="flex items-center gap-1 mb-3">
+          <span className="text-[11px] text-cha mr-1">Sort:</span>
+          {SORT_OPTIONS.map(o => (
+            <button
+              key={o.key}
+              onClick={() => setSort(o.key)}
+              className={cn(
+                'px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer',
+                sort === o.key
+                  ? 'bg-saffron/15 text-saffron border border-saffron/30'
+                  : 'text-cha hover:text-ink-soft border border-transparent hover:border-border',
+              )}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <p className="text-cha text-sm text-center py-4">Loading...</p>
       ) : comments.length === 0 ? (
         <p className="text-cha text-sm text-center py-6">No comments yet. Start the discussion!</p>
       ) : (
-        comments.map(comment => (
+        sorted.map(comment => (
           <CommentNode
             key={comment.id}
             comment={comment}
@@ -284,7 +325,7 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-3 mt-1.5 opacity-100 md:opacity-0 md:group-hover/comment:opacity-100 transition-opacity">
+        <div className="flex items-center gap-3 mt-1.5">
           {/* Like / dislike */}
           {currentUserId && (
             <>
