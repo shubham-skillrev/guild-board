@@ -6,6 +6,8 @@ import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useToast } from '@/hooks/useToast'
 import { FiEdit2, FiTrash2, FiThumbsUp, FiThumbsDown } from 'react-icons/fi'
 import { IoReturnUpForward } from 'react-icons/io5'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import type { Comment } from '@/types'
 
 interface CommentThreadProps {
@@ -319,9 +321,11 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
             <button onClick={() => setEditing(false)} className="text-[11px] text-cha hover:text-ink-soft">Cancel</button>
           </div>
         ) : (
-          <p className="mt-1 text-[13px] text-ink leading-relaxed">
-            {renderCommentBody(comment.body)}
-          </p>
+          <div className="prose-guild mt-1">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {comment.body}
+            </ReactMarkdown>
+          </div>
         )}
 
         {/* Actions */}
@@ -411,48 +415,6 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
   )
 }
 
-function renderCommentBody(body: string) {
-  const urlPattern = /(https?:\/\/[^\s]+|www\.[^\s]+)/i
-  const chunks = body.split(urlPattern)
-
-  return chunks.map((chunk, index) => {
-    if (urlPattern.test(chunk)) {
-      const { url, suffix } = splitTrailingPunctuation(chunk)
-      const href = url.startsWith('http') ? url : `https://${url}`
-      return (
-        <a
-          key={`${url}-${index}`}
-          href={href}
-          target="_blank"
-          rel="noreferrer"
-          className="text-saffron underline underline-offset-2 hover:text-saffron/80"
-        >
-          {url}
-          {suffix}
-        </a>
-      )
-    }
-
-    return chunk.split('\n').map((line, lineIndex, lines) => (
-      <span key={`${index}-${lineIndex}`}>
-        {line}
-        {lineIndex < lines.length - 1 && <br />}
-      </span>
-    ))
-  })
-}
-
-function splitTrailingPunctuation(value: string) {
-  let url = value
-  let suffix = ''
-
-  while (/[),.!?;:]$/.test(url)) {
-    suffix = url.slice(-1) + suffix
-    url = url.slice(0, -1)
-  }
-
-  return { url, suffix }
-}
 
 function getTimeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
