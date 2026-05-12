@@ -2,6 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { Portal } from "@/components/ui/Portal";
+import { track } from "@vercel/analytics";
+
+type InstallEvent = "prompt_accepted" | "prompt_dismissed" | "app_installed";
+
+function reportInstallEvent(event: InstallEvent, platform: Platform) {
+  try { track(`pwa_${event}`, { platform }); } catch {}
+  void fetch("/api/pwa/install", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ event, platform }),
+    keepalive: true,
+  }).catch(() => {});
+}
 
 type BeforeInstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -58,6 +71,7 @@ export function InstallPrompt() {
       setDeferred(e as BeforeInstallPromptEvent);
     };
     const onInstalled = () => {
+      reportInstallEvent("app_installed", detectPlatform());
       setVisible(false);
       setDeferred(null);
       setStandalone(true);
@@ -84,6 +98,10 @@ export function InstallPrompt() {
     if (!deferred) return;
     await deferred.prompt();
     const choice = await deferred.userChoice;
+    reportInstallEvent(
+      choice.outcome === "accepted" ? "prompt_accepted" : "prompt_dismissed",
+      platform,
+    );
     setDeferred(null);
     if (choice.outcome === "accepted") setVisible(false);
   };
