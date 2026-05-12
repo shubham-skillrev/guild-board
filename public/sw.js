@@ -9,11 +9,14 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-// Minimal pass-through fetch handler.
+// Pass-through fetch handler.
 // Required for Chrome's PWA install criteria — even though we do no caching.
+// Only intercept GET requests on same origin to keep behaviour minimal.
 self.addEventListener("fetch", (event) => {
-  // Let the browser handle everything. No-op handler still counts as "controllable".
-  return;
+  if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+  event.respondWith(fetch(event.request).catch(() => Response.error()));
 });
 
 self.addEventListener("push", (event) => {

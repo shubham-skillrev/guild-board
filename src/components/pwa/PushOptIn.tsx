@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { subscribePush, unsubscribePush } from "@/app/actions/push";
+import { Portal } from "@/components/ui/Portal";
 
 const DISMISS_KEY = "gb_push_dismissed_at";
 const DISMISS_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
@@ -105,28 +106,30 @@ export function PushOptIn() {
   if (dismissed) return null;
 
   return (
-    <div className="fixed inset-x-3 bottom-3 z-40 mx-auto max-w-sm rounded-2xl border border-border-strong bg-sumi/95 p-4 shadow-xl backdrop-blur sm:left-auto sm:right-3">
-      <p className="text-sm font-semibold text-ink">Stay in the loop</p>
-      <p className="mt-1 text-xs text-ink-soft">
-        Enable notifications for replies, reactions, and reminders.
-      </p>
-      <div className="mt-3 flex gap-2">
-        <button
-          disabled={busy}
-          onClick={subscribe}
-          className="rounded-lg bg-saffron px-3 py-1.5 text-xs font-medium text-parchment hover:opacity-90 disabled:opacity-50"
-        >
-          {busy ? "Enabling…" : "Enable"}
-        </button>
-        <button
-          disabled={busy}
-          onClick={dismiss}
-          className="rounded-lg border border-border-strong px-3 py-1.5 text-xs text-ink-soft hover:text-ink"
-        >
-          Not now
-        </button>
+    <Portal>
+      <div className="fixed inset-x-3 bottom-24 z-40 mx-auto max-w-sm rounded-2xl border border-border-strong bg-sumi/95 p-4 shadow-xl backdrop-blur sm:left-auto sm:right-4 sm:bottom-24">
+        <p className="text-sm font-semibold text-ink">Stay in the loop</p>
+        <p className="mt-1 text-xs text-ink-soft">
+          Enable notifications for replies, reactions, and topic activity.
+        </p>
+        <div className="mt-3 flex gap-2">
+          <button
+            disabled={busy}
+            onClick={subscribe}
+            className="rounded-lg bg-saffron px-3 py-1.5 text-xs font-medium text-parchment hover:opacity-90 disabled:opacity-50"
+          >
+            {busy ? "Enabling…" : "Enable"}
+          </button>
+          <button
+            disabled={busy}
+            onClick={dismiss}
+            className="rounded-lg border border-border-strong px-3 py-1.5 text-xs text-ink-soft hover:text-ink"
+          >
+            Not now
+          </button>
+        </div>
       </div>
-    </div>
+    </Portal>
   );
 }
 

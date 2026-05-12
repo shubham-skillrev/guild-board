@@ -236,7 +236,13 @@ export default function TopicDetailPage({
       if (res.ok) {
         setEditing(false)
         await fetchTopic()
+        toast('Topic updated', 'success')
+      } else {
+        const data = await res.json().catch(() => ({}))
+        toast(data.error ?? 'Edit failed. Try again.', 'error')
       }
+    } catch {
+      toast('Edit failed. Check your connection.', 'error')
     } finally {
       setSaving(false)
     }

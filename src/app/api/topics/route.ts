@@ -5,6 +5,7 @@
 // RLS: server client
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { notifyOnNewTopic } from '@/lib/push/notify'
 import type { CategoryTag } from '@/types'
@@ -138,22 +139,19 @@ export async function PATCH(request: Request) {
   const { id, title, description, category } = body
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
-  // Verify ownership
-  const { data: existing } = await supabase
-    .from('topics')
-    .select('user_id, cycle_id')
-    .eq('id', id)
-    .eq('is_deleted', false)
-    .single()
+  const admin = createAdminClient()
 
-  if (!existing) return NextResponse.json({ error: 'Topic not found' }, { status: 404 })
+  const { data: existing, error: existingErr } = await admin
+    .from('topics')
+    .select('user_id, cycle_id, is_deleted')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (existingErr) return NextResponse.json({ error: existingErr.message }, { status: 500 })
+  if (!existing || existing.is_deleted) return NextResponse.json({ error: 'Topic not found' }, { status: 404 })
   if (existing.user_id !== user.id) return NextResponse.json({ error: 'Not your topic' }, { status: 403 })
 
-  // Only allow edits during open cycle
-  const { data: cycle } = await supabase.from('cycles').select('status').eq('id', existing.cycle_id).single()
-  if (cycle?.status !== 'open') return NextResponse.json({ error: 'Cycle is not open for edits' }, { status: 400 })
-
-  const updates: Record<string, any> = { updated_at: new Date().toISOString() }
+  const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (title?.trim()) {
     if (title.length > 80) return NextResponse.json({ error: 'Title too long' }, { status: 400 })
     updates.title = title.trim()
@@ -164,11 +162,10 @@ export async function PATCH(request: Request) {
   }
   if (category) updates.category = category
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from('topics')
     .update(updates)
     .eq('id', id)
-    .eq('user_id', user.id)
     .select()
     .single()
 
@@ -187,24 +184,28 @@ export async function DELETE(request: Request) {
   const { id } = body
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
-  // Verify ownership
-  const { data: existing } = await supabase
-    .from('topics')
-    .select('user_id, cycle_id')
-    .eq('id', id)
-    .eq('is_deleted', false)
-    .single()
+  const admin = createAdminClient()
 
-  if (!existing) return NextResponse.json({ error: 'Topic not found' }, { status: 404 })
+  const { data: existing, error: existingErr } = await admin
+    .from('topics')
+    .select('user_id, is_deleted')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (existingErr) return NextResponse.json({ error: existingErr.message }, { status: 500 })
+  if (!existing || existing.is_deleted) return NextResponse.json({ error: 'Topic not found' }, { status: 404 })
   if (existing.user_id !== user.id) return NextResponse.json({ error: 'Not your topic' }, { status: 403 })
 
-  // Soft delete
-  const { error } = await supabase
+  const { data: updated, error } = await admin
     .from('topics')
     .update({ is_deleted: true, updated_at: new Date().toISOString() })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .select('id')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!updated || updated.length === 0) {
+    return NextResponse.json({ error: 'Delete did not affect any row' }, { status: 500 })
+  }
+
   return NextResponse.json({ success: true })
 }
