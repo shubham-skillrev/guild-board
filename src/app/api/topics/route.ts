@@ -6,6 +6,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { notifyOnNewTopic } from '@/lib/push/notify'
 import type { CategoryTag } from '@/types'
 
 export async function GET(request: Request) {
@@ -118,6 +119,10 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  void notifyOnNewTopic({ topicId: data.id, actorId: user.id }).catch((err) =>
+    console.warn('notifyOnNewTopic failed', err)
+  )
 
   return NextResponse.json(data, { status: 201 })
 }

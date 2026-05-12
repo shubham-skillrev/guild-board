@@ -4,6 +4,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { notifyOnComment } from '@/lib/push/notify'
 import { NextResponse } from 'next/server'
 
 const COMMENT_MAX_LENGTH = 2000
@@ -116,6 +117,13 @@ export async function POST(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  void notifyOnComment({
+    topicId: topic_id,
+    parentCommentId: parent_id,
+    actorId: user.id,
+    body: commentBody.trim(),
+  }).catch((err) => console.warn('notifyOnComment failed', err))
 
   return NextResponse.json({
     ...data,

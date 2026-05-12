@@ -7,6 +7,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { MAX_SELECTED_TOPICS } from '@/lib/constants'
+import { notifyOnTopicSelected } from '@/lib/push/notify'
 import { NextResponse } from 'next/server'
 
 export async function PATCH(request: Request) {
@@ -68,5 +69,12 @@ export async function PATCH(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (is_selected) {
+    void notifyOnTopicSelected({ topicId: topic_id }).catch((err) =>
+      console.warn('notifyOnTopicSelected failed', err)
+    )
+  }
+
   return NextResponse.json(data)
 }

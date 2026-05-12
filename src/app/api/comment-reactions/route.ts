@@ -4,6 +4,7 @@
 //          POST with same reaction = toggle off. POST with opposite = flip.
 
 import { createClient } from '@/lib/supabase/server'
+import { notifyOnLike } from '@/lib/push/notify'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -58,6 +59,12 @@ export async function POST(request: Request) {
     .insert({ comment_id, user_id: user.id, reaction })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (reaction === 1) {
+    void notifyOnLike({ commentId: comment_id, actorId: user.id }).catch((err) =>
+      console.warn('notifyOnLike failed', err)
+    )
+  }
 
   return NextResponse.json({ reaction }, { status: 201 })
 }
