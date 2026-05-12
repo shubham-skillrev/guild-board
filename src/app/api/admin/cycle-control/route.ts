@@ -6,6 +6,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { notifyOnCycleOpen, notifyOnCycleEnded } from '@/lib/push/notify'
 import { NextResponse } from 'next/server'
 
 export async function PATCH(request: Request) {
@@ -78,5 +79,19 @@ export async function PATCH(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Fire notifications on meaningful transitions only.
+  if (cycle.status !== status) {
+    if (status === 'open') {
+      void notifyOnCycleOpen({ label: data.label }).catch((err) =>
+        console.warn('notifyOnCycleOpen failed', err)
+      )
+    } else if (status === 'frozen') {
+      void notifyOnCycleEnded({ label: data.label }).catch((err) =>
+        console.warn('notifyOnCycleEnded failed', err)
+      )
+    }
+  }
+
   return NextResponse.json(data)
 }

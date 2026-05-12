@@ -8,84 +8,106 @@ const pick = <T>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
 
 // Tone: Hinglish, dev-aware, Swiggy-style. Action clear in first 3-4 words.
 // Mild masala, no over-the-top filmy lines.
+// Vibe: warm Hinglish, mildly playful, never preachy.
+// Clear action in title. Body adds context + tiny smile.
 const COPY = {
   newTopic: {
     titles: [
-      "Fresh topic on the board",
-      "Naya idea just dropped",
-      "Someone shipped a thought",
-      "New topic, garma-garam",
+      "Naya topic on the board",
+      "Fresh idea just dropped",
+      "Board pe kuch hone wala hai",
+      "Charcha for the cycle",
     ],
     body: (author: string, title: string) =>
-      `${author} posted "${title}". Worth a 30-second scroll.`,
+      `${author} pitched "${title}". Ek nazar daal lo.`,
   },
   vote: {
     titles: [
-      "+1 on your topic",
-      "Your topic got an upvote",
-      "Someone vibed with your idea",
-      "Upvote unlocked",
+      "Vote mila tumhe",
+      "Upvote landed",
+      "Aapke topic ko thumbs up",
+      "Someone backed your idea",
     ],
     body: (voter: string, title: string) =>
-      `${voter} upvoted "${title}". Aur chahiye? Share kar do.`,
+      `${voter} upvoted "${title}". Hawaa banti ja rahi hai.`,
   },
   contribute: {
     titles: [
-      "You got a co-pilot",
-      "Someone's pitching in",
-      "Contributor signed up",
-      "Help is on the way",
+      "Topic Saathi mil gaya",
+      "Someone joined in",
+      "Aapke topic pe ek aur",
+      "Team building up",
     ],
     body: (helper: string, title: string) =>
-      `${helper} wants to contribute on "${title}". Time to plan.`,
+      `${helper} jumped in on "${title}". Plan banao saath mein.`,
   },
   reply: {
     titles: [
-      "You got a reply",
-      "New reply on your thread",
-      "Someone replied to you",
-      "Reply incoming",
+      "Reply aaya hai",
+      "Naya reply",
+      "Aapko jawab mila",
+      "Thread mein hulchul",
     ],
     body: (author: string, preview: string) => `${author}: ${preview}`,
   },
   comment: {
     titles: [
-      "New comment on your topic",
-      "Your topic got a comment",
+      "Aapke topic pe comment",
+      "Charcha shuru ho gayi",
+      "Naya comment",
       "Someone weighed in",
-      "Discussion starting on your topic",
     ],
     body: (author: string, preview: string) => `${author}: ${preview}`,
   },
   like: {
     titles: [
-      "Your comment got a like",
-      "Someone liked your take",
-      "Wah, kya comment hai",
-      "Comment appreciated",
+      "Wah, kya baat hai",
+      "Aapka comment pasand aaya",
+      "Ek like aa gaya",
+      "Comment ne taali bajwa di",
     ],
     body: (liker: string, preview: string) =>
       `${liker} liked: "${preview}"`,
   },
   spark: {
     titles: [
-      "You earned a spark",
-      "Spark received",
-      "Someone sparked you",
-      "Kamaal kar diya — spark",
+      "Aapko spark mila",
+      "Spark drop, congrats",
+      "Kisi ne aap chuna",
+      "Cycle ka spark aapke naam",
     ],
     body: (giver: string) =>
-      `${giver} sparked you this cycle. Bowing emoji deserved.`,
+      `${giver} sparked you this cycle. Kamaal kar diya.`,
   },
   selected: {
     titles: [
-      "Your topic got selected",
-      "Selected for this cycle",
-      "Topic shortlisted",
-      "Bajao taali, you're in",
+      "Aapka topic select hua",
+      "Topic on the agenda",
+      "Bajao taali, selected",
+      "Shortlist mein aap",
     ],
     body: (title: string) =>
-      `"${title}" is on the agenda this cycle. Get ready to lead.`,
+      `"${title}" is on this cycle's agenda. Tayyari shuru.`,
+  },
+  cycleOpen: {
+    titles: [
+      "Naya cycle shuru",
+      "Cycle open hai",
+      "Time to pitch",
+      "Board khul gaya",
+    ],
+    body: (label: string) =>
+      `${label} cycle is live. Drop your topics and vote on others.`,
+  },
+  cycleEnded: {
+    titles: [
+      "Cycle wrap-up time",
+      "Spark window khula",
+      "Time to spark someone",
+      "Cycle ka end, sparks shuru",
+    ],
+    body: (label: string) =>
+      `${label} discussions are done. Give your one spark to someone who stood out.`,
   },
 };
 
@@ -261,6 +283,35 @@ export async function notifyOnTopicSelected(args: { topicId: string }) {
     body: COPY.selected.body(truncate(topic.title, 60)),
     url: `/board/${topic.id}`,
     tag: `selected:${topic.id}`,
+    requireInteraction: true,
+  });
+}
+
+async function broadcast(payload: Parameters<typeof sendPushToUsers>[1], excludeUserId?: string) {
+  const admin = createAdminClient();
+  let q = admin.from("push_subscriptions").select("user_id");
+  if (excludeUserId) q = q.neq("user_id", excludeUserId);
+  const { data: subs } = await q;
+  const userIds = Array.from(new Set((subs ?? []).map((s) => s.user_id)));
+  if (!userIds.length) return;
+  await sendPushToUsers(userIds, payload);
+}
+
+export async function notifyOnCycleOpen(args: { label: string }) {
+  await broadcast({
+    title: pick(COPY.cycleOpen.titles),
+    body: COPY.cycleOpen.body(args.label),
+    url: "/board",
+    tag: `cycle-open:${args.label}`,
+  });
+}
+
+export async function notifyOnCycleEnded(args: { label: string }) {
+  await broadcast({
+    title: pick(COPY.cycleEnded.titles),
+    body: COPY.cycleEnded.body(args.label),
+    url: "/leaderboard",
+    tag: `cycle-end:${args.label}`,
     requireInteraction: true,
   });
 }
