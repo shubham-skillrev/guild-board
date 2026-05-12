@@ -7,8 +7,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { type NextRequest, NextResponse } from 'next/server'
 
-type EventName = 'prompt_accepted' | 'prompt_dismissed' | 'app_installed'
-const VALID_EVENTS: EventName[] = ['prompt_accepted', 'prompt_dismissed', 'app_installed']
+type EventName = 'prompt_dismissed' | 'app_installed'
+const VALID_EVENTS: EventName[] = ['prompt_dismissed', 'app_installed']
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -33,7 +33,9 @@ export async function POST(request: NextRequest) {
       user_agent: userAgent,
     })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error && error.code !== '23505') {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true }, { status: 201 })
 }

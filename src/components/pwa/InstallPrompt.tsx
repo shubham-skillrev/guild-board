@@ -98,10 +98,10 @@ export function InstallPrompt() {
     if (!deferred) return;
     await deferred.prompt();
     const choice = await deferred.userChoice;
-    reportInstallEvent(
-      choice.outcome === "accepted" ? "prompt_accepted" : "prompt_dismissed",
-      platform,
-    );
+    if (choice.outcome === "dismissed") {
+      reportInstallEvent("prompt_dismissed", platform);
+    }
+    // accepted -> wait for `appinstalled` event to log single row
     setDeferred(null);
     if (choice.outcome === "accepted") setVisible(false);
   };
