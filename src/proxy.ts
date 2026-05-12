@@ -13,12 +13,21 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Public routes — pass through without auth check
+  const isPwaAsset =
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/sw.js' ||
+    pathname === '/icon.svg' ||
+    pathname === '/icon-maskable.svg' ||
+    pathname.startsWith('/icon-') ||
+    pathname === '/apple-touch-icon.png'
+
   const isPublicRoute =
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/_next') ||
     pathname === '/' ||
     pathname === '/login' ||
-    pathname === '/favicon.ico'
+    pathname === '/favicon.ico' ||
+    isPwaAsset
 
   let response = NextResponse.next({ request })
 
@@ -63,5 +72,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/auth).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|api/auth|manifest.webmanifest|sw.js|icon-|apple-touch-icon|icon.svg|icon-maskable.svg).*)',
+  ],
 }
