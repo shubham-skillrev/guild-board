@@ -6,6 +6,7 @@ import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useToast } from '@/hooks/useToast'
 import { IdeaCard } from '@/components/bank/IdeaCard'
 import { BankIdeaModal } from '@/components/bank/BankIdeaModal'
+import { Lightbulb, HandHelping } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { PageHeader, EmptyState, CardSkeleton } from '@/components/ui/Section'
 import type { BankedIdea } from '@/types'
@@ -123,7 +124,7 @@ export default function BankPage() {
         <CardSkeleton />
       ) : list.length === 0 ? (
         <EmptyState
-          icon={tab === 'mine' ? '💡' : '🙌'}
+          icon={tab === 'mine' ? Lightbulb : HandHelping}
           title={tab === 'mine' ? 'Nothing banked yet' : 'No ideas up for grabs'}
           body={
             tab === 'mine'

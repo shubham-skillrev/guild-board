@@ -1,49 +1,60 @@
+import type { LucideIcon } from 'lucide-react'
+import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/utils/cn'
+
+/**
+ * The one button.
+ *
+ * Height comes from --control-h, so it is a 44px thumb target on a phone and a
+ * tighter 36px on desktop without either being hardcoded here.
+ *
+ * Feedback is on pointer-down via `press`, not on click: waiting for the click
+ * to acknowledge a tap is the single thing that makes a UI feel dead.
+ */
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md'
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-saffron text-parchment hover:bg-saffron/90',
-  secondary: 'border border-border-strong text-ink-soft hover:bg-kinu',
-  ghost: 'text-cha hover:text-ink hover:bg-kinu',
-  danger: 'border border-vermillion/30 text-vermillion hover:bg-vermillion-light',
-}
-
-const SIZES: Record<Size, string> = {
-  sm: 'px-3 py-1.5 text-[12px]',
-  md: 'px-5 py-2.5 text-[13px]',
+  // Saffron marks the one thing you can act on, so it stays rare.
+  primary: 'bg-accent text-black font-semibold hover:bg-accent/90',
+  secondary: 'bg-fill text-label hover:bg-fill-strong',
+  ghost: 'text-label-2 hover:text-label hover:bg-fill',
+  danger: 'text-danger hover:bg-danger-tint',
 }
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant
   size?: Size
+  /** Leading glyph. Decorative: the label carries the meaning. */
+  icon?: LucideIcon
 }
 
-/**
- * Shared button. Extracted from the three hand-rolled implementations in
- * SubmitModal / TopicCard / CommentThread so new surfaces stop re-deriving
- * the same class strings.
- */
 export function Button({
   variant = 'primary',
   size = 'md',
+  icon,
   className,
   type = 'button',
+  children,
   ...props
 }: ButtonProps) {
   return (
     <button
       type={type}
       className={cn(
-        // `press` puts the feedback on pointer-down rather than on click, and
-        // keeps it to transform so it stays on the compositor.
-        'press rounded-lg font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
+        'press inline-flex items-center justify-center gap-1.5 rounded-(--radius-control)',
+        'transition-colors disabled:opacity-40 disabled:pointer-events-none',
+        size === 'md'
+          ? 'h-(--control-h) px-4 text-callout font-medium'
+          : 'h-8 px-3 text-footnote font-medium',
         VARIANTS[variant],
-        SIZES[size],
         className,
       )}
       {...props}
-    />
+    >
+      {icon && <Icon icon={icon} size={size === 'md' ? 'md' : 'sm'} />}
+      {children}
+    </button>
   )
 }

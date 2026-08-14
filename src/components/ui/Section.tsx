@@ -1,13 +1,16 @@
 import Link from 'next/link'
+import type { LucideIcon } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
+import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/utils/cn'
 
 /**
- * Shared page and section furniture.
+ * Page and section furniture.
  *
- * Hierarchy comes from weight, size and leading together rather than size
- * alone, so these wrap the type scale instead of letting every page invent its
- * own heading treatment. Labels are direct and specific: "Top right now" beats
- * "Featured", because specificity is what makes a screen predictable.
+ * Pages compose these instead of hand-rolling a heading each time, which is
+ * what stops screens drifting apart from one another. Labels are direct and
+ * specific: a name that says what is in the list beats a safe generic one,
+ * because specificity is what makes a screen predictable.
  */
 
 export function PageHeader({
@@ -20,10 +23,10 @@ export function PageHeader({
   action?: React.ReactNode
 }) {
   return (
-    <header className="mb-7 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+    <header className="mb-(--gap-section) flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="type-display font-serif text-ink">{title}</h1>
-        {subtitle && <p className="type-body text-ink-soft mt-1.5">{subtitle}</p>}
+        <h1 className="text-title-1 text-label">{title}</h1>
+        {subtitle && <p className="text-callout text-label-2 mt-1.5 max-w-prose">{subtitle}</p>}
       </div>
       {action && <div className="flex items-center gap-2 shrink-0 flex-wrap">{action}</div>}
     </header>
@@ -46,13 +49,17 @@ export function SectionHeader({
 }) {
   return (
     <div className="flex items-baseline gap-2 mb-3">
-      <h2 id={id} className="type-title text-ink">
+      <h2 id={id} className="text-title-3 text-label">
         {title}
       </h2>
-      {hint && <span className="type-caption text-cha">{hint}</span>}
+      {hint && <span className="text-caption text-label-3">{hint}</span>}
       {href && (
-        <Link href={href} className="type-caption text-saffron hover:underline ml-auto press shrink-0">
-          {hrefLabel} →
+        <Link
+          href={href}
+          className="press ml-auto shrink-0 inline-flex items-center gap-1 text-caption text-accent hover:underline"
+        >
+          {hrefLabel}
+          <Icon icon={ArrowRight} size="sm" />
         </Link>
       )}
     </div>
@@ -60,8 +67,8 @@ export function SectionHeader({
 }
 
 /**
- * A single number with its meaning attached. Used for the cycle status strip.
- * `tone` carries urgency: saffron when something is running out.
+ * A single number with its meaning attached. `tone` carries urgency, so the
+ * strip reads at a glance: saffron means something is running out.
  */
 export function StatTile({
   value,
@@ -72,35 +79,42 @@ export function StatTile({
 }: {
   value: string | number
   label: string
-  icon?: string
+  icon?: LucideIcon
   tone?: 'default' | 'active' | 'spent'
   href?: string
 }) {
   const body = (
     <>
       {icon && (
-        <div className="text-base mb-1 leading-none" aria-hidden>
-          {icon}
+        <div
+          className={cn(
+            'mb-1.5 flex justify-center',
+            tone === 'active' ? 'text-accent' : 'text-label-3',
+          )}
+        >
+          <Icon icon={icon} size="lg" />
         </div>
       )}
       <div
         className={cn(
-          'text-[20px] font-semibold tabular leading-none',
-          tone === 'active' && 'text-saffron',
-          tone === 'spent' && 'text-cha',
-          tone === 'default' && 'text-ink',
+          'text-title-2 tabular leading-none',
+          tone === 'active' && 'text-accent',
+          tone === 'spent' && 'text-label-3',
+          tone === 'default' && 'text-label',
         )}
       >
         {value}
       </div>
-      <div className="type-caption text-cha mt-1.5">{label}</div>
+      <div className="text-caption text-label-3 mt-1.5">{label}</div>
     </>
   )
 
   const className = cn(
-    'rounded-xl border px-3 py-3.5 text-center transition-colors',
-    tone === 'active' ? 'border-saffron/25 bg-saffron-light/30' : 'border-border bg-paper/40',
-    href && 'press hover:border-border-strong',
+    'rounded-(--radius-card) border px-3 py-3.5 text-center transition-colors',
+    tone === 'active'
+      ? 'border-accent/25 bg-accent-tint'
+      : 'border-separator bg-surface-1',
+    href && 'press hover:border-white/20',
   )
 
   return href ? (
@@ -119,19 +133,19 @@ export function EmptyState({
   body,
   action,
 }: {
-  icon: string
+  icon: LucideIcon
   title: string
   body?: string
   action?: React.ReactNode
 }) {
   return (
-    <div className="text-center py-16">
-      <div className="text-3xl mb-3" aria-hidden>
-        {icon}
+    <div className="text-center py-14">
+      <div className="flex justify-center text-label-4 mb-3">
+        <Icon icon={icon} size="lg" className="size-7" />
       </div>
-      <p className="type-title text-ink-soft">{title}</p>
-      {body && <p className="type-body text-cha mt-1.5 max-w-sm mx-auto">{body}</p>}
-      {action && <div className="mt-4 flex justify-center">{action}</div>}
+      <p className="text-title-3 text-label-2">{title}</p>
+      {body && <p className="text-callout text-label-3 mt-1.5 max-w-sm mx-auto">{body}</p>}
+      {action && <div className="mt-5 flex justify-center">{action}</div>}
     </div>
   )
 }
@@ -139,15 +153,70 @@ export function EmptyState({
 /** Card-shaped skeleton. Matches the real card's rhythm so nothing jumps. */
 export function CardSkeleton({ count = 3 }: { count?: number }) {
   return (
-    <div className="space-y-3" aria-busy="true" aria-label="Loading">
+    <div className="flex flex-col gap-(--gap-list)" aria-busy="true" aria-label="Loading">
       {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="rounded-2xl border border-border bg-paper/40 p-4">
-          <div className="h-2.5 w-24 bg-kinu/60 rounded mb-3" />
-          <div className="h-4 w-3/4 bg-kinu/70 rounded mb-2.5" />
-          <div className="h-3 w-full bg-kinu/40 rounded mb-1.5" />
-          <div className="h-3 w-2/3 bg-kinu/40 rounded" />
+        <div
+          key={i}
+          className="elev-1 rounded-(--radius-card) p-(--pad-card) animate-pulse-soft"
+        >
+          <div className="h-2.5 w-24 bg-fill rounded mb-3" />
+          <div className="h-4 w-3/4 bg-fill-strong rounded mb-2.5" />
+          <div className="h-3 w-full bg-fill rounded mb-1.5" />
+          <div className="h-3 w-2/3 bg-fill rounded" />
         </div>
       ))}
     </div>
   )
+}
+
+/**
+ * List row. Grouped lists are a strong native pattern: one surface, hairlines
+ * between items, rather than a stack of separate floating cards.
+ */
+export function RowGroup({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={cn(
+        'elev-1 rounded-(--radius-card) overflow-hidden divide-y divide-separator',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function Row({
+  href,
+  onClick,
+  children,
+  className,
+}: {
+  href?: string
+  onClick?: () => void
+  children: React.ReactNode
+  className?: string
+}) {
+  const cls = cn(
+    'flex items-center gap-3 px-(--pad-card) py-3 w-full text-left',
+    'min-h-(--control-h) transition-colors',
+    (href || onClick) && 'press hover:bg-fill',
+    className,
+  )
+
+  if (href) {
+    return (
+      <Link href={href} className={cls}>
+        {children}
+      </Link>
+    )
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={cls}>
+        {children}
+      </button>
+    )
+  }
+  return <div className={cls}>{children}</div>
 }

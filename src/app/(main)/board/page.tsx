@@ -3,6 +3,10 @@
 import { useCallback, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion, useReducedMotion } from 'framer-motion'
+import {
+  ArrowBigUp, Calendar, CircleCheck, Handshake, LayoutGrid, Lightbulb, MessageSquare,
+} from 'lucide-react'
+import { Icon } from '@/components/ui/Icon'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useTopics } from '@/hooks/useTopics'
 import { useUserTokens } from '@/hooks/useUserTokens'
@@ -154,7 +158,7 @@ export default function BoardPage() {
                 href="/bank"
                 className="press inline-flex items-center gap-1.5 px-3.5 py-2 border border-border-strong text-ink-soft text-[13px] font-semibold rounded-lg hover:bg-kinu transition-colors"
               >
-                💡 Bank an idea
+                <Icon icon={Lightbulb} /> Bank an idea
               </Link>
             </>
           }
@@ -167,7 +171,7 @@ export default function BoardPage() {
           <motion.section {...section} className="mb-7" aria-label="Your cycle status">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <StatTile
-                icon={phase === 'open' ? '🗓️' : '💬'}
+                icon={phase === 'open' ? Calendar : MessageSquare}
                 value={
                   days === null ? '-' : days > 0 ? days : days === 0 ? 'Today' : 'Done'
                 }
@@ -185,19 +189,19 @@ export default function BoardPage() {
                 tone={days !== null && days >= 0 && days <= 2 ? 'active' : 'default'}
               />
               <StatTile
-                icon="▲"
+                icon={ArrowBigUp}
                 value={votes_remaining}
                 label={votes_remaining === 1 ? 'vote left' : 'votes left'}
                 tone={!isOpen ? 'spent' : votes_remaining > 0 ? 'active' : 'spent'}
               />
               <StatTile
-                icon="🤝"
+                icon={Handshake}
                 value={contribs_remaining}
                 label={contribs_remaining === 1 ? 'hand raise' : 'hand raises'}
                 tone={!isOpen ? 'spent' : contribs_remaining > 0 ? 'active' : 'spent'}
               />
               <StatTile
-                icon={topic_submitted ? '✅' : '💡'}
+                icon={topic_submitted ? CircleCheck : Lightbulb}
                 value={topic_submitted ? '1' : '0'}
                 label={topic_submitted ? 'idea pitched' : 'ideas pitched'}
                 tone={topic_submitted ? 'default' : isOpen ? 'active' : 'spent'}
@@ -251,7 +255,7 @@ export default function BoardPage() {
               <CardSkeleton />
             ) : !viewingCycle ? (
               <EmptyState
-                icon="◈"
+                icon={LayoutGrid}
                 title="The scroll is blank"
                 body="An admin needs to open a cycle to get the guild rolling. Ideas you bank now carry over."
                 action={
@@ -259,7 +263,7 @@ export default function BoardPage() {
                     href="/bank"
                     className="press inline-flex items-center gap-1.5 px-3.5 py-2 border border-border-strong text-ink-soft text-[13px] font-semibold rounded-lg hover:bg-kinu transition-colors"
                   >
-                    💡 Bank an idea
+                    <Icon icon={Lightbulb} /> Bank an idea
                   </Link>
                 }
               />
@@ -267,7 +271,7 @@ export default function BoardPage() {
               <CardSkeleton />
             ) : displayTopics.length === 0 ? (
               <EmptyState
-                icon="💡"
+                icon={Lightbulb}
                 title="Nothing pitched yet"
                 body={
                   isOpen
