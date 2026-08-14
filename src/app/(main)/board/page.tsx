@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useTopics } from '@/hooks/useTopics'
 import { useUserTokens } from '@/hooks/useUserTokens'
@@ -9,6 +10,7 @@ import { useToast } from '@/hooks/useToast'
 import { TopicList } from '@/components/topics/TopicList'
 import { SubmitModal } from '@/components/topics/SubmitModal'
 import { MeetingPill, MeetingDateBadge } from '@/components/layout/MeetingPill'
+import { OutcomesRecap } from '@/components/board/OutcomesRecap'
 import type { Cycle, Topic } from '@/types'
 
 const MONTHS_SHORT = [
@@ -157,6 +159,15 @@ export default function BoardPage() {
                 </svg>
               </button>
             )}
+            {/* Board locked or already pitched — the bank is always open. */}
+            {(!isViewingActive || phase !== 'open' || topic_submitted) && (
+              <Link
+                href="/bank"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-border-strong text-ink-soft text-[13px] font-semibold rounded-lg hover:bg-kinu transition-all"
+              >
+                💡 Bank an idea
+              </Link>
+            )}
           </div>
         </div>
 
@@ -201,6 +212,9 @@ export default function BoardPage() {
             )}
           </div>
         )}
+
+        {/* ─── What came of last cycle ─── */}
+        <OutcomesRecap />
 
         {/* ─── Topic list ─── */}
         {isLoading ? (
