@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { CATEGORY_LABELS, OUTCOME_LABELS } from '@/lib/constants'
 import { AdminControls } from '@/components/admin/AdminControls'
 import { CycleListCards } from '@/components/admin/CycleListCards'
+import { ByteGenerator } from '@/components/admin/ByteGenerator'
 import type { Cycle, Topic } from '@/types'
 
 const MONTHS = [
@@ -64,6 +65,11 @@ export default async function AdminPage() {
         activeCycle={activeCycle as Cycle | null}
         topics={activeCycleTopics as any[]}
       />
+
+      {/* Monthly tech digest */}
+      <section className="mt-10">
+        <ByteGenerator />
+      </section>
 
       {/* All cycles overview (static) */}
       <section className="mt-10">

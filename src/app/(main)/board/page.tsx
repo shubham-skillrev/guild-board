@@ -168,6 +168,12 @@ export default function BoardPage() {
                 💡 Bank an idea
               </Link>
             )}
+            <Link
+              href="/bytes"
+              className="md:hidden inline-flex items-center gap-1.5 px-3.5 py-2 border border-border-strong text-ink-soft text-[13px] font-semibold rounded-lg hover:bg-kinu transition-all"
+            >
+              📡 Bytes
+            </Link>
           </div>
         </div>
 

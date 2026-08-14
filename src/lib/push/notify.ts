@@ -135,6 +135,16 @@ const COPY = {
     body: (label: string) =>
       `${label} discussions are done. Give your one spark to someone who stood out.`,
   },
+  bytesPublished: {
+    titles: [
+      "Is mahine ke bytes aa gaye",
+      "Tech ki khabar, chhoti si",
+      "Bytes drop ho gaye",
+      "Padhne layak kuch hai",
+    ],
+    body: (label: string, count: number) =>
+      `${label} — ${count} cheezein jo is mahine hui. 2 minute ka padhna hai.`,
+  },
   asked: {
     titles: [
       "Aapko poocha gaya hai",
@@ -383,6 +393,19 @@ export async function notifyOnCycleEnded(args: { label: string }) {
     url: "/leaderboard",
     tag: `cycle-end:${args.label}`,
     requireInteraction: true,
+  });
+}
+
+/**
+ * A digest went live. Deliberately timed mid-cycle: it lands in the stretch
+ * where the board is locked and there is otherwise nothing to come back for.
+ */
+export async function notifyOnBytesPublished(args: { label: string; count: number }) {
+  await broadcast({
+    title: pick(COPY.bytesPublished.titles),
+    body: COPY.bytesPublished.body(args.label, args.count),
+    url: "/bytes",
+    tag: `bytes:${args.label}`,
   });
 }
 

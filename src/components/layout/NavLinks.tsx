@@ -17,6 +17,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
   const pathname = usePathname()
   const isBoard = pathname.startsWith('/board')
   const isBank = pathname.startsWith('/bank')
+  const isBytes = pathname.startsWith('/bytes')
   const isLeaders = pathname.startsWith('/leaderboard')
   const isAdmin = pathname.startsWith('/admin')
 
@@ -39,6 +40,15 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
         )}
       >
         Ideas
+      </Link>
+      <Link
+        href="/bytes"
+        className={cn(
+          'px-3 py-2 border-b-2 transition-all',
+          isBytes ? 'text-ink border-saffron' : 'text-ink-soft border-transparent hover:text-ink'
+        )}
+      >
+        Bytes
       </Link>
       <Link
         href="/leaderboard"
