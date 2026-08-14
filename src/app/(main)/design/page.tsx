@@ -13,14 +13,7 @@
  */
 
 import { useState } from 'react'
-import {
-  ArrowBigUp,
-  Calendar,
-  CircleCheck,
-  Handshake,
-  Lightbulb,
-  MessageSquare,
-} from 'lucide-react'
+import { ArrowFatUp, CalendarBlank, CheckCircle, Handshake, Lightbulb, ChatCircle } from '@phosphor-icons/react/dist/ssr'
 
 import { Button } from '@/components/ui/Button'
 import { Chip } from '@/components/ui/Chip'
@@ -198,10 +191,10 @@ export default function DesignSheet() {
 
       <Block title="Stat tiles" hint="a number with its meaning attached, tone carries urgency">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-(--gap-list)">
-          <StatTile icon={Calendar} value={3} label="days to meeting" tone="active" />
-          <StatTile icon={ArrowBigUp} value={2} label="votes left" tone="default" />
+          <StatTile icon={CalendarBlank} value={3} label="days to meeting" tone="active" />
+          <StatTile icon={ArrowFatUp} value={2} label="votes left" tone="default" />
           <StatTile icon={Handshake} value={0} label="hand raises" tone="spent" />
-          <StatTile icon={CircleCheck} value="1" label="idea pitched" tone="default" />
+          <StatTile icon={CheckCircle} value="1" label="idea pitched" tone="default" />
         </div>
       </Block>
 
@@ -221,7 +214,7 @@ export default function DesignSheet() {
       <Block title="Rows" hint="grouped list, which reads better than stacked cards for dense content">
         <RowGroup>
           <Row onClick={() => {}}>
-            <Icon icon={MessageSquare} className="text-label-3" />
+            <Icon icon={ChatCircle} className="text-label-3" />
             <span className="text-body text-label flex-1">How we handle flaky tests</span>
             <span className="num text-meta text-label-3">12</span>
           </Row>

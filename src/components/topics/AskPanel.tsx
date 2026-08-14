@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { Plus } from '@phosphor-icons/react/dist/ssr'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -81,7 +82,7 @@ export function AskPanel({ topicId }: { topicId: string }) {
     : candidates
 
   return (
-    <div className="rounded-xl border border-border bg-paper/50 p-4 mb-6">
+    <div className="rounded-(--radius-card) border border-border bg-paper/50 p-(--pad-card) mb-6">
       <div className="flex items-center gap-2 mb-1">
         <span className="text-[13px] font-semibold text-ink">Ask someone in</span>
         {remaining > 0 && (
@@ -119,8 +120,8 @@ export function AskPanel({ topicId }: { topicId: string }) {
       {remaining === 0 ? (
         <p className="text-[11px] text-cha">You&apos;ve asked your two for this topic.</p>
       ) : !picking ? (
-        <Button size="sm" variant="secondary" onClick={() => setPicking(true)}>
-          + Ask someone
+        <Button size="sm" variant="tinted" icon={Plus} onClick={() => setPicking(true)}>
+          Ask someone
         </Button>
       ) : (
         <div className="space-y-2.5">
@@ -132,7 +133,7 @@ export function AskPanel({ topicId }: { topicId: string }) {
                 placeholder="Search members…"
                 autoFocus
               />
-              <div className="max-h-44 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+              <div className="max-h-44 overflow-y-auto rounded-(--radius-control) border border-border divide-y divide-border">
                 {filtered.length === 0 ? (
                   <p className="text-[12px] text-cha px-3 py-2.5">No one left to ask.</p>
                 ) : filtered.map(m => (

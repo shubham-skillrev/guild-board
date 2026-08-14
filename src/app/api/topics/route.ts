@@ -231,5 +231,21 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Delete did not affect any row' }, { status: 500 })
   }
 
+  /* Release the banked idea this topic was promoted from.
+     `idea_bank.promoted_topic_id` is declared ON DELETE SET NULL, but topics
+     are soft-deleted, so the row never goes away and the constraint never
+     fires. That left a dead end: the bank refused to delete the idea because
+     it was "already on the board", and the board no longer had it. The idea
+     could be neither re-pitched nor removed, permanently.
+     Clearing it here returns the idea to the bank as unpromoted, which is the
+     honest state once the topic is gone. */
+  const { error: releaseErr } = await admin
+    .from('idea_bank')
+    .update({ promoted_topic_id: null, promoted_by: null, promoted_at: null })
+    .eq('promoted_topic_id', id)
+
+  // Non-fatal: the topic is already gone, and a stuck flag is recoverable.
+  if (releaseErr) console.warn('topics: could not release banked idea', releaseErr)
+
   return NextResponse.json({ success: true })
 }

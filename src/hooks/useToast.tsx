@@ -1,8 +1,8 @@
 'use client'
 
+import { X, Check, Info, Warning } from '@phosphor-icons/react/dist/ssr'
 import { createContext, useCallback, useContext, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { FiCheck, FiX, FiAlertTriangle, FiInfo } from 'react-icons/fi'
 
 type ToastVariant = 'success' | 'error' | 'info' | 'warning'
 
@@ -27,10 +27,10 @@ const VARIANT_STYLES: Record<ToastVariant, string> = {
 }
 
 const VARIANT_ICONS: Record<ToastVariant, React.ReactNode> = {
-  success: <FiCheck className="w-3.5 h-3.5 shrink-0" />,
-  error:   <FiX className="w-3.5 h-3.5 shrink-0" />,
-  warning: <FiAlertTriangle className="w-3.5 h-3.5 shrink-0" />,
-  info:    <FiInfo className="w-3.5 h-3.5 shrink-0" />,
+  success: <Check className="w-3.5 h-3.5 shrink-0" />,
+  error:   <X className="w-3.5 h-3.5 shrink-0" />,
+  warning: <Warning className="w-3.5 h-3.5 shrink-0" />,
+  info:    <Info className="w-3.5 h-3.5 shrink-0" />,
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {

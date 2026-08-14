@@ -9,8 +9,12 @@
 
 export function SiteFooter({ className }: { className?: string }) {
   return (
-    <footer className={`border-t border-separator px-(--pad-page-x) py-6 mt-auto ${className ?? ''}`}>
-      <p className="text-meta text-label-3 text-center">GuildBoard</p>
+    <footer
+      className={`border-t border-separator px-(--pad-page-x) py-6 mt-auto ${className ?? ""}`}
+    >
+      <p className="text-meta text-label-3 text-center">
+        GuildBoard for Skillrev
+      </p>
     </footer>
-  )
+  );
 }

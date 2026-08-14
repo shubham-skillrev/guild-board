@@ -1,6 +1,7 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { fetchCandidates } from '@/lib/bytes/sources'
+import { selectForBreadth } from '@/lib/bytes/domains'
 import { summarizeCandidates } from '@/lib/bytes/summarize'
 
 /**
@@ -73,8 +74,14 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
     }
   }
 
-  const candidates = await fetchCandidates(days, limit)
-  if (!candidates.length) {
+  /* Fetch a pool several times the target, not the target itself.
+     Selection used to happen before the already-seen filter, so a refetch
+     took the top 10, discarded the 7 that had already been published, and
+     produced a digest of 3. The stories most likely to rank are exactly the
+     ones already in the table, so the shortfall grew the more the feed was
+     refetched. Order is now: wide pool, drop seen, then select for breadth. */
+  const pool = await fetchCandidates(days, limit * 6)
+  if (!pool.length) {
     return { ok: false, reason: 'no_candidates', message: 'No stories came back from any feed.' }
   }
 
@@ -83,18 +90,21 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
   const { data: seen } = await admin
     .from('bytes')
     .select('source, source_id')
-    .in('source_id', candidates.map(c => c.source_id))
+    .in('source_id', pool.map(c => c.source_id))
 
   const seenKeys = new Set((seen ?? []).map(s => `${s.source}:${s.source_id}`))
-  const fresh = candidates.filter(c => !seenKeys.has(`${c.source}:${c.source_id}`))
+  const unseen = pool.filter(c => !seenKeys.has(`${c.source}:${c.source_id}`))
 
-  if (!fresh.length) {
+  if (!unseen.length) {
     return {
       ok: false,
       reason: 'all_seen',
       message: 'Everything found has already appeared in a previous digest.',
     }
   }
+
+  // Breadth selection runs here, on what is actually available to publish.
+  const fresh = selectForBreadth(unseen, limit)
 
   // Absent an API key this returns an empty map and the digest still lands,
   // just with blank summaries to fill in by hand.

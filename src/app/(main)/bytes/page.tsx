@@ -1,39 +1,44 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { motion, useReducedMotion } from 'framer-motion'
-import { Radio } from 'lucide-react'
-import { ByteCard, type Byte } from '@/components/bytes/ByteCard'
-import { PageHeader, SectionHeader, EmptyState, CardSkeleton } from '@/components/ui/Section'
+import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { Broadcast } from "@phosphor-icons/react";
+import { ByteCard, type Byte } from "@/components/bytes/ByteCard";
+import {
+  PageHeader,
+  SectionHeader,
+  EmptyState,
+  CardSkeleton,
+} from "@/components/ui/Section";
 
 interface Digest {
-  id: string
-  label: string
-  kind?: string
-  period_start?: string | null
-  published_at: string | null
+  id: string;
+  label: string;
+  kind?: string;
+  period_start?: string | null;
+  published_at: string | null;
 }
 
 export default function BytesPage() {
-  const reduceMotion = useReducedMotion()
-  const [digest, setDigest] = useState<Digest | null>(null)
-  const [top, setTop] = useState<Byte[]>([])
-  const [bytes, setBytes] = useState<Byte[]>([])
-  const [loading, setLoading] = useState(true)
+  const reduceMotion = useReducedMotion();
+  const [digest, setDigest] = useState<Digest | null>(null);
+  const [top, setTop] = useState<Byte[]>([]);
+  const [bytes, setBytes] = useState<Byte[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/bytes')
-      .then(r => r.json())
-      .then(data => {
-        setDigest(data.digest ?? null)
-        setTop(Array.isArray(data.top) ? data.top : [])
-        setBytes(Array.isArray(data.bytes) ? data.bytes : [])
+    fetch("/api/bytes")
+      .then((r) => r.json())
+      .then((data) => {
+        setDigest(data.digest ?? null);
+        setTop(Array.isArray(data.top) ? data.top : []);
+        setBytes(Array.isArray(data.bytes) ? data.bytes : []);
       })
       .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => setLoading(false));
+  }, []);
 
-  const isEmpty = !digest || (top.length === 0 && bytes.length === 0)
+  const isEmpty = !digest || (top.length === 0 && bytes.length === 0);
 
   // Sections arrive as a group rather than each card racing in separately.
   const section = reduceMotion
@@ -41,8 +46,8 @@ export default function BytesPage() {
     : {
         initial: { opacity: 0, y: 8 },
         animate: { opacity: 1, y: 0 },
-        transition: { type: 'spring' as const, bounce: 0, duration: 0.4 },
-      }
+        transition: { type: "spring" as const, bounce: 0, duration: 0.4 },
+      };
 
   return (
     <div className="px-5 md:px-10 py-8 w-full max-w-3xl mx-auto pb-28 md:pb-10">
@@ -53,7 +58,7 @@ export default function BytesPage() {
         subtitle={
           digest
             ? `${digest.label}. Tap anything you want on the board.`
-            : 'What happened in tech, worth two minutes of your week.'
+            : "What happened in tech, worth two minutes of your week."
         }
       />
 
@@ -61,7 +66,7 @@ export default function BytesPage() {
         <CardSkeleton count={4} />
       ) : isEmpty ? (
         <EmptyState
-          icon={Radio}
+          icon={Broadcast}
           title="Nothing yet this week"
           body="A fresh digest lands every Monday morning. Tap the discuss icon on anything you want turned into a topic."
         />
@@ -73,8 +78,15 @@ export default function BytesPage() {
               seven stories from occupying four screens. */}
           {top.length > 0 && (
             <motion.section {...section} aria-labelledby="bytes-top">
-              <SectionHeader id="bytes-top" title="Top right now" hint="most wanted for discussion" />
-              <div className="rounded-(--radius-card) border border-border bg-paper/40 divide-y divide-border overflow-hidden">
+              <SectionHeader
+                id="bytes-top"
+                title="Top right now"
+                hint="most wanted for discussion"
+              />
+              {/* The one lifted surface on the page. This section is ranked by
+                  the guild's own taps, so it gets a warm edge; everything below
+                  is the raw feed and stays neutral. */}
+              <div className="rounded-(--radius-card) border border-saffron/20 bg-paper/60 divide-y divide-border overflow-hidden">
                 {top.map((b, i) => (
                   <ByteCard key={b.id} byte={b} rank={i + 1} />
                 ))}
@@ -86,32 +98,30 @@ export default function BytesPage() {
           {bytes.length > 0 && (
             <motion.section
               {...section}
-              transition={{ ...section.transition, delay: reduceMotion ? 0 : 0.06 }}
+              transition={{
+                ...section.transition,
+                delay: reduceMotion ? 0 : 0.06,
+              }}
               aria-labelledby="bytes-week"
             >
               <SectionHeader
                 id="bytes-week"
-                title={digest?.kind === 'weekly' ? 'This week' : 'Also in this digest'}
+                title={
+                  digest?.kind === "weekly"
+                    ? "This week"
+                    : "Also in this digest"
+                }
                 hint={`${bytes.length} more`}
               />
               <div className="rounded-(--radius-card) border border-border bg-paper/40 divide-y divide-border overflow-hidden">
-                {bytes.map(b => (
+                {bytes.map((b) => (
                   <ByteCard key={b.id} byte={b} />
                 ))}
               </div>
             </motion.section>
           )}
-
-          {/* Say plainly which parts a model wrote. With an engineering
-              audience, unlabeled AI text is a credibility risk. */}
-          <footer className="pt-2">
-            <p className="type-caption text-cha text-center max-w-md mx-auto">
-              Headlines and links come straight from company engineering blogs, Hacker News
-              and GitHub. Summaries are AI-drafted; the quoted notes are your admin’s own.
-            </p>
-          </footer>
         </div>
       )}
     </div>
-  )
+  );
 }

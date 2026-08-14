@@ -1,6 +1,6 @@
 import Link from 'next/link'
-import type { LucideIcon } from 'lucide-react'
-import { ArrowRight } from 'lucide-react'
+import type { Icon as PhosphorIcon } from '@phosphor-icons/react'
+import { ArrowRight } from '@phosphor-icons/react/dist/ssr'
 import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/utils/cn'
 
@@ -79,7 +79,7 @@ export function StatTile({
 }: {
   value: string | number
   label: string
-  icon?: LucideIcon
+  icon?: PhosphorIcon
   tone?: 'default' | 'active' | 'spent'
   href?: string
 }) {
@@ -131,6 +131,79 @@ export function StatTile({
   )
 }
 
+/**
+ * A row of small readouts on one grouped surface.
+ *
+ * The board's quotas and the leaderboard's cohort stats are the same object -
+ * a handful of numbers you glance at on the way to the content - and they had
+ * drifted into two hand-rolled versions. One component now, so the board and
+ * the leaderboard open with the same furniture.
+ *
+ * A strip rather than three large tiles: at the start of a cycle every value is
+ * legitimately 0, and three big zeroes under a heading reads as a report of
+ * failure instead of a cycle that has just begun.
+ */
+export function StatStrip({
+  children,
+  className,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      /* Deliberately shallow. The strip is a status line, not a section: at
+         `py-2.5` around 30px chips it stood 56px tall directly under the page
+         title and read as the first block of content rather than a footnote
+         to the heading above it. */
+      className={cn(
+        'flex flex-wrap items-center gap-1.5 p-1.5 bg-paper/60 border border-border rounded-(--radius-control)',
+        className,
+      )}
+      {...props}
+    >
+      {children}
+    </div>
+  )
+}
+
+/**
+ * One readout inside a `StatStrip`. `tone` marks the exception only: every chip
+ * tinted saffron is the same as no chip tinted saffron, so a value is plain
+ * until it runs out, and then it is the only warm thing in the row.
+ */
+export function StatChip({
+  icon,
+  value,
+  label,
+  tone = 'default',
+}: {
+  icon?: PhosphorIcon
+  /** Omit for a chip that is a statement rather than a number. */
+  value?: string | number
+  label: React.ReactNode
+  tone?: 'default' | 'spent' | 'done'
+}) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[12px]',
+        tone === 'spent' ? 'bg-saffron/12 text-saffron' : 'bg-kinu/50 text-ink-soft',
+      )}
+    >
+      {icon && (
+        <Icon
+          icon={icon}
+          size="sm"
+          className={tone === 'default' ? 'text-ink-muted' : undefined}
+        />
+      )}
+      {value !== undefined && (
+        <span className={cn('tabular', tone === 'default' && 'text-ink')}>{value}</span>
+      )}
+      {label}
+    </span>
+  )
+}
+
 /** Consistent empty state. Says what goes here and what to do about it. */
 export function EmptyState({
   icon,
@@ -138,15 +211,17 @@ export function EmptyState({
   body,
   action,
 }: {
-  icon: LucideIcon
+  icon: PhosphorIcon
   title: string
   body?: string
   action?: React.ReactNode
 }) {
   return (
     <div className="text-center py-14">
-      <div className="flex justify-center text-label-4 mb-3">
-        <Icon icon={icon} size="lg" className="size-7" />
+      {/* Saffron, and duotone. An empty state is an invitation, and a grey
+          outline glyph reads as an error illustration instead. */}
+      <div className="flex justify-center text-saffron mb-3">
+        <Icon icon={icon} size="lg" weight="duotone" className="size-8" />
       </div>
       <p className="text-title-3 text-label-2">{title}</p>
       {body && <p className="text-callout text-label-3 mt-1.5 max-w-sm mx-auto">{body}</p>}

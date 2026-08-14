@@ -1,6 +1,6 @@
 'use client'
 
-import { IoLogOutOutline } from 'react-icons/io5'
+import { SignOut } from '@phosphor-icons/react/dist/ssr'
 
 export function LogoutButton() {
   return (
@@ -9,7 +9,7 @@ export function LogoutButton() {
         type="submit"
         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-[13px] text-cha hover:bg-vermillion-light hover:text-vermillion transition-all"
       >
-        <IoLogOutOutline className="w-4 h-4 sm:hidden" />
+        <SignOut className="w-4 h-4 sm:hidden" />
         <span className="hidden sm:inline">Sign out</span>
         <span className="sm:hidden">Out</span>
       </button>

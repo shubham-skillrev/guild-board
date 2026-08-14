@@ -1,11 +1,11 @@
 'use client'
 
+import { Lightbulb, ShieldCheck, SquaresFour, Trophy } from '@phosphor-icons/react/dist/ssr'
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserAvatar } from '@/components/ui/UserAvatar'
-import { IoGridOutline, IoTrophyOutline, IoShieldCheckmarkOutline, IoBulbOutline } from 'react-icons/io5'
 import { cn } from '@/lib/utils/cn'
 
 interface NavLinksProps {
@@ -86,7 +86,11 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
   useEffect(() => setMounted(true), [])
 
   const nav = (
-    <nav className="md:hidden fixed inset-x-0 bottom-0 z-(--z-chrome) material-chrome border-t border-border/60 pb-[env(safe-area-inset-bottom)]">
+    /* Same material as the top bar. `material-chrome` mixes the page ground
+       with transparency, and on a near-black page that lands on the ground
+       colour itself, so it read as a flat opaque strip. Paper sits a step
+       above the ground, so the blur is actually visible against it. */
+    <nav className="md:hidden fixed inset-x-0 bottom-0 z-(--z-chrome) bg-paper/80 backdrop-blur-xl border-t border-border pb-[env(safe-area-inset-bottom)]">
       <div className={cn('grid px-2 py-1.5', role === 'admin' ? 'grid-cols-5' : 'grid-cols-4')}>
         <Link
           href="/board"
@@ -95,7 +99,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
             isBoard ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
           )}
         >
-          <IoGridOutline className="w-4.5 h-4.5" />
+          <SquaresFour className="w-4.5 h-4.5" />
           <span>Board</span>
         </Link>
         <Link
@@ -105,7 +109,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
             isBank ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
           )}
         >
-          <IoBulbOutline className="w-4.5 h-4.5" />
+          <Lightbulb className="w-4.5 h-4.5" />
           <span>Ideas</span>
         </Link>
         <Link
@@ -115,7 +119,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
             isLeaders ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
           )}
         >
-          <IoTrophyOutline className="w-4.5 h-4.5" />
+          <Trophy className="w-4.5 h-4.5" />
           <span>Leaders</span>
         </Link>
         {role === 'admin' && (
@@ -126,7 +130,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
               isAdmin ? 'text-saffron bg-saffron-light/60' : 'text-saffron/80 hover:text-saffron'
             )}
           >
-            <IoShieldCheckmarkOutline className="w-4.5 h-4.5" />
+            <ShieldCheck className="w-4.5 h-4.5" />
             <span>Admin</span>
           </Link>
         )}

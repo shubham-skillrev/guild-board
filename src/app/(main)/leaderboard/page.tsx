@@ -1,10 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Lightbulb, Vote, CircleCheck } from 'lucide-react'
+import { Lightbulb, Users, CheckCircle } from '@phosphor-icons/react/dist/ssr'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { SparkButton } from '@/components/voting/SparkButton'
-import { Icon } from '@/components/ui/Icon'
+import { StatStrip, StatChip } from '@/components/ui/Section'
 
 interface LeaderboardEntry {
   id: string
@@ -201,25 +201,17 @@ export default async function LeaderboardPage() {
       </div>
 
       {/* Cohort stats - what the guild did together, with nobody ranked.
-          A strip rather than three large tiles: at the start of a cycle every
-          value is legitimately 0, and three big zeroes under a heading reads
-          as a report of failure instead of a cycle that has just begun. */}
+          Same strip the board uses for your quotas. */}
       {stats && (
-        <section className="mb-8 flex flex-wrap items-center gap-2 px-3 py-2.5 bg-paper/60 border border-border rounded-(--radius-card)">
+        <StatStrip className="mb-8">
           {[
             { label: 'ideas pitched', value: stats.ideas, icon: Lightbulb },
-            { label: 'people voted', value: stats.voters, icon: Vote },
-            { label: 'taken forward', value: stats.discussed, icon: CircleCheck },
+            { label: 'people voted', value: stats.voters, icon: Users },
+            { label: 'taken forward', value: stats.discussed, icon: CheckCircle },
           ].map(stat => (
-            <span
-              key={stat.label}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-(--radius-control) bg-kinu/50 text-footnote text-ink-soft"
-            >
-              <Icon icon={stat.icon} size="sm" className="text-ink-muted" />
-              <span className="tabular text-ink">{stat.value}</span> {stat.label}
-            </span>
+            <StatChip key={stat.label} icon={stat.icon} value={stat.value} label={stat.label} />
           ))}
-        </section>
+        </StatStrip>
       )}
 
       {hallOfFame.length > 0 && (
@@ -234,7 +226,7 @@ export default async function LeaderboardPage() {
 
           <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr_1fr] items-end">
             {hallOfFame[1] && (
-              <div className="order-2 lg:order-1 rounded-2xl border border-border bg-paper/75 p-4 shadow-[0_16px_32px_rgba(0,0,0,0.18)]">
+              <div className="order-2 lg:order-1 rounded-(--radius-card) border border-border bg-paper/75 p-(--pad-card)">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-2xl">🥈</span>
                   <span className="text-[10px] uppercase tracking-widest text-cha">Runner-up</span>
@@ -292,7 +284,7 @@ export default async function LeaderboardPage() {
             )}
 
             {hallOfFame[2] && (
-              <div className="order-3 rounded-2xl border border-border bg-paper/75 p-4 shadow-[0_16px_32px_rgba(0,0,0,0.18)]">
+              <div className="order-3 rounded-(--radius-card) border border-border bg-paper/75 p-(--pad-card)">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-2xl">🥉</span>
                   <span className="text-[10px] uppercase tracking-widest text-cha">Podium</span>
@@ -414,7 +406,7 @@ export default async function LeaderboardPage() {
                 <li
                   key={member.id}
                   className={`flex items-center gap-2.5 px-4 py-2.5 min-h-11 transition-colors ${
-                    alreadyGiven ? 'bg-saffron-light/25' : 'hover:bg-kinu/25'
+                    alreadyGiven ? 'bg-saffron/8' : 'hover:bg-kinu/25'
                   }`}
                 >
                   <UserAvatar username={member.username ?? 'user'} size={26} />

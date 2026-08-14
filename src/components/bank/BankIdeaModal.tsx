@@ -101,7 +101,7 @@ export function BankIdeaModal({ onClose, onSaved }: BankIdeaModalProps) {
                 key={value}
                 type="button"
                 onClick={() => setCategory(category === value ? '' : value)}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-[13px] transition-all text-left ${
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-(--radius-control) border text-[13px] transition-all text-left ${
                   category === value
                     ? 'border-saffron/40 bg-saffron-light text-saffron'
                     : 'border-border text-ink-soft hover:border-border-strong hover:bg-kinu/30'
@@ -119,7 +119,7 @@ export function BankIdeaModal({ onClose, onSaved }: BankIdeaModalProps) {
           type="button"
           onClick={() => setIsOpen(v => !v)}
           aria-pressed={isOpen}
-          className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all ${
+          className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-(--radius-control) border text-left transition-all ${
             isOpen ? 'border-matcha/40 bg-matcha-light' : 'border-border hover:border-border-strong hover:bg-kinu/30'
           }`}
         >
@@ -146,7 +146,7 @@ export function BankIdeaModal({ onClose, onSaved }: BankIdeaModalProps) {
           type="button"
           onClick={() => setIsAnonymous(v => !v)}
           aria-pressed={isAnonymous}
-          className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all ${
+          className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-(--radius-control) border text-left transition-all ${
             isAnonymous ? 'border-wisteria/40 bg-wisteria/10' : 'border-border hover:border-border-strong hover:bg-kinu/30'
           }`}
         >
@@ -170,7 +170,7 @@ export function BankIdeaModal({ onClose, onSaved }: BankIdeaModalProps) {
         </button>
 
         {error && (
-          <div className="p-3 bg-vermillion-light border border-vermillion/20 rounded-lg text-xs text-vermillion">
+          <div className="p-3 bg-vermillion-light border border-vermillion/20 rounded-(--radius-control) text-xs text-vermillion">
             {error}
           </div>
         )}

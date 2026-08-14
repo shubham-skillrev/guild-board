@@ -162,7 +162,7 @@ export function InstallPrompt() {
 
   return (
     <Portal>
-      <div className="fixed inset-x-3 bottom-20 z-(--z-overlay) mx-auto max-w-sm rounded-2xl border border-saffron/30 bg-sumi/95 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur sm:left-auto sm:right-4 sm:bottom-4">
+      <div className="fixed inset-x-3 bottom-20 z-(--z-overlay) mx-auto max-w-sm rounded-(--radius-card) border border-saffron/25 bg-sumi/95 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur sm:left-auto sm:right-4 sm:bottom-4">
         {!showHow ? (
           <div className="flex items-start gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -176,21 +176,21 @@ export function InstallPrompt() {
                 {deferred ? (
                   <button
                     onClick={installNative}
-                    className="rounded-lg bg-saffron px-3 py-1.5 text-xs font-semibold text-parchment hover:opacity-90"
+                    className="press inline-flex items-center h-8 rounded-(--radius-control) bg-saffron px-3 text-footnote font-medium text-parchment hover:bg-saffron/90"
                   >
                     Install
                   </button>
                 ) : (
                   <button
                     onClick={() => setShowHow(true)}
-                    className="rounded-lg bg-saffron px-3 py-1.5 text-xs font-semibold text-parchment hover:opacity-90"
+                    className="press inline-flex items-center h-8 rounded-(--radius-control) bg-saffron px-3 text-footnote font-medium text-parchment hover:bg-saffron/90"
                   >
                     How to install
                   </button>
                 )}
                 <button
                   onClick={dismiss}
-                  className="rounded-lg border border-border-strong px-3 py-1.5 text-xs text-ink-soft hover:text-ink"
+                  className="press inline-flex items-center h-8 rounded-(--radius-control) bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink"
                 >
                   Not now
                 </button>
@@ -216,7 +216,7 @@ export function InstallPrompt() {
             <div className="mt-3 flex justify-end">
               <button
                 onClick={dismiss}
-                className="rounded-lg border border-border-strong px-3 py-1.5 text-xs text-ink-soft hover:text-ink"
+                className="press inline-flex items-center h-8 rounded-(--radius-control) bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink"
               >
                 Got it
               </button>

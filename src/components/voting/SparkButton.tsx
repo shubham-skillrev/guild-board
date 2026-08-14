@@ -1,8 +1,11 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Lightning } from '@phosphor-icons/react/dist/ssr'
 import { Portal } from '@/components/ui/Portal'
+import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/ui/Icon'
 
 interface Props {
   toUserId: string
@@ -17,13 +20,13 @@ export function SparkButton({ toUserId, cycleId, alreadyGiven, isDisabled, onSpa
   const [loading, setLoading] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
   const [confirming, setConfirming] = useState(false)
-  const btnRef = useRef<HTMLButtonElement>(null)
   const router = useRouter()
 
   if (given) {
     return (
-      <span className="relative text-saffron text-[12px] font-semibold">
-        ⚡ Sparked
+      <span className="relative inline-flex items-center gap-1 text-saffron text-[12px] font-medium">
+        <Icon icon={Lightning} size="sm" weight="fill" />
+        Sparked
         {showCelebration && <SparkCelebration onDone={() => setShowCelebration(false)} />}
       </span>
     )
@@ -55,14 +58,15 @@ export function SparkButton({ toUserId, cycleId, alreadyGiven, isDisabled, onSpa
 
   return (
     <>
-      <button
-        ref={btnRef}
+      <Button
+        size="sm"
+        variant="tinted"
+        icon={Lightning}
         onClick={() => setConfirming(true)}
         disabled={loading}
-        className="text-[12px] px-2 py-0.5 rounded border border-saffron/50 text-saffron hover:bg-saffron/10 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
       >
-        {loading ? '…' : '⚡ Give'}
-      </button>
+        {loading ? '…' : 'Give a spark'}
+      </Button>
 
       {confirming && (
         <Portal>
@@ -71,27 +75,23 @@ export function SparkButton({ toUserId, cycleId, alreadyGiven, isDisabled, onSpa
           onClick={() => setConfirming(false)}
         >
           <div
-            className="relative bg-paper border border-saffron/30 rounded-2xl p-6 max-w-sm w-[90vw] shadow-[0_32px_80px_rgba(0,0,0,0.5)] text-center"
+            className="relative elev-3 rounded-(--radius-card) p-6 max-w-sm w-[90vw] text-center"
             onClick={e => e.stopPropagation()}
           >
-            <div className="text-4xl mb-3">⚡</div>
-            <h3 className="font-serif text-lg text-ink mb-1">Choose wisely.</h3>
+            <div className="flex justify-center text-saffron mb-3">
+              <Icon icon={Lightning} size="lg" weight="duotone" className="size-7" />
+            </div>
+            <h3 className="text-title-2 text-ink mb-1">Choose wisely.</h3>
             <p className="text-[13px] text-ink-soft mb-5 leading-relaxed">
               You only get <span className="text-saffron font-semibold">one spark per cycle</span>. Once given, it&apos;s gone. Make it count - who truly inspired the guild this month?
             </p>
-            <div className="flex gap-3 justify-center">
-              <button
-                onClick={() => setConfirming(false)}
-                className="px-4 py-1.5 rounded-lg border border-border text-ink-soft text-[13px] hover:bg-border/40 transition-colors cursor-pointer"
-              >
+            <div className="flex gap-2 justify-center">
+              <Button variant="ghost" onClick={() => setConfirming(false)}>
                 Cancel
-              </button>
-              <button
-                onClick={handleSpark}
-                className="px-4 py-1.5 rounded-lg bg-saffron text-paper text-[13px] font-semibold hover:bg-saffron/90 active:scale-95 transition-all cursor-pointer"
-              >
-                ⚡ Yes, spark them!
-              </button>
+              </Button>
+              <Button icon={Lightning} onClick={handleSpark}>
+                Yes, spark them
+              </Button>
             </div>
           </div>
         </div>
