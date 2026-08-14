@@ -6,7 +6,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { notifyOnCycleOpen } from '@/lib/push/notify'
+import { notifyOnCycleOpen, notifyAfterResponse } from '@/lib/push/notify'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -53,9 +53,7 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  void notifyOnCycleOpen({ label: data.label }).catch((err) =>
-    console.warn('notifyOnCycleOpen failed', err)
-  )
+  notifyAfterResponse(notifyOnCycleOpen({ label: data.label }), "notifyOnCycleOpen")
 
   return NextResponse.json(data, { status: 201 })
 }

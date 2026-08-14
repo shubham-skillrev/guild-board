@@ -4,18 +4,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-
-function getJoinedUser(joinedUser: unknown): { username?: string } | null {
-  if (Array.isArray(joinedUser)) {
-    return (joinedUser[0] as { username?: string } | undefined) ?? null
-  }
-
-  if (joinedUser && typeof joinedUser === 'object') {
-    return joinedUser as { username?: string }
-  }
-
-  return null
-}
+import { serializeTopic, joinedUsername } from '@/lib/utils/anonymity'
 
 export async function GET(
   request: Request,
@@ -44,7 +33,7 @@ export async function GET(
 
   const contributors = (contribs ?? []).map((c: any) => ({
     user_id: c.user_id,
-    username: getJoinedUser(c.users)?.username ?? 'unknown',
+    username: joinedUsername(c.users) ?? 'unknown',
   }))
 
   // Check current user's vote/contrib status
@@ -54,9 +43,7 @@ export async function GET(
   ])
 
   return NextResponse.json({
-    ...topic,
-    author_username: getJoinedUser(topic.users)?.username ?? 'unknown',
-    users: undefined,
+    ...serializeTopic(topic as any, user.id),
     user_has_voted: !!userVote,
     user_has_contribed: !!userContrib,
     contributors,

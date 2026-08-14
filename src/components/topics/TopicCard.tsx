@@ -56,7 +56,10 @@ export function TopicCard({
   const [votePending, setVotePending] = useState(false)
   const [contribPending, setContribPending] = useState(false)
 
-  const isOwner = currentUserId === topic.user_id
+  // Server-computed: topic.user_id is absent on ghost topics, so ownership
+  // cannot be derived client-side. Falls back to the id compare for any
+  // payload that predates the anonymity serializer.
+  const isOwner = topic.is_owner ?? currentUserId === topic.user_id
   const canVote = phase === 'open' && !isOwner
   const canContrib = phase === 'open' && !isOwner
   const style = CATEGORY_STYLES[topic.category] ?? CATEGORY_STYLES.discussion

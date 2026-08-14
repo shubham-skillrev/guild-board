@@ -6,7 +6,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { type NextRequest, NextResponse } from 'next/server'
-import { notifyOnSpark } from '@/lib/push/notify'
+import { notifyOnSpark, notifyAfterResponse } from '@/lib/push/notify'
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient()
@@ -73,9 +73,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  void notifyOnSpark({ toUserId: to_user_id, fromUserId: user.id }).catch((err) =>
-    console.warn('notifyOnSpark failed', err)
-  )
+  notifyAfterResponse(notifyOnSpark({ toUserId: to_user_id, fromUserId: user.id }), "notifyOnSpark")
 
   return NextResponse.json(data, { status: 201 })
 }

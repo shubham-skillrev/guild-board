@@ -7,7 +7,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import { notifyOnNewTopic } from '@/lib/push/notify'
+import { notifyOnNewTopic, notifyAfterResponse } from '@/lib/push/notify'
+import { serializeTopic } from '@/lib/utils/anonymity'
 import type { CategoryTag } from '@/types'
 
 export async function GET(request: Request) {
@@ -60,9 +61,7 @@ export async function GET(request: Request) {
   const contribTopicIds = new Set((userContribs ?? []).map(c => c.topic_id))
 
   const result = (topics ?? []).map((topic: any) => ({
-    ...topic,
-    author_username: topic.users?.username ?? 'unknown',
-    users: undefined,
+    ...serializeTopic(topic, user.id),
     user_has_voted: votedTopicIds.has(topic.id),
     user_has_contribed: contribTopicIds.has(topic.id),
   }))
@@ -78,14 +77,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let body: { title?: string; description?: string; category?: CategoryTag }
+  let body: { title?: string; description?: string; category?: CategoryTag; is_anonymous?: boolean }
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { title, description, category } = body
+  const { title, description, category, is_anonymous } = body
 
   if (!title?.trim() || !description?.trim() || !category) {
     return NextResponse.json({ error: 'title, description, and category are required' }, { status: 400 })
@@ -110,7 +109,14 @@ export async function POST(request: Request) {
   // DB trigger enforces 1 topic per user per cycle — insert will fail if limit exceeded
   const { data, error } = await supabase
     .from('topics')
-    .insert({ cycle_id: cycle.id, user_id: user.id, title, description, category })
+    .insert({
+      cycle_id: cycle.id,
+      user_id: user.id,
+      title,
+      description,
+      category,
+      is_anonymous: is_anonymous === true,
+    })
     .select()
     .single()
 
@@ -121,9 +127,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  void notifyOnNewTopic({ topicId: data.id, actorId: user.id }).catch((err) =>
-    console.warn('notifyOnNewTopic failed', err)
-  )
+  notifyAfterResponse(notifyOnNewTopic({ topicId: data.id, actorId: user.id }), "notifyOnNewTopic")
 
   return NextResponse.json(data, { status: 201 })
 }

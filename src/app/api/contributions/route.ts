@@ -6,7 +6,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { notifyOnContribute } from '@/lib/push/notify'
+import { notifyOnContribute, notifyAfterResponse } from '@/lib/push/notify'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -43,9 +43,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  void notifyOnContribute({ topicId: topic_id, actorId: user.id }).catch((err) =>
-    console.warn('notifyOnContribute failed', err)
-  )
+  notifyAfterResponse(notifyOnContribute({ topicId: topic_id, actorId: user.id }), "notifyOnContribute")
 
   return NextResponse.json(data, { status: 201 })
 }

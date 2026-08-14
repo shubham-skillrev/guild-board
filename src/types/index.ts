@@ -44,7 +44,12 @@ export interface Cycle {
 export interface Topic {
   id: string
   cycle_id: string
-  user_id: string
+  /**
+   * Author id. OMITTED by the API for ghost topics when the viewer is not the
+   * author (see src/lib/utils/anonymity.ts). Never rely on this for ownership
+   * or self-checks — use `is_owner` / `can_spark_author` instead.
+   */
+  user_id?: string
   is_anonymous: boolean
   title: string
   description: string
@@ -62,7 +67,11 @@ export interface Topic {
   created_at: string
   updated_at: string
   // Joined fields
-  author_username?: string  // 'ghost_dev' if anonymous (for non-admins)
+  author_username?: string  // stable ghost handle if anonymous (for non-authors)
+  /** Server-computed: viewer authored this topic. Survives ghost anonymity. */
+  is_owner?: boolean
+  /** Server-computed: viewer may spark this author (not themselves). */
+  can_spark_author?: boolean
 }
 
 export interface Comment {

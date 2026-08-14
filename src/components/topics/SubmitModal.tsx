@@ -23,6 +23,7 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<CategoryTag>('discussion')
+  const [isAnonymous, setIsAnonymous] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -35,7 +36,12 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
       const res = await fetch('/api/topics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), description: description.trim(), category }),
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          category,
+          is_anonymous: isAnonymous,
+        }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -129,6 +135,42 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
               className="w-full px-3 py-2 bg-sumi border border-border-strong rounded-lg text-sm text-ink font-mono focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron/50 resize-y placeholder:text-cha transition-all"
             />
             <p className="text-[11px] text-cha mt-1 text-right tabular-nums">{description.length}/{DESCRIPTION_MAX_LENGTH}</p>
+          </div>
+
+          {/* Ghost toggle — lowers the stakes of a first pitch. */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setIsAnonymous(v => !v)}
+              aria-pressed={isAnonymous}
+              className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all ${
+                isAnonymous
+                  ? 'border-wisteria/40 bg-wisteria/10'
+                  : 'border-border hover:border-border-strong hover:bg-kinu/30'
+              }`}
+            >
+              <span
+                className={`mt-0.5 shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-all ${
+                  isAnonymous ? 'bg-wisteria border-wisteria' : 'border-border-strong'
+                }`}
+              >
+                {isAnonymous && (
+                  <svg className="w-3 h-3 text-parchment" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                  </svg>
+                )}
+              </span>
+              <span className="min-w-0">
+                <span className={`block text-[13px] ${isAnonymous ? 'text-wisteria' : 'text-ink-soft'}`}>
+                  👻 Post as ghost
+                </span>
+                <span className="block text-[11px] text-cha mt-0.5 leading-relaxed">
+                  {isAnonymous
+                    ? 'Your name is hidden from everyone, admins included. Heads up: in a guild this size, writing style can still give you away — and ghost pitches can’t receive sparks.'
+                    : 'Hide your name on this pitch.'}
+                </span>
+              </span>
+            </button>
           </div>
 
           {error && (

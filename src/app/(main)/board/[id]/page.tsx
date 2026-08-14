@@ -108,7 +108,8 @@ export default function TopicDetailPage({
     checkSparkWindow()
   }, [phase, cycle])
 
-  const isOwner = user?.id === topic?.user_id
+  // Server-computed: user_id is absent on ghost topics (see lib/utils/anonymity).
+  const isOwner = topic?.is_owner ?? user?.id === topic?.user_id
   const canVote = phase === 'open' && !isOwner
   const canContrib = phase === 'open' && !isOwner
 
@@ -404,14 +405,16 @@ export default function TopicDetailPage({
                 <span className="text-[13px] text-ink-soft">@{topic.author_username}</span>
                 <span className="text-[11px] text-cha">· {new Date(topic.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                 {/* Spark button — visible during discussion phase */}
-                {sparkWindow && topic.user_id !== user?.id && (
+                {/* Ghost authors are not sparkable — can_spark_author is false and
+                    user_id is absent, so there is nobody to award it to. */}
+                {sparkWindow && topic.can_spark_author && topic.user_id && (
                   <span className="ml-auto">
                     <SparkButton
                       toUserId={topic.user_id}
                       cycleId={sparkWindow.cycleId}
                       alreadyGiven={sparkWindow.sparkedUserId === topic.user_id}
                       isDisabled={sparkWindow.sparkedUserId !== null && sparkWindow.sparkedUserId !== topic.user_id}
-                      onSpark={() => setSparkWindow(prev => prev ? { ...prev, sparkedUserId: topic.user_id } : prev)}
+                      onSpark={() => setSparkWindow(prev => prev && topic.user_id ? { ...prev, sparkedUserId: topic.user_id } : prev)}
                     />
                   </span>
                 )}

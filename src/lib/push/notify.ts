@@ -1,6 +1,32 @@
 import "server-only";
+import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUser, sendPushToUsers } from "@/lib/push/send";
+
+/**
+ * Fire a notification without blocking the response.
+ *
+ * Route handlers must use this instead of `void notifyOnX()`. On serverless the
+ * function can be frozen the moment the response is returned, so a bare
+ * unawaited promise may never finish — every notifyOn* here does at least one
+ * DB round-trip before it sends, and broadcasts do N more. `after()` keeps the
+ * invocation alive until the callback settles.
+ *
+ * Errors are swallowed by design: a failed push must never fail the mutation
+ * that triggered it.
+ */
+export function notifyAfterResponse(
+  task: Promise<unknown>,
+  label: string,
+): void {
+  after(async () => {
+    try {
+      await task;
+    } catch (err) {
+      console.warn(`${label} failed`, err);
+    }
+  });
+}
 
 // ─── Copy bank — desi guild flavour ─────────────────────────
 // Keep it short, warm, slightly playful. No emojis overload.
