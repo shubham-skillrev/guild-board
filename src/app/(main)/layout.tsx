@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { LogoutButton } from '@/components/layout/LogoutButton'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { DesktopNavLinks, MobileBottomNav } from '@/components/layout/NavLinks'
+import { SiteFooter } from '@/components/layout/SiteFooter'
 import { UsernameSetupModal } from '@/components/auth/UsernameSetupModal'
 
 async function getUser() {
@@ -33,10 +34,10 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         </Suspense>
 
       {/* ─── Top bar ───
-          A translucent material that content scrolls under, rather than an
-          opaque strip. No hard rule underneath: the edge is a soft gradient so
-          content fades as it passes behind the chrome. */}
-      <header className="material-chrome sticky top-0 z-30">
+          Translucent, and terminated by a real hairline. The gradient edge that
+          replaced this border left the chrome with no defined bottom, so the
+          header and the page read as one undifferentiated surface. */}
+      <header className="bg-paper/80 backdrop-blur-xl border-b border-border sticky top-0 z-(--z-chrome)">
         <div className="flex items-center justify-between px-5 md:px-10 h-14 w-full max-w-7xl mx-auto">
           {/* Left: Logo + Nav */}
           <div className="flex items-center gap-7">
@@ -65,11 +66,6 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             <LogoutButton />
           </div>
         </div>
-        {/* Soft edge where content passes under the chrome. */}
-        <div
-          aria-hidden
-          className="absolute inset-x-0 top-full h-3 bg-linear-to-b from-parchment/60 to-transparent pointer-events-none"
-        />
       </header>
 
         {/* ─── Main content ─── */}
@@ -78,11 +74,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         </main>
 
       {/* ─── Footer ─── */}
-        <footer className="hidden md:block border-t border-border px-5 py-5 mt-auto">
-          <p className="text-[11px] text-cha text-center tracking-wider uppercase">
-            GuildBoard <span className="mx-1.5 text-border-strong">·</span> Crafted for builders
-          </p>
-        </footer>
+        <SiteFooter className="hidden md:block" />
       </div>
 
       {/* Mobile bottom nav stays outside scrolling container for stable viewport pinning */}

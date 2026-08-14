@@ -38,7 +38,7 @@ export function Surface({
       className={cn(
         LEVELS[level],
         'rounded-(--radius-card)',
-        interactive && 'press transition-colors hover:border-white/20',
+        interactive && 'press transition-colors hover:border-border-strong',
         className,
       )}
       {...props}

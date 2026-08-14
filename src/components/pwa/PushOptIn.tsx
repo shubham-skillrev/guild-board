@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useOverlaySlot, OVERLAY_PRIORITY } from "@/components/ui/OverlaySlot";
 import { useAuth } from "@/hooks/useAuth";
 import { subscribePush, unsubscribePush } from "@/app/actions/push";
 import { Portal } from "@/components/ui/Portal";
@@ -100,14 +101,21 @@ export function PushOptIn() {
     setDismissed(true);
   };
 
-  if (isLoading || !supabaseUser || !supported) return null;
-  if (hasSub) return null;
-  if (permission === "denied") return null;
-  if (dismissed) return null;
+  const eligible =
+    !isLoading &&
+    !!supabaseUser &&
+    supported &&
+    !hasSub &&
+    permission !== "denied" &&
+    !dismissed;
+
+  // Claimed unconditionally so the hook order stays stable across renders.
+  const hasSlot = useOverlaySlot("pushOptIn", OVERLAY_PRIORITY.pushOptIn, eligible);
+  if (!hasSlot) return null;
 
   return (
     <Portal>
-      <div className="fixed inset-x-3 bottom-20 z-40 mx-auto max-w-sm rounded-2xl border border-border-strong bg-sumi/95 p-4 shadow-xl backdrop-blur sm:left-auto sm:right-4 sm:bottom-4">
+      <div className="fixed inset-x-3 bottom-20 z-(--z-overlay) mx-auto max-w-sm elev-2 rounded-(--radius-card) p-4 sm:left-auto sm:right-4 sm:bottom-4">
         <p className="text-sm font-semibold text-ink">Stay in the loop</p>
         <p className="mt-1 text-xs text-ink-soft">
           Enable notifications for replies, reactions, and topic activity.

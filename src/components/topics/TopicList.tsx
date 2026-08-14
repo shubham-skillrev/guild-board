@@ -15,19 +15,13 @@ interface TopicListProps {
   onContrib: (topicId: string, cycleId: string, hasContribed: boolean) => Promise<void>
 }
 
+/**
+ * Callers branch on `topics.length` before rendering this, so the empty case
+ * never reached here. It is the board's `EmptyState` that people actually saw.
+ */
 export function TopicList(props: TopicListProps) {
-  if (props.topics.length === 0) {
-    return (
-      <div className="text-center py-20">
-        <div className="text-2xl mb-3">📜</div>
-        <p className="text-base font-medium text-ink-soft">No ideas yet</p>
-        <p className="text-[13px] mt-1 text-cha">Be the first to pitch something for this cycle.</p>
-      </div>
-    )
-  }
-
   return (
-    <div className="space-y-3 stagger-children">
+    <div className="space-y-(--gap-list) stagger-children">
       {props.topics.map((topic, i) => (
         <TopicCard key={topic.id} topic={topic} rank={i + 1} {...props} />
       ))}

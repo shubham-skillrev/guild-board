@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { SignupForm } from '@/components/auth/SignupForm'
+import { SiteFooter } from '@/components/layout/SiteFooter'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function LandingPage() {
@@ -114,11 +115,7 @@ export default async function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border px-5 py-5 mt-auto">
-        <p className="text-[11px] text-cha text-center tracking-wider uppercase">
-          GuildBoard <span className="mx-1.5 text-border-strong">·</span> Crafted for builders
-        </p>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }

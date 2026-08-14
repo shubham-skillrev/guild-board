@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useOverlaySlot, OVERLAY_PRIORITY } from '@/components/ui/OverlaySlot'
 import type { Cycle } from '@/types'
 
 /* ── Helpers ── */
@@ -92,8 +93,19 @@ export function MeetingPill({ cycle, phase }: MeetingPillProps) {
 
   useEffect(() => setMounted(true), [])
 
-  if (!mounted || !meetingDate || !countdown || phase === 'upcoming') return null
-  if (countdown.isPast || !countdown.isWithin48h) return null
+  /* Highest priority in the shared slot: it is time-bound and it disappears on
+     its own, whereas both PWA prompts keep until the next session. */
+  const hasSlot = useOverlaySlot(
+    'meetingPill',
+    OVERLAY_PRIORITY.meetingPill,
+    mounted &&
+      !!meetingDate &&
+      !!countdown &&
+      phase !== 'upcoming' &&
+      !countdown.isPast &&
+      countdown.isWithin48h,
+  )
+  if (!hasSlot || !countdown) return null
 
   const isToday = countdown.isToday
   const timerText =
@@ -107,7 +119,7 @@ export function MeetingPill({ cycle, phase }: MeetingPillProps) {
       <button
         onClick={() => setCollapsed(false)}
         aria-label="Show meeting countdown"
-        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-9998 w-9 h-9 rounded-full bg-paper/95 border border-saffron/40 shadow-lg shadow-black/30 backdrop-blur-sm flex items-center justify-center transition-transform hover:scale-110"
+        className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-(--z-overlay) w-9 h-9 rounded-full bg-paper/95 border border-saffron/40 shadow-lg shadow-black/30 backdrop-blur-sm flex items-center justify-center transition-transform hover:scale-110"
       >
         <span className="relative flex h-3 w-3">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-saffron opacity-50" />
@@ -124,7 +136,7 @@ export function MeetingPill({ cycle, phase }: MeetingPillProps) {
       onClick={() => setCollapsed(true)}
       aria-label="Collapse meeting countdown"
       className={[
-        'fixed bottom-20 right-4 md:bottom-6 md:right-6 z-9998',
+        'fixed bottom-20 right-4 md:bottom-6 md:right-6 z-(--z-overlay)',
         'flex items-center gap-2.5 px-3 py-2 rounded-xl border',
         'shadow-lg backdrop-blur-sm transition-all active:scale-95',
         isToday

@@ -1,20 +1,35 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
+import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "@/components/ui/Providers";
 
-const sansFont = Inter({
-  variable: "--font-geist-sans",
+// Geist carries the whole UI. Nothing above 600: hierarchy comes from size
+// and colour, not from weight escalation.
+const sansFont = Geist({
+  variable: "--font-sans-ui",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "500", "600"],
+  display: "swap",
 });
 
+// Every number in the product renders in mono with tabular figures, so counts
+// line up when they are compared down a column.
+const monoFont = Geist_Mono({
+  variable: "--font-mono-ui",
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  display: "swap",
+});
+
+// Titles and the wordmark. This is the face that makes GuildBoard look like
+// itself, so it carries all three title steps rather than the wordmark alone.
+// Running text stays sans.
 const displayFont = Playfair_Display({
   variable: "--font-display",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "900"],
-  style: ["normal", "italic"],
+  weight: ["500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -55,7 +70,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${sansFont.variable} ${displayFont.variable} h-full antialiased`}
+      className={`${sansFont.variable} ${monoFont.variable} ${displayFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
         <Providers>

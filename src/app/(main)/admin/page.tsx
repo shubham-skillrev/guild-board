@@ -1,15 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import { CATEGORY_LABELS, OUTCOME_LABELS } from '@/lib/constants'
 import { AdminControls } from '@/components/admin/AdminControls'
 import { CycleListCards } from '@/components/admin/CycleListCards'
 import { ByteGenerator } from '@/components/admin/ByteGenerator'
-import type { Cycle, Topic } from '@/types'
-
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-]
+import { PageHeader, SectionHeader } from '@/components/ui/Section'
+import type { Cycle } from '@/types'
 
 async function getAdminData() {
   const supabase = await createClient()
@@ -51,35 +46,42 @@ export default async function AdminPage() {
     : []
 
   return (
-    <div className="px-5 md:px-10 py-8 w-full max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="font-serif text-xl font-semibold text-ink">Admin Panel</h1>
-          <p className="text-[13px] text-cha mt-0.5">Manage cycles, topics, and outcomes</p>
-        </div>
-      </div>
-
-      {/* Interactive controls (client component) */}
-      <AdminControls
-        cycles={cycles as Cycle[]}
-        activeCycle={activeCycle as Cycle | null}
-        topics={activeCycleTopics as any[]}
+    <div className="px-(--pad-page-x) py-8 w-full max-w-(--measure-wide) mx-auto pb-28 md:pb-10">
+      <PageHeader
+        title="Admin"
+        subtitle={
+          activeCycle
+            ? `${activeCycle.label} is the working cycle.`
+            : 'No open cycle. Create one to get the guild rolling.'
+        }
       />
 
-      {/* Monthly tech digest */}
-      <section className="mt-10">
-        <ByteGenerator />
-      </section>
+      {/* Same two-column shape as the board, for the same reason: the thing you
+          came here to do takes the wide column, and the things you only check
+          on sit in the rail. This page used to stack four full-width sections,
+          which made it the longest screen in the product. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-x-10 gap-y-(--gap-section) items-start">
+        <div className="min-w-0">
+          <AdminControls
+            cycles={cycles as Cycle[]}
+            activeCycle={activeCycle as Cycle | null}
+            topics={activeCycleTopics as any[]}
+          />
+        </div>
 
-      {/* All cycles overview (static) */}
-      <section className="mt-10">
-        <h2 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-4">All Cycles</h2>
-        {cycles.length === 0 ? (
-          <p className="text-[13px] text-cha">No cycles created yet.</p>
-        ) : (
-          <CycleListCards cycles={cycles as Cycle[]} />
-        )}
-      </section>
+        <aside className="min-w-0 space-y-(--gap-section) lg:sticky lg:top-20">
+          <ByteGenerator />
+
+          <section aria-labelledby="admin-cycles">
+            <SectionHeader id="admin-cycles" title="All cycles" hint={`${cycles.length}`} />
+            {cycles.length === 0 ? (
+              <p className="text-footnote text-ink-muted">No cycles created yet.</p>
+            ) : (
+              <CycleListCards cycles={cycles as Cycle[]} />
+            )}
+          </section>
+        </aside>
+      </div>
     </div>
   )
 }

@@ -1,8 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { Lightbulb, Vote, CircleCheck } from 'lucide-react'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { SparkButton } from '@/components/voting/SparkButton'
+import { Icon } from '@/components/ui/Icon'
 
 interface LeaderboardEntry {
   id: string
@@ -54,10 +56,8 @@ async function getLeaderboard(): Promise<{
     .map(u => ({ id: u.id, username: u.username }))
     .sort((a, b) => (a.username ?? '').localeCompare(b.username ?? ''))
 
-  // Scope to the most recent non-upcoming cycle. All-time ranking is
-  // deliberately gone: with ~30 members and <10 active, a permanent ordinal
-  // list mostly publishes who is inactive. Per-cycle means a quiet month
-  // leaves no lasting record and a newcomer can place in their first month.
+  // The most recent non-upcoming cycle. Used only to label and compute the
+  // cohort stats strip; the standings themselves run across all cycles.
   const { data: scopedCycle } = await adminDb
     .from('cycles')
     .select('id, label')
@@ -69,16 +69,28 @@ async function getLeaderboard(): Promise<{
 
   if (!scopedCycle) return { ...empty, members }
 
-  const [{ data: cycleTopics }, { data: cycleSparks }, { data: cycleVotes }] = await Promise.all([
+  /* Standings run across all cycles. Ranking was scoped to the current cycle,
+     which meant that early in a month almost nobody had scored yet and the
+     board showed a podium with nothing under it. Contribution to a guild is
+     cumulative, and a table that resets to empty every month cannot show it.
+     The cohort stats below stay per-cycle: those describe the month, not the
+     person, and that is the distinction the two are making.
+     Tradeoff accepted knowingly: a permanent ordinal list also records who is
+     inactive. Sparks stay per-cycle-giveable so newcomers can still move. */
+  const [{ data: allTopics }, { data: allSparks }] = await Promise.all([
     adminDb
       .from('topics')
-      .select('user_id, is_selected, is_anonymous, outcome_tag')
+      .select('user_id, is_selected, is_anonymous')
+      .eq('is_deleted', false),
+    adminDb.from('sparks').select('to_user_id'),
+  ])
+
+  const [{ data: cycleTopics }, { data: cycleVotes }] = await Promise.all([
+    adminDb
+      .from('topics')
+      .select('user_id, outcome_tag')
       .eq('cycle_id', scopedCycle.id)
       .eq('is_deleted', false),
-    adminDb
-      .from('sparks')
-      .select('to_user_id')
-      .eq('cycle_id', scopedCycle.id),
     adminDb
       .from('votes')
       .select('user_id')
@@ -91,12 +103,12 @@ async function getLeaderboard(): Promise<{
 
   // Ghost pitches are excluded from scoring - crediting them would let the
   // board reveal, by arithmetic, who authored an anonymous topic.
-  cycleTopics?.forEach(t => {
+  allTopics?.forEach(t => {
     if (t.is_anonymous) return
     topicMap.set(t.user_id, (topicMap.get(t.user_id) ?? 0) + 1)
     if (t.is_selected) selectedMap.set(t.user_id, (selectedMap.get(t.user_id) ?? 0) + 1)
   })
-  cycleSparks?.forEach(s => sparkMap.set(s.to_user_id, (sparkMap.get(s.to_user_id) ?? 0) + 1))
+  allSparks?.forEach(s => sparkMap.set(s.to_user_id, (sparkMap.get(s.to_user_id) ?? 0) + 1))
 
   const stats: CycleStats = {
     label: scopedCycle.label,
@@ -105,7 +117,7 @@ async function getLeaderboard(): Promise<{
     discussed: (cycleTopics ?? []).filter(t => t.outcome_tag && t.outcome_tag !== 'dropped').length,
   }
 
-  // Composite score: sparks × 3 + picked × 2 + ideas × 1 - this cycle only.
+  // Composite score: sparks × 3 + picked × 2 + ideas × 1, across all cycles.
   const entries: LeaderboardEntry[] = users
     .map(u => {
       const topic_count = topicMap.get(u.id) ?? 0
@@ -157,12 +169,19 @@ async function getLeaderboard(): Promise<{
 
 export default async function LeaderboardPage() {
   const { entries, sparkWindow, members, stats } = await getLeaderboard()
-  // Top 3 only. Ranks 4-N are intentionally not rendered - see getLeaderboard.
+  // The podium. Ranks 4-N follow in the standings table below.
   const hallOfFame = entries.slice(0, 3)
   const hasSparkWindow = sparkWindow !== null
-  // Everyone is sparkable during the window, not just the podium. Unranked
-  // and alphabetical so recognition never doubles as a standings table.
-  const sparkables = members.filter(m => m.id !== sparkWindow?.currentUserId)
+  // Ranks 4 and below. These were computed and then dropped, which left the
+  // page with a podium and nothing under it.
+  const rest = entries.slice(3)
+  // Everyone is sparkable during the window, not just people who placed. The
+  // picker lists only those NOT already in the table above, so no member gets
+  // two spark buttons on one screen.
+  const rankedIds = new Set(entries.map(e => e.id))
+  const unranked = members.filter(
+    m => m.id !== sparkWindow?.currentUserId && !rankedIds.has(m.id),
+  )
 
   return (
     <div className="px-5 md:px-10 py-8 w-full max-w-4xl mx-auto">
@@ -172,7 +191,7 @@ export default async function LeaderboardPage() {
           Top Builders
         </h1>
         <p className="type-body text-ink-soft mt-1.5">
-          {stats ? `${stats.label} · resets every cycle.` : 'Resets every cycle.'} Earn <span className="text-saffron font-medium">⚡ sparks</span> to reach <span className="text-saffron">Hall of Flame</span> 🔥
+          Guild legends across all cycles. Earn <span className="text-saffron font-medium">sparks</span> to reach the Hall of Flame.
         </p>
         {hasSparkWindow && (
           <p className="text-[13px] text-saffron mt-2 font-medium">
@@ -181,19 +200,24 @@ export default async function LeaderboardPage() {
         )}
       </div>
 
-      {/* Cohort stats - what the guild did together, with nobody ranked. */}
+      {/* Cohort stats - what the guild did together, with nobody ranked.
+          A strip rather than three large tiles: at the start of a cycle every
+          value is legitimately 0, and three big zeroes under a heading reads
+          as a report of failure instead of a cycle that has just begun. */}
       {stats && (
-        <section className="mb-8 grid grid-cols-3 gap-3">
+        <section className="mb-8 flex flex-wrap items-center gap-2 px-3 py-2.5 bg-paper/60 border border-border rounded-(--radius-card)">
           {[
-            { label: 'Ideas pitched', value: stats.ideas, icon: '💡' },
-            { label: 'People voted', value: stats.voters, icon: '🗳️' },
-            { label: 'Taken forward', value: stats.discussed, icon: '✅' },
+            { label: 'ideas pitched', value: stats.ideas, icon: Lightbulb },
+            { label: 'people voted', value: stats.voters, icon: Vote },
+            { label: 'taken forward', value: stats.discussed, icon: CircleCheck },
           ].map(stat => (
-            <div key={stat.label} className="bg-paper/40 border border-border rounded-xl px-3 py-3.5 text-center">
-              <div className="text-base mb-1">{stat.icon}</div>
-              <div className="text-[20px] font-semibold text-ink tabular leading-none">{stat.value}</div>
-              <div className="type-caption text-cha mt-1.5">{stat.label}</div>
-            </div>
+            <span
+              key={stat.label}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-(--radius-control) bg-kinu/50 text-footnote text-ink-soft"
+            >
+              <Icon icon={stat.icon} size="sm" className="text-ink-muted" />
+              <span className="tabular text-ink">{stat.value}</span> {stat.label}
+            </span>
           ))}
         </section>
       )}
@@ -304,29 +328,97 @@ export default async function LeaderboardPage() {
         </div>
       )}
 
+      {/* ─── Standings ───
+          Ranks 4 and below were being computed and then thrown away, so the
+          page went straight from a podium to nothing. A table restores the
+          density the podium alone cannot carry, and a column of aligned
+          numbers is the whole reason a standings table beats a card grid.
+          Everyone who scored appears. Nobody who scored zero is listed as
+          zero, which was the original objection and still holds. */}
+      {rest.length > 0 && (
+        <section className="mb-8 rounded-(--radius-card) border border-border bg-paper/40 overflow-hidden">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-border text-meta text-ink-muted uppercase">
+                <th scope="col" className="font-medium py-2.5 pl-4 pr-2 w-12">#</th>
+                <th scope="col" className="font-medium py-2.5 px-2">Builder</th>
+                <th scope="col" className="font-medium py-2.5 px-2 text-right tabular">Ideas</th>
+                <th scope="col" className="font-medium py-2.5 px-2 text-right tabular hidden sm:table-cell">Picked</th>
+                <th scope="col" className="font-medium py-2.5 px-2 text-right tabular">Sparks</th>
+                {hasSparkWindow && (
+                  <th scope="col" className="font-medium py-2.5 pl-2 pr-4 text-right">Give</th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rest.map((entry, i) => (
+                <tr key={entry.id} className="hover:bg-kinu/25 transition-colors">
+                  <td className="py-2.5 pl-4 pr-2 text-footnote text-ink-muted tabular">
+                    {i + 4}
+                  </td>
+                  <td className="py-2.5 px-2">
+                    <span className="flex items-center gap-2.5 min-w-0">
+                      <UserAvatar username={entry.username ?? 'user'} size={26} />
+                      <span className="text-footnote text-ink truncate">@{entry.username}</span>
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-2 text-right text-footnote text-ink-soft tabular">
+                    {entry.topic_count}
+                  </td>
+                  <td className="py-2.5 px-2 text-right text-footnote text-ink-soft tabular hidden sm:table-cell">
+                    {entry.selected_count}
+                  </td>
+                  <td className="py-2.5 px-2 text-right text-footnote text-ink-soft tabular">
+                    {entry.spark_count}
+                  </td>
+                  {hasSparkWindow && (
+                    <td className="py-2.5 pl-2 pr-4 text-right">
+                      {sparkWindow!.currentUserId === entry.id ? (
+                        <span className="text-ink-muted">-</span>
+                      ) : (
+                        <SparkButton
+                          toUserId={entry.id}
+                          cycleId={sparkWindow!.cycleId}
+                          alreadyGiven={sparkWindow!.sparkedUserId === entry.id}
+                          isDisabled={
+                            sparkWindow!.sparkedUserId !== null &&
+                            sparkWindow!.sparkedUserId !== entry.id
+                          }
+                        />
+                      )}
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
       {/* Spark picker - every member, unranked and alphabetical. Recognition
-          should not require appearing in a standings table. */}
-      {hasSparkWindow && sparkables.length > 0 && (
-        <section className="bg-paper/50 border border-border rounded-xl p-4 md:p-5">
-          <div className="mb-4">
-            <h2 className="text-[15px] font-semibold text-ink">Give your spark</h2>
-            <p className="text-[12px] text-cha mt-0.5">
-              One per cycle, to anyone who made this month better. Listed A–Z, not ranked.
+          should not require appearing in a standings table, so this stays
+          separate from the table above and keeps its own A-Z order. */}
+      {hasSparkWindow && unranked.length > 0 && (
+        <section className="rounded-(--radius-card) border border-border bg-paper/40 overflow-hidden">
+          <div className="px-4 py-3.5 border-b border-border">
+            <h2 className="text-heading text-ink">Give your spark</h2>
+            <p className="text-footnote text-ink-muted mt-0.5">
+              One per cycle, to anyone who made this month better. Listed A-Z, not ranked.
             </p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-2 stagger-children">
-            {sparkables.map(member => {
+          <ul className="divide-y divide-border">
+            {unranked.map(member => {
               const alreadyGiven = sparkWindow!.sparkedUserId === member.id
               const isDisabled = sparkWindow!.sparkedUserId !== null && !alreadyGiven
               return (
-                <div
+                <li
                   key={member.id}
-                  className={`press flex items-center gap-2.5 rounded-lg border px-3 py-2.5 transition-colors ${
-                    alreadyGiven ? 'border-saffron/30 bg-saffron-light/20' : 'border-border hover:bg-kinu/30'
+                  className={`flex items-center gap-2.5 px-4 py-2.5 min-h-11 transition-colors ${
+                    alreadyGiven ? 'bg-saffron-light/25' : 'hover:bg-kinu/25'
                   }`}
                 >
-                  <UserAvatar username={member.username ?? 'user'} size={28} />
-                  <span className="text-[13px] font-medium text-ink truncate min-w-0">@{member.username}</span>
+                  <UserAvatar username={member.username ?? 'user'} size={26} />
+                  <span className="text-footnote text-ink truncate min-w-0">@{member.username}</span>
                   <span className="ml-auto shrink-0">
                     <SparkButton
                       toUserId={member.id}
@@ -335,19 +427,19 @@ export default async function LeaderboardPage() {
                       isDisabled={isDisabled}
                     />
                   </span>
-                </div>
+                </li>
               )
             })}
-          </div>
+          </ul>
         </section>
       )}
 
 
       {/* Scoring note */}
       <p className="text-[11px] text-cha mt-6 text-center leading-relaxed">
-        Top 3 this cycle by guild score: Sparks ×3 · Picked topics ×2 · Ideas ×1.
+        Ranked by guild score: Sparks ×3, picked topics ×2, ideas ×1.
         <br />
-        Resets each cycle - no all-time ranking, and ghost pitches are never scored.
+        Counted across every cycle. Ghost pitches are never scored.
       </p>
     </div>
   )

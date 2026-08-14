@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { DOMAIN_ICONS, DOMAIN_LABELS, type Domain } from '@/lib/bytes/domains'
+import { Check, MessageSquare } from 'lucide-react'
+import { DOMAIN_LABELS, type Domain } from '@/lib/bytes/domains'
+import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/utils/cn'
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -30,12 +32,12 @@ export interface Byte {
 
 interface ByteCardProps {
   byte: Byte
-  /** Top stories get more visual weight and a rank marker. */
-  featured?: boolean
+  /** Top stories carry a rank number. Everything else renders identically:
+      one row treatment, so the two sections read as one list. */
   rank?: number
 }
 
-export function ByteCard({ byte, featured = false, rank }: ByteCardProps) {
+export function ByteCard({ byte, rank }: ByteCardProps) {
   const reduceMotion = useReducedMotion()
   const [interested, setInterested] = useState(!!byte.user_interested)
   const [count, setCount] = useState(byte.interest_count)
@@ -69,108 +71,87 @@ export function ByteCard({ byte, featured = false, rank }: ByteCardProps) {
   }
 
   return (
-    <article
-      className={cn(
-        'group relative rounded-2xl border transition-colors',
-        featured
-          ? 'material-raised border-saffron/20 p-4 sm:p-5'
-          : 'bg-paper/40 border-border p-4 hover:border-border-strong',
-      )}
-    >
-      {featured && rank !== undefined && (
-        <span
-          aria-hidden
-          className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-saffron text-parchment text-[11px] font-bold grid place-items-center shadow-lg tabular"
-        >
+    <article className="group relative flex gap-3 px-4 py-3.5 transition-colors hover:bg-kinu/20">
+      {/* Rank sits in its own column as plain text. It was a saffron disc
+          pinned outside the card corner, which put the loudest colour on the
+          page next to the least important number on it. */}
+      {rank !== undefined && (
+        <span aria-hidden className="w-5 shrink-0 pt-0.5 text-footnote text-ink-muted tabular">
           {rank}
         </span>
       )}
 
-      {/* Meta row: where it came from and what area it covers. */}
-      <div className="flex items-center gap-2 flex-wrap mb-2">
-        {domain && DOMAIN_LABELS[domain] && (
-          <span className="inline-flex items-center gap-1 type-caption text-ink-soft">
-            <span aria-hidden>{DOMAIN_ICONS[domain]}</span>
-            {DOMAIN_LABELS[domain]}
-          </span>
-        )}
-        <span className="type-caption text-cha">
-          {SOURCE_LABELS[byte.source] ?? byte.source}
-        </span>
-        {byte.source_points ? (
-          <span className="type-caption text-cha tabular">▲ {byte.source_points.toLocaleString()}</span>
-        ) : null}
-        {byte.digest_label && featured && (
-          <span className="type-caption text-cha ml-auto">{byte.digest_label}</span>
-        )}
-      </div>
-
-      <a
-        href={byte.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={cn(
-          'block text-ink hover:text-saffron transition-colors press',
-          featured ? 'type-title' : 'type-title text-[15px]',
-        )}
-      >
-        {byte.source_title}
-      </a>
-
-      {byte.summary && (
-        <p className="type-body text-ink-soft mt-2">{byte.summary}</p>
-      )}
-
-      {/* The human voice. This is what makes a digest get read. */}
-      {byte.editor_note && (
-        <p className="type-body text-ink mt-2.5 pl-3 border-l-2 border-saffron/40">
-          {byte.editor_note}
-        </p>
-      )}
-
-      <div className="flex items-center gap-2 mt-3.5 flex-wrap">
-        <motion.button
-          type="button"
-          onClick={toggle}
-          disabled={busy}
-          aria-pressed={interested}
-          aria-label={interested ? 'Remove from discussion list' : 'Add to discussion list'}
-          // Critically damped by default; a touch of bounce only on the way in,
-          // because that press carried intent.
-          whileTap={reduceMotion ? undefined : { scale: 0.94 }}
-          animate={reduceMotion ? undefined : { scale: 1 }}
-          transition={{ type: 'spring', bounce: interested ? 0.3 : 0, duration: 0.35 }}
-          className={cn(
-            'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border type-caption transition-colors disabled:opacity-60',
-            interested
-              ? 'border-saffron/40 bg-saffron-light text-saffron'
-              : 'border-border text-ink-soft hover:border-border-strong hover:bg-kinu/40',
+      <div className="min-w-0 flex-1">
+        {/* Provenance on one quiet line. The digest label used to repeat on
+            every featured row; it is stated once in the page header instead. */}
+        <div className="flex items-center gap-1.5 flex-wrap text-meta text-ink-muted">
+          {domain && DOMAIN_LABELS[domain] && (
+            <>
+              <span className="text-ink-soft">{DOMAIN_LABELS[domain]}</span>
+              <span aria-hidden>&middot;</span>
+            </>
           )}
+          <span>{SOURCE_LABELS[byte.source] ?? byte.source}</span>
+          {byte.source_points ? (
+            <>
+              <span aria-hidden>&middot;</span>
+              <span className="tabular">{byte.source_points.toLocaleString()}</span>
+            </>
+          ) : null}
+        </div>
+
+        <a
+          href={byte.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 block text-body text-ink hover:text-saffron transition-colors"
         >
-          <span aria-hidden>{interested ? '✓' : '💬'}</span>
-          <span>{interested ? 'On your list' : "I'd discuss this"}</span>
-          {count > 0 && <span className="tabular opacity-80">{count}</span>}
-        </motion.button>
+          {byte.source_title}
+        </a>
+
+        {byte.summary && (
+          <p className="text-footnote text-ink-soft mt-1 line-clamp-2">{byte.summary}</p>
+        )}
+
+        {/* The human voice. This is what makes a digest get read. */}
+        {byte.editor_note && (
+          <p className="text-footnote text-ink mt-1.5 pl-2.5 border-l-2 border-saffron/40">
+            {byte.editor_note}
+          </p>
+        )}
 
         {byte.seeded_topic_id && (
           <a
             href={`/board/${byte.seeded_topic_id}`}
-            className="type-caption text-saffron hover:underline press"
+            className="mt-1.5 inline-block text-meta text-saffron hover:underline"
           >
-            On the board →
+            On the board
           </a>
         )}
-
-        {byte.tags?.length ? (
-          <span className="ml-auto flex gap-1.5 flex-wrap">
-            {byte.tags.slice(0, 3).map(t => (
-              <span key={t} className="type-caption text-cha">
-                #{t}
-              </span>
-            ))}
-          </span>
-        ) : null}
       </div>
+
+      {/* One compact control, right-aligned, out of the reading path. It was a
+          full-width pill under every story, which made the action louder than
+          the headline it belonged to. */}
+      <motion.button
+        type="button"
+        onClick={toggle}
+        disabled={busy}
+        aria-pressed={interested}
+        aria-label={interested ? 'Remove from discussion list' : "I'd discuss this"}
+        title={interested ? 'On your list' : "I'd discuss this"}
+        whileTap={reduceMotion ? undefined : { scale: 0.94 }}
+        transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
+        className={cn(
+          'self-start shrink-0 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full border text-meta transition-colors disabled:opacity-60',
+          interested
+            ? 'border-saffron/40 bg-saffron-light text-saffron'
+            : 'border-border text-ink-muted hover:border-border-strong hover:text-ink-soft',
+        )}
+      >
+        <Icon icon={interested ? Check : MessageSquare} size="sm" />
+        {count > 0 && <span className="tabular">{count}</span>}
+      </motion.button>
     </article>
   )
 }

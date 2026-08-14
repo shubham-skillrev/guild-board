@@ -16,11 +16,18 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md'
 
 const VARIANTS: Record<Variant, string> = {
-  // Saffron marks the one thing you can act on, so it stays rare.
-  primary: 'bg-accent text-black font-semibold hover:bg-accent/90',
-  secondary: 'bg-fill text-label hover:bg-fill-strong',
-  ghost: 'text-label-2 hover:text-label hover:bg-fill',
-  danger: 'text-danger hover:bg-danger-tint',
+  /* Saffron marks the one thing you can act on, so it stays rare.
+     Label is parchment, not pure black: black on saffron is a harder edge than
+     anything else in the product and it made the primary button shout.
+     The glow is faint and warm, which is what gave the original its lift. */
+  primary:
+    'bg-saffron text-parchment font-semibold hover:bg-saffron/90 shadow-[0_0_20px_rgba(232,145,58,0.15)]',
+  /* Outlined rather than a filled grey block. A secondary action that is also
+     a solid slab competes with the primary instead of deferring to it. */
+  secondary:
+    'border border-border-strong text-ink-soft font-semibold hover:bg-kinu hover:text-ink',
+  ghost: 'text-ink-soft hover:text-ink hover:bg-kinu',
+  danger: 'text-vermillion hover:bg-vermillion-light',
 }
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -45,9 +52,11 @@ export function Button({
       className={cn(
         'press inline-flex items-center justify-center gap-1.5 rounded-(--radius-control)',
         'transition-colors disabled:opacity-40 disabled:pointer-events-none',
+        /* 13px, matching the original. 14px on a 36px control reads chunky and
+           was part of why the buttons stopped feeling considered. */
         size === 'md'
-          ? 'h-(--control-h) px-4 text-callout font-medium'
-          : 'h-8 px-3 text-footnote font-medium',
+          ? 'h-(--control-h) px-3.5 text-footnote'
+          : 'h-8 px-3 text-footnote',
         VARIANTS[variant],
         className,
       )}

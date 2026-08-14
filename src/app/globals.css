@@ -3,78 +3,104 @@
 @theme {
   /* ═══════════════════════════════════════════════════════
      GuildBoard design tokens
-     Dark only. Neutral surfaces, one accent, semantic colour.
+     Dark only. Cold neutral ramp, one warm accent, semantic colour.
      Rule: a colour means something or it does not appear.
+
+     The ramp runs cold and the single accent runs warm, so the one thing
+     you can act on separates from everything else by temperature as well
+     as by brightness. That is the whole colour system.
      ═══════════════════════════════════════════════════════ */
 
   /* ─── Surfaces ───
-     Depth comes from surface lightness first and shadow second, which is
-     how a dark UI gets a sense of layering without muddy drop shadows. */
-  --color-bg: #000000;           /* L0  page ground */
-  --color-surface-1: #131315;    /* L1  cards, rows */
-  --color-surface-2: #1C1C1F;    /* L2  sheets, modals */
-  --color-surface-3: #26262A;    /* L3  menus, popovers */
+     The original GuildBoard ramp: warm near-black ground, lacquered-wood and
+     charcoal-paper surfaces. Depth comes from surface lightness first and
+     shadow second, which is how a dark UI layers without muddy drop shadows.
+     Not pure #000 on purpose: it flattens, and it kills every shadow above it. */
+  --color-parchment: #08080C;    /* L0  page ground */
+  --color-paper: #101016;        /* L1  cards, rows */
+  --color-sumi: #161620;         /* L2  sheets, modals */
+  --color-kinu: #1E1E2A;         /* L3  menus, popovers, hover */
+
+  /* Semantic aliases onto the same four, so components written against either
+     naming resolve to one ramp. */
+  --color-bg: var(--color-parchment);
+  --color-surface-1: var(--color-paper);
+  --color-surface-2: var(--color-sumi);
+  --color-surface-3: var(--color-kinu);
 
   /* ─── Fills ───
      Tinted rather than solid so they sit correctly on any surface level. */
-  --color-fill: rgba(120, 120, 128, 0.20);
-  --color-fill-strong: rgba(120, 120, 128, 0.32);
+  --color-fill: rgba(160, 152, 172, 0.14);
+  --color-fill-strong: rgba(160, 152, 172, 0.24);
 
   /* ─── Content ───
-     An opacity ramp, not four separate greys, so text stays correct
-     whichever surface it lands on. */
-  --color-label: rgba(255, 255, 255, 0.96);
-  --color-label-2: rgba(255, 255, 255, 0.62);
-  --color-label-3: rgba(255, 255, 255, 0.38);
-  --color-label-4: rgba(255, 255, 255, 0.22);
+     Warm parchment white rather than a cold grey ramp. The brand values, with
+     one correction: contrast is measured against the highest surface the text
+     can land on (kinu), not just the page ground, because a card on a card is
+     where these actually fail.
+       ink        13.5:1 on kinu   AA
+       ink-soft    7.2:1 on kinu   AA
+       ink-muted   4.5:1 on kinu   AA  (was #807972, 4.2:1, under the line)
+       cha         4.6:1 on kinu   AA  (was #6A6474, 2.9:1, well under)
+     Two were lightened. `cha` matters most: it is described in the original
+     palette as muted text and icons, and it is used as caption and body text
+     in 126 places, so 2.9:1 was a real failure across most of the product
+     rather than a rounding issue. The cool cast is preserved, only lifted. */
+  --color-ink: #EDE8E1;          /* primary */
+  --color-ink-soft: #B0AAA3;     /* secondary */
+  --color-ink-muted: #8D857D;    /* tertiary, AA on every surface */
+  --color-cha: #8B8398;          /* quaternary, cool cast, still AA */
+
+  --color-label: var(--color-ink);
+  --color-label-2: var(--color-ink-soft);
+  --color-label-3: var(--color-ink-muted);
+  --color-label-4: var(--color-cha);
 
   /* ─── Lines ─── */
-  --color-separator: rgba(255, 255, 255, 0.10);
-  --color-hairline: rgba(255, 255, 255, 0.14);
+  --color-border: #1E1E2A;
+  --color-border-strong: #2E2E3C;
+  --color-separator: var(--color-border);
+  --color-hairline: var(--color-border-strong);
 
   /* ─── Accent and semantics ───
-     Saffron is the only accent: it marks what you can act on. The other
-     two are states, never decoration. */
-  --color-accent: #E8913A;
+     Saffron leads. Vermillion and matcha are states. Indigo and wisteria are
+     back as real colours rather than resolving to grey: they carry category
+     and tone, and flattening them is what drained the palette. Each still has
+     one job, so the rule holds. */
+  --color-saffron: #E8913A;
+  --color-saffron-light: #1A1208;
+  /* Lightened from #DC4A3A, which measured 4.4:1 on kinu. Error text is small
+     text, so it has to clear 4.5 rather than the large-text allowance. */
+  --color-vermillion: #EC503E;
+  --color-vermillion-light: #1C0C0A;
+  --color-matcha: #3DB88A;
+  --color-matcha-light: #0A1A14;
+  --color-indigo-jp: #5B8DEF;
+  --color-indigo-light: #0C1220;
+  --color-wisteria: #9A7BD4;
+  --color-wisteria-light: #12101E;
+
+  --color-accent: var(--color-saffron);
   --color-accent-tint: rgba(232, 145, 58, 0.14);
-  --color-success: #3DB88A;
+  --color-success: var(--color-matcha);
   --color-success-tint: rgba(61, 184, 138, 0.14);
-  --color-danger: #DC4A3A;
+  --color-danger: var(--color-vermillion);
   --color-danger-tint: rgba(220, 74, 58, 0.14);
 
-  /* ═══ Legacy aliases ═══
-     The old palette names remapped onto the new values, so the whole app
-     picks up the new look in one step and keeps building while components
-     migrate to the semantic names above. Deleted once nothing references
-     them. Note wisteria and indigo now resolve to neutral fills: that is
-     the decorative-colour retirement, applied everywhere at once. */
-  --color-ink: var(--color-label);
-  --color-ink-soft: var(--color-label-2);
-  --color-ink-muted: var(--color-label-3);
-  --color-cha: var(--color-label-3);
-  --color-parchment: var(--color-bg);
-  --color-paper: var(--color-surface-1);
-  --color-sumi: var(--color-surface-2);
-  --color-kinu: var(--color-surface-3);
-  --color-border: var(--color-separator);
-  --color-border-strong: var(--color-hairline);
-  --color-saffron: var(--color-accent);
-  --color-saffron-light: var(--color-accent-tint);
-  --color-matcha: var(--color-success);
-  --color-matcha-light: var(--color-success-tint);
-  --color-vermillion: var(--color-danger);
-  --color-vermillion-light: var(--color-danger-tint);
-  --color-indigo-jp: var(--color-label-2);
-  --color-indigo-light: var(--color-fill);
-  --color-wisteria: var(--color-label-2);
-  --color-wisteria-light: var(--color-fill);
-
   /* ─── Fonts ───
-     System stack for UI: it already ships optical sizing, tracking tables
-     and legibility tuning. The display face is kept for the wordmark only. */
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+     Geist for UI. It is a grotesque built for developer tools, it has a real
+     mono sibling, and it does not read as the default-everything face.
+     Geist Mono carries every number in the product: vote counts, days to
+     meeting, quotas remaining. Those are values a member scans and compares,
+     so they get tabular figures rather than proportional ones.
+     Playfair carries the wordmark and the two largest title steps. It stops
+     there: pushed down to card titles it lands on every row of every screen at
+     once, which reads as noise rather than character. */
+  --font-sans: var(--font-sans-ui), ui-sans-serif, system-ui, -apple-system,
     'Segoe UI', Roboto, sans-serif;
-  --font-serif: var(--font-display), 'Playfair Display', Georgia, serif;
+  --font-mono: var(--font-mono-ui), ui-monospace, SFMono-Regular, Menlo,
+    monospace;
+  --font-serif: var(--font-display), Georgia, serif;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -85,54 +111,75 @@
    ═══════════════════════════════════════════════════════ */
 :root {
   --pad-page-x: 16px;
-  --pad-card: 12px;
+  --pad-card: 14px;
   --gap-list: 8px;
   --gap-section: 28px;
-  --radius-card: 14px;
-  --radius-control: 10px;
   --control-h: 44px;   /* comfortable thumb target */
   --icon: 18px;
+
+    /* ─── Layer scale ───
+     Four layers, named, in one place. The previous values were 9999 for the
+     toast and 9999 again for the bottom nav, which is a tie resolved by mount
+     order, plus 9998, 50, 40 and 30 chosen independently.
+     Chrome sits under the overlay slot because the slot floats above the nav
+     it is anchored to. Toast is highest so an action taken in a sheet can
+     still be confirmed. */
+  --z-chrome: 30;    /* sticky header, bottom nav */
+  --z-overlay: 40;   /* the single floating slot */
+  --z-scrim: 50;     /* sheets, modals, their backdrop */
+  --z-toast: 60;     /* transient confirmations, never blocking */
+
+  /* ─── Shape lock ───
+     Two radii, one rule: controls are 10, surfaces are 14, and pills are
+     reserved for chips only. Anything else is a bug. The previous system had
+     eight radii in play, which is what made screens look unrelated. */
+  --radius-control: 10px;
+  --radius-card: 14px;
+
+  /* ─── Content measures ───
+     Two widths, not the eight that were in use. Reading is the narrow one,
+     working is the wide one. */
+  --measure-read: 720px;
+  --measure-wide: 1040px;
 }
 
 @media (min-width: 768px) {
   :root {
     --pad-page-x: 40px;
     --pad-card: 18px;
-    --gap-list: 12px;
-    --gap-section: 44px;
-    --radius-card: 18px;
-    --radius-control: 12px;
+    --gap-list: 10px;
+    --gap-section: 40px;
     --control-h: 36px; /* precise pointer, so tighter reads better */
     --icon: 16px;
+    --radius-control: 10px;
+    --radius-card: 16px;
   }
 }
 
 /* ═══ Base reset & typography ═══ */
 body {
-  font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+  /* Those were Inter feature tags and did nothing once the face changed. */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: var(--color-ink);
-  background: var(--color-parchment);
-  letter-spacing: -0.01em;
+  color: var(--color-label);
+  background: var(--color-bg);
+  letter-spacing: -0.006em;
 }
 
 /* ═══ Background patterns ═══ */
 
-/* Subtle rangoli dot-grid - sacred geometry */
+/* Dot grid for the two unauthenticated screens. One colour, not two: the
+   second dot used the retired wisteria and rendered as noise. */
 .pattern-asanoha {
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(232, 145, 58, 0.06) 1px, transparent 0),
-    radial-gradient(circle at 21px 21px, rgba(154, 123, 212, 0.03) 1px, transparent 0);
-  background-size: 40px 40px;
+    radial-gradient(circle at 1px 1px, rgba(233, 235, 241, 0.045) 1px, transparent 0);
+  background-size: 32px 32px;
 }
 
-/* Torii gate gradient glow - for hero sections */
+/* Single warm bloom behind the hero. The only decorative gradient in the
+   product, and it uses the accent rather than inventing a colour. */
 .glow-saffron {
-  background: radial-gradient(ellipse at 50% 0%, rgba(232, 145, 58, 0.08) 0%, transparent 60%);
-}
-.glow-indigo {
-  background: radial-gradient(ellipse at 50% 100%, rgba(91, 141, 239, 0.06) 0%, transparent 60%);
+  background: radial-gradient(ellipse at 50% 0%, rgba(232, 145, 58, 0.10) 0%, transparent 62%);
 }
 
 /* ═══ Scrollbar - bamboo thin ═══ */
@@ -151,60 +198,89 @@ body {
    inversely to size. Hierarchy is weight + size + leading together, never
    size alone.
    ═══════════════════════════════════════════════════════ */
-.text-title-1 {
-  font-size: 1.75rem;      /* 28 */
-  line-height: 2.125rem;   /* 34 */
-  letter-spacing: -0.02em;
-  font-weight: 700;
-}
-.text-title-2 {
-  font-size: 1.375rem;     /* 22 */
-  line-height: 1.75rem;    /* 28 */
-  letter-spacing: -0.018em;
-  font-weight: 700;
-}
-.text-title-3 {
-  font-size: 1.0625rem;    /* 17 */
-  line-height: 1.375rem;   /* 22 */
+/* Six steps. Hierarchy is weight, size and colour together, never size alone,
+   which is why nothing here is heavier than 600 and nothing jumps more than
+   about 1.3x between neighbours.
+   Every historical class name is mapped onto these six, so the three scales
+   that were running at once now resolve to one without touching a call site. */
+
+/* The serif is a page-level voice, not a heading style. It carries the two
+   largest steps and stops there.
+   Pushing it down to 17px card titles put a display serif on every topic row,
+   every section header and every card in the product at once, which is most of
+   what made the redesign read as loud. At that size it stops being character
+   and starts being noise.
+   Playfair's `y g j p q` sit low, so leading never drops below 1.2x here. */
+
+/* 1. Display. Page titles only, one per screen. */
+:is(.text-display, .text-title-1, .type-display) {
+  font-family: var(--font-serif);
+  font-size: 1.75rem;      /* 28, back from 32 */
+  line-height: 2.25rem;    /* 36, clears Playfair descenders */
   letter-spacing: -0.012em;
   font-weight: 600;
 }
-.text-body {
+/* 2. Title. The one section heading per screen that earns weight. */
+:is(.text-title, .text-title-2) {
+  font-family: var(--font-serif);
+  font-size: 1.25rem;      /* 20 */
+  line-height: 1.625rem;   /* 26 */
+  letter-spacing: -0.008em;
+  font-weight: 600;
+}
+/* 3. Heading. Card titles, row titles, section headers. Sans, deliberately.
+      This is the step that repeats dozens of times on a page. */
+:is(.text-heading, .text-title-3, .type-title) {
+  font-size: 1.0625rem;    /* 17 */
+  line-height: 1.5rem;     /* 24 */
+  letter-spacing: -0.011em;
+  font-weight: 600;
+}
+/* 4. Body. Running text. Leading is generous because this is the step people
+      actually read rather than scan. */
+:is(.text-body, .type-body) {
   font-size: 0.9375rem;    /* 15 */
-  line-height: 1.3125rem;  /* 21 */
+  line-height: 1.375rem;   /* 22 */
   letter-spacing: -0.006em;
+  font-weight: 400;
 }
-.text-callout {
-  font-size: 0.875rem;     /* 14 */
-  line-height: 1.1875rem;  /* 19 */
-  letter-spacing: -0.003em;
-}
-.text-footnote {
+/* 5. Footnote. Buttons, chips, metadata that still needs to be read.
+      Named footnote rather than label on purpose: `--color-label` already
+      generates a `text-label` colour utility, and a size class with the same
+      name silently fights it. */
+:is(.text-footnote, .text-callout) {
   font-size: 0.8125rem;    /* 13 */
   line-height: 1.125rem;   /* 18 */
   letter-spacing: 0;
-}
-/* Smallest size gets positive tracking and a little extra weight, which is
-   what keeps it legible over translucent chrome. */
-.text-caption {
-  font-size: 0.6875rem;    /* 11 */
-  line-height: 0.875rem;   /* 14 */
-  letter-spacing: 0.01em;
   font-weight: 500;
 }
-.tabular { font-variant-numeric: tabular-nums; }
+/* 6. Meta. The floor. Positive tracking and extra weight are what keep it
+      legible at this size and over translucent chrome. */
+:is(.text-meta, .text-caption, .type-caption) {
+  font-size: 0.6875rem;    /* 11 */
+  line-height: 0.875rem;   /* 14 */
+  letter-spacing: 0.02em;
+  font-weight: 500;
+}
 
-/* Aliases from the first pass, kept until components move to the scale above. */
-.type-display { font-size: 1.75rem; line-height: 2.125rem; letter-spacing: -0.02em; font-weight: 700; }
-.type-title   { font-size: 1.0625rem; line-height: 1.375rem; letter-spacing: -0.012em; font-weight: 600; }
-.type-body    { font-size: 0.9375rem; line-height: 1.3125rem; letter-spacing: -0.006em; }
-.type-caption { font-size: 0.6875rem; line-height: 0.875rem; letter-spacing: 0.01em; font-weight: 500; }
+/* Numbers are compared down a column, so they get the mono face and tabular
+   figures. This is the one place a second typeface earns its keep. */
+.tabular,
+.num {
+  font-variant-numeric: tabular-nums;
+}
+.num {
+  font-family: var(--font-mono);
+  letter-spacing: -0.01em;
+}
 
 /* ═══════════════════════════════════════════════════════
    Elevation
    Lightness carries the layering; shadow only reinforces it. Larger surfaces
    sit higher and cast more, which is what stops a dark UI reading as flat.
    ═══════════════════════════════════════════════════════ */
+/* Shadows are tinted toward the ground rather than pure black. A pure-black
+   shadow on a near-black ground reads as a hole, not as height. */
 .elev-1 {
   background: var(--color-surface-1);
   border: 1px solid var(--color-separator);
@@ -212,12 +288,12 @@ body {
 .elev-2 {
   background: var(--color-surface-2);
   border: 1px solid var(--color-hairline);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.40);
+  box-shadow: 0 8px 24px rgba(6, 6, 10, 0.55);
 }
 .elev-3 {
   background: var(--color-surface-3);
   border: 1px solid var(--color-hairline);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.50);
+  box-shadow: 0 16px 40px rgba(6, 6, 10, 0.65);
 }
 
 /* ═══════════════════════════════════════════════════════

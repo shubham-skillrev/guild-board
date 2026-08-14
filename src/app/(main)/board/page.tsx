@@ -1,12 +1,9 @@
 'use client'
 
 import { useCallback, useState, useEffect } from 'react'
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion, useReducedMotion } from 'framer-motion'
-import {
-  ArrowBigUp, Calendar, CircleCheck, Handshake, LayoutGrid, Lightbulb, MessageSquare,
-} from 'lucide-react'
-import { Icon } from '@/components/ui/Icon'
+import { LayoutGrid, Lightbulb } from 'lucide-react'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useTopics } from '@/hooks/useTopics'
 import { useUserTokens } from '@/hooks/useUserTokens'
@@ -17,7 +14,10 @@ import { SubmitModal } from '@/components/topics/SubmitModal'
 import { MeetingPill } from '@/components/layout/MeetingPill'
 import { OutcomesRecap } from '@/components/board/OutcomesRecap'
 import { BytesTeaser } from '@/components/board/BytesTeaser'
-import { PageHeader, SectionHeader, StatTile, EmptyState, CardSkeleton } from '@/components/ui/Section'
+import { TopContributors } from '@/components/board/TopContributors'
+import { MeetingDate, CycleStatus } from '@/components/board/CycleMeta'
+import { QuotaStrip } from '@/components/board/QuotaStrip'
+import { PageHeader, SectionHeader, EmptyState, CardSkeleton } from '@/components/ui/Section'
 import { Button } from '@/components/ui/Button'
 import type { Cycle, Topic } from '@/types'
 
@@ -26,14 +26,8 @@ const MONTHS_SHORT = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]
 
-/** Whole days until the meeting. Negative once it has passed. */
-function daysUntil(meetingAt: string | null | undefined): number | null {
-  if (!meetingAt) return null
-  const ms = new Date(meetingAt).getTime() - Date.now()
-  return Math.ceil(ms / 86_400_000)
-}
-
 export default function BoardPage() {
+  const router = useRouter()
   const reduceMotion = useReducedMotion()
   const { user, isLoading: authLoading } = useAuth()
   const { cycle, phase, isLoading: cycleLoading } = useCurrentCycle()
@@ -124,8 +118,12 @@ export default function BoardPage() {
   const isLoading = authLoading || cycleLoading
   const displayTopics = isViewingActive ? topics : archiveTopics
   const displayPhase = isViewingActive ? phase : 'discussion'
-  const days = daysUntil(viewingCycle?.meeting_at)
   const isOpen = isViewingActive && phase === 'open'
+
+  /* The empty state and the page header both want to offer the same action, so
+     only one of them is allowed to at a time. */
+  const listIsEmpty =
+    !isLoading && !topicsLoading && !archiveLoading && !!viewingCycle && displayTopics.length === 0
 
   const section = reduceMotion
     ? {}
@@ -137,81 +135,57 @@ export default function BoardPage() {
 
   return (
     <>
-      <div className="px-5 md:px-10 py-8 w-full max-w-5xl mx-auto pb-28 md:pb-10">
+      {/* One page measure, one gutter, shared by the header and both columns so
+          every edge on the screen lines up on the same two verticals. */}
+      <div className="px-(--pad-page-x) py-8 w-full max-w-(--measure-wide) mx-auto pb-28 md:pb-10">
+        {/* The cycle label is the subtitle, so the title line answers "which
+            board am I looking at" and the right side answers "when is it and
+            what can I do". Status reads left to right: identity, then timing,
+            then state, then the one action. */}
         <PageHeader
           title="The Board"
-          subtitle={
-            viewingCycle
-              ? isViewingActive
-                ? phase === 'open'
-                  ? 'Open for pitches and votes.'
-                  : 'Voting is closed. Discussion and sparks are live.'
-                : `Viewing ${viewingCycle.label}.`
-              : 'What shall we build next?'
-          }
+          subtitle={viewingCycle ? viewingCycle.label : 'What shall we build next?'}
           action={
             <>
-              {isOpen && !topic_submitted && (
-                <Button onClick={() => setShowSubmit(true)}>Pitch an idea</Button>
-              )}
-              <Link
-                href="/bank"
-                className="press inline-flex items-center gap-1.5 px-3.5 py-2 border border-border-strong text-ink-soft text-[13px] font-semibold rounded-lg hover:bg-kinu transition-colors"
-              >
-                <Icon icon={Lightbulb} /> Bank an idea
-              </Link>
+              {isViewingActive && <MeetingDate cycle={viewingCycle} phase={phase} />}
+              {isViewingActive && <CycleStatus phase={phase} />}
+              {/* One action. Pitching and banking are the same intent at two
+                  moments, so the header offers whichever applies. When the list
+                  is empty the empty state carries it instead, being the more
+                  prominent invitation. */}
+              {!listIsEmpty &&
+                (isOpen && !topic_submitted ? (
+                  <Button onClick={() => setShowSubmit(true)}>Pitch an idea</Button>
+                ) : (
+                  <Button variant="secondary" onClick={() => router.push('/bank')}>
+                    Bank an idea
+                  </Button>
+                ))}
             </>
           }
         />
 
-        {/* ─── Status strip ───
-            The dashboard answer to "where are we and what do I still have".
-            Everything here is a number the member can act on. */}
+        {/* ─── What you have left ───
+            A strip, not a row of hero tiles. See QuotaStrip for why. */}
         {isViewingActive && phase !== 'upcoming' && (
-          <motion.section {...section} className="mb-7" aria-label="Your cycle status">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              <StatTile
-                icon={phase === 'open' ? Calendar : MessageSquare}
-                value={
-                  days === null ? '-' : days > 0 ? days : days === 0 ? 'Today' : 'Done'
-                }
-                label={
-                  days === null
-                    ? 'No meeting set'
-                    : days > 1
-                      ? 'days to meeting'
-                      : days === 1
-                        ? 'day to meeting'
-                        : days === 0
-                          ? 'meeting day'
-                          : 'discussion mode'
-                }
-                tone={days !== null && days >= 0 && days <= 2 ? 'active' : 'default'}
-              />
-              <StatTile
-                icon={ArrowBigUp}
-                value={votes_remaining}
-                label={votes_remaining === 1 ? 'vote left' : 'votes left'}
-                tone={!isOpen ? 'spent' : votes_remaining > 0 ? 'active' : 'spent'}
-              />
-              <StatTile
-                icon={Handshake}
-                value={contribs_remaining}
-                label={contribs_remaining === 1 ? 'hand raise' : 'hand raises'}
-                tone={!isOpen ? 'spent' : contribs_remaining > 0 ? 'active' : 'spent'}
-              />
-              <StatTile
-                icon={topic_submitted ? CircleCheck : Lightbulb}
-                value={topic_submitted ? '1' : '0'}
-                label={topic_submitted ? 'idea pitched' : 'ideas pitched'}
-                tone={topic_submitted ? 'default' : isOpen ? 'active' : 'spent'}
-                href={topic_submitted ? undefined : '/bank'}
-              />
-            </div>
+          <motion.section {...section} className="mb-(--gap-section)" aria-label="What you have left this cycle">
+            <QuotaStrip
+              votesRemaining={isOpen ? votes_remaining : 0}
+              contribsRemaining={isOpen ? contribs_remaining : 0}
+              topicSubmitted={topic_submitted}
+            />
           </motion.section>
         )}
 
-        <div className="space-y-8">
+        {/* ─── Two columns from lg up ───
+            The topic list is the reason the page exists, so it takes the wide
+            column and keeps a comfortable reading measure. The rail carries
+            what is worth glancing at but never worth scrolling for.
+            Below lg it is one column and the rail falls under the list, which
+            is the correct priority order on a phone rather than an accident of
+            source order. */}
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-x-10 gap-y-(--gap-section) items-start">
+          <div className="min-w-0 space-y-(--gap-section)">
           {/* ─── What came of last cycle ─── */}
           <OutcomesRecap />
 
@@ -259,12 +233,9 @@ export default function BoardPage() {
                 title="The scroll is blank"
                 body="An admin needs to open a cycle to get the guild rolling. Ideas you bank now carry over."
                 action={
-                  <Link
-                    href="/bank"
-                    className="press inline-flex items-center gap-1.5 px-3.5 py-2 border border-border-strong text-ink-soft text-[13px] font-semibold rounded-lg hover:bg-kinu transition-colors"
-                  >
-                    <Icon icon={Lightbulb} /> Bank an idea
-                  </Link>
+                  <Button variant="secondary" onClick={() => router.push('/bank')}>
+                    Bank an idea
+                  </Button>
                 }
               />
             ) : topicsLoading || archiveLoading ? (
@@ -281,7 +252,11 @@ export default function BoardPage() {
                 action={
                   isOpen && !topic_submitted ? (
                     <Button onClick={() => setShowSubmit(true)}>Pitch an idea</Button>
-                  ) : undefined
+                  ) : (
+                    <Button variant="secondary" onClick={() => router.push('/bank')}>
+                      Bank an idea
+                    </Button>
+                  )
                 }
               />
             ) : (
@@ -297,9 +272,16 @@ export default function BoardPage() {
               />
             )}
           </motion.section>
+          </div>
 
-          {/* ─── This week in tech ─── */}
-          <BytesTeaser />
+          {/* ─── Rail ───
+              Glanceable, never load-bearing. It sticks below the header on a
+              pointer so it stays with you down a long topic list, and it is a
+              plain stacked column on a phone. */}
+          <aside className="min-w-0 space-y-(--gap-section) lg:sticky lg:top-20">
+            <TopContributors topics={displayTopics as Topic[]} />
+            <BytesTeaser />
+          </aside>
         </div>
       </div>
 

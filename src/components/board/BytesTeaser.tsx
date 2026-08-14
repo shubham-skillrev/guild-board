@@ -7,7 +7,17 @@ import { SectionHeader } from '@/components/ui/Section'
 interface TeaserByte {
   id: string
   source_title: string
+  summary: string | null
+  source: string
   interest_count: number
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  hn: 'Hacker News',
+  github: 'GitHub',
+  blog: 'Engineering blog',
+  lobsters: 'Lobsters',
+  devto: 'dev.to',
 }
 
 /**
@@ -47,16 +57,29 @@ export function BytesTeaser() {
       <ul className="rounded-2xl border border-border bg-paper/40 divide-y divide-border overflow-hidden">
         {items.map(b => (
           <li key={b.id}>
+            {/* The teaser showed a truncated headline and nothing else, so it
+                read as a list of links rather than as news. The summary is the
+                part that tells you whether it is worth opening. */}
             <Link
               href="/bytes"
-              className="flex items-center gap-3 px-4 py-3 hover:bg-kinu/30 transition-colors press"
+              className="block px-4 py-3 hover:bg-kinu/30 transition-colors"
             >
-              <span className="type-body text-ink truncate flex-1 min-w-0">{b.source_title}</span>
-              {b.interest_count > 0 && (
-                <span className="type-caption text-saffron shrink-0 tabular">
-                  💬 {b.interest_count}
+              <div className="flex items-start gap-2">
+                <span className="text-footnote text-ink flex-1 min-w-0 line-clamp-2">
+                  {b.source_title}
                 </span>
+                {b.interest_count > 0 && (
+                  <span className="text-meta text-saffron shrink-0 tabular pt-0.5">
+                    {b.interest_count}
+                  </span>
+                )}
+              </div>
+              {b.summary && (
+                <p className="text-meta text-ink-muted mt-1 line-clamp-2">{b.summary}</p>
               )}
+              <p className="text-meta text-cha mt-1">
+                {SOURCE_LABELS[b.source] ?? b.source}
+              </p>
             </Link>
           </li>
         ))}

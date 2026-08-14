@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useOverlaySlot, OVERLAY_PRIORITY } from "@/components/ui/OverlaySlot";
 import { Portal } from "@/components/ui/Portal";
 import { track } from "@vercel/analytics";
 
@@ -106,7 +107,13 @@ export function InstallPrompt() {
     if (choice.outcome === "accepted") setVisible(false);
   };
 
-  if (standalone || !visible) return null;
+  // Lowest priority in the slot: promotional, and it keeps for another session.
+  const hasSlot = useOverlaySlot(
+    "installPrompt",
+    OVERLAY_PRIORITY.installPrompt,
+    !standalone && visible,
+  );
+  if (!hasSlot) return null;
 
   const instructions: Record<Platform, { title: string; steps: string[] }> = {
     "android-chrome": {
@@ -155,7 +162,7 @@ export function InstallPrompt() {
 
   return (
     <Portal>
-      <div className="fixed inset-x-3 bottom-20 z-50 mx-auto max-w-sm rounded-2xl border border-saffron/30 bg-sumi/95 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur sm:left-auto sm:right-4 sm:bottom-4">
+      <div className="fixed inset-x-3 bottom-20 z-(--z-overlay) mx-auto max-w-sm rounded-2xl border border-saffron/30 bg-sumi/95 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur sm:left-auto sm:right-4 sm:bottom-4">
         {!showHow ? (
           <div className="flex items-start gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}

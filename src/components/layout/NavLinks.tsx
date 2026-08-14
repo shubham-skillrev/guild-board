@@ -86,7 +86,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
   useEffect(() => setMounted(true), [])
 
   const nav = (
-    <nav className="md:hidden fixed inset-x-0 bottom-0 z-9999 material-chrome border-t border-border/60 pb-[env(safe-area-inset-bottom)]">
+    <nav className="md:hidden fixed inset-x-0 bottom-0 z-(--z-chrome) material-chrome border-t border-border/60 pb-[env(safe-area-inset-bottom)]">
       <div className={cn('grid px-2 py-1.5', role === 'admin' ? 'grid-cols-5' : 'grid-cols-4')}>
         <Link
           href="/board"

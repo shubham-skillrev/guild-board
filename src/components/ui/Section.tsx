@@ -23,7 +23,7 @@ export function PageHeader({
   action?: React.ReactNode
 }) {
   return (
-    <header className="mb-(--gap-section) flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+    <header className="mb-7 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
       <div className="min-w-0">
         <h1 className="text-title-1 text-label">{title}</h1>
         {subtitle && <p className="text-callout text-label-2 mt-1.5 max-w-prose">{subtitle}</p>}
@@ -83,38 +83,43 @@ export function StatTile({
   tone?: 'default' | 'active' | 'spent'
   href?: string
 }) {
+  /* Left aligned, so the tiles sit on the same vertical as the page header and
+     the topic list rather than floating on their own centre axis.
+     The number is explicitly sans: the title steps carry the display serif,
+     which is right for headings and wrong for a figure you scan. */
   const body = (
     <>
-      {icon && (
-        <div
-          className={cn(
-            'mb-1.5 flex justify-center',
-            tone === 'active' ? 'text-accent' : 'text-label-3',
-          )}
-        >
-          <Icon icon={icon} size="lg" />
-        </div>
-      )}
       <div
         className={cn(
-          'text-title-2 tabular leading-none',
+          'flex items-center gap-1.5',
+          tone === 'active' ? 'text-accent' : 'text-ink-muted',
+        )}
+      >
+        {icon && <Icon icon={icon} size="sm" />}
+        <span className="text-meta truncate">{label}</span>
+      </div>
+      <div
+        className={cn(
+          'font-sans font-semibold tabular leading-none mt-2 text-[26px] tracking-tight',
           tone === 'active' && 'text-accent',
-          tone === 'spent' && 'text-label-3',
-          tone === 'default' && 'text-label',
+          tone === 'spent' && 'text-ink-muted',
+          tone === 'default' && 'text-ink',
         )}
       >
         {value}
       </div>
-      <div className="text-caption text-label-3 mt-1.5">{label}</div>
     </>
   )
 
+  /* A readout, not a control. Nothing here presses or hovers unless it is
+     genuinely a link, because a tile that looks tappable and is not is worse
+     than a plain panel. */
   const className = cn(
-    'rounded-(--radius-card) border px-3 py-3.5 text-center transition-colors',
+    'rounded-(--radius-card) border px-4 py-3.5 transition-colors',
     tone === 'active'
-      ? 'border-accent/25 bg-accent-tint'
-      : 'border-separator bg-surface-1',
-    href && 'press hover:border-white/20',
+      ? 'border-saffron/25 bg-saffron-light'
+      : 'border-border bg-paper/50',
+    href && 'press hover:border-border-strong',
   )
 
   return href ? (

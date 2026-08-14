@@ -36,7 +36,7 @@ export function Modal({ title, subtitle, onClose, children, className }: ModalPr
     // A modal is a blocking task, so it pairs the surface with a dimming scrim
     // that pushes the background back.
     <motion.div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-(--z-scrim) flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={onClose}
       initial={reduceMotion ? { opacity: 0 } : { opacity: 0 }}
       animate={{ opacity: 1 }}

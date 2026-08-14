@@ -45,7 +45,7 @@ export function Sheet({ title, subtitle, onClose, children, className }: SheetPr
   return (
     <motion.div
       // A blocking task, so it gets a scrim that pushes the page back.
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60"
+      className="fixed inset-0 z-(--z-scrim) flex items-end sm:items-center justify-center bg-black/60"
       onClick={onClose}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
