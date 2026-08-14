@@ -1,10 +1,10 @@
 -- ============================================================
--- Migration 012: Topic signals — one-tap, zero-writing response
+-- Migration 012: Topic signals - one-tap, zero-writing response
 -- ============================================================
 --
 -- Why: with ~30 members and fewer than 10 contributing, the barrier is not
 -- missing discussion UI (comments already do threading, markdown, reactions)
--- — it is that every existing action is high-stakes or unavailable. Votes are
+-- - it is that every existing action is high-stakes or unavailable. Votes are
 -- scarce (3/cycle) and lock at meeting_at; commenting means composing prose
 -- under your name in front of colleagues.
 --
@@ -31,7 +31,7 @@ CREATE INDEX idx_topic_signals_topic ON public.topic_signals (topic_id);
 ALTER TABLE public.topic_signals ENABLE ROW LEVEL SECURITY;
 
 -- Counts are public (that is the point), so blanket authenticated SELECT is
--- correct here — unlike idea_bank, there is nothing private in a signal.
+-- correct here - unlike idea_bank, there is nothing private in a signal.
 CREATE POLICY "topic_signals_select" ON public.topic_signals
   FOR SELECT USING (auth.role() = 'authenticated');
 

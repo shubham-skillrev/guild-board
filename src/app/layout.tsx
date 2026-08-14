@@ -18,8 +18,8 @@ const displayFont = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "GuildBoard — Where Guilds Shape What\u2019s Next",
-  description: "A structured, async platform for engineering guilds to surface ideas, vote on what to explore, and track outcomes — cycle by cycle.",
+  title: "GuildBoard - Where Guilds Shape What\u2019s Next",
+  description: "A structured, async platform for engineering guilds to surface ideas, vote on what to explore, and track outcomes - cycle by cycle.",
   applicationName: "GuildBoard",
   appleWebApp: {
     capable: true,

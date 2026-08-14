@@ -1,4 +1,4 @@
-# SEMANTIC_GRAPH.md — GuildBoard Knowledge Graph
+# SEMANTIC_GRAPH.md - GuildBoard Knowledge Graph
 
 > **Purpose:** This file is the authoritative knowledge graph of the GuildBoard codebase.  
 > It is updated after every implementation step and should allow any developer to understand the full architecture without reading source code.
@@ -138,16 +138,16 @@ guildboard/
 - **Exports:** `TOKEN_LIMITS`, `CATEGORY_LABELS`, `CATEGORY_BONUS`, `OUTCOME_LABELS`, `ANONYMOUS_USERNAME`, `TITLE_MAX_LENGTH`, `DESCRIPTION_MAX_LENGTH`, `OUTCOME_NOTE_MAX_LENGTH`, `SPARK_WINDOW_HOURS`, `CARRY_FORWARD_MIN_VOTES`, `HALL_OF_FLAME_THRESHOLD`
 - **Imports from:** (none)
 - **Used by:** `src/lib/utils/scoring.ts`, `src/lib/utils/cycle.ts`, API routes, components
-- **DB Tables:** (none — pure constants)
+- **DB Tables:** (none - pure constants)
 - **Notes:** `HALL_OF_FLAME_THRESHOLD` is hardcoded at 5; admin-configurable in V2
 
 ### src/lib/utils/scoring.ts
 - **Type:** utility
-- **Purpose:** Topic ranking score calculation — base score from votes/contribs plus category bonus.
+- **Purpose:** Topic ranking score calculation - base score from votes/contribs plus category bonus.
 - **Exports:** `calculateScore`, `rankTopics`, `getTopicScore`
 - **Imports from:** `@/lib/constants`, `@/types`
 - **Used by:** Admin panel score display, topic board sorting
-- **DB Tables:** (none — pure computation)
+- **DB Tables:** (none - pure computation)
 - **Notes:** Score formula: `(votes × 1 + contribs × 2) × (1 + category_bonus)`. DB triggers also compute this independently to keep `topics.score` denormalized.
 
 ### src/lib/utils/cycle.ts
@@ -156,7 +156,7 @@ guildboard/
 - **Exports:** `isOpen`, `isFrozen`, `isClosed`, `isSubmissionAllowed`, `isVotingAllowed`, `isSparkWindowActive`
 - **Imports from:** `@/types`, `@/lib/constants`
 - **Used by:** API route guards, `useCurrentCycle` hook, UI gating logic
-- **DB Tables:** (none — pure logic on Cycle object)
+- **DB Tables:** (none - pure logic on Cycle object)
 - **Notes:** `isSparkWindowActive` checks `spark_closes_at` timestamp, not just cycle status
 
 ### src/lib/utils/cn.ts
@@ -170,7 +170,7 @@ guildboard/
 
 ### src/proxy.ts
 - **Type:** proxy (formerly middleware)
-- **Purpose:** Auth guard — redirects unauthenticated users to /login; returns 404 for non-admins on /admin routes; refreshes Supabase session cookies on every request.
+- **Purpose:** Auth guard - redirects unauthenticated users to /login; returns 404 for non-admins on /admin routes; refreshes Supabase session cookies on every request.
 - **Exports:** `proxy` (named), `config`
 - **Imports from:** `@supabase/ssr`, `next/server`
 - **Used by:** Next.js runtime (automatically applied to matched routes)
@@ -181,7 +181,7 @@ guildboard/
 - **Exports:** `createClient`
 - **Imports from:** `@supabase/ssr`
 - **Used by:** `src/hooks/useAuth.ts`, `src/hooks/useTopics.ts`, all client-side data hooks
-- **DB Tables:** (all — depends on calling context)
+- **DB Tables:** (all - depends on calling context)
 - **Notes:** Uses ANON key only. Safe for browser. RLS enforced by Supabase.
 
 ### src/lib/supabase/server.ts
@@ -190,7 +190,7 @@ guildboard/
 - **Exports:** `createClient` (async)
 - **Imports from:** `@supabase/ssr`, `next/headers`
 - **Used by:** all `src/app/api/*/route.ts` files (non-admin), Server Components
-- **DB Tables:** (all — depends on calling context)
+- **DB Tables:** (all - depends on calling context)
 - **Notes:** Must be called with `await`. Uses ANON key; RLS is enforced.
 
 ### src/lib/supabase/admin.ts
@@ -199,7 +199,7 @@ guildboard/
 - **Exports:** `createAdminClient`
 - **Imports from:** `@supabase/supabase-js`
 - **Used by:** `src/app/api/admin/*/route.ts` only
-- **DB Tables:** (all — unrestricted)
+- **DB Tables:** (all - unrestricted)
 - **Notes:** NEVER import in client components or non-admin routes. Uses `SUPABASE_SERVICE_ROLE_KEY`.
 
 ---
@@ -254,7 +254,7 @@ guildboard/
 ### Topic
 - **Maps to DB:** `public.topics`
 - **Used in:** `useTopics`, TopicCard, TopicForm, TopicList, all topic API routes
-- **Notes:** `author_username` is a joined field — set to `'ghost_dev'` for anonymous topics in non-admin context
+- **Notes:** `author_username` is a joined field - set to `'ghost_dev'` for anonymous topics in non-admin context
 
 ### Vote
 - **Maps to DB:** `public.votes`
@@ -273,7 +273,7 @@ guildboard/
 - **Used in:** `useUserTokens`, VoteButton, ContribButton, SparkButton, submit page guard
 
 ### TopicScore
-- **Maps to DB:** (none — computed value)
+- **Maps to DB:** (none - computed value)
 - **Used in:** `getTopicScore` utility, admin score breakdown tooltip
 
 ---
@@ -284,7 +284,7 @@ guildboard/
 | --- | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | `client.ts`, `server.ts`, `admin.ts`, `proxy.ts` | Yes | Supabase project API endpoint |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | `client.ts`, `server.ts`, `proxy.ts` | Yes | Publishable (anon-equivalent) key; RLS enforced by Supabase |
-| `SUPABASE_SERVICE_ROLE_KEY` | `admin.ts` only | **No** | Bypasses RLS — admin API routes only. Get from Supabase dashboard → Settings → API |
+| `SUPABASE_SERVICE_ROLE_KEY` | `admin.ts` only | **No** | Bypasses RLS - admin API routes only. Get from Supabase dashboard → Settings → API |
 
 ---
 

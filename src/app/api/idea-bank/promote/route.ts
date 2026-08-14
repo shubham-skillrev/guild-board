@@ -2,7 +2,7 @@
 // AUTH: authenticated
 // PURPOSE: Move a banked idea onto the live voting board as a topic.
 //          Banking is unlimited; promotion is where the 1-topic-per-cycle
-//          cap applies — check_topic_limit() is left intact on purpose.
+//          cap applies - check_topic_limit() is left intact on purpose.
 // DB TABLES: idea_bank, topics, cycles, users
 // RLS: server client for identity + insert; admin client only to credit the
 //      originator of someone else's open idea (their row is not caller-visible)
@@ -55,13 +55,13 @@ export async function POST(request: Request) {
 
   if (!cycle) {
     return NextResponse.json(
-      { error: 'No open cycle right now — your idea stays banked until the next one opens.' },
+      { error: 'No open cycle right now - your idea stays banked until the next one opens.' },
       { status: 400 },
     )
   }
   if (cycle.meeting_at && new Date() >= new Date(cycle.meeting_at)) {
     return NextResponse.json(
-      { error: 'This cycle has started — your idea stays banked for the next one.' },
+      { error: 'This cycle has started - your idea stays banked for the next one.' },
       { status: 400 },
     )
   }
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     `${idea.title}\n\n_Promoted from the idea bank._`
 
   // Someone taking an open idea pitches it under their own name, but the
-  // originator is credited in the body — both showed up.
+  // originator is credited in the body - both showed up.
   const creditNote =
     !isOwner && !idea.is_anonymous
       ? await (async () => {
@@ -86,7 +86,7 @@ export async function POST(request: Request) {
         ? '\n\n_Picked up from the idea bank._'
         : ''
 
-  // check_topic_limit() enforces 1 per cycle here — this is deliberate.
+  // check_topic_limit() enforces 1 per cycle here - this is deliberate.
   const { data: topic, error: topicErr } = await supabase
     .from('topics')
     .insert({
@@ -136,7 +136,7 @@ export async function POST(request: Request) {
     'notifyOnNewTopic',
   )
 
-  // Tell the originator their idea got picked up — the payoff for banking
+  // Tell the originator their idea got picked up - the payoff for banking
   // something you were never going to pitch yourself.
   if (!isOwner) {
     notifyAfterResponse(

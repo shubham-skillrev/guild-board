@@ -1,4 +1,4 @@
-// GuildBoard service worker — push + notification handling.
+// GuildBoard service worker - push + notification handling.
 // Offline caching is intentionally out of scope for now.
 
 self.addEventListener("install", (event) => {
@@ -10,7 +10,7 @@ self.addEventListener("activate", (event) => {
 });
 
 // Pass-through fetch handler.
-// Required for Chrome's PWA install criteria — even though we do no caching.
+// Required for Chrome's PWA install criteria - even though we do no caching.
 // Only intercept GET requests on same origin to keep behaviour minimal.
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;

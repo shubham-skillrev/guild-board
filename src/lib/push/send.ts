@@ -9,7 +9,7 @@ function ensureVapid() {
   const priv = process.env.VAPID_PRIVATE_KEY;
   const subject = process.env.VAPID_SUBJECT || "mailto:admin@example.com";
   if (!pub || !priv) {
-    throw new Error("VAPID keys missing — set NEXT_PUBLIC_VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY");
+    throw new Error("VAPID keys missing - set NEXT_PUBLIC_VAPID_PUBLIC_KEY + VAPID_PRIVATE_KEY");
   }
   webpush.setVapidDetails(subject, pub, priv);
   vapidConfigured = true;

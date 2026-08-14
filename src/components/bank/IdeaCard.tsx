@@ -17,7 +17,7 @@ const CATEGORY_TONE = {
 
 interface IdeaCardProps {
   idea: BankedIdea
-  /** False when no cycle is open — banking still works, promoting doesn't. */
+  /** False when no cycle is open - banking still works, promoting doesn't. */
   canPromote: boolean
   onPromote: (idea: BankedIdea) => void
   onToggleOpen?: (idea: BankedIdea) => void
@@ -53,7 +53,7 @@ export function IdeaCard({ idea, canPromote, onPromote, onToggleOpen, onDelete }
             <p className="text-[12px] text-ink-soft mt-1.5 leading-relaxed line-clamp-3">{idea.note}</p>
           )}
 
-          {/* Author shown only in the shared pool — your own bank is private. */}
+          {/* Author shown only in the shared pool - your own bank is private. */}
           {!mine && (
             <div className="flex items-center gap-1.5 mt-2.5">
               {!idea.is_anonymous && <UserAvatar username={idea.author_username ?? 'user'} size={18} />}

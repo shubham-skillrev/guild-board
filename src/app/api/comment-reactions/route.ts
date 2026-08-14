@@ -46,11 +46,11 @@ export async function POST(request: Request) {
 
   if (existing) {
     if (existing.reaction === reaction) {
-      // Same reaction — toggle off
+      // Same reaction - toggle off
       await supabase.from('comment_reactions').delete().eq('id', existing.id)
       return NextResponse.json({ reaction: null })
     } else {
-      // Opposite reaction — flip
+      // Opposite reaction - flip
       await supabase
         .from('comment_reactions')
         .update({ reaction })

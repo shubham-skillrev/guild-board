@@ -4,11 +4,11 @@
 --
 -- Why: the most reliable way to get a quiet person to speak in a small group
 -- is being asked directly. An open comment box addressed to thirty people is
--- addressed to nobody; "@X you've done this — thoughts?" is answerable.
+-- addressed to nobody; "@X you've done this - thoughts?" is answerable.
 --
 -- Guard rails matter more than the feature. Capped at 2 asks per topic per
 -- asker so this cannot become a nag channel, and there is deliberately no
--- record of whether an ask was answered — a visible "asked and didn't reply"
+-- record of whether an ask was answered - a visible "asked and didn't reply"
 -- would turn an invitation into an obligation.
 
 CREATE TABLE public.topic_asks (
@@ -35,7 +35,7 @@ CREATE POLICY "topic_asks_select" ON public.topic_asks
 CREATE POLICY "topic_asks_insert_own" ON public.topic_asks
   FOR INSERT WITH CHECK (auth.uid() = asker_id);
 
--- Only the asker may withdraw. The asked person cannot delete the row —
+-- Only the asker may withdraw. The asked person cannot delete the row -
 -- but see the note above: nothing records whether they responded.
 CREATE POLICY "topic_asks_delete_own" ON public.topic_asks
   FOR DELETE USING (auth.uid() = asker_id);

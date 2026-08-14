@@ -6,12 +6,12 @@ import { createHash } from 'crypto'
  * IMPORTANT: anonymity here is enforced at API serialization, NOT by RLS.
  * Migration 003 grants blanket authenticated SELECT on `users`, so any client
  * can join author ids back to usernames. The only real protection is never
- * sending `user_id` for a ghost topic in the first place — see serializeTopic.
+ * sending `user_id` for a ghost topic in the first place - see serializeTopic.
  *
  * The handle is derived from (user_id, topic_id), so it is stable within one
  * topic (a thread stays followable) but unlinkable across topics.
  *
- * This is plausible deniability, not unlinkability — in a guild this size,
+ * This is plausible deniability, not unlinkability - in a guild this size,
  * writing style identifies people. UI copy says "ghost", never "anonymous".
  */
 export function ghostHandle(userId: string, topicId: string): string {
@@ -41,7 +41,7 @@ export function joinedUsername(joined: RawTopic['users']): string | null {
  * Strip identity from a topic row before it leaves the server.
  *
  * For a ghost topic viewed by anyone other than its author, `user_id` is
- * DELETED from the payload — not blanked — so no client-side join can recover
+ * DELETED from the payload - not blanked - so no client-side join can recover
  * it. Ownership and spark-targeting move to server-computed booleans because
  * the client can no longer derive them.
  *

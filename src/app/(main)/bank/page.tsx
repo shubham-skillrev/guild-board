@@ -88,7 +88,7 @@ export default function BankPage() {
       <div className="mb-6">
         <h1 className="font-serif text-2xl font-bold text-ink tracking-tight">Idea Bank</h1>
         <p className="text-[13px] text-ink-soft mt-1 leading-relaxed">
-          Park an idea the moment you have it — any day, any cycle. Bank as many as you like;
+          Park an idea the moment you have it - any day, any cycle. Bank as many as you like;
           one goes on the board each cycle.
         </p>
       </div>
@@ -97,7 +97,7 @@ export default function BankPage() {
         <Button onClick={() => setShowModal(true)}>+ Bank an idea</Button>
         {!canPromote && unpromoted.length > 0 && (
           <span className="text-[11px] text-cha">
-            {cycle ? 'Board opens next cycle — ideas keep till then.' : 'No cycle open yet.'}
+            {cycle ? 'Board opens next cycle - ideas keep till then.' : 'No cycle open yet.'}
           </span>
         )}
       </div>

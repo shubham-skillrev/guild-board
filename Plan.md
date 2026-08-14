@@ -1,4 +1,4 @@
-# GuildBoard — Copilot Project Setup Prompts
+# GuildBoard - Copilot Project Setup Prompts
 **PRD Version:** V1 (Alpha) | **Stack:** Next.js 14 + Supabase + Vercel + Tailwind CSS  
 **Author:** Shubham Dalvi | **Purpose:** Production-grade app setup with full semantic graph documentation
 
@@ -6,12 +6,12 @@
 
 > **How to use these prompts:**  
 > Each prompt is a self-contained instruction block for GitHub Copilot (Chat or Workspace mode).  
-> Run them **in order**. Each prompt ends with a documentation directive — Copilot must log what it did into a `SEMANTIC_GRAPH.md` file so a full knowledge graph of the repo can be assembled at the end.  
+> Run them **in order**. Each prompt ends with a documentation directive - Copilot must log what it did into a `SEMANTIC_GRAPH.md` file so a full knowledge graph of the repo can be assembled at the end.  
 > Do NOT skip steps. Do NOT rename files unless a prompt explicitly says to.
 
 ---
 
-## PROMPT 0 — Project Bootstrap & Documentation Contract
+## PROMPT 0 - Project Bootstrap & Documentation Contract
 
 ```
 You are setting up a production-grade Next.js 14 application called GuildBoard.
@@ -38,14 +38,14 @@ Before writing any code, establish the documentation contract for this project.
    - Real-time: Supabase Realtime subscriptions for live vote counts
    - Key concepts: Cycles (monthly windows), Topics, Votes, Contributions, Sparks, Admin Panel
 
-4. Under ## Change Log, log: "STEP 0 — Project initialized. SEMANTIC_GRAPH.md created."
+4. Under ## Change Log, log: "STEP 0 - Project initialized. SEMANTIC_GRAPH.md created."
 
 Do not scaffold any Next.js code yet. Only create SEMANTIC_GRAPH.md.
 ```
 
 ---
 
-## PROMPT 1 — Scaffold Next.js 14 Project
+## PROMPT 1 - Scaffold Next.js 14 Project
 
 ```
 Scaffold a Next.js 14 project with the App Router for GuildBoard.
@@ -120,14 +120,14 @@ src/
 
 3. After creating the structure, update SEMANTIC_GRAPH.md:
    - Update ## File Tree with the full folder structure
-   - Log in ## Change Log: "STEP 1 — Next.js 14 App Router scaffolded. Full folder structure created."
+   - Log in ## Change Log: "STEP 1 - Next.js 14 App Router scaffolded. Full folder structure created."
 
 Only create empty files with a single comment `// TODO` inside each. Do not write any logic yet.
 ```
 
 ---
 
-## PROMPT 2 — TypeScript Type Definitions
+## PROMPT 2 - TypeScript Type Definitions
 
 ```
 Define all TypeScript types for GuildBoard in `src/types/index.ts`.
@@ -242,12 +242,12 @@ export interface TopicScore {
 
 After writing the file, update SEMANTIC_GRAPH.md:
 - Under ## Type Registry, document every type: its name, file location, purpose, and which DB table it maps to (if any)
-- Log in ## Change Log: "STEP 2 — All TypeScript types defined in src/types/index.ts. Type Registry populated."
+- Log in ## Change Log: "STEP 2 - All TypeScript types defined in src/types/index.ts. Type Registry populated."
 ```
 
 ---
 
-## PROMPT 3 — Constants & Utility Functions
+## PROMPT 3 - Constants & Utility Functions
 
 ```
 Write the constants and utility files for GuildBoard.
@@ -373,12 +373,12 @@ Install required packages: `npm install clsx tailwind-merge`
 
 After writing all files, update SEMANTIC_GRAPH.md:
 - Under ## Module Registry, add entries for all 4 files: path, purpose, all exported functions/constants, dependencies
-- Log in ## Change Log: "STEP 3 — Constants, scoring, cycle, and cn utilities written."
+- Log in ## Change Log: "STEP 3 - Constants, scoring, cycle, and cn utilities written."
 ```
 
 ---
 
-## PROMPT 4 — Supabase Client Setup
+## PROMPT 4 - Supabase Client Setup
 
 ```
 Set up all Supabase clients for GuildBoard. There are three separate clients for different contexts.
@@ -386,7 +386,7 @@ Set up all Supabase clients for GuildBoard. There are three separate clients for
 **Install packages first:**
 `npm install @supabase/supabase-js @supabase/ssr`
 
-**File 1: `src/lib/supabase/client.ts`** — Browser-side client (for client components)
+**File 1: `src/lib/supabase/client.ts`** - Browser-side client (for client components)
 ```typescript
 import { createBrowserClient } from '@supabase/ssr'
 
@@ -398,7 +398,7 @@ export function createClient() {
 }
 ```
 
-**File 2: `src/lib/supabase/server.ts`** — Server-side client (for Server Components and API Routes)
+**File 2: `src/lib/supabase/server.ts`** - Server-side client (for Server Components and API Routes)
 ```typescript
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
@@ -424,7 +424,7 @@ export function createClient() {
 }
 ```
 
-**File 3: `src/lib/supabase/admin.ts`** — Service-role client (for admin API routes ONLY — bypasses RLS)
+**File 3: `src/lib/supabase/admin.ts`** - Service-role client (for admin API routes ONLY - bypasses RLS)
 ```typescript
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
@@ -438,14 +438,14 @@ export function createAdminClient() {
 }
 ```
 
-**File 4: `.env.local`** — Create with placeholder values
+**File 4: `.env.local`** - Create with placeholder values
 ```
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
 
-**File 5: `.env.example`** — Commit-safe version of env file
+**File 5: `.env.example`** - Commit-safe version of env file
 ```
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
@@ -457,12 +457,12 @@ Add `.env.local` to `.gitignore` if not already present.
 After writing all files, update SEMANTIC_GRAPH.md:
 - Under ## Environment Variables, document all 3 env vars: name, which client uses it, whether it is exposed to browser, what it controls
 - Under ## Module Registry, add entries for all 3 client files
-- Log in ## Change Log: "STEP 4 — Supabase browser, server, and admin clients configured. Env vars documented."
+- Log in ## Change Log: "STEP 4 - Supabase browser, server, and admin clients configured. Env vars documented."
 ```
 
 ---
 
-## PROMPT 5 — Supabase Database Schema & SQL
+## PROMPT 5 - Supabase Database Schema & SQL
 
 ```
 Create the full Supabase PostgreSQL schema for GuildBoard as a SQL migration file.
@@ -473,7 +473,7 @@ Write the following SQL exactly:
 
 ```sql
 -- ============================================================
--- GuildBoard V1 — Initial Schema
+-- GuildBoard V1 - Initial Schema
 -- All tables use UUID PKs and timestamptz created_at
 -- RLS is enabled on every table
 -- ============================================================
@@ -572,7 +572,7 @@ CREATE TABLE public.sparks (
 );
 
 -- ============================================================
--- DB FUNCTIONS — Token enforcement
+-- DB FUNCTIONS - Token enforcement
 -- ============================================================
 
 -- Enforce max 3 votes per user per cycle before inserting a vote
@@ -630,7 +630,7 @@ BEFORE INSERT ON public.contributions
 FOR EACH ROW EXECUTE FUNCTION check_contrib_limit();
 
 -- ============================================================
--- DB TRIGGERS — Denormalized counter maintenance
+-- DB TRIGGERS - Denormalized counter maintenance
 -- ============================================================
 
 -- Update topics.vote_count and topics.score on vote insert/delete
@@ -772,12 +772,12 @@ After writing the file, update SEMANTIC_GRAPH.md:
 - Under ## RLS Policy Register, document every policy: table, policy name, operation, rule, why it exists
 - Under ## DB Trigger Register, document every trigger and function: name, table, event, what it does, what denormalized field it maintains
 - Under ## Data Flow Map, add a section "Database Layer" showing which tables have FK relationships
-- Log in ## Change Log: "STEP 5 — Full PostgreSQL schema with RLS, triggers, and DB functions written to supabase/migrations/001_initial_schema.sql"
+- Log in ## Change Log: "STEP 5 - Full PostgreSQL schema with RLS, triggers, and DB functions written to supabase/migrations/001_initial_schema.sql"
 ```
 
 ---
 
-## PROMPT 6 — Authentication Flow
+## PROMPT 6 - Authentication Flow
 
 ```
 Implement the full authentication flow for GuildBoard using Supabase Auth and Google OAuth.
@@ -790,7 +790,7 @@ Implement the full authentication flow for GuildBoard using Supabase Auth and Go
 - Redirect after auth to `/` 
 - If user is already signed in, redirect to `/`
 
-**File 2: `src/app/api/auth/callback/route.ts`** — OAuth callback handler
+**File 2: `src/app/api/auth/callback/route.ts`** - OAuth callback handler
 ```typescript
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
@@ -812,7 +812,7 @@ export async function GET(request: Request) {
         .single()
 
       if (!existingUser) {
-        // First login — create user row without username (triggers username setup modal)
+        // First login - create user row without username (triggers username setup modal)
         await supabase.from('users').insert({
           id: data.user.id,
           email: data.user.email,
@@ -847,22 +847,22 @@ export async function GET(request: Request) {
 - Validates uniqueness via API call before submit
 - On submit, PATCHes `/api/auth/setup-username`
 - Removes `?setup=username` from URL after success
-- Cannot be dismissed — user MUST set username to proceed
+- Cannot be dismissed - user MUST set username to proceed
 
 **File 5: `src/app/api/auth/setup-username/route.ts`**
 - POST: sets username for current user
 - Validates: min 3 chars, max 30, alphanumeric + underscore only, unique
 - Returns 409 if username taken, 200 on success
 
-**File 6: `src/middleware.ts`** — Auth guard
+**File 6: `src/middleware.ts`** - Auth guard
 ```typescript
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
   // Redirect unauthenticated users from protected routes to /login
-  // Admin route: return 404 response for non-admins (do not redirect — 404 hides existence)
-  // Public routes: /login, /api/auth/* — pass through
+  // Admin route: return 404 response for non-admins (do not redirect - 404 hides existence)
+  // Public routes: /login, /api/auth/* - pass through
 }
 
 export const config = {
@@ -873,12 +873,12 @@ export const config = {
 After writing all files, update SEMANTIC_GRAPH.md:
 - Under ## Data Flow Map, add "Auth Flow": login page → Supabase OAuth → callback route → user row creation → username setup → home
 - Under ## Module Registry, add entries for all 6 files
-- Log in ## Change Log: "STEP 6 — Authentication flow implemented: OAuth, callback, middleware, username setup modal."
+- Log in ## Change Log: "STEP 6 - Authentication flow implemented: OAuth, callback, middleware, username setup modal."
 ```
 
 ---
 
-## PROMPT 7 — Core API Routes
+## PROMPT 7 - Core API Routes
 
 ```
 Implement all core API routes for GuildBoard. Every route must:
@@ -920,7 +920,7 @@ Implement all core API routes for GuildBoard. Every route must:
   - Validate: user has not given a spark this cycle
   - Validate: user cannot spark themselves
 
-**Route 6: `src/app/api/admin/cycle-control/route.ts`** [ADMIN — use createAdminClient()]
+**Route 6: `src/app/api/admin/cycle-control/route.ts`** [ADMIN - use createAdminClient()]
 - PATCH: Update cycle status
   - Body: `{ cycle_id, status }` where status is one of: open | frozen | closed
   - Only callable by users with role = 'admin'
@@ -940,25 +940,25 @@ For every route, add a comment block at the top of the file:
 // AUTH: [required role]
 // PURPOSE: [one sentence]
 // DB TABLES: [comma-separated tables touched]
-// RLS: [client type used — browser/server/admin]
+// RLS: [client type used - browser/server/admin]
 ```
 
 After writing all routes, update SEMANTIC_GRAPH.md:
 - Under ## Data Flow Map, document every route: method, path, auth requirement, tables touched, what it returns
-- Log in ## Change Log: "STEP 7 — All 8 API routes implemented with auth guards and comment headers."
+- Log in ## Change Log: "STEP 7 - All 8 API routes implemented with auth guards and comment headers."
 ```
 
 ---
 
-## PROMPT 8 — Realtime Hook & Topic Board UI
+## PROMPT 8 - Realtime Hook & Topic Board UI
 
 ```
-Implement the real-time topic board — the core UI of GuildBoard.
+Implement the real-time topic board - the core UI of GuildBoard.
 
 **File 1: `src/hooks/useTopics.ts`**
 - Fetches topics from `GET /api/topics` on mount
 - Subscribes to Supabase Realtime on the `topics` table (channel: `topics:cycle_id=eq.<currentCycleId>`)
-- Listens for UPDATE events — updates `vote_count`, `contrib_count`, and `score` in local state without refetching
+- Listens for UPDATE events - updates `vote_count`, `contrib_count`, and `score` in local state without refetching
 - Returns: `{ topics, isLoading, error, mutate }`
 - Uses optimistic updates: when user votes, increment local count immediately, roll back on error
 
@@ -991,7 +991,7 @@ Implement the real-time topic board — the core UI of GuildBoard.
 - Same pattern as VoteButton but for contribution flags
 - Label: "I'll discuss this"
 
-**File 7: `src/app/(main)/page.tsx`** — Home page (Topic Board)
+**File 7: `src/app/(main)/page.tsx`** - Home page (Topic Board)
 - Server Component shell that passes cycle to client
 - Renders: CycleStatusBanner, UserTokenDisplay, TopicList
 - If cycle is `upcoming`: show "No active cycle. Check back soon." state
@@ -1001,12 +1001,12 @@ Implement the real-time topic board — the core UI of GuildBoard.
 After writing all files, update SEMANTIC_GRAPH.md:
 - Under ## Data Flow Map, add "Realtime Flow": Supabase Realtime channel → useTopics hook → TopicCard re-render
 - Under ## Module Registry, add all 7 files
-- Log in ## Change Log: "STEP 8 — Realtime hooks and Topic Board UI implemented with optimistic updates."
+- Log in ## Change Log: "STEP 8 - Realtime hooks and Topic Board UI implemented with optimistic updates."
 ```
 
 ---
 
-## PROMPT 9 — Topic Submission, Archive & Profile Pages
+## PROMPT 9 - Topic Submission, Archive & Profile Pages
 
 ```
 Implement the remaining user-facing pages.
@@ -1025,7 +1025,7 @@ Implement the remaining user-facing pages.
 
 **File 2: `src/app/(main)/archive/page.tsx`**
 - Server Component
-- Horizontal month navigation (pill tabs) — shows all cycles ordered latest → oldest
+- Horizontal month navigation (pill tabs) - shows all cycles ordered latest → oldest
 - Selected month shows: all topics from that cycle ordered by score DESC
 - Each topic shows: title, category, vote_count, contrib_count, status badge, outcome_tag badge, outcome_note
 - Filters: by category tag, by outcome_tag
@@ -1033,7 +1033,7 @@ Implement the remaining user-facing pages.
 - Carry Forward topics show a "→ Carried to [next month]" indicator
 
 **File 3: `src/app/(main)/profile/page.tsx`**
-- Server Component — fetches current user's public.users row
+- Server Component - fetches current user's public.users row
 - Shows: username, spark_count, hall_of_flame badge (if true), member since date
 - Shows: topics submitted across all cycles (their own, even anonymous ones since it's their profile)
 - Shows: sparks received (from_user: 'ghost_dev' to preserve giver anonymity, cycle label, date)
@@ -1054,17 +1054,17 @@ Implement the remaining user-facing pages.
 
 After writing all files, update SEMANTIC_GRAPH.md:
 - Under ## Module Registry, document all 5 files
-- Log in ## Change Log: "STEP 9 — Submit, Archive, and Profile pages implemented."
+- Log in ## Change Log: "STEP 9 - Submit, Archive, and Profile pages implemented."
 ```
 
 ---
 
-## PROMPT 10 — Admin Panel
+## PROMPT 10 - Admin Panel
 
 ```
 Implement the Admin Panel for GuildBoard.
 
-**Important:** The `/admin` route must return a 404 response for non-admin users. Do NOT redirect — redirecting reveals the route exists. The 404 must be indistinguishable from a real 404.
+**Important:** The `/admin` route must return a 404 response for non-admin users. Do NOT redirect - redirecting reveals the route exists. The 404 must be indistinguishable from a real 404.
 
 **File 1: `src/app/admin/page.tsx`**
 - Server Component
@@ -1074,12 +1074,12 @@ Implement the Admin Panel for GuildBoard.
 
 Admin panel sections:
 
-**Section A — Cycle Control**
+**Section A - Cycle Control**
 - Shows current cycle: label, status, all timestamps
 - Buttons: "Open Cycle" | "Freeze Cycle" | "Close Cycle" (only contextually valid state shown)
 - Each action calls `PATCH /api/admin/cycle-control`
 
-**Section B — Ranked Topic List**
+**Section B - Ranked Topic List**
 - Shows ALL non-deleted topics for current cycle ordered by score DESC
 - Each row shows: rank, title, author real_name (admin sees real identities), category, votes, contribs, score breakdown (base + category bonus), status
 - Score breakdown tooltip: shows the math (e.g., "3 votes × 1 + 2 contribs × 2 + 10% Deep Dive = 10.5")
@@ -1087,34 +1087,34 @@ Admin panel sections:
 - Override reason field: shown if selecting a lower-ranked topic
 - Soft-delete button: marks `is_deleted = true` (spam removal)
 
-**Section C — User Management**
+**Section C - User Management**
 - Table: username, real_name, email, role, spark_count, hall_of_flame, created_at, topics this cycle, votes this cycle
 - Read-only in UI (role changes done via Supabase dashboard as per PRD)
 
-**Section D — Post-Meeting Outcome Tagging**
+**Section D - Post-Meeting Outcome Tagging**
 - Shown only when cycle status is 'closed'
 - Lists selected topics
 - Each topic has: outcome_tag dropdown, outcome_note textarea (max 500 chars), Save button
 - Calls `PATCH /api/admin/outcome`
 
-**Section E — CSV Export**
+**Section E - CSV Export**
 - Button: "Export Archive as CSV"
 - Client-side: fetches all topics from all cycles and generates a CSV download
 - Columns: cycle_label, title, author_username, category, votes, contribs, score, status, outcome_tag, outcome_note, created_at
 
-**File 2: `src/components/admin/AdminTopicRow.tsx`** — Single topic row in admin ranked list
-**File 3: `src/components/admin/CycleControls.tsx`** — Cycle open/freeze/close buttons
-**File 4: `src/components/admin/OutcomeTagger.tsx`** — Post-meeting outcome tagging form
+**File 2: `src/components/admin/AdminTopicRow.tsx`** - Single topic row in admin ranked list
+**File 3: `src/components/admin/CycleControls.tsx`** - Cycle open/freeze/close buttons
+**File 4: `src/components/admin/OutcomeTagger.tsx`** - Post-meeting outcome tagging form
 
 After writing all files, update SEMANTIC_GRAPH.md:
 - Under ## Data Flow Map, add "Admin Flow": admin page → role check → admin API routes → admin Supabase client (bypasses RLS)
 - Under ## Module Registry, document all 4 files
-- Log in ## Change Log: "STEP 10 — Admin panel implemented with 404 guard, ranked list, cycle control, and outcome tagging."
+- Log in ## Change Log: "STEP 10 - Admin panel implemented with 404 guard, ranked list, cycle control, and outcome tagging."
 ```
 
 ---
 
-## PROMPT 11 — Carry Forward Logic & Cycle Closure
+## PROMPT 11 - Carry Forward Logic & Cycle Closure
 
 ```
 Implement the carry-forward logic and post-meeting cycle closure automation.
@@ -1130,7 +1130,7 @@ When an admin closes a cycle, this route runs the following logic atomically:
    - If `vote_count < 2` AND `is_selected = false`:
      - Set `status = 'dropped'`
    - If `is_selected = true`:
-     - Status already set to 'selected' — leave unchanged
+     - Status already set to 'selected' - leave unchanged
 3. Set cycle status to 'closed'
 4. Find or create the next cycle (next month) with status 'upcoming'
 
@@ -1167,12 +1167,12 @@ export function downloadCSV(content: string, filename: string): void {
 
 After writing all files, update SEMANTIC_GRAPH.md:
 - Under ## Data Flow Map, add "Cycle Closure Flow": admin close action → close-cycle API → carry forward duplication → next cycle creation
-- Log in ## Change Log: "STEP 11 — Carry forward logic and CSV export utility implemented."
+- Log in ## Change Log: "STEP 11 - Carry forward logic and CSV export utility implemented."
 ```
 
 ---
 
-## PROMPT 12 — Final Assembly: SEMANTIC_GRAPH.md Completion
+## PROMPT 12 - Final Assembly: SEMANTIC_GRAPH.md Completion
 
 ```
 GuildBoard implementation is complete. Your final task is to produce a fully completed SEMANTIC_GRAPH.md that serves as the authoritative knowledge graph of this codebase.
@@ -1183,7 +1183,7 @@ Do a full pass and ensure the following sections are exhaustive and accurate:
 Generate the COMPLETE file tree of the project as it now exists, using tree-style indentation. Include every file created, every config file, every migration, every route, every component.
 
 **## Module Registry**
-For EVERY file in the project (not just source files — include next.config.js, tailwind.config.ts, package.json, .env.example, SEMANTIC_GRAPH.md itself), write an entry:
+For EVERY file in the project (not just source files - include next.config.js, tailwind.config.ts, package.json, .env.example, SEMANTIC_GRAPH.md itself), write an entry:
 ```
 ### src/path/to/file.ts
 - **Type:** [component | hook | API route | utility | type definition | config | migration | doc]
@@ -1192,7 +1192,7 @@ For EVERY file in the project (not just source files — include next.config.js,
 - **Imports from:** [comma-separated internal paths it imports]
 - **Used by:** [comma-separated files that import this file]
 - **DB Tables:** [tables this file reads or writes, if any]
-- **Notes:** [any special considerations — e.g., "uses admin client, bypasses RLS"]
+- **Notes:** [any special considerations - e.g., "uses admin client, bypasses RLS"]
 ```
 
 **## Data Flow Map**
@@ -1221,14 +1221,14 @@ For every exported type/interface in `src/types/index.ts`:
 
 **## Change Log**
 Ensure all 12 steps are logged with their descriptions. Add final entry:
-"STEP 12 — SEMANTIC_GRAPH.md finalized. Full project knowledge graph complete."
+"STEP 12 - SEMANTIC_GRAPH.md finalized. Full project knowledge graph complete."
 
 This file should be comprehensive enough that any developer who joins the project can understand the entire architecture without reading a single line of source code.
 ```
 
 ---
 
-## Quick Reference — Prompts Execution Order
+## Quick Reference - Prompts Execution Order
 
 | # | Prompt | Output |
 |---|--------|--------|
@@ -1248,5 +1248,5 @@ This file should be comprehensive enough that any developer who joins the projec
 
 ---
 
-*GuildBoard PRD V1 — Prompt Suite authored for GitHub Copilot Workspace*  
+*GuildBoard PRD V1 - Prompt Suite authored for GitHub Copilot Workspace*  
 *Shubham Dalvi | April 2026*

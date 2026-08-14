@@ -12,7 +12,7 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  // Public routes — pass through without auth check
+  // Public routes - pass through without auth check
   const isPwaAsset =
     pathname === '/manifest.webmanifest' ||
     pathname === '/sw.js' ||
@@ -23,6 +23,10 @@ export async function proxy(request: NextRequest) {
 
   const isPublicRoute =
     pathname.startsWith('/api/auth') ||
+    // Cron has no user session. It authenticates with a shared secret inside
+    // the route itself, so skipping the session check here is required, not a
+    // hole: an unauthenticated request still gets a 404 from the handler.
+    pathname.startsWith('/api/cron') ||
     pathname.startsWith('/_next') ||
     pathname === '/' ||
     pathname === '/login' ||
@@ -50,12 +54,12 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Unauthenticated — redirect to login (except public routes)
+  // Unauthenticated - redirect to login (except public routes)
   if (!user && !isPublicRoute) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Admin route — return 404 for non-admins (do NOT redirect — 404 hides existence)
+  // Admin route - return 404 for non-admins (do NOT redirect - 404 hides existence)
   if (pathname.startsWith('/admin') && user) {
     const { data: userData } = await supabase
       .from('users')

@@ -26,7 +26,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
       <Link
         href="/board"
         className={cn(
-          'px-3 py-2 border-b-2 transition-all',
+          'px-3 py-2 border-b-2 transition-colors press',
           isBoard ? 'text-ink border-saffron' : 'text-ink-soft border-transparent hover:text-ink'
         )}
       >
@@ -35,7 +35,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
       <Link
         href="/bank"
         className={cn(
-          'px-3 py-2 border-b-2 transition-all',
+          'px-3 py-2 border-b-2 transition-colors press',
           isBank ? 'text-ink border-saffron' : 'text-ink-soft border-transparent hover:text-ink'
         )}
       >
@@ -44,7 +44,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
       <Link
         href="/bytes"
         className={cn(
-          'px-3 py-2 border-b-2 transition-all',
+          'px-3 py-2 border-b-2 transition-colors press',
           isBytes ? 'text-ink border-saffron' : 'text-ink-soft border-transparent hover:text-ink'
         )}
       >
@@ -53,7 +53,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
       <Link
         href="/leaderboard"
         className={cn(
-          'px-3 py-2 border-b-2 transition-all',
+          'px-3 py-2 border-b-2 transition-colors press',
           isLeaders ? 'text-ink border-saffron' : 'text-ink-soft border-transparent hover:text-ink'
         )}
       >
@@ -63,7 +63,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
         <Link
           href="/admin"
           className={cn(
-            'px-3 py-2 border-b-2 transition-all',
+            'px-3 py-2 border-b-2 transition-colors press',
             isAdmin ? 'text-saffron border-saffron' : 'text-saffron/80 border-transparent hover:text-saffron'
           )}
         >
@@ -86,12 +86,12 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
   useEffect(() => setMounted(true), [])
 
   const nav = (
-    <nav className="md:hidden fixed inset-x-0 bottom-0 z-[9999] bg-paper/95 backdrop-blur-xl border-t border-border pb-[env(safe-area-inset-bottom)]">
+    <nav className="md:hidden fixed inset-x-0 bottom-0 z-9999 material-chrome border-t border-border/60 pb-[env(safe-area-inset-bottom)]">
       <div className={cn('grid px-2 py-1.5', role === 'admin' ? 'grid-cols-5' : 'grid-cols-4')}>
         <Link
           href="/board"
           className={cn(
-            'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-lg',
+            'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-lg press-sm',
             isBoard ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
           )}
         >
@@ -101,7 +101,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
         <Link
           href="/bank"
           className={cn(
-            'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-lg',
+            'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-lg press-sm',
             isBank ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
           )}
         >
@@ -111,7 +111,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
         <Link
           href="/leaderboard"
           className={cn(
-            'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-lg',
+            'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-lg press-sm',
             isLeaders ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
           )}
         >
@@ -122,7 +122,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
           <Link
             href="/admin"
             className={cn(
-              'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-lg',
+              'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-lg press-sm',
               isAdmin ? 'text-saffron bg-saffron-light/60' : 'text-saffron/80 hover:text-saffron'
             )}
           >
@@ -133,7 +133,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
         <Link
           href="/profile"
           className={cn(
-            'flex flex-col items-center justify-center gap-1 py-1 text-[11px] transition-colors rounded-lg',
+            'flex flex-col items-center justify-center gap-1 py-1 text-[11px] transition-colors rounded-lg press-sm',
             isProfile ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
           )}
         >

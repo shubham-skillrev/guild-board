@@ -8,7 +8,7 @@ import { sendPushToUser, sendPushToUsers } from "@/lib/push/send";
  *
  * Route handlers must use this instead of `void notifyOnX()`. On serverless the
  * function can be frozen the moment the response is returned, so a bare
- * unawaited promise may never finish — every notifyOn* here does at least one
+ * unawaited promise may never finish - every notifyOn* here does at least one
  * DB round-trip before it sends, and broadcasts do N more. `after()` keeps the
  * invocation alive until the callback settles.
  *
@@ -28,166 +28,163 @@ export function notifyAfterResponse(
   });
 }
 
-// ─── Copy bank — desi guild flavour ─────────────────────────
-// Keep it short, warm, slightly playful. No emojis overload.
+// ─── Copy bank ───────────────────────────────────────────────
+// Tone: English, dev-native, a little funny, never cutesy. Think boot.dev:
+// playful about the craft, precise about the facts. Title says what happened,
+// body says what it means and what to do. No em dashes anywhere in user copy.
 const pick = <T>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
 
-// Tone: Hinglish, dev-aware, Swiggy-style. Action clear in first 3-4 words.
-// Mild masala, no over-the-top filmy lines.
-// Vibe: warm Hinglish, mildly playful, never preachy.
-// Clear action in title. Body adds context + tiny smile.
 const COPY = {
   newTopic: {
     titles: [
-      "Naya topic on the board",
-      "Fresh idea just dropped",
-      "Board pe kuch hone wala hai",
-      "Charcha for the cycle",
+      "New topic deployed",
+      "Fresh idea on the board",
+      "Someone shipped an idea",
+      "Incoming: new topic",
     ],
     body: (author: string, title: string) =>
-      `${author} pitched "${title}". Ek nazar daal lo.`,
+      `${author} pitched "${title}". Vote before the merge window closes.`,
   },
   vote: {
     titles: [
-      "Vote mila tumhe",
-      "Upvote landed",
-      "Aapke topic ko thumbs up",
-      "Someone backed your idea",
+      "+1 to your idea",
+      "Your topic got a vote",
+      "Someone approved your PR",
+      "Upvote incoming",
     ],
     body: (voter: string, title: string) =>
-      `${voter} upvoted "${title}". Hawaa banti ja rahi hai.`,
+      `${voter} upvoted "${title}". Momentum is building.`,
   },
   contribute: {
     titles: [
-      "Topic Saathi mil gaya",
-      "Someone joined in",
-      "Aapke topic pe ek aur",
-      "Team building up",
+      "You got a co-author",
+      "Someone joined your topic",
+      "Pair programmer found",
+      "Backup has arrived",
     ],
     body: (helper: string, title: string) =>
-      `${helper} jumped in on "${title}". Plan banao saath mein.`,
+      `${helper} raised a hand on "${title}". Two heads, one agenda item.`,
   },
   reply: {
     titles: [
-      "Reply aaya hai",
-      "Naya reply",
-      "Aapko jawab mila",
-      "Thread mein hulchul",
+      "New reply in your thread",
+      "Someone replied",
+      "Your thread has activity",
+      "Response received",
     ],
     body: (author: string, preview: string) => `${author}: ${preview}`,
   },
   comment: {
     titles: [
-      "Aapke topic pe comment",
-      "Charcha shuru ho gayi",
-      "Naya comment",
+      "New comment on your topic",
+      "Discussion started",
       "Someone weighed in",
+      "Your topic has traffic",
     ],
     body: (author: string, preview: string) => `${author}: ${preview}`,
   },
   like: {
     titles: [
-      "Wah, kya baat hai",
-      "Aapka comment pasand aaya",
-      "Ek like aa gaya",
-      "Comment ne taali bajwa di",
+      "Your comment landed",
+      "Somebody liked that",
+      "Nice take, apparently",
+      "Comment approved",
     ],
-    body: (liker: string, preview: string) =>
-      `${liker} liked: "${preview}"`,
+    body: (liker: string, preview: string) => `${liker} liked: "${preview}"`,
   },
   spark: {
     titles: [
-      "Aapko spark mila",
-      "Spark drop, congrats",
-      "Kisi ne aap chuna",
-      "Cycle ka spark aapke naam",
+      "You got a spark",
+      "Peer recognition unlocked",
+      "Someone picked you",
+      "Spark received",
     ],
     body: (giver: string) =>
-      `${giver} sparked you this cycle. Kamaal kar diya.`,
+      `${giver} gave you their one spark this cycle. That is the rarest currency here.`,
   },
   selected: {
     titles: [
-      "Aapka topic select hua",
-      "Topic on the agenda",
-      "Bajao taali, selected",
-      "Shortlist mein aap",
+      "Your topic made the agenda",
+      "Shortlisted",
+      "You are on the schedule",
+      "Topic selected",
     ],
     body: (title: string) =>
-      `"${title}" is on this cycle's agenda. Tayyari shuru.`,
+      `"${title}" is on this cycle's agenda. Time to prep.`,
   },
   cycleOpen: {
     titles: [
-      "Naya cycle shuru",
-      "Cycle open hai",
-      "Time to pitch",
-      "Board khul gaya",
+      "New cycle is live",
+      "Board is open",
+      "Submissions open",
+      "Fresh cycle, clean slate",
     ],
     body: (label: string) =>
-      `${label} cycle is live. Drop your topics and vote on others.`,
+      `${label} is open. You have 1 topic, 3 votes and 2 hand raises to spend.`,
   },
   cycleEnded: {
     titles: [
-      "Cycle wrap-up time",
-      "Spark window khula",
-      "Time to spark someone",
-      "Cycle ka end, sparks shuru",
+      "Cycle wrapped",
+      "Spark window is open",
+      "Time to hand out your spark",
+      "That is a wrap",
     ],
     body: (label: string) =>
-      `${label} discussions are done. Give your one spark to someone who stood out.`,
+      `${label} is done. You have 48 hours to give your one spark to someone who showed up.`,
   },
   bytesPublished: {
     titles: [
-      "Is mahine ke bytes aa gaye",
-      "Tech ki khabar, chhoti si",
-      "Bytes drop ho gaye",
-      "Padhne layak kuch hai",
+      "This week in tech, compressed",
+      "Fresh bytes are up",
+      "Your weekly diff",
+      "New bytes dropped",
     ],
     body: (label: string, count: number) =>
-      `${label} — ${count} cheezein jo is mahine hui. 2 minute ka padhna hai.`,
+      `${label}: ${count} things worth knowing. Two minute read, tap what you want to discuss.`,
   },
   asked: {
     titles: [
-      "Aapko poocha gaya hai",
+      "You have been summoned",
       "Someone wants your take",
-      "Naam se bulaya gaya",
-      "Aapki raay chahiye",
+      "Tagged in a topic",
+      "Your expertise is requested",
     ],
     body: (asker: string, title: string, note: string | null) =>
       note
         ? `${asker} on "${title}": ${note}`
-        : `${asker} thinks you'd have something to say on "${title}".`,
+        : `${asker} thinks you would have something to say about "${title}".`,
   },
   explainMore: {
     titles: [
-      "Koi samajhna chahta hai",
-      "Someone wants more",
-      "Aapke topic pe sawaal",
-      "Thoda aur detail?",
+      "Someone wants more detail",
+      "Question on your topic",
+      "Clarification requested",
+      "Your topic needs a docstring",
     ],
     body: (title: string) =>
-      `Someone tapped "Explain more" on "${title}". Do lines add kar do?`,
+      `Someone tapped "Explain more" on "${title}". A couple of lines would help.`,
   },
   ideaTaken: {
     titles: [
-      "Aapka idea uthaya gaya",
-      "Someone picked your idea",
-      "Bank se board pe",
-      "Idea ko ghar mil gaya",
+      "Your idea got picked up",
+      "Someone forked your idea",
+      "Idea promoted to the board",
+      "Your bank paid out",
     ],
     body: (taker: string, title: string) =>
-      `${taker} took "${title}" to the board. Aapka idea, unki pitch.`,
+      `${taker} took "${title}" to the board. Your idea, their pitch.`,
   },
   bankNudge: {
     titles: [
-      "Bank mein ideas pade hain",
-      "Naya cycle, purane ideas",
-      "Time to cash in",
-      "Board khula, bank bhara",
+      "You have unspent ideas",
+      "Your bank has a balance",
+      "Cash in an idea",
+      "Board is open, bank is full",
     ],
     body: (count: number, label: string) =>
       count === 1
-        ? `You have 1 banked idea. ${label} is open — put it on the board?`
-        : `You have ${count} banked ideas. ${label} is open — pick one for the board.`,
+        ? `You have 1 banked idea and ${label} just opened. Put it on the board?`
+        : `You have ${count} banked ideas and ${label} just opened. Pick one for the board.`,
   },
 };
 
@@ -410,7 +407,7 @@ export async function notifyOnBytesPublished(args: { label: string; count: numbe
 }
 
 /**
- * Someone was invited into a topic by name. The asker IS named here — that is
+ * Someone was invited into a topic by name. The asker IS named here - that is
  * the whole mechanism: a specific person asking you specifically is what makes
  * it answerable, where a general call to thirty people is not.
  */
@@ -436,7 +433,7 @@ export async function notifyOnAsked(args: {
 }
 
 /**
- * Someone tapped "Explain more" — a question posed to the author without
+ * Someone tapped "Explain more" - a question posed to the author without
  * anyone having to write a paragraph under their own name.
  *
  * The asker is intentionally not named: attaching a name to "I didn't
@@ -456,7 +453,7 @@ export async function notifyOnExplainMore(args: {
   });
 }
 
-/** Someone promoted an open idea from the bank — tell whoever banked it. */
+/** Someone promoted an open idea from the bank - tell whoever banked it. */
 export async function notifyOnIdeaTaken(args: {
   toUserId: string;
   actorId: string;

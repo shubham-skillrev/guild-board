@@ -47,7 +47,7 @@ export interface Topic {
   /**
    * Author id. OMITTED by the API for ghost topics when the viewer is not the
    * author (see src/lib/utils/anonymity.ts). Never rely on this for ownership
-   * or self-checks — use `is_owner` / `can_spark_author` instead.
+   * or self-checks - use `is_owner` / `can_spark_author` instead.
    */
   user_id?: string
   is_anonymous: boolean
@@ -75,7 +75,7 @@ export interface Topic {
 }
 
 /**
- * A banked idea. Unlimited and capturable in any cycle phase — unlike topics,
+ * A banked idea. Unlimited and capturable in any cycle phase - unlike topics,
  * which are capped at 1 per cycle and locked once a meeting starts.
  */
 export interface BankedIdea {
@@ -84,7 +84,7 @@ export interface BankedIdea {
   title: string
   note: string | null
   category: CategoryTag | null
-  is_open: boolean            // up for grabs — anyone may promote it
+  is_open: boolean            // up for grabs - anyone may promote it
   is_anonymous: boolean
   promoted_topic_id: string | null
   promoted_by: string | null

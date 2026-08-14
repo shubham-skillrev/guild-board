@@ -18,7 +18,7 @@ interface SignalRowProps {
 }
 
 /**
- * One-tap responses to a topic. No writing, no quota, no cycle gate — this
+ * One-tap responses to a topic. No writing, no quota, no cycle gate - this
  * stays usable when voting and commenting are locked, which is most of the
  * month. There is no negative signal by design.
  */
@@ -48,7 +48,7 @@ export function SignalRow({ topicId, compact = false, initialCounts, initialMine
     if (pending) return
     setPending(signal)
 
-    // Optimistic — a one-tap affordance must feel instant.
+    // Optimistic - a one-tap affordance must feel instant.
     const wasActive = mine.has(signal)
     setMine(prev => {
       const next = new Set(prev)

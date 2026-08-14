@@ -80,7 +80,7 @@ function useMeetingCountdown(cycle: Cycle | null | undefined) {
 }
 
 /* ────────────────────────────────────────────────────────
-   1. MeetingDateBadge  — inline header chip (> 48 h away)
+   1. MeetingDateBadge  - inline header chip (> 48 h away)
    ──────────────────────────────────────────────────────── */
 
 interface MeetingBadgeProps {
@@ -103,7 +103,7 @@ export function MeetingDateBadge({ cycle, phase }: MeetingBadgeProps) {
 }
 
 /* ────────────────────────────────────────────────────────
-   2. MeetingPill — portalled floating timer (≤ 48 h)
+   2. MeetingPill - portalled floating timer (≤ 48 h)
       • bottom-20 mobile (clears the ~64px tab nav)
       • bottom-6 desktop
       • click pill → collapses to dot; click dot → expands
@@ -149,7 +149,7 @@ export function MeetingPill({ cycle, phase }: MeetingPillProps) {
     )
   }
 
-  /* ── Expanded pill — click anywhere to collapse ── */
+  /* ── Expanded pill - click anywhere to collapse ── */
   return createPortal(
     <button
       onClick={() => setCollapsed(true)}

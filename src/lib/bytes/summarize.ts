@@ -8,7 +8,7 @@ import type { Candidate } from '@/lib/bytes/sources'
  * ── The integrity contract ──────────────────────────────────────────────
  * The model is asked for exactly two things per item: `summary` and `tags`.
  * The response schema has `additionalProperties: false` and lists no title or
- * url field, so a structured-outputs response *cannot* contain a headline —
+ * url field, so a structured-outputs response *cannot* contain a headline -
  * the model has nowhere to put one. The caller writes `source_title` and `url`
  * verbatim from the feed response and ignores everything else.
  *
@@ -18,7 +18,7 @@ import type { Candidate } from '@/lib/bytes/sources'
  * permanently, and "please don't make things up" is not a control.
  *
  * The API key is optional by design. Without it the digest is still created
- * with empty summaries for the admin to fill in by hand — a monthly ritual
+ * with empty summaries for the admin to fill in by hand - a monthly ritual
  * must not hard-depend on a third-party API being reachable.
  */
 
@@ -73,7 +73,7 @@ const SYSTEM = [
   'write a short, factual summary and a few topic tags.',
   '',
   'Ground every summary in the title and excerpt you are given. If an excerpt is',
-  'missing or thin, say less — describe only what the title supports. Never invent',
+  'missing or thin, say less - describe only what the title supports. Never invent',
   'version numbers, benchmarks, dates, company names, or outcomes that are not',
   'present in the input.',
   '',
@@ -93,13 +93,13 @@ export async function summarizeCandidates(
 
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
-    console.warn('bytes: ANTHROPIC_API_KEY not set — creating digest without summaries')
+    console.warn('bytes: ANTHROPIC_API_KEY not set - creating digest without summaries')
     return out
   }
 
   const client = new Anthropic({ apiKey })
 
-  // Only the fields the model needs. Note the model is never shown the URL —
+  // Only the fields the model needs. Note the model is never shown the URL -
   // it has no reason to reproduce one, and cannot leak one into a summary.
   const payload = candidates.map(c => ({
     source_id: c.source_id,
@@ -115,7 +115,7 @@ export async function summarizeCandidates(
       model: MODEL,
       max_tokens: 16000,
       system: SYSTEM,
-      // Cheap, mechanical task — the quality lever here is grounding, not depth.
+      // Cheap, mechanical task - the quality lever here is grounding, not depth.
       output_config: {
         effort: 'low',
         format: { type: 'json_schema', schema: RESPONSE_SCHEMA },
@@ -136,7 +136,7 @@ export async function summarizeCandidates(
       return out
     }
     if (response.stop_reason === 'max_tokens') {
-      console.warn('bytes: summarization hit max_tokens — output may be partial')
+      console.warn('bytes: summarization hit max_tokens - output may be partial')
     }
 
     const text = response.content
@@ -153,7 +153,7 @@ export async function summarizeCandidates(
       if (!raw || typeof raw !== 'object') continue
       const item = raw as Partial<Summary>
 
-      // Drop anything the model invented — a source_id we never sent.
+      // Drop anything the model invented - a source_id we never sent.
       if (typeof item.source_id !== 'string' || !validIds.has(item.source_id)) {
         console.warn('bytes: dropping unknown source_id from model output', item.source_id)
         continue

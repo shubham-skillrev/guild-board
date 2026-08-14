@@ -21,7 +21,7 @@ interface Member { id: string; username: string }
 /**
  * Invite specific people into a topic.
  *
- * Nothing here records whether an ask was answered, on purpose — a visible
+ * Nothing here records whether an ask was answered, on purpose - a visible
  * "asked and didn't reply" would turn an invitation into an obligation, which
  * is the opposite of what a hesitant member needs.
  */
@@ -89,7 +89,7 @@ export function AskPanel({ topicId }: { topicId: string }) {
         )}
       </div>
       <p className="text-[11px] text-cha leading-relaxed mb-3">
-        Know who&apos;s done this before? Ask them directly — it lands far better than hoping they see it.
+        Know who&apos;s done this before? Ask them directly - it lands far better than hoping they see it.
       </p>
 
       {asks.length > 0 && (

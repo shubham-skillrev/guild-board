@@ -112,7 +112,7 @@ export async function POST(request: Request) {
   if (title.length > 80) return NextResponse.json({ error: 'Title too long' }, { status: 400 })
   if (description.length > 1000) return NextResponse.json({ error: 'Description too long (max 1000 characters)' }, { status: 400 })
 
-  // Get current open cycle — most recent by year/month
+  // Get current open cycle - most recent by year/month
   const { data: cycle } = await supabase
     .from('cycles')
     .select('id, status')
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No open cycle' }, { status: 400 })
   }
 
-  // DB trigger enforces 1 topic per user per cycle — insert will fail if limit exceeded
+  // DB trigger enforces 1 topic per user per cycle - insert will fail if limit exceeded
   const { data, error } = await supabase
     .from('topics')
     .insert({

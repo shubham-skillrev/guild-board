@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils/cn'
 
 interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
-  /** Adds hover affordance — use for cards that are links or buttons. */
+  /** Adds hover affordance - use for cards that are links or buttons. */
   interactive?: boolean
 }
 

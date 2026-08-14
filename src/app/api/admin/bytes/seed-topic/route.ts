@@ -1,14 +1,14 @@
 // ROUTE: POST /api/admin/bytes/seed-topic
 // AUTH: admin only
 // PURPOSE: Promote a byte the guild showed interest in onto the live board.
-//          This is what stops the digest being a side pond — interest taps
+//          This is what stops the digest being a side pond - interest taps
 //          rank the bytes, and the admin turns the top one into a topic.
 // DB TABLES: bytes, topics, cycles, users
 // RLS: admin client for writes
 //
 // NOTE: the seeded topic sets is_carry_forward = TRUE so it does not consume
 // the admin's own 1-topic-per-cycle quota. That flag is the exemption
-// migration 006 established for exactly this case — check_topic_limit() is
+// migration 006 established for exactly this case - check_topic_limit() is
 // left untouched.
 
 import { createClient } from '@/lib/supabase/server'

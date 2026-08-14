@@ -155,7 +155,7 @@ export default function TopicDetailPage({
         if (res.status === 409) {
           toast(data.error ?? 'Vote limit reached for this cycle', 'warning', '🚫')
         } else {
-          toast('Vote failed — check your connection', 'error')
+          toast('Vote failed - check your connection', 'error')
         }
       }
     } catch {
@@ -165,7 +165,7 @@ export default function TopicDetailPage({
         user_has_voted: wasVoted,
         vote_count: t.vote_count + (wasVoted ? 1 : -1),
       } : t)
-      toast('Vote failed — check your connection', 'error')
+      toast('Vote failed - check your connection', 'error')
     } finally {
       setVotePending(false)
     }
@@ -211,7 +211,7 @@ export default function TopicDetailPage({
         if (res.status === 409) {
           toast(data.error ?? 'Contribution limit reached for this cycle', 'warning', '🚫')
         } else {
-          toast('Failed to update — check your connection', 'error')
+          toast('Failed to update - check your connection', 'error')
         }
       }
     } catch {
@@ -221,7 +221,7 @@ export default function TopicDetailPage({
         user_has_contribed: wasContribed,
         contrib_count: t.contrib_count + (wasContribed ? 1 : -1),
       } : t)
-      toast('Failed to update — check your connection', 'error')
+      toast('Failed to update - check your connection', 'error')
     } finally {
       setContribPending(false)
     }
@@ -406,8 +406,8 @@ export default function TopicDetailPage({
                 <UserAvatar username={topic.author_username ?? 'user'} size={24} />
                 <span className="text-[13px] text-ink-soft">@{topic.author_username}</span>
                 <span className="text-[11px] text-cha">· {new Date(topic.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                {/* Spark button — visible during discussion phase */}
-                {/* Ghost authors are not sparkable — can_spark_author is false and
+                {/* Spark button - visible during discussion phase */}
+                {/* Ghost authors are not sparkable - can_spark_author is false and
                     user_id is absent, so there is nobody to award it to. */}
                 {sparkWindow && topic.can_spark_author && topic.user_id && (
                   <span className="ml-auto">
@@ -422,14 +422,14 @@ export default function TopicDetailPage({
                 )}
               </div>
 
-              {/* Description — rendered as markdown */}
+              {/* Description - rendered as markdown */}
               <div className="prose-guild mb-5">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {topic.description}
                 </ReactMarkdown>
               </div>
 
-              {/* One-tap responses — usable even when the board is locked. */}
+              {/* One-tap responses - usable even when the board is locked. */}
               <div className="mb-8">
                 <SignalRow topicId={topic.id} />
               </div>
@@ -553,7 +553,7 @@ export default function TopicDetailPage({
                   </p>
                 ) : (
                   <p className="text-[12px] text-ink-soft">
-                    ⚡ <span className="text-saffron font-medium">1 spark</span> available — give it to a builder who inspired you
+                    ⚡ <span className="text-saffron font-medium">1 spark</span> available - give it to a builder who inspired you
                   </p>
                 )}
               </div>

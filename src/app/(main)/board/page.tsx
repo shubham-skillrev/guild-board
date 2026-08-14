@@ -83,7 +83,7 @@ export default function BoardPage() {
       }
     } catch {
       optimisticVote(topicId, hasVoted ? 1 : -1)
-      toast('Vote failed — check your connection', 'error')
+      toast('Vote failed - check your connection', 'error')
     }
   }, [optimisticVote, refreshTokens, toast])
 
@@ -106,7 +106,7 @@ export default function BoardPage() {
       }
     } catch {
       optimisticContrib(topicId, hasContribed ? 1 : -1)
-      toast('Failed to update — check your connection', 'error')
+      toast('Failed to update - check your connection', 'error')
     }
   }, [optimisticContrib, refreshTokens, toast])
 
@@ -159,7 +159,7 @@ export default function BoardPage() {
                 </svg>
               </button>
             )}
-            {/* Board locked or already pitched — the bank is always open. */}
+            {/* Board locked or already pitched - the bank is always open. */}
             {(!isViewingActive || phase !== 'open' || topic_submitted) && (
               <Link
                 href="/bank"
@@ -177,7 +177,7 @@ export default function BoardPage() {
           </div>
         </div>
 
-        {/* ─── Cycle tabs — Peerlist week-style ─── */}
+        {/* ─── Cycle tabs - Peerlist week-style ─── */}
         {allCycles.length > 0 && (
           <div className="flex items-center gap-1 mb-5 overflow-x-auto pb-1 -mx-1 px-1">
             {allCycles.map((c) => {
@@ -200,7 +200,7 @@ export default function BoardPage() {
           </div>
         )}
 
-        {/* ─── Token bar — your remaining actions ─── */}
+        {/* ─── Token bar - your remaining actions ─── */}
         {isViewingActive && phase === 'open' && (
           <div className="flex flex-wrap items-center gap-2 mb-5 px-3 py-2.5 bg-paper/60 border border-border rounded-lg text-[12px]">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-kinu/50 text-ink-soft">

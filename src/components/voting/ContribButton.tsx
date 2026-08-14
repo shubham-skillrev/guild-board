@@ -30,7 +30,7 @@ export function ContribButton({ topicId, cycleId, count, hasContributed, disable
     <button
       onClick={handleClick}
       disabled={isPending || disabled}
-      aria-label={hasContributed ? 'Withdraw from discussion' : "I'm in — I'll discuss this"}
+      aria-label={hasContributed ? 'Withdraw from discussion' : "I'm in - I'll discuss this"}
       className={cn(
         'flex items-center justify-center gap-1 w-14 h-8 rounded-lg border text-[12px] font-medium transition-all',
         hasContributed

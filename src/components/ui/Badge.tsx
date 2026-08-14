@@ -15,7 +15,7 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   tone?: Tone
 }
 
-/** Small status pill — categories, outcomes, counts. */
+/** Small status pill - categories, outcomes, counts. */
 export function Badge({ tone = 'neutral', className, ...props }: BadgeProps) {
   return (
     <span

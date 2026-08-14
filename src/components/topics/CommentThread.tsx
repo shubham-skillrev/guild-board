@@ -207,7 +207,7 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
     </div>
   )
 
-  // Inline mode — no modal, just render directly
+  // Inline mode - no modal, just render directly
   if (inline) {
     return (
       <div>
@@ -288,7 +288,7 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
       }
     } catch {
       onReactionChange(comment.id, prev, -likeDelta, -dislikeDelta)
-      toast('Reaction failed — check your connection', 'error')
+      toast('Reaction failed - check your connection', 'error')
     } finally {
       setReactionPending(false)
     }

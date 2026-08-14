@@ -36,7 +36,9 @@ export function Button({
     <button
       type={type}
       className={cn(
-        'rounded-lg font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed',
+        // `press` puts the feedback on pointer-down rather than on click, and
+        // keeps it to transform so it stays on the compositor.
+        'press rounded-lg font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
         VARIANTS[variant],
         SIZES[size],
         className,

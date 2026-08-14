@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 014: Bytes — monthly tech news digest
+-- Migration 014: Bytes - monthly tech news digest
 -- ============================================================
 --
 -- Why: the guild runs out of topics, and the board is dead mid-cycle. A short
@@ -64,7 +64,7 @@ CREATE TABLE public.byte_interests (
   PRIMARY KEY (byte_id, user_id)
 );
 
--- Counter trigger — mirrors sync_comment_reaction_counts() in migration 007.
+-- Counter trigger - mirrors sync_comment_reaction_counts() in migration 007.
 CREATE OR REPLACE FUNCTION public.sync_byte_interest_count()
 RETURNS TRIGGER
 SECURITY DEFINER

@@ -1,6 +1,6 @@
 // ROUTE: GET /api/idea-bank, POST /api/idea-bank, PATCH /api/idea-bank, DELETE /api/idea-bank
 // AUTH: authenticated
-// PURPOSE: Capture ideas any day of the month, in any cycle phase. Unlimited —
+// PURPOSE: Capture ideas any day of the month, in any cycle phase. Unlimited -
 //          the 1-per-cycle cap applies to promotion onto the board, not to banking.
 // DB TABLES: idea_bank, users
 // RLS: server client (own rows + is_open rows, enforced by policy)
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid category' }, { status: 400 })
   }
 
-  // No quota check on purpose — banking is unlimited in every cycle phase.
+  // No quota check on purpose - banking is unlimited in every cycle phase.
   const { data, error } = await supabase
     .from('idea_bank')
     .insert({
@@ -141,7 +141,7 @@ export async function PATCH(request: Request) {
   if (!existing) return NextResponse.json({ error: 'Idea not found' }, { status: 404 })
   if (existing.user_id !== user.id) return NextResponse.json({ error: 'Not your idea' }, { status: 403 })
   if (existing.promoted_topic_id) {
-    return NextResponse.json({ error: 'Already on the board — edit the topic instead' }, { status: 409 })
+    return NextResponse.json({ error: 'Already on the board - edit the topic instead' }, { status: 409 })
   }
 
   const updates: Record<string, unknown> = {}
@@ -205,7 +205,7 @@ export async function DELETE(request: Request) {
   if (!existing) return NextResponse.json({ error: 'Idea not found' }, { status: 404 })
   if (existing.user_id !== user.id) return NextResponse.json({ error: 'Not your idea' }, { status: 403 })
   if (existing.promoted_topic_id) {
-    return NextResponse.json({ error: 'Already on the board — delete the topic instead' }, { status: 409 })
+    return NextResponse.json({ error: 'Already on the board - delete the topic instead' }, { status: 409 })
   }
 
   // Hard delete: a banked idea is a private note, not shared history.

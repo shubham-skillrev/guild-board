@@ -20,7 +20,7 @@ interface SparkWindowInfo {
   currentUserId: string
 }
 
-/** Cohort stats — group framing, deliberately not per-person. */
+/** Cohort stats - group framing, deliberately not per-person. */
 interface CycleStats {
   label: string
   ideas: number
@@ -89,7 +89,7 @@ async function getLeaderboard(): Promise<{
   const selectedMap = new Map<string, number>()
   const sparkMap = new Map<string, number>()
 
-  // Ghost pitches are excluded from scoring — crediting them would let the
+  // Ghost pitches are excluded from scoring - crediting them would let the
   // board reveal, by arithmetic, who authored an anonymous topic.
   cycleTopics?.forEach(t => {
     if (t.is_anonymous) return
@@ -105,7 +105,7 @@ async function getLeaderboard(): Promise<{
     discussed: (cycleTopics ?? []).filter(t => t.outcome_tag && t.outcome_tag !== 'dropped').length,
   }
 
-  // Composite score: sparks × 3 + picked × 2 + ideas × 1 — this cycle only.
+  // Composite score: sparks × 3 + picked × 2 + ideas × 1 - this cycle only.
   const entries: LeaderboardEntry[] = users
     .map(u => {
       const topic_count = topicMap.get(u.id) ?? 0
@@ -157,7 +157,7 @@ async function getLeaderboard(): Promise<{
 
 export default async function LeaderboardPage() {
   const { entries, sparkWindow, members, stats } = await getLeaderboard()
-  // Top 3 only. Ranks 4-N are intentionally not rendered — see getLeaderboard.
+  // Top 3 only. Ranks 4-N are intentionally not rendered - see getLeaderboard.
   const hallOfFame = entries.slice(0, 3)
   const hasSparkWindow = sparkWindow !== null
   // Everyone is sparkable during the window, not just the podium. Unranked
@@ -176,12 +176,12 @@ export default async function LeaderboardPage() {
         </p>
         {hasSparkWindow && (
           <p className="text-[13px] text-saffron mt-2 font-medium">
-            ⚡ Spark window is open — give your spark to a builder who inspired you this cycle.
+            ⚡ Spark window is open - give your spark to a builder who inspired you this cycle.
           </p>
         )}
       </div>
 
-      {/* Cohort stats — what the guild did together, with nobody ranked. */}
+      {/* Cohort stats - what the guild did together, with nobody ranked. */}
       {stats && (
         <section className="mb-8 grid grid-cols-3 gap-3">
           {[
@@ -300,11 +300,11 @@ export default async function LeaderboardPage() {
         <div className="text-center py-16">
           <div className="text-3xl mb-3">⚡</div>
           <p className="text-base font-medium text-ink-soft">Nothing on the board yet this cycle</p>
-          <p className="text-[13px] mt-1 text-cha">Pitch an idea or raise a hand — it counts from the first one.</p>
+          <p className="text-[13px] mt-1 text-cha">Pitch an idea or raise a hand - it counts from the first one.</p>
         </div>
       )}
 
-      {/* Spark picker — every member, unranked and alphabetical. Recognition
+      {/* Spark picker - every member, unranked and alphabetical. Recognition
           should not require appearing in a standings table. */}
       {hasSparkWindow && sparkables.length > 0 && (
         <section className="bg-paper/50 border border-border rounded-xl p-4 md:p-5">
@@ -347,7 +347,7 @@ export default async function LeaderboardPage() {
       <p className="text-[11px] text-cha mt-6 text-center leading-relaxed">
         Top 3 this cycle by guild score: Sparks ×3 · Picked topics ×2 · Ideas ×1.
         <br />
-        Resets each cycle — no all-time ranking, and ghost pitches are never scored.
+        Resets each cycle - no all-time ranking, and ghost pitches are never scored.
       </p>
     </div>
   )

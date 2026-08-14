@@ -30,7 +30,7 @@ export function SparkButton({ toUserId, cycleId, alreadyGiven, isDisabled, onSpa
   }
 
   if (isDisabled) {
-    return <span className="text-cha text-[12px]">—</span>
+    return <span className="text-cha text-[12px]">-</span>
   }
 
   async function handleSpark() {
@@ -77,7 +77,7 @@ export function SparkButton({ toUserId, cycleId, alreadyGiven, isDisabled, onSpa
             <div className="text-4xl mb-3">⚡</div>
             <h3 className="font-serif text-lg text-ink mb-1">Choose wisely.</h3>
             <p className="text-[13px] text-ink-soft mb-5 leading-relaxed">
-              You only get <span className="text-saffron font-semibold">one spark per cycle</span>. Once given, it&apos;s gone. Make it count — who truly inspired the guild this month?
+              You only get <span className="text-saffron font-semibold">one spark per cycle</span>. Once given, it&apos;s gone. Make it count - who truly inspired the guild this month?
             </p>
             <div className="flex gap-3 justify-center">
               <button
@@ -101,7 +101,7 @@ export function SparkButton({ toUserId, cycleId, alreadyGiven, isDisabled, onSpa
   )
 }
 
-/** Spark celebration — animated particles burst + glow */
+/** Spark celebration - animated particles burst + glow */
 function SparkCelebration({ onDone }: { onDone: () => void }) {
   return (
     <span

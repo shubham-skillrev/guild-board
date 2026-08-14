@@ -32,12 +32,15 @@ export default async function MainLayout({ children }: { children: React.ReactNo
           <UsernameSetupModal />
         </Suspense>
 
-      {/* ─── Top bar — clean Peerlist-style nav ─── */}
-      <header className="bg-paper/80 backdrop-blur-xl border-b border-border sticky top-0 z-30">
+      {/* ─── Top bar ───
+          A translucent material that content scrolls under, rather than an
+          opaque strip. No hard rule underneath: the edge is a soft gradient so
+          content fades as it passes behind the chrome. */}
+      <header className="material-chrome sticky top-0 z-30">
         <div className="flex items-center justify-between px-5 md:px-10 h-14 w-full max-w-7xl mx-auto">
           {/* Left: Logo + Nav */}
           <div className="flex items-center gap-7">
-            <Link href="/board" className="flex items-center gap-2.5 group">
+            <Link href="/board" className="flex items-center gap-2.5 group press">
               <span className="text-saffron text-base leading-none transition-transform group-hover:scale-110">◈</span>
               <span className="font-serif font-semibold text-ink text-base tracking-tight">
                 GuildBoard
@@ -51,7 +54,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             {profile && (
               <Link
                 href="/profile"
-                className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13px] text-ink-soft hover:bg-kinu transition-all group"
+                className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13px] text-ink-soft hover:bg-kinu transition-colors group press"
               >
                 <span className="w-7 h-7 rounded-full overflow-hidden border border-border-strong group-hover:border-saffron/40 transition-colors">
                   <UserAvatar username={profile.username ?? 'user'} size={28} />
@@ -62,6 +65,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
             <LogoutButton />
           </div>
         </div>
+        {/* Soft edge where content passes under the chrome. */}
+        <div
+          aria-hidden
+          className="absolute inset-x-0 top-full h-3 bg-linear-to-b from-parchment/60 to-transparent pointer-events-none"
+        />
       </header>
 
         {/* ─── Main content ─── */}

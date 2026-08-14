@@ -1,17 +1,17 @@
 -- ============================================================
--- Migration 011: Idea Bank — always-open idea capture
+-- Migration 011: Idea Bank - always-open idea capture
 -- ============================================================
 --
 -- Why: submission is gated on isSubmissionAllowed() = open cycle AND before
 -- meeting_at, so the board goes read-only the moment a meeting starts and
--- stays that way until an admin manually opens the next cycle — roughly 25
+-- stays that way until an admin manually opens the next cycle - roughly 25
 -- days a month. An idea you have on day 20 has nowhere to go and is gone by
 -- the next cycle. That, plus the 1-topic-per-cycle cap, is why the guild
 -- "runs out of topics".
 --
 -- The bank is unlimited and available in every cycle phase. Promotion to the
 -- live voting board still inserts into topics, so check_topic_limit() keeps
--- enforcing 1 per cycle — the anti-spam intent of the cap survives untouched.
+-- enforcing 1 per cycle - the anti-spam intent of the cap survives untouched.
 -- Do NOT relax that trigger.
 
 -- ─── Table ───────────────────────────────────────────────────
@@ -23,7 +23,7 @@ CREATE TABLE public.idea_bank (
   category          text        CHECK (category IN ('deep_dive','discussion','blog_idea','project_showcase')),
 
   -- "Up for grabs": anyone may promote it. The lowest-stakes way to
-  -- contribute — a one-line idea in a shared pool, no pitch, no vote count.
+  -- contribute - a one-line idea in a shared pool, no pitch, no vote count.
   is_open           boolean     NOT NULL DEFAULT false,
 
   -- Carried onto the promoted topic so a shy member can seed the board

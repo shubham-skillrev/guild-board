@@ -137,7 +137,7 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
             <p className="text-[11px] text-cha mt-1 text-right tabular-nums">{description.length}/{DESCRIPTION_MAX_LENGTH}</p>
           </div>
 
-          {/* Ghost toggle — lowers the stakes of a first pitch. */}
+          {/* Ghost toggle - lowers the stakes of a first pitch. */}
           <div>
             <button
               type="button"
@@ -166,7 +166,7 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
                 </span>
                 <span className="block text-[11px] text-cha mt-0.5 leading-relaxed">
                   {isAnonymous
-                    ? 'Your name is hidden from everyone, admins included. Heads up: in a guild this size, writing style can still give you away — and ghost pitches can’t receive sparks.'
+                    ? 'Your name is hidden from everyone, admins included. Heads up: in a guild this size, writing style can still give you away - and ghost pitches can’t receive sparks.'
                     : 'Hide your name on this pitch.'}
                 </span>
               </span>

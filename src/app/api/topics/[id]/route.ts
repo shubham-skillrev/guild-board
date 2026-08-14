@@ -1,4 +1,4 @@
-// ROUTE: GET /api/topics/[id] — single topic with contributors
+// ROUTE: GET /api/topics/[id] - single topic with contributors
 // AUTH: authenticated
 // PURPOSE: Fetch topic detail + contributor list
 

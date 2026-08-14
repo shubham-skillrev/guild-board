@@ -2,7 +2,7 @@
 // AUTH: authenticated
 // PURPOSE: What came out of the last finished cycle. outcome_tag/outcome_note
 //          have been written by admins since day one but never read back to
-//          members — ideas went in and nothing visibly came out.
+//          members - ideas went in and nothing visibly came out.
 // DB TABLES: cycles, topics
 // RLS: server client for identity; admin client to read across all authors
 

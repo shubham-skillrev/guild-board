@@ -1,7 +1,7 @@
 // ROUTE: POST /api/byte-interests
 // AUTH: authenticated
 // PURPOSE: One-tap "I'd discuss this" on a byte. Zero writing, zero social
-//          risk, available any day of the month — and it's the ranking signal
+//          risk, available any day of the month - and it's the ranking signal
 //          the admin uses to decide which byte becomes a topic.
 // DB TABLES: byte_interests
 // RLS: server client
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     .insert({ byte_id, user_id: user.id })
 
   if (error) {
-    // Double-tap race — the row exists, which is what the caller wanted.
+    // Double-tap race - the row exists, which is what the caller wanted.
     if (error.code === '23505') return NextResponse.json({ interested: true })
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

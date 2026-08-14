@@ -1,7 +1,7 @@
 // ROUTE: GET /api/topic-signals, POST /api/topic-signals
 // AUTH: authenticated
 // PURPOSE: One-tap signals on a topic. Unlimited, unscored, and available in
-//          every cycle phase — including the post-meeting lock, when nothing
+//          every cycle phase - including the post-meeting lock, when nothing
 //          else on the board can be interacted with.
 // DB TABLES: topic_signals, topics
 // RLS: server client
@@ -84,13 +84,13 @@ export async function POST(request: Request) {
     .insert({ topic_id, user_id: user.id, signal })
 
   if (error) {
-    // Double-tap race — the row exists, which is the state the caller wanted.
+    // Double-tap race - the row exists, which is the state the caller wanted.
     if (error.code === '23505') return NextResponse.json({ active: true })
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
   // "Explain more" is a question aimed at the author, so it is the one signal
-  // worth a notification — this is how a quiet member starts a discussion.
+  // worth a notification - this is how a quiet member starts a discussion.
   if (signal === 'explain_more') {
     const admin = createAdminClient()
     const { data: topic } = await admin

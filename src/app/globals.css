@@ -2,21 +2,21 @@
 
 @theme {
   /* ═══════════════════════════════════════════════════════
-     GuildBoard — Wabi-Sabi × Rangoli Dark Theme
+     GuildBoard - Wabi-Sabi × Rangoli Dark Theme
      Japanese minimalism meets Indian warmth
      ═══════════════════════════════════════════════════════ */
 
   /* ─── Ink & Paper (Text hierarchy) ─── */
-  --color-ink: #EDE8E1;          /* Warm parchment white — like handmade washi */
+  --color-ink: #EDE8E1;          /* Warm parchment white - like handmade washi */
   --color-ink-soft: #B0AAA3;     /* Stone-washed gray */
   --color-ink-muted: #807972;    /* Tea-stained subtle */
 
   /* ─── Surfaces (Dark backgrounds, layered) ─── */
-  --color-parchment: #08080C;    /* Deep void — sumi ink on night sky */
-  --color-paper: #101016;        /* Raised surface — lacquered wood */
-  --color-sumi: #161620;         /* Card surface — charcoal paper */
-  --color-kinu: #1E1E2A;         /* Hover surface — silk shimmer */
-  --color-cha: #6A6474;          /* Muted text & icons — twilight */
+  --color-parchment: #08080C;    /* Deep void - sumi ink on night sky */
+  --color-paper: #101016;        /* Raised surface - lacquered wood */
+  --color-sumi: #161620;         /* Card surface - charcoal paper */
+  --color-kinu: #1E1E2A;         /* Hover surface - silk shimmer */
+  --color-cha: #6A6474;          /* Muted text & icons - twilight */
 
   /* ─── Saffron & Vermillion (Indian warmth) ─── */
   --color-saffron: #E8913A;      /* Marigold garland / Turmeric glow */
@@ -27,7 +27,7 @@
   /* ─── Matcha & Indigo (Japanese calm) ─── */
   --color-matcha: #3DB88A;       /* Zen garden moss */
   --color-matcha-light: #0A1A14;
-  --color-indigo-jp: #5B8DEF;    /* Aizome — natural indigo dye */
+  --color-indigo-jp: #5B8DEF;    /* Aizome - natural indigo dye */
   --color-indigo-light: #0C1220;
   --color-wisteria: #9A7BD4;     /* Fuji / Lotus purple */
   --color-wisteria-light: #12101E;
@@ -53,7 +53,7 @@ body {
 
 /* ═══ Background patterns ═══ */
 
-/* Subtle rangoli dot-grid — sacred geometry */
+/* Subtle rangoli dot-grid - sacred geometry */
 .pattern-asanoha {
   background-image:
     radial-gradient(circle at 1px 1px, rgba(232, 145, 58, 0.06) 1px, transparent 0),
@@ -61,7 +61,7 @@ body {
   background-size: 40px 40px;
 }
 
-/* Torii gate gradient glow — for hero sections */
+/* Torii gate gradient glow - for hero sections */
 .glow-saffron {
   background: radial-gradient(ellipse at 50% 0%, rgba(232, 145, 58, 0.08) 0%, transparent 60%);
 }
@@ -69,7 +69,7 @@ body {
   background: radial-gradient(ellipse at 50% 100%, rgba(91, 141, 239, 0.06) 0%, transparent 60%);
 }
 
-/* ═══ Scrollbar — bamboo thin ═══ */
+/* ═══ Scrollbar - bamboo thin ═══ */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 99px; }
@@ -77,6 +77,75 @@ body {
 
 /* ═══ Selection ═══ */
 ::selection { background: rgba(232, 145, 58, 0.2); color: var(--color-ink); }
+
+/* ═══════════════════════════════════════════════════════
+   Type scale
+   Tracking is size-specific: large text reads too loose as it grows, so it
+   tightens; small text needs a touch more room to stay legible. Leading runs
+   inversely to size. Hierarchy comes from weight + size + leading together,
+   not size alone.
+   ═══════════════════════════════════════════════════════ */
+.type-display {
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  line-height: 1.08;
+  letter-spacing: -0.022em;
+  font-weight: 700;
+}
+.type-title {
+  font-size: 1.0625rem;
+  line-height: 1.3;
+  letter-spacing: -0.012em;
+  font-weight: 600;
+}
+.type-body {
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  letter-spacing: 0;
+}
+/* Small text over translucent material: slightly heavier and looser so it
+   stays legible when the backdrop shifts. */
+.type-caption {
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  letter-spacing: 0.012em;
+  font-weight: 500;
+}
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* ═══════════════════════════════════════════════════════
+   Materials
+   Translucent chrome that content scrolls under, rather than an opaque bar
+   that eats a fixed strip. Bigger surfaces read as thicker: more blur, deeper
+   shadow. The bright top edge is light catching the material.
+   ═══════════════════════════════════════════════════════ */
+.material-chrome {
+  background: color-mix(in oklab, var(--color-paper) 72%, transparent);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+.material-raised {
+  background: color-mix(in oklab, var(--color-sumi) 78%, transparent);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+}
+/* Fade content out where it meets floating chrome, instead of a hard 1px rule. */
+.scroll-edge-top {
+  mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+}
+
+/* ═══════════════════════════════════════════════════════
+   Press feedback
+   Feedback belongs on pointer-down, not on release. Waiting for the click
+   reads as dead. Kept to transform so it stays on the compositor.
+   ═══════════════════════════════════════════════════════ */
+.press {
+  transition: transform 100ms cubic-bezier(0.2, 0, 0.2, 1);
+  touch-action: manipulation;
+}
+.press:active { transform: scale(0.97); }
+.press-sm:active { transform: scale(0.94); }
 
 /* ═══ Utility animations ═══ */
 @keyframes fadeUp {
@@ -190,7 +259,7 @@ body {
   animation: spin 0.6s linear infinite;
 }
 
-/* ═══ Vote pop — tiny satisfying bounce ═══ */
+/* ═══ Vote pop - tiny satisfying bounce ═══ */
 @keyframes vote-pop {
   0%   { transform: scale(1); }
   40%  { transform: scale(1.35); }
@@ -220,4 +289,67 @@ body {
 .animate-spark-particle {
   animation: spark-particle 0.5s ease-out forwards;
   animation-delay: 0.05s;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Accessibility preferences
+   Three independent signals, handled independently. Reduced motion does not
+   mean no feedback: it means a gentler, non-vestibular equivalent, so opacity
+   and color changes that aid comprehension are kept.
+   ═══════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  /* Drop travel and overshoot; keep the fade so arrival is still legible. */
+  .animate-fade-up,
+  .stagger-children > * {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .animate-pulse-soft,
+  .animate-vote-pop,
+  .animate-spark-flash,
+  .animate-spark-particle {
+    animation: none;
+  }
+  .press:active,
+  .press-sm:active { transform: none; }
+  .press { transition: opacity 120ms ease; }
+  .press:active { opacity: 0.7; }
+
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 120ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  /* Frostier and solid rather than translucent. */
+  .material-chrome {
+    background: var(--color-paper);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .material-raised {
+    background: var(--color-sumi);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .scroll-edge-top {
+    mask-image: none;
+    -webkit-mask-image: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  /* Near-solid surfaces with a defined, contrasting border. */
+  .material-chrome,
+  .material-raised {
+    background: var(--color-parchment);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-color: var(--color-ink-muted);
+  }
+  .type-caption { font-weight: 600; }
 }

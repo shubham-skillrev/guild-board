@@ -111,7 +111,7 @@ export default async function ProfilePage() {
           Sparks Received ({sparksReceived.length})
         </h2>
         {sparksReceived.length === 0 ? (
-          <p className="text-[13px] text-cha">No sparks yet — contribute to a topic to earn them!</p>
+          <p className="text-[13px] text-cha">No sparks yet - contribute to a topic to earn them!</p>
         ) : (
           <div className="flex flex-wrap gap-2">
             {sparksReceived.map((spark: any) => (

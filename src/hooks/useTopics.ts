@@ -44,7 +44,7 @@ export function useTopics(cycleId: string | null | undefined) {
     fetchTopics()
   }, [fetchTopics])
 
-  // Realtime subscription — updates vote/contrib/score in place without refetch
+  // Realtime subscription - updates vote/contrib/score in place without refetch
   useEffect(() => {
     if (!cycleId) return
 
@@ -59,7 +59,7 @@ export function useTopics(cycleId: string | null | undefined) {
         { event: '*', schema: 'public', table: 'topics', filter: `cycle_id=eq.${cycleId}` },
         payload => {
           if (payload.eventType === 'INSERT') {
-            // New topic added — full refetch to get author info
+            // New topic added - full refetch to get author info
             fetchTopics()
           } else if (payload.eventType === 'UPDATE') {
             setState(s => ({
@@ -82,7 +82,7 @@ export function useTopics(cycleId: string | null | undefined) {
     }
   }, [cycleId, fetchTopics])
 
-  // Polling fallback — if realtime is not active, poll every 15s
+  // Polling fallback - if realtime is not active, poll every 15s
   useEffect(() => {
     if (!cycleId) return
     const interval = setInterval(() => {
@@ -91,7 +91,7 @@ export function useTopics(cycleId: string | null | undefined) {
     return () => clearInterval(interval)
   }, [cycleId, fetchTopics])
 
-  // Optimistic vote toggle (with score recalculation — no re-sort to keep card positions stable)
+  // Optimistic vote toggle (with score recalculation - no re-sort to keep card positions stable)
   const optimisticVote = useCallback((topicId: string, delta: 1 | -1) => {
     setState(s => ({
       ...s,
@@ -104,7 +104,7 @@ export function useTopics(cycleId: string | null | undefined) {
     }))
   }, [])
 
-  // Optimistic contrib toggle (with score recalculation — no re-sort to keep card positions stable)
+  // Optimistic contrib toggle (with score recalculation - no re-sort to keep card positions stable)
   const optimisticContrib = useCallback((topicId: string, delta: 1 | -1) => {
     setState(s => ({
       ...s,

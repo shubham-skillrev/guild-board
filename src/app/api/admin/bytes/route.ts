@@ -1,6 +1,6 @@
 // ROUTE: GET /api/admin/bytes, PATCH /api/admin/bytes, DELETE /api/admin/bytes
 // AUTH: admin only
-// PURPOSE: Review a draft digest — edit summaries, add editor notes, reorder,
+// PURPOSE: Review a draft digest - edit summaries, add editor notes, reorder,
 //          drop items, publish. Publishing is the gate that keeps unreviewed
 //          model output from reaching the guild.
 // DB TABLES: byte_digests, bytes, users
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
 }
 
 /**
- * PATCH — three shapes:
+ * PATCH - three shapes:
  *   { byte_id, summary?, editor_note?, position? }  edit one byte
  *   { digest_id, label }                            rename the digest
  *   { digest_id, publish: true }                    publish
@@ -109,7 +109,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
     }
 
-    // source_title and url are deliberately not editable here — they are the
+    // source_title and url are deliberately not editable here - they are the
     // grounded record of what the feed actually returned.
     const { data, error } = await admin
       .from('bytes')
@@ -145,7 +145,7 @@ export async function PATCH(request: Request) {
     // A digest with a human voice gets read; a bare link list gets muted.
     if (bytes.filter(b => b.editor_note?.trim()).length < 2) {
       return NextResponse.json(
-        { error: 'Add your own take to at least 2 items — that’s what makes people read it.' },
+        { error: 'Add your own take to at least 2 items - that’s what makes people read it.' },
         { status: 400 },
       )
     }
@@ -188,7 +188,7 @@ export async function PATCH(request: Request) {
   return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
 }
 
-/** DELETE — drop one byte from a draft, or the whole digest. */
+/** DELETE - drop one byte from a draft, or the whole digest. */
 export async function DELETE(request: Request) {
   const gate = await requireAdmin()
   if (gate.error) return gate.error

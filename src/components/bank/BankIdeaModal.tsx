@@ -114,7 +114,7 @@ export function BankIdeaModal({ onClose, onSaved }: BankIdeaModalProps) {
           </div>
         </div>
 
-        {/* Up for grabs — the lowest-stakes way to contribute. */}
+        {/* Up for grabs - the lowest-stakes way to contribute. */}
         <button
           type="button"
           onClick={() => setIsOpen(v => !v)}

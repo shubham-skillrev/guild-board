@@ -29,7 +29,7 @@ const ICON: Partial<Record<OutcomeTag, string>> = {
 }
 
 /**
- * "Last cycle we said we'd…" — closes the accountability loop.
+ * "Last cycle we said we'd…" - closes the accountability loop.
  * Nothing kills an idea board faster than ideas going in and nothing
  * visibly coming out, and every unfinished item here is a natural next topic.
  */

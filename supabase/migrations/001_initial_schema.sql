@@ -1,5 +1,5 @@
 -- ============================================================
--- GuildBoard V1 — Initial Schema
+-- GuildBoard V1 - Initial Schema
 -- All tables use UUID PKs and timestamptz created_at
 -- RLS is enabled on every table
 -- ============================================================
@@ -98,7 +98,7 @@ CREATE TABLE public.sparks (
 );
 
 -- ============================================================
--- DB FUNCTIONS — Token enforcement
+-- DB FUNCTIONS - Token enforcement
 -- ============================================================
 
 -- Enforce max 3 votes per user per cycle before inserting a vote
@@ -156,7 +156,7 @@ BEFORE INSERT ON public.contributions
 FOR EACH ROW EXECUTE FUNCTION check_contrib_limit();
 
 -- ============================================================
--- DB TRIGGERS — Denormalized counter maintenance
+-- DB TRIGGERS - Denormalized counter maintenance
 -- ============================================================
 
 -- Update topics.vote_count and topics.score on vote insert/delete

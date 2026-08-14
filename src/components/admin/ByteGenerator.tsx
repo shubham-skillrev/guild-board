@@ -63,7 +63,7 @@ export function ByteGenerator() {
       toast(
         data.llm_available
           ? `Drafted ${data.count} bytes (${data.summarized} summarized)`
-          : `Drafted ${data.count} bytes — no API key, write summaries by hand`,
+          : `Drafted ${data.count} bytes - no API key, write summaries by hand`,
         'success',
       )
       await load()
@@ -116,7 +116,7 @@ export function ByteGenerator() {
       })
       const data = await res.json()
       if (!res.ok) { toast(data.error || 'Could not publish', 'error'); return }
-      toast('Published — everyone notified 📡', 'success')
+      toast('Published - everyone notified 📡', 'success')
       await load()
     } finally {
       setPublishing(false)
@@ -132,7 +132,7 @@ export function ByteGenerator() {
         <div className="min-w-0">
           <h2 className="text-[15px] font-semibold text-ink">Bytes</h2>
           <p className="text-[12px] text-cha mt-0.5 leading-relaxed">
-            Pulls real stories from Hacker News, dev.to and GitHub. Summaries are AI-drafted —
+            Pulls real stories from Hacker News, dev.to and GitHub. Summaries are AI-drafted -
             review them, add your own take, then publish.
           </p>
         </div>
@@ -194,7 +194,7 @@ export function ByteGenerator() {
                 <div className="space-y-2">
                   <div>
                     <Label htmlFor={`sum-${b.id}`}>
-                      Summary <span className="font-normal normal-case tracking-normal text-cha">(AI draft — edit freely)</span>
+                      Summary <span className="font-normal normal-case tracking-normal text-cha">(AI draft - edit freely)</span>
                     </Label>
                     <Textarea
                       id={`sum-${b.id}`}
@@ -222,7 +222,7 @@ export function ByteGenerator() {
                   </div>
                 </div>
 
-                {/* Funnel — available after publish, ranked by interest taps. */}
+                {/* Funnel - available after publish, ranked by interest taps. */}
                 {!isDraft && !b.seeded_topic_id && (
                   <div className="mt-2.5">
                     <Button size="sm" variant="secondary" onClick={() => seedTopic(b.id)}>

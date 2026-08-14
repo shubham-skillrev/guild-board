@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "GuildBoard — Where Guilds Shape What’s Next",
+    name: "GuildBoard - Where Guilds Shape What’s Next",
     short_name: "GuildBoard",
     description:
-      "A structured, async platform for engineering guilds to surface ideas, vote on what to explore, and track outcomes — cycle by cycle.",
+      "A structured, async platform for engineering guilds to surface ideas, vote on what to explore, and track outcomes - cycle by cycle.",
     start_url: "/",
     scope: "/",
     display: "standalone",

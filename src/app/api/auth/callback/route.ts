@@ -53,7 +53,7 @@ export async function GET(request: Request) {
     .single()
 
   if (!existingUser) {
-    // First login — insert user row; empty username triggers setup modal
+    // First login - insert user row; empty username triggers setup modal
     const { error: insertError } = await admin.from('users').insert({
       id: data.user.id,
       email: data.user.email ?? '',

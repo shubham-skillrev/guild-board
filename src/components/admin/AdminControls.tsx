@@ -26,7 +26,7 @@ function getSecondFriday(month: number, year: number): string {
 /** Convert datetime-local value to ISO string in IST (UTC+5:30) */
 function datetimeLocalToISO(dtLocal: string): string {
   if (!dtLocal) return ''
-  // dtLocal is "YYYY-MM-DDTHH:mm" — treat as IST
+  // dtLocal is "YYYY-MM-DDTHH:mm" - treat as IST
   return new Date(dtLocal + ':00+05:30').toISOString()
 }
 
@@ -108,7 +108,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
       options?.onSuccess?.(data)
       if (options?.refresh !== false) router.refresh()
     } catch {
-      setError('Network error — please try again')
+      setError('Network error - please try again')
     } finally {
       setLoading(null)
     }
@@ -266,7 +266,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
       {activeCycle && (
         <section>
           <h2 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-4">
-            Active Cycle — {activeCycle.label}
+            Active Cycle - {activeCycle.label}
           </h2>
 
           {/* Cycle controls */}

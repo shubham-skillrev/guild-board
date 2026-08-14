@@ -53,7 +53,7 @@ export default async function LandingPage() {
             </Link>
           </div>
 
-          {/* Three pillars — simple cards */}
+          {/* Three pillars - simple cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-2 sm:pt-4">
             <div className="group p-4 sm:p-5 bg-paper/55 border border-border hover:border-saffron/35 transition-all rounded-2xl sm:rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.22)] sm:shadow-none">
               <div className="flex items-center justify-center sm:block gap-3 sm:gap-0">
