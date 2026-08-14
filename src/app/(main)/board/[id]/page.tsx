@@ -17,6 +17,7 @@ import { FaHandshake } from 'react-icons/fa6'
 import { IoArrowBack } from 'react-icons/io5'
 import { FiEdit2, FiTrash2 } from 'react-icons/fi'
 import { SparkButton } from '@/components/voting/SparkButton'
+import { SignalRow } from '@/components/topics/SignalRow'
 import type { Topic, Comment } from '@/types'
 
 interface TopicDetail extends Topic {
@@ -421,10 +422,15 @@ export default function TopicDetailPage({
               </div>
 
               {/* Description — rendered as markdown */}
-              <div className="prose-guild mb-8">
+              <div className="prose-guild mb-5">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {topic.description}
                 </ReactMarkdown>
+              </div>
+
+              {/* One-tap responses — usable even when the board is locked. */}
+              <div className="mb-8">
+                <SignalRow topicId={topic.id} />
               </div>
             </>
           )}

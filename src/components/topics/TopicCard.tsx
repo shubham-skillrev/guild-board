@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { SignalRow } from '@/components/topics/SignalRow'
 import { cn } from '@/lib/utils/cn'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { UserAvatar } from '@/components/ui/UserAvatar'
@@ -64,6 +65,12 @@ export function TopicCard({
   const canContrib = phase === 'open' && !isOwner
   const style = CATEGORY_STYLES[topic.category] ?? CATEGORY_STYLES.discussion
   const commentCount = (topic as Topic & { comment_count?: number }).comment_count ?? 0
+  const withSignals = topic as Topic & {
+    signal_counts?: Record<string, number>
+    my_signals?: string[]
+  }
+  const signalCounts = withSignals.signal_counts ?? {}
+  const mySignals = withSignals.my_signals ?? []
   const titlePreview = topic.title.length > 52 ? `${topic.title.slice(0, 52)}...` : topic.title
   const descriptionPreview = topic.description.length > 50 ? `${topic.description.slice(0, 50)}...` : topic.description
 
@@ -143,6 +150,17 @@ export function TopicCard({
             <IoChatbubbleOutline className="w-3.5 h-3.5" />
             {commentCount > 0 ? commentCount : 'Discuss'}
           </span>
+        </div>
+
+        {/* One-tap signals. Counts arrive inline with /api/topics, and the
+            buttons stop propagation so they work inside the card's Link. */}
+        <div className="pt-1.5">
+          <SignalRow
+            topicId={topic.id}
+            compact
+            initialCounts={signalCounts}
+            initialMine={mySignals}
+          />
         </div>
       </div>
 

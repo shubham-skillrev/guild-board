@@ -37,3 +37,24 @@ export const CARRY_FORWARD_MIN_VOTES = 2
 export const MAX_SELECTED_TOPICS = 10 // Maximum topics admin can select per cycle
 
 export const HALL_OF_FLAME_THRESHOLD = 5 // Sparks needed for badge (admin-configurable in V2)
+
+// ─── Topic signals ───────────────────────────────────────────
+// One-tap responses. Unlimited, unscored, available in every cycle phase.
+// Deliberately no negative option: a public downvote of a named colleague is
+// exactly the risk that keeps quiet members quiet.
+export const SIGNAL_KINDS = ['curious', 'would_attend', 'explain_more', 'done_this'] as const
+export type SignalKind = (typeof SIGNAL_KINDS)[number]
+
+export const SIGNAL_LABELS: Record<SignalKind, string> = {
+  curious: 'Curious',
+  would_attend: 'I’d attend',
+  explain_more: 'Explain more',
+  done_this: 'Done this',
+}
+
+export const SIGNAL_EMOJI: Record<SignalKind, string> = {
+  curious: '👀',
+  would_attend: '🙋',
+  explain_more: '🤔',
+  done_this: '🛠️',
+}

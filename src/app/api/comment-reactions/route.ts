@@ -1,7 +1,13 @@
 // ROUTE: POST /api/comment-reactions, DELETE /api/comment-reactions
 // AUTH: authenticated
-// PURPOSE: Like / dislike a comment. One reaction per user per comment.
-//          POST with same reaction = toggle off. POST with opposite = flip.
+// PURPOSE: Like a comment. One reaction per user per comment; POST with the
+//          same reaction toggles it off.
+// NOTE: dislike (-1) is rejected. A public downvote of a named colleague on a
+//       30-person company board is the kind of exposure that keeps quiet
+//       members quiet. The table and its CHECK still allow -1 and existing
+//       rows are untouched, so this is reversible.
+// DB TABLES: comment_reactions, comments
+// RLS: server client
 
 import { createClient } from '@/lib/supabase/server'
 import { notifyOnLike, notifyAfterResponse } from '@/lib/push/notify'
@@ -16,8 +22,8 @@ export async function POST(request: Request) {
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }) }
 
   const { comment_id, reaction } = body
-  if (!comment_id || (reaction !== 1 && reaction !== -1)) {
-    return NextResponse.json({ error: 'comment_id and reaction (1 or -1) required' }, { status: 400 })
+  if (!comment_id || reaction !== 1) {
+    return NextResponse.json({ error: 'comment_id and reaction (1) required' }, { status: 400 })
   }
 
   // Verify comment exists and is not deleted

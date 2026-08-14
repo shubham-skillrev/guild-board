@@ -135,6 +135,16 @@ const COPY = {
     body: (label: string) =>
       `${label} discussions are done. Give your one spark to someone who stood out.`,
   },
+  explainMore: {
+    titles: [
+      "Koi samajhna chahta hai",
+      "Someone wants more",
+      "Aapke topic pe sawaal",
+      "Thoda aur detail?",
+    ],
+    body: (title: string) =>
+      `Someone tapped "Explain more" on "${title}". Do lines add kar do?`,
+  },
   ideaTaken: {
     titles: [
       "Aapka idea uthaya gaya",
@@ -361,6 +371,27 @@ export async function notifyOnCycleEnded(args: { label: string }) {
     url: "/leaderboard",
     tag: `cycle-end:${args.label}`,
     requireInteraction: true,
+  });
+}
+
+/**
+ * Someone tapped "Explain more" — a question posed to the author without
+ * anyone having to write a paragraph under their own name.
+ *
+ * The asker is intentionally not named: attaching a name to "I didn't
+ * understand this" is the exact cost this signal exists to remove.
+ */
+export async function notifyOnExplainMore(args: {
+  topicId: string;
+  toUserId: string;
+  title: string;
+}) {
+  await sendPushToUser(args.toUserId, {
+    title: pick(COPY.explainMore.titles),
+    body: COPY.explainMore.body(truncate(args.title, 60)),
+    url: `/board/${args.topicId}`,
+    // Collapse repeats: five people asking should not mean five buzzes.
+    tag: `explain-more:${args.topicId}`,
   });
 }
 

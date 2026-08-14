@@ -51,19 +51,39 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Get current user's votes and contributions for this cycle
-  const [{ data: userVotes }, { data: userContribs }] = await Promise.all([
+  const topicIds = (topics ?? []).map(t => t.id)
+
+  // Get current user's votes and contributions for this cycle, plus signals
+  // for these topics. Signals ship inline so the board does not fire one
+  // request per card.
+  const [{ data: userVotes }, { data: userContribs }, { data: signals }] = await Promise.all([
     supabase.from('votes').select('topic_id').eq('user_id', user.id).eq('cycle_id', cycleId),
     supabase.from('contributions').select('topic_id').eq('user_id', user.id).eq('cycle_id', cycleId),
+    topicIds.length
+      ? supabase.from('topic_signals').select('topic_id, signal, user_id').in('topic_id', topicIds)
+      : Promise.resolve({ data: [] as { topic_id: string; signal: string; user_id: string }[] }),
   ])
 
   const votedTopicIds = new Set((userVotes ?? []).map(v => v.topic_id))
   const contribTopicIds = new Set((userContribs ?? []).map(c => c.topic_id))
 
+  const signalCounts = new Map<string, Record<string, number>>()
+  const mySignals = new Map<string, string[]>()
+  for (const row of signals ?? []) {
+    const counts = signalCounts.get(row.topic_id) ?? {}
+    counts[row.signal] = (counts[row.signal] ?? 0) + 1
+    signalCounts.set(row.topic_id, counts)
+    if (row.user_id === user.id) {
+      mySignals.set(row.topic_id, [...(mySignals.get(row.topic_id) ?? []), row.signal])
+    }
+  }
+
   const result = (topics ?? []).map((topic: any) => ({
     ...serializeTopic(topic, user.id),
     user_has_voted: votedTopicIds.has(topic.id),
     user_has_contribed: contribTopicIds.has(topic.id),
+    signal_counts: signalCounts.get(topic.id) ?? {},
+    my_signals: mySignals.get(topic.id) ?? [],
   }))
 
   return NextResponse.json(result)

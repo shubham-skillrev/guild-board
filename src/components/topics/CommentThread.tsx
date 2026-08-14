@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { cn } from '@/lib/utils/cn'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useToast } from '@/hooks/useToast'
-import { FiEdit2, FiTrash2, FiThumbsUp, FiThumbsDown } from 'react-icons/fi'
+import { FiEdit2, FiTrash2, FiThumbsUp } from 'react-icons/fi'
 import { IoReturnUpForward } from 'react-icons/io5'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -261,27 +261,15 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
     setEditing(false)
   }
 
-  const handleReaction = async (value: 1 | -1) => {
+  // Like is the only reaction now; -1 is rejected server-side.
+  const handleReaction = async (value: 1) => {
     if (!currentUserId || reactionPending) return
     const prev = comment.user_reaction ?? null
 
-    // Compute optimistic deltas
-    let likeDelta = 0
-    let dislikeDelta = 0
-    let nextReaction: 1 | -1 | null
-
-    if (prev === value) {
-      // Toggle off
-      nextReaction = null
-      if (value === 1) likeDelta = -1
-      else dislikeDelta = -1
-    } else {
-      nextReaction = value
-      if (prev === 1) likeDelta = -1
-      if (prev === -1) dislikeDelta = -1
-      if (value === 1) likeDelta += 1
-      else dislikeDelta += 1
-    }
+    const isOn = prev === value
+    const nextReaction: 1 | null = isOn ? null : value
+    const likeDelta = isOn ? -1 : 1
+    const dislikeDelta = 0
 
     // Optimistic
     onReactionChange(comment.id, nextReaction, likeDelta, dislikeDelta)
@@ -308,7 +296,6 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
 
   const timeAgo = getTimeAgo(comment.created_at)
   const likeCount = comment.like_count ?? 0
-  const dislikeCount = comment.dislike_count ?? 0
 
   return (
     <div className={cn('group/comment', depth > 0 && 'ml-5 pl-3 border-l border-border/50')}>
@@ -364,38 +351,25 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
 
         {/* Actions */}
         <div className="flex items-center gap-3 mt-1.5">
-          {/* Like / dislike */}
+          {/* Like only. The dislike button was removed deliberately: in a
+              30-person company board, "2 dislikes" means two named colleagues
+              publicly downvoted you, which is exactly the risk that keeps
+              quiet members quiet. Existing rows are kept, just not shown. */}
           {currentUserId && (
-            <>
-              <button
-                onClick={() => handleReaction(1)}
-                disabled={reactionPending}
-                className={cn(
-                  'inline-flex items-center gap-1 text-[11px] transition-colors cursor-pointer',
-                  comment.user_reaction === 1
-                    ? 'text-matcha'
-                    : 'text-cha hover:text-matcha',
-                  reactionPending && 'opacity-50 cursor-wait',
-                )}
-              >
-                <FiThumbsUp className={cn('w-3 h-3', comment.user_reaction === 1 && 'animate-vote-pop')} />
-                {likeCount > 0 && <span>{likeCount}</span>}
-              </button>
-              <button
-                onClick={() => handleReaction(-1)}
-                disabled={reactionPending}
-                className={cn(
-                  'inline-flex items-center gap-1 text-[11px] transition-colors cursor-pointer',
-                  comment.user_reaction === -1
-                    ? 'text-vermillion'
-                    : 'text-cha hover:text-vermillion',
-                  reactionPending && 'opacity-50 cursor-wait',
-                )}
-              >
-                <FiThumbsDown className={cn('w-3 h-3', comment.user_reaction === -1 && 'animate-vote-pop')} />
-                {dislikeCount > 0 && <span>{dislikeCount}</span>}
-              </button>
-            </>
+            <button
+              onClick={() => handleReaction(1)}
+              disabled={reactionPending}
+              className={cn(
+                'inline-flex items-center gap-1 text-[11px] transition-colors cursor-pointer',
+                comment.user_reaction === 1
+                  ? 'text-matcha'
+                  : 'text-cha hover:text-matcha',
+                reactionPending && 'opacity-50 cursor-wait',
+              )}
+            >
+              <FiThumbsUp className={cn('w-3 h-3', comment.user_reaction === 1 && 'animate-vote-pop')} />
+              {likeCount > 0 && <span>{likeCount}</span>}
+            </button>
           )}
 
           {depth < maxDepth && (
