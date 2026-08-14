@@ -150,7 +150,7 @@ function stripHtml(s: string): string {
  * One failing feed must never take the digest down with it, so each is fetched
  * independently and a null simply contributes nothing.
  */
-async function fetchBlogs(sinceMs: number): Promise<Candidate[]> {
+async function fetchBlogs(sinceMs: number, perFeedMax: number): Promise<Candidate[]> {
   const parser = new XMLParser({ ignoreAttributes: false, trimValues: true })
 
   const perFeed = await Promise.all(
@@ -173,15 +173,16 @@ async function fetchBlogs(sinceMs: number): Promise<Candidate[]> {
       const rawItems = channel.item ?? channel.entry ?? []
       const items: Record<string, unknown>[] = Array.isArray(rawItems) ? rawItems : [rawItems]
 
-      /* Cap per feed. Verified against a live run: Cloudflare alone published
-         15 of the 23 articles across all twelve blogs in one week, so without
-         this the digest becomes one company's newsletter. Feeds are ordered
-         newest-first, so taking the head keeps the most recent. */
-      const PER_FEED_MAX = 3
-
+      /* Cap per feed, scaled to how big a pool the caller asked for.
+         Verified against a live run: Cloudflare alone published 15 of the 23
+         articles across all twelve blogs in one week, so an uncapped fetch
+         makes the digest one company's newsletter.
+         The cap has to scale, though. Feeds are newest-first, so a fixed cap
+         of 3 returns the same three stories on every refetch, and those are
+         exactly the ones already published and about to be filtered out. */
       const out: Candidate[] = []
       for (const item of items) {
-        if (out.length >= PER_FEED_MAX) break
+        if (out.length >= perFeedMax) break
         const title = firstString(item.title)
         const url = linkOf(item)
         if (!title || !url) continue
@@ -342,8 +343,14 @@ export async function fetchCandidates(days = 8, limit = 10): Promise<Candidate[]
      it now has to clear a high score floor and link to an actual article.
      Lobsters and dev.to are gone: both rank community opinion posts alongside
      engineering writing, and that is where the off-topic items came from. */
+  /* Roughly a quarter of the target from any one blog, floored at 3 so a
+     small request still gets a usable spread. At the pool sizes generate.ts
+     asks for this is ~15 per feed, which leaves enough headroom that a
+     refetch still finds unpublished stories. */
+  const perFeedMax = Math.max(3, Math.ceil(limit / 4))
+
   const results = await Promise.all([
-    fetchBlogs(sinceMs),
+    fetchBlogs(sinceMs, perFeedMax),
     fetchHN(sinceUnix),
     fetchGitHub(sinceISO),
   ])
