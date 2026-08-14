@@ -135,6 +135,28 @@ const COPY = {
     body: (label: string) =>
       `${label} discussions are done. Give your one spark to someone who stood out.`,
   },
+  ideaTaken: {
+    titles: [
+      "Aapka idea uthaya gaya",
+      "Someone picked your idea",
+      "Bank se board pe",
+      "Idea ko ghar mil gaya",
+    ],
+    body: (taker: string, title: string) =>
+      `${taker} took "${title}" to the board. Aapka idea, unki pitch.`,
+  },
+  bankNudge: {
+    titles: [
+      "Bank mein ideas pade hain",
+      "Naya cycle, purane ideas",
+      "Time to cash in",
+      "Board khula, bank bhara",
+    ],
+    body: (count: number, label: string) =>
+      count === 1
+        ? `You have 1 banked idea. ${label} is open — put it on the board?`
+        : `You have ${count} banked ideas. ${label} is open — pick one for the board.`,
+  },
 };
 
 const truncate = (s: string, n = 100) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
@@ -340,4 +362,53 @@ export async function notifyOnCycleEnded(args: { label: string }) {
     tag: `cycle-end:${args.label}`,
     requireInteraction: true,
   });
+}
+
+/** Someone promoted an open idea from the bank — tell whoever banked it. */
+export async function notifyOnIdeaTaken(args: {
+  toUserId: string;
+  actorId: string;
+  title: string;
+  topicId: string;
+}) {
+  if (args.toUserId === args.actorId) return;
+
+  const admin = createAdminClient();
+  const taker = await getUsername(admin, args.actorId);
+
+  await sendPushToUser(args.toUserId, {
+    title: pick(COPY.ideaTaken.titles),
+    body: COPY.ideaTaken.body(taker, truncate(args.title, 60)),
+    url: `/board/${args.topicId}`,
+    tag: `idea-taken:${args.topicId}`,
+  });
+}
+
+/**
+ * On cycle open, nudge only members holding unpromoted banked ideas.
+ * Targeted rather than broadcast: a reason to act, not another announcement.
+ */
+export async function notifyOnCycleOpenWithBank(args: { label: string }) {
+  const admin = createAdminClient();
+
+  const { data: banked } = await admin
+    .from("idea_bank")
+    .select("user_id")
+    .is("promoted_topic_id", null);
+
+  if (!banked?.length) return;
+
+  const counts = new Map<string, number>();
+  for (const row of banked) counts.set(row.user_id, (counts.get(row.user_id) ?? 0) + 1);
+
+  await Promise.all(
+    Array.from(counts.entries()).map(([userId, count]) =>
+      sendPushToUser(userId, {
+        title: pick(COPY.bankNudge.titles),
+        body: COPY.bankNudge.body(count, args.label),
+        url: "/bank",
+        tag: `bank-nudge:${args.label}`,
+      }).catch((err) => console.warn("bank nudge failed", err)),
+    ),
+  );
 }

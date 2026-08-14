@@ -74,6 +74,28 @@ export interface Topic {
   can_spark_author?: boolean
 }
 
+/**
+ * A banked idea. Unlimited and capturable in any cycle phase — unlike topics,
+ * which are capped at 1 per cycle and locked once a meeting starts.
+ */
+export interface BankedIdea {
+  id: string
+  user_id?: string            // omitted for anonymous open ideas
+  title: string
+  note: string | null
+  category: CategoryTag | null
+  is_open: boolean            // up for grabs — anyone may promote it
+  is_anonymous: boolean
+  promoted_topic_id: string | null
+  promoted_by: string | null
+  promoted_at: string | null
+  created_at: string
+  updated_at: string
+  // Joined / server-computed
+  author_username?: string
+  is_owner?: boolean
+}
+
 export interface Comment {
   id: string
   topic_id: string

@@ -6,7 +6,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { notifyOnCycleOpen, notifyOnCycleEnded, notifyAfterResponse } from '@/lib/push/notify'
+import { notifyOnCycleOpen, notifyOnCycleEnded, notifyOnCycleOpenWithBank, notifyAfterResponse } from '@/lib/push/notify'
 import { NextResponse } from 'next/server'
 
 export async function PATCH(request: Request) {
@@ -84,6 +84,8 @@ export async function PATCH(request: Request) {
   if (cycle.status !== status) {
     if (status === 'open') {
       notifyAfterResponse(notifyOnCycleOpen({ label: data.label }), "notifyOnCycleOpen")
+      // Targeted follow-up: members holding banked ideas get a reason to act.
+      notifyAfterResponse(notifyOnCycleOpenWithBank({ label: data.label }), "notifyOnCycleOpenWithBank")
     } else if (status === 'frozen') {
       notifyAfterResponse(notifyOnCycleEnded({ label: data.label }), "notifyOnCycleEnded")
     }

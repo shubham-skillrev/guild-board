@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserAvatar } from '@/components/ui/UserAvatar'
-import { IoGridOutline, IoTrophyOutline, IoShieldCheckmarkOutline } from 'react-icons/io5'
+import { IoGridOutline, IoTrophyOutline, IoShieldCheckmarkOutline, IoBulbOutline } from 'react-icons/io5'
 import { cn } from '@/lib/utils/cn'
 
 interface NavLinksProps {
@@ -16,6 +16,7 @@ interface NavLinksProps {
 export function DesktopNavLinks({ role }: NavLinksProps) {
   const pathname = usePathname()
   const isBoard = pathname.startsWith('/board')
+  const isBank = pathname.startsWith('/bank')
   const isLeaders = pathname.startsWith('/leaderboard')
   const isAdmin = pathname.startsWith('/admin')
 
@@ -29,6 +30,15 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
         )}
       >
         Board
+      </Link>
+      <Link
+        href="/bank"
+        className={cn(
+          'px-3 py-2 border-b-2 transition-all',
+          isBank ? 'text-ink border-saffron' : 'text-ink-soft border-transparent hover:text-ink'
+        )}
+      >
+        Ideas
       </Link>
       <Link
         href="/leaderboard"
@@ -57,6 +67,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
 export function MobileBottomNav({ role, username }: NavLinksProps) {
   const pathname = usePathname()
   const isBoard = pathname.startsWith('/board')
+  const isBank = pathname.startsWith('/bank')
   const isLeaders = pathname.startsWith('/leaderboard')
   const isAdmin = pathname.startsWith('/admin')
   const isProfile = pathname.startsWith('/profile')
@@ -66,7 +77,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
 
   const nav = (
     <nav className="md:hidden fixed inset-x-0 bottom-0 z-[9999] bg-paper/95 backdrop-blur-xl border-t border-border pb-[env(safe-area-inset-bottom)]">
-      <div className={cn('grid px-2 py-1.5', role === 'admin' ? 'grid-cols-4' : 'grid-cols-3')}>
+      <div className={cn('grid px-2 py-1.5', role === 'admin' ? 'grid-cols-5' : 'grid-cols-4')}>
         <Link
           href="/board"
           className={cn(
@@ -76,6 +87,16 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
         >
           <IoGridOutline className="w-4.5 h-4.5" />
           <span>Board</span>
+        </Link>
+        <Link
+          href="/bank"
+          className={cn(
+            'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-lg',
+            isBank ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
+          )}
+        >
+          <IoBulbOutline className="w-4.5 h-4.5" />
+          <span>Ideas</span>
         </Link>
         <Link
           href="/leaderboard"
