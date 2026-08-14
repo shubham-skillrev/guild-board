@@ -31,7 +31,7 @@ interface AdminDigest {
 /**
  * Curation panel for the live digest.
  *
- * There is no review-then-publish flow: the weekly job publishes on its own
+ * There is no review-then-publish flow: the scheduled job publishes on its own
  * schedule and this edits what is already live. Summaries and notes are
  * optional, because a story's title and link are useful on their own and
  * blocking the whole digest on prose nobody has written yet just means the
@@ -107,7 +107,7 @@ export function ByteGenerator() {
     <section className="rounded-(--radius-card) border border-border bg-paper/40 p-(--pad-card)">
       <SectionHeader
         title="Bytes"
-        hint="fetched every Monday, live on arrival"
+        hint="fetched every other morning, live on arrival"
         href="/bytes"
         hrefLabel="View"
       />
@@ -133,7 +133,7 @@ export function ByteGenerator() {
         <p className="type-body text-cha">Loading…</p>
       ) : !digest ? (
         <p className="type-body text-cha">
-          No digest yet. The Monday job creates one automatically, or fetch now.
+          No digest yet. The scheduled job creates one every other morning, or fetch now.
         </p>
       ) : (
         <>

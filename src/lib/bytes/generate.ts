@@ -5,17 +5,19 @@ import { selectMix } from '@/lib/bytes/domains'
 import { summarizeCandidates } from '@/lib/bytes/summarize'
 
 /**
- * Build one digest. Shared by the weekly cron and the admin's manual button so
- * the two paths cannot drift apart.
+ * Build one digest. Shared by the scheduled cron and the admin's manual button
+ * so the two paths cannot drift apart.
  */
+
+export type DigestKind = 'daily' | 'weekly' | 'monthly'
 
 export interface GenerateOptions {
   /** Lookback window in days. */
   days?: number
   /** How many stories to keep. */
   limit?: number
-  kind?: 'weekly' | 'monthly'
-  /** Monday of the covered week. Enforces one automatic digest per period. */
+  kind?: DigestKind
+  /** The date the digest covers. Enforces one automatic digest per period. */
   periodStart?: string | null
   label?: string
   cycleId?: string | null
@@ -40,6 +42,25 @@ export type GenerateResult =
       mix: MediumCounts
     }
   | { ok: false; reason: 'no_candidates' | 'all_seen' | 'duplicate_period' | 'db_error'; message: string }
+
+/** The UTC date itself, which is the period a daily digest covers. */
+export function dayStart(date = new Date()): string {
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  )
+    .toISOString()
+    .slice(0, 10)
+}
+
+export function dayLabel(periodStart: string): string {
+  const d = new Date(`${periodStart}T00:00:00Z`)
+  return d.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'UTC',
+  })
+}
 
 /** Monday 00:00 UTC of the week containing `date`. */
 export function weekStart(date = new Date()): string {
@@ -126,7 +147,13 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
   // just with blank summaries to fill in by hand.
   const summaries = await summarizeCandidates(fresh)
 
-  const label = opts.label?.trim() || (periodStart ? weekLabel(periodStart) : monthLabel())
+  const label =
+    opts.label?.trim() ||
+    (periodStart
+      ? kind === 'daily'
+        ? dayLabel(periodStart)
+        : weekLabel(periodStart)
+      : monthLabel())
 
   const { data: digest, error: digestErr } = await admin
     .from('byte_digests')

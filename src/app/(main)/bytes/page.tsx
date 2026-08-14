@@ -83,7 +83,7 @@ export default function BytesPage() {
         subtitle={
           digest
             ? `${digest.label}. Upvote anything you want on the meeting agenda.`
-            : "Articles, reporting and talks from the week, worth two minutes."
+            : "Articles, reporting and talks, fresh every other morning."
         }
         /* Only offered when the digest actually carries both kinds. A filter
            with nothing to filter is a control that teaches you it does
@@ -100,8 +100,8 @@ export default function BytesPage() {
       ) : isEmpty ? (
         <EmptyState
           icon={Broadcast}
-          title="Nothing yet this week"
-          body="A fresh digest lands every Monday morning. Upvote anything you want turned into a topic."
+          title="Nothing here yet"
+          body="A fresh drop lands every other morning. Upvote anything you want turned into a topic."
         />
       ) : (
         <div className="space-y-(--gap-section)">
@@ -143,9 +143,11 @@ export default function BytesPage() {
               <SectionHeader
                 id="bytes-week"
                 title={
-                  digest?.kind === "weekly"
-                    ? "This week"
-                    : "Also in this digest"
+                  digest?.kind === "daily"
+                    ? "In this drop"
+                    : digest?.kind === "weekly"
+                      ? "This week"
+                      : "Also in this digest"
                 }
                 hint={`${shownBytes.length} more`}
               />

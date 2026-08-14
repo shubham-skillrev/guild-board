@@ -17,6 +17,7 @@ Idea Bank, signals, ask-by-name, or Bytes features works until they are.
 | 016 | `016_bytes_blog_source.sql` | engineering-blog source |
 | 017 | `017_release_deleted_promotions.sql` | frees a banked idea when its topic is deleted |
 | 018 | `018_bytes_media_mix.sql` | `news` and `video` sources, `source_name`, `thumbnail_url` |
+| 019 | `019_bytes_daily_kind.sql` | `daily` digest kind, for the every-other-day cron |
 
 > **015 is required for the weekly cron.** Without it the source CHECK still
 > rejects Lobsters, so every automatic run dies on `bytes_source_check`. This
@@ -26,6 +27,10 @@ Idea Bank, signals, ask-by-name, or Bytes features works until they are.
 > `source_name` and `thumbnail_url`, and the generator writes `source = 'video'`
 > and `'news'`, so without it reads fail on the missing columns and every
 > insert fails the source CHECK.
+
+> **019 is required for the cron.** It runs every other morning and writes
+> `kind = 'daily'`, which the old CHECK rejects, so every automatic run dies on
+> `byte_digests_kind_check` until this is applied.
 
 ### Applying them
 

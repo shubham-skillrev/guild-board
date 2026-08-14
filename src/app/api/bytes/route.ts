@@ -8,8 +8,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
-/** How many past digests the Top section draws from. */
-const TOP_WINDOW = 5
+/* How many past digests the Top section draws from. Counted in digests, not
+   days, so it has to track the cadence: at one digest every other morning, 7
+   covers roughly a fortnight - long enough that a story which gained traction
+   last week can still lead, short enough that "Top right now" is not showing
+   something from a month ago. It was 5 on a weekly cadence. */
+const TOP_WINDOW = 7
 const TOP_COUNT = 3
 
 interface RankableByte {

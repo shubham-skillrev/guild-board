@@ -133,10 +133,12 @@ const COPY = {
       `${label} is done. You have 48 hours to give your one spark to someone who showed up.`,
   },
   bytesPublished: {
+    /* No "this week" here any more: the digest lands every other morning, and
+       copy that names a cadence goes stale the moment the schedule changes. */
     titles: [
-      "This week in tech, compressed",
+      "Tech, compressed",
       "Fresh bytes are up",
-      "Your weekly diff",
+      "Today's diff",
       "New bytes dropped",
     ],
     /* The breakdown is the part that earns the tap. "10 things worth knowing"
