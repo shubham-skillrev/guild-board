@@ -2,43 +2,109 @@
 
 @theme {
   /* ═══════════════════════════════════════════════════════
-     GuildBoard - Wabi-Sabi × Rangoli Dark Theme
-     Japanese minimalism meets Indian warmth
+     GuildBoard design tokens
+     Dark only. Neutral surfaces, one accent, semantic colour.
+     Rule: a colour means something or it does not appear.
      ═══════════════════════════════════════════════════════ */
 
-  /* ─── Ink & Paper (Text hierarchy) ─── */
-  --color-ink: #EDE8E1;          /* Warm parchment white - like handmade washi */
-  --color-ink-soft: #B0AAA3;     /* Stone-washed gray */
-  --color-ink-muted: #807972;    /* Tea-stained subtle */
+  /* ─── Surfaces ───
+     Depth comes from surface lightness first and shadow second, which is
+     how a dark UI gets a sense of layering without muddy drop shadows. */
+  --color-bg: #000000;           /* L0  page ground */
+  --color-surface-1: #131315;    /* L1  cards, rows */
+  --color-surface-2: #1C1C1F;    /* L2  sheets, modals */
+  --color-surface-3: #26262A;    /* L3  menus, popovers */
 
-  /* ─── Surfaces (Dark backgrounds, layered) ─── */
-  --color-parchment: #08080C;    /* Deep void - sumi ink on night sky */
-  --color-paper: #101016;        /* Raised surface - lacquered wood */
-  --color-sumi: #161620;         /* Card surface - charcoal paper */
-  --color-kinu: #1E1E2A;         /* Hover surface - silk shimmer */
-  --color-cha: #6A6474;          /* Muted text & icons - twilight */
+  /* ─── Fills ───
+     Tinted rather than solid so they sit correctly on any surface level. */
+  --color-fill: rgba(120, 120, 128, 0.20);
+  --color-fill-strong: rgba(120, 120, 128, 0.32);
 
-  /* ─── Saffron & Vermillion (Indian warmth) ─── */
-  --color-saffron: #E8913A;      /* Marigold garland / Turmeric glow */
-  --color-saffron-light: #1A1208;
-  --color-vermillion: #DC4A3A;   /* Sindoor red / Alert */
-  --color-vermillion-light: #1C0C0A;
+  /* ─── Content ───
+     An opacity ramp, not four separate greys, so text stays correct
+     whichever surface it lands on. */
+  --color-label: rgba(255, 255, 255, 0.96);
+  --color-label-2: rgba(255, 255, 255, 0.62);
+  --color-label-3: rgba(255, 255, 255, 0.38);
+  --color-label-4: rgba(255, 255, 255, 0.22);
 
-  /* ─── Matcha & Indigo (Japanese calm) ─── */
-  --color-matcha: #3DB88A;       /* Zen garden moss */
-  --color-matcha-light: #0A1A14;
-  --color-indigo-jp: #5B8DEF;    /* Aizome - natural indigo dye */
-  --color-indigo-light: #0C1220;
-  --color-wisteria: #9A7BD4;     /* Fuji / Lotus purple */
-  --color-wisteria-light: #12101E;
+  /* ─── Lines ─── */
+  --color-separator: rgba(255, 255, 255, 0.10);
+  --color-hairline: rgba(255, 255, 255, 0.14);
 
-  /* ─── Borders ─── */
-  --color-border: #1E1E2A;
-  --color-border-strong: #2E2E3C;
+  /* ─── Accent and semantics ───
+     Saffron is the only accent: it marks what you can act on. The other
+     two are states, never decoration. */
+  --color-accent: #E8913A;
+  --color-accent-tint: rgba(232, 145, 58, 0.14);
+  --color-success: #3DB88A;
+  --color-success-tint: rgba(61, 184, 138, 0.14);
+  --color-danger: #DC4A3A;
+  --color-danger-tint: rgba(220, 74, 58, 0.14);
 
-  /* ─── Fonts ─── */
-  --font-sans: var(--font-geist-sans), 'Plus Jakarta Sans', system-ui, sans-serif;
+  /* ═══ Legacy aliases ═══
+     The old palette names remapped onto the new values, so the whole app
+     picks up the new look in one step and keeps building while components
+     migrate to the semantic names above. Deleted once nothing references
+     them. Note wisteria and indigo now resolve to neutral fills: that is
+     the decorative-colour retirement, applied everywhere at once. */
+  --color-ink: var(--color-label);
+  --color-ink-soft: var(--color-label-2);
+  --color-ink-muted: var(--color-label-3);
+  --color-cha: var(--color-label-3);
+  --color-parchment: var(--color-bg);
+  --color-paper: var(--color-surface-1);
+  --color-sumi: var(--color-surface-2);
+  --color-kinu: var(--color-surface-3);
+  --color-border: var(--color-separator);
+  --color-border-strong: var(--color-hairline);
+  --color-saffron: var(--color-accent);
+  --color-saffron-light: var(--color-accent-tint);
+  --color-matcha: var(--color-success);
+  --color-matcha-light: var(--color-success-tint);
+  --color-vermillion: var(--color-danger);
+  --color-vermillion-light: var(--color-danger-tint);
+  --color-indigo-jp: var(--color-label-2);
+  --color-indigo-light: var(--color-fill);
+  --color-wisteria: var(--color-label-2);
+  --color-wisteria-light: var(--color-fill);
+
+  /* ─── Fonts ───
+     System stack for UI: it already ships optical sizing, tracking tables
+     and legibility tuning. The display face is kept for the wordmark only. */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
   --font-serif: var(--font-display), 'Playfair Display', Georgia, serif;
+}
+
+/* ═══════════════════════════════════════════════════════
+   Density
+   One set of values that shift at the tablet breakpoint, so a component
+   writes `padding: var(--pad-card)` once and adapts on its own.
+   Note --control-h inverts: touch needs a bigger target than a pointer.
+   ═══════════════════════════════════════════════════════ */
+:root {
+  --pad-page-x: 16px;
+  --pad-card: 12px;
+  --gap-list: 8px;
+  --gap-section: 28px;
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --control-h: 44px;   /* comfortable thumb target */
+  --icon: 18px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --pad-page-x: 40px;
+    --pad-card: 18px;
+    --gap-list: 12px;
+    --gap-section: 44px;
+    --radius-card: 18px;
+    --radius-control: 12px;
+    --control-h: 36px; /* precise pointer, so tighter reads better */
+    --icon: 16px;
+  }
 }
 
 /* ═══ Base reset & typography ═══ */
@@ -80,59 +146,107 @@ body {
 
 /* ═══════════════════════════════════════════════════════
    Type scale
-   Tracking is size-specific: large text reads too loose as it grows, so it
-   tightens; small text needs a touch more room to stay legible. Leading runs
-   inversely to size. Hierarchy comes from weight + size + leading together,
-   not size alone.
+   Tracking is size-specific: large text reads too loose as it grows so it
+   tightens, small text needs a touch more room to stay legible. Leading runs
+   inversely to size. Hierarchy is weight + size + leading together, never
+   size alone.
    ═══════════════════════════════════════════════════════ */
-.type-display {
-  font-size: clamp(1.75rem, 4vw, 2.25rem);
-  line-height: 1.08;
-  letter-spacing: -0.022em;
+.text-title-1 {
+  font-size: 1.75rem;      /* 28 */
+  line-height: 2.125rem;   /* 34 */
+  letter-spacing: -0.02em;
   font-weight: 700;
 }
-.type-title {
-  font-size: 1.0625rem;
-  line-height: 1.3;
+.text-title-2 {
+  font-size: 1.375rem;     /* 22 */
+  line-height: 1.75rem;    /* 28 */
+  letter-spacing: -0.018em;
+  font-weight: 700;
+}
+.text-title-3 {
+  font-size: 1.0625rem;    /* 17 */
+  line-height: 1.375rem;   /* 22 */
   letter-spacing: -0.012em;
   font-weight: 600;
 }
-.type-body {
-  font-size: 0.8125rem;
-  line-height: 1.6;
+.text-body {
+  font-size: 0.9375rem;    /* 15 */
+  line-height: 1.3125rem;  /* 21 */
+  letter-spacing: -0.006em;
+}
+.text-callout {
+  font-size: 0.875rem;     /* 14 */
+  line-height: 1.1875rem;  /* 19 */
+  letter-spacing: -0.003em;
+}
+.text-footnote {
+  font-size: 0.8125rem;    /* 13 */
+  line-height: 1.125rem;   /* 18 */
   letter-spacing: 0;
 }
-/* Small text over translucent material: slightly heavier and looser so it
-   stays legible when the backdrop shifts. */
-.type-caption {
-  font-size: 0.6875rem;
-  line-height: 1.45;
-  letter-spacing: 0.012em;
+/* Smallest size gets positive tracking and a little extra weight, which is
+   what keeps it legible over translucent chrome. */
+.text-caption {
+  font-size: 0.6875rem;    /* 11 */
+  line-height: 0.875rem;   /* 14 */
+  letter-spacing: 0.01em;
   font-weight: 500;
 }
 .tabular { font-variant-numeric: tabular-nums; }
 
+/* Aliases from the first pass, kept until components move to the scale above. */
+.type-display { font-size: 1.75rem; line-height: 2.125rem; letter-spacing: -0.02em; font-weight: 700; }
+.type-title   { font-size: 1.0625rem; line-height: 1.375rem; letter-spacing: -0.012em; font-weight: 600; }
+.type-body    { font-size: 0.9375rem; line-height: 1.3125rem; letter-spacing: -0.006em; }
+.type-caption { font-size: 0.6875rem; line-height: 0.875rem; letter-spacing: 0.01em; font-weight: 500; }
+
+/* ═══════════════════════════════════════════════════════
+   Elevation
+   Lightness carries the layering; shadow only reinforces it. Larger surfaces
+   sit higher and cast more, which is what stops a dark UI reading as flat.
+   ═══════════════════════════════════════════════════════ */
+.elev-1 {
+  background: var(--color-surface-1);
+  border: 1px solid var(--color-separator);
+}
+.elev-2 {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-hairline);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.40);
+}
+.elev-3 {
+  background: var(--color-surface-3);
+  border: 1px solid var(--color-hairline);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.50);
+}
+
 /* ═══════════════════════════════════════════════════════
    Materials
    Translucent chrome that content scrolls under, rather than an opaque bar
-   that eats a fixed strip. Bigger surfaces read as thicker: more blur, deeper
-   shadow. The bright top edge is light catching the material.
+   that eats a fixed strip. Never stack two translucent layers.
    ═══════════════════════════════════════════════════════ */
 .material-chrome {
-  background: color-mix(in oklab, var(--color-paper) 72%, transparent);
+  background: color-mix(in oklab, var(--color-bg) 72%, transparent);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
 .material-raised {
-  background: color-mix(in oklab, var(--color-sumi) 78%, transparent);
+  background: color-mix(in oklab, var(--color-surface-2) 82%, transparent);
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.40);
 }
 /* Fade content out where it meets floating chrome, instead of a hard 1px rule. */
 .scroll-edge-top {
   mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
+}
+
+/* Focus ring. One definition, so every control agrees. */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-control);
 }
 
 /* ═══════════════════════════════════════════════════════
