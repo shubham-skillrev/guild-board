@@ -1,15 +1,14 @@
 // ROUTE: GET /api/admin/bytes, PATCH /api/admin/bytes, DELETE /api/admin/bytes
 // AUTH: admin only
-// PURPOSE: Review a draft digest - edit summaries, add editor notes, reorder,
-//          drop items, publish. Publishing is the gate that keeps unreviewed
-//          model output from reaching the guild.
+// PURPOSE: Curate a live digest - edit summaries, add your own take, reorder,
+//          drop items. There is no publish step: digests are live on creation
+//          and the admin edits in place.
 // DB TABLES: byte_digests, bytes, users
 // RLS: admin client throughout (drafts are invisible under RLS by design)
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import { notifyOnBytesPublished, notifyAfterResponse } from '@/lib/push/notify'
 
 const SUMMARY_MAX = 400
 const NOTE_MAX = 300
@@ -65,7 +64,7 @@ export async function GET(request: Request) {
  * PATCH - three shapes:
  *   { byte_id, summary?, editor_note?, position? }  edit one byte
  *   { digest_id, label }                            rename the digest
- *   { digest_id, publish: true }                    publish
+ *   { digest_id, hidden: bool }                     hide or restore
  */
 export async function PATCH(request: Request) {
   const gate = await requireAdmin()
@@ -79,7 +78,7 @@ export async function PATCH(request: Request) {
     position?: number
     digest_id?: string
     label?: string
-    publish?: boolean
+    hidden?: boolean
   }
   try { body = await request.json() } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
@@ -126,47 +125,19 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'byte_id or digest_id required' }, { status: 400 })
   }
 
-  // ─── Publish ───
-  if (body.publish) {
-    const { data: bytes } = await admin
-      .from('bytes')
-      .select('id, summary, editor_note')
-      .eq('digest_id', body.digest_id)
-
-    if (!bytes?.length) {
-      return NextResponse.json({ error: 'Nothing to publish' }, { status: 400 })
-    }
-    if (bytes.some(b => !b.summary?.trim())) {
-      return NextResponse.json(
-        { error: 'Every byte needs a summary before publishing. Delete the ones you don’t want.' },
-        { status: 400 },
-      )
-    }
-    // A digest with a human voice gets read; a bare link list gets muted.
-    if (bytes.filter(b => b.editor_note?.trim()).length < 2) {
-      return NextResponse.json(
-        { error: 'Add your own take to at least 2 items - that’s what makes people read it.' },
-        { status: 400 },
-      )
-    }
-
-    const { data: digest, error } = await admin
+  // ─── Visibility ───
+  // Digests are live from creation, so there is no publish step. This only
+  // exists to pull one back if something needs fixing in public.
+  if (body.hidden !== undefined) {
+    const { data, error } = await admin
       .from('byte_digests')
-      .update({ status: 'published', published_at: new Date().toISOString() })
+      .update({ status: body.hidden ? 'draft' : 'published' })
       .eq('id', body.digest_id)
-      .eq('status', 'draft')
       .select()
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    if (!digest) return NextResponse.json({ error: 'Already published' }, { status: 409 })
-
-    notifyAfterResponse(
-      notifyOnBytesPublished({ label: digest.label, count: bytes.length }),
-      'notifyOnBytesPublished',
-    )
-
-    return NextResponse.json(digest)
+    return NextResponse.json(data)
   }
 
   // ─── Rename ───
@@ -188,7 +159,7 @@ export async function PATCH(request: Request) {
   return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
 }
 
-/** DELETE - drop one byte from a draft, or the whole digest. */
+/** DELETE - drop one byte, or the whole digest. */
 export async function DELETE(request: Request) {
   const gate = await requireAdmin()
   if (gate.error) return gate.error

@@ -168,10 +168,10 @@ export default async function LeaderboardPage() {
     <div className="px-5 md:px-10 py-8 w-full max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="font-serif text-2xl font-bold text-ink tracking-tight">
+        <h1 className="type-display font-serif text-ink">
           Top Builders
         </h1>
-        <p className="text-[13px] text-ink-soft mt-1">
+        <p className="type-body text-ink-soft mt-1.5">
           {stats ? `${stats.label} · resets every cycle.` : 'Resets every cycle.'} Earn <span className="text-saffron font-medium">⚡ sparks</span> to reach <span className="text-saffron">Hall of Flame</span> 🔥
         </p>
         {hasSparkWindow && (
@@ -189,10 +189,10 @@ export default async function LeaderboardPage() {
             { label: 'People voted', value: stats.voters, icon: '🗳️' },
             { label: 'Taken forward', value: stats.discussed, icon: '✅' },
           ].map(stat => (
-            <div key={stat.label} className="bg-paper/50 border border-border rounded-xl px-3 py-3.5 text-center">
+            <div key={stat.label} className="bg-paper/40 border border-border rounded-xl px-3 py-3.5 text-center">
               <div className="text-base mb-1">{stat.icon}</div>
-              <div className="text-[20px] font-semibold text-ink tabular-nums leading-none">{stat.value}</div>
-              <div className="text-[11px] text-cha mt-1.5">{stat.label}</div>
+              <div className="text-[20px] font-semibold text-ink tabular leading-none">{stat.value}</div>
+              <div className="type-caption text-cha mt-1.5">{stat.label}</div>
             </div>
           ))}
         </section>
@@ -321,7 +321,7 @@ export default async function LeaderboardPage() {
               return (
                 <div
                   key={member.id}
-                  className={`flex items-center gap-2.5 rounded-lg border px-3 py-2.5 transition-colors ${
+                  className={`press flex items-center gap-2.5 rounded-lg border px-3 py-2.5 transition-colors ${
                     alreadyGiven ? 'border-saffron/30 bg-saffron-light/20' : 'border-border hover:bg-kinu/30'
                   }`}
                 >

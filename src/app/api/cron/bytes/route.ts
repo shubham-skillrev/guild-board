@@ -61,7 +61,6 @@ export async function GET(request: Request) {
     periodStart,
     days: 8,          // slight overlap so a story posted late is not missed
     limit: 10,
-    publish: true,    // nobody is watching, so it goes live directly
     createdBy: owner.id,
   })
 

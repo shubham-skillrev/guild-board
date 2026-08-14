@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/useToast'
 import { IdeaCard } from '@/components/bank/IdeaCard'
 import { BankIdeaModal } from '@/components/bank/BankIdeaModal'
 import { Button } from '@/components/ui/Button'
+import { PageHeader, EmptyState, CardSkeleton } from '@/components/ui/Section'
 import type { BankedIdea } from '@/types'
 
 type Tab = 'mine' | 'open'
@@ -85,16 +86,13 @@ export default function BankPage() {
 
   return (
     <div className="px-5 md:px-10 py-8 w-full max-w-3xl mx-auto pb-28 md:pb-8">
-      <div className="mb-6">
-        <h1 className="font-serif text-2xl font-bold text-ink tracking-tight">Idea Bank</h1>
-        <p className="text-[13px] text-ink-soft mt-1 leading-relaxed">
-          Park an idea the moment you have it - any day, any cycle. Bank as many as you like;
-          one goes on the board each cycle.
-        </p>
-      </div>
+      <PageHeader
+        title="Idea Bank"
+        subtitle="Park an idea the moment you have it, any day of any cycle. Bank as many as you like; one goes on the board each cycle."
+        action={<Button onClick={() => setShowModal(true)}>+ Bank an idea</Button>}
+      />
 
       <div className="flex items-center gap-2 mb-5 flex-wrap">
-        <Button onClick={() => setShowModal(true)}>+ Bank an idea</Button>
         {!canPromote && unpromoted.length > 0 && (
           <span className="text-[11px] text-cha">
             {cycle ? 'Board opens next cycle - ideas keep till then.' : 'No cycle open yet.'}
@@ -109,7 +107,7 @@ export default function BankPage() {
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
-            className={`px-3 py-2 text-[13px] font-medium border-b-2 -mb-px transition-all ${
+            className={`press px-3 py-2 text-[13px] font-medium border-b-2 -mb-px transition-colors ${
               tab === t.key
                 ? 'text-ink border-saffron'
                 : 'text-ink-soft border-transparent hover:text-ink'
@@ -122,19 +120,17 @@ export default function BankPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-16 text-[13px] text-cha">Loading…</div>
+        <CardSkeleton />
       ) : list.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="text-3xl mb-3">{tab === 'mine' ? '💡' : '🙌'}</div>
-          <p className="text-base font-medium text-ink-soft">
-            {tab === 'mine' ? 'Nothing banked yet' : 'No ideas up for grabs'}
-          </p>
-          <p className="text-[13px] mt-1 text-cha max-w-sm mx-auto leading-relaxed">
-            {tab === 'mine'
+        <EmptyState
+          icon={tab === 'mine' ? '💡' : '🙌'}
+          title={tab === 'mine' ? 'Nothing banked yet' : 'No ideas up for grabs'}
+          body={
+            tab === 'mine'
               ? 'Next time something annoys you in a standup, park it here. Takes ten seconds.'
-              : 'When someone offers an idea they can’t get to, it shows up here for anyone to pitch.'}
-          </p>
-        </div>
+              : 'When someone offers an idea they cannot get to, it shows up here for anyone to pitch.'
+          }
+        />
       ) : (
         <div className="space-y-3 stagger-children">
           {list.map(idea => (

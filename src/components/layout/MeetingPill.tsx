@@ -22,14 +22,6 @@ function getMeetingDate(cycle: Cycle | null | undefined): Date | null {
   return getSecondFriday(cycle.year, cycle.month)
 }
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
-}
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
-}
-
 /* ── Countdown logic ── */
 
 interface Countdown {
@@ -80,30 +72,7 @@ function useMeetingCountdown(cycle: Cycle | null | undefined) {
 }
 
 /* ────────────────────────────────────────────────────────
-   1. MeetingDateBadge  - inline header chip (> 48 h away)
-   ──────────────────────────────────────────────────────── */
-
-interface MeetingBadgeProps {
-  cycle: Cycle | null | undefined
-  phase: string
-}
-
-export function MeetingDateBadge({ cycle, phase }: MeetingBadgeProps) {
-  const { meetingDate, countdown } = useMeetingCountdown(cycle)
-
-  if (!meetingDate || !countdown || phase === 'upcoming') return null
-  if (countdown.isPast || countdown.isWithin48h) return null
-
-  return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-paper/60 border border-border text-ink-soft">
-      <span className="text-[10px]">📅</span>
-      {formatDate(meetingDate)} · {formatTime(meetingDate)}
-    </span>
-  )
-}
-
-/* ────────────────────────────────────────────────────────
-   2. MeetingPill - portalled floating timer (≤ 48 h)
+   MeetingPill - portalled floating timer (≤ 48 h)
       • bottom-20 mobile (clears the ~64px tab nav)
       • bottom-6 desktop
       • click pill → collapses to dot; click dot → expands

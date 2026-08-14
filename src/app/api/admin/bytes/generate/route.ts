@@ -35,16 +35,14 @@ export async function POST(request: Request) {
   let body: { days?: number; cycle_id?: string; label?: string } = {}
   try { body = await request.json() } catch { /* all fields optional */ }
 
-  // Manual runs land as a DRAFT for review, unlike the weekly cron which
-  // publishes directly. No period_start, so an ad-hoc run never collides with
-  // the week the scheduled job owns.
+  // Ad-hoc run alongside the weekly job. No period_start, so it never
+  // collides with the week the scheduled job owns.
   const result = await generateDigest({
     kind: "monthly",
     days: Math.min(Math.max(body.days ?? 30, 1), 90),
     limit: 10,
     label: body.label,
     cycleId: body.cycle_id ?? null,
-    publish: false,
     createdBy: user.id,
   })
 

@@ -96,8 +96,8 @@ export function TopicCard({
   }
 
   const cardClassName = cn(
-    'group flex gap-3 sm:gap-4 bg-paper/50 border border-border rounded-xl p-3.5 sm:p-4 transition-all',
-    'hover:border-border-strong hover:bg-paper/80',
+    'group flex gap-3 sm:gap-4 bg-paper/40 border border-border rounded-2xl p-3.5 sm:p-4 transition-colors press',
+    'hover:border-border-strong hover:bg-paper/70',
     topic.is_selected && 'ring-1 ring-saffron/30 border-saffron/20',
     (votePending || contribPending) && 'opacity-75',
   )
@@ -107,7 +107,7 @@ export function TopicCard({
       {/* Rank */}
       <div className="hidden sm:flex flex-col items-center pt-0.5 shrink-0 w-8">
         <span className={cn(
-          'text-sm font-semibold tabular-nums',
+          'text-sm font-semibold tabular',
           rank <= 3 ? 'text-saffron' : 'text-cha',
         )}>
           {rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `#${rank}`}
@@ -118,25 +118,25 @@ export function TopicCard({
       <div className="flex-1 min-w-0 space-y-1.5">
         {/* Badges */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full', style.badge)}>
+          <span className={cn('inline-flex items-center gap-1 type-caption px-2 py-0.5 rounded-full', style.badge)}>
             <span className={cn('w-1.5 h-1.5 rounded-full', style.dot)} />
             {CATEGORY_LABELS[topic.category]}
           </span>
           {topic.status === 'carry_forward' && (
-            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-indigo-light text-indigo-jp">↩ Returning</span>
+            <span className="type-caption px-2 py-0.5 rounded-full bg-indigo-light text-indigo-jp">↩ Returning</span>
           )}
           {topic.is_selected && (
-            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-saffron-light text-saffron">★ Selected</span>
+            <span className="type-caption px-2 py-0.5 rounded-full bg-saffron-light text-saffron">★ Selected</span>
           )}
         </div>
 
         {/* Title */}
-        <h3 className="font-semibold text-ink text-[14px] sm:text-[15px] leading-snug group-hover:text-saffron transition-colors truncate">
+        <h3 className="type-title text-ink group-hover:text-saffron transition-colors line-clamp-2">
           {titlePreview}
         </h3>
 
         {/* Description preview */}
-        <p className="text-ink-soft text-[12px] sm:text-[13px] leading-relaxed truncate">
+        <p className="type-body text-ink-soft line-clamp-2">
           {descriptionPreview}
         </p>
 
@@ -144,9 +144,9 @@ export function TopicCard({
         <div className="flex items-center gap-3 pt-1">
           <div className="flex items-center gap-1.5">
             <UserAvatar username={topic.author_username ?? 'user'} size={18} />
-            <span className="text-[12px] text-ink-soft">@{topic.author_username}</span>
+            <span className="type-caption text-ink-soft">@{topic.author_username}</span>
           </div>
-          <span className="inline-flex items-center gap-1 text-[12px] text-cha">
+          <span className="inline-flex items-center gap-1 type-caption text-cha">
             <IoChatbubbleOutline className="w-3.5 h-3.5" />
             {commentCount > 0 ? commentCount : 'Discuss'}
           </span>

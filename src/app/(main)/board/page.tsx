@@ -2,6 +2,7 @@
 
 import { useCallback, useState, useEffect } from 'react'
 import Link from 'next/link'
+import { motion, useReducedMotion } from 'framer-motion'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useTopics } from '@/hooks/useTopics'
 import { useUserTokens } from '@/hooks/useUserTokens'
@@ -9,8 +10,11 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { TopicList } from '@/components/topics/TopicList'
 import { SubmitModal } from '@/components/topics/SubmitModal'
-import { MeetingPill, MeetingDateBadge } from '@/components/layout/MeetingPill'
+import { MeetingPill } from '@/components/layout/MeetingPill'
 import { OutcomesRecap } from '@/components/board/OutcomesRecap'
+import { BytesTeaser } from '@/components/board/BytesTeaser'
+import { PageHeader, SectionHeader, StatTile, EmptyState, CardSkeleton } from '@/components/ui/Section'
+import { Button } from '@/components/ui/Button'
 import type { Cycle, Topic } from '@/types'
 
 const MONTHS_SHORT = [
@@ -18,21 +22,27 @@ const MONTHS_SHORT = [
   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
 ]
 
+/** Whole days until the meeting. Negative once it has passed. */
+function daysUntil(meetingAt: string | null | undefined): number | null {
+  if (!meetingAt) return null
+  const ms = new Date(meetingAt).getTime() - Date.now()
+  return Math.ceil(ms / 86_400_000)
+}
+
 export default function BoardPage() {
+  const reduceMotion = useReducedMotion()
   const { user, isLoading: authLoading } = useAuth()
   const { cycle, phase, isLoading: cycleLoading } = useCurrentCycle()
   const { topics, isLoading: topicsLoading, mutate, optimisticVote, optimisticContrib } = useTopics(cycle?.id)
   const { votes_remaining, contribs_remaining, topic_submitted, refresh: refreshTokens } = useUserTokens(cycle?.id)
   const toast = useToast()
 
-  // All cycles for tabs
   const [allCycles, setAllCycles] = useState<Cycle[]>([])
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null)
   const [archiveTopics, setArchiveTopics] = useState<Topic[]>([])
   const [archiveLoading, setArchiveLoading] = useState(false)
   const [showSubmit, setShowSubmit] = useState(false)
 
-  // Fetch all cycles for tabs
   useEffect(() => {
     fetch('/api/cycles?all=true')
       .then(r => r.json())
@@ -43,7 +53,6 @@ export default function BoardPage() {
       .catch(() => {})
   }, [])
 
-  // When a closed/upcoming cycle tab is selected, fetch its topics
   useEffect(() => {
     if (!selectedCycleId || selectedCycleId === cycle?.id) {
       setArchiveTopics([])
@@ -52,9 +61,7 @@ export default function BoardPage() {
     setArchiveLoading(true)
     fetch(`/api/topics?cycle_id=${selectedCycleId}`)
       .then(r => r.json())
-      .then(data => {
-        setArchiveTopics(Array.isArray(data) ? data : data.topics ?? [])
-      })
+      .then(data => setArchiveTopics(Array.isArray(data) ? data : data.topics ?? []))
       .catch(() => setArchiveTopics([]))
       .finally(() => setArchiveLoading(false))
   }, [selectedCycleId, cycle?.id])
@@ -77,13 +84,13 @@ export default function BoardPage() {
         const data = await res.json().catch(() => ({}))
         toast(data.error ?? 'Vote failed', 'error')
       } else {
-        if (!hasVoted) toast('Vote committed to the ledger ⚡', 'success')
+        if (!hasVoted) toast('Vote committed ⚡', 'success')
         else toast('Vote withdrawn', 'info')
         refreshTokens()
       }
     } catch {
       optimisticVote(topicId, hasVoted ? 1 : -1)
-      toast('Vote failed - check your connection', 'error')
+      toast('Vote failed, check your connection', 'error')
     }
   }, [optimisticVote, refreshTokens, toast])
 
@@ -100,173 +107,198 @@ export default function BoardPage() {
         const data = await res.json().catch(() => ({}))
         toast(data.error ?? 'Failed to update', 'error')
       } else {
-        if (!hasContribed) toast("You're in the arena 🤝", 'success')
-        else toast('Stepped back from discussion', 'info')
+        if (!hasContribed) toast("You're in 🤝", 'success')
+        else toast('Stepped back', 'info')
         refreshTokens()
       }
     } catch {
       optimisticContrib(topicId, hasContribed ? 1 : -1)
-      toast('Failed to update - check your connection', 'error')
+      toast('Failed to update, check your connection', 'error')
     }
   }, [optimisticContrib, refreshTokens, toast])
 
   const isLoading = authLoading || cycleLoading
   const displayTopics = isViewingActive ? topics : archiveTopics
   const displayPhase = isViewingActive ? phase : 'discussion'
+  const days = daysUntil(viewingCycle?.meeting_at)
+  const isOpen = isViewingActive && phase === 'open'
+
+  const section = reduceMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 8 },
+        animate: { opacity: 1, y: 0 },
+        transition: { type: 'spring' as const, bounce: 0, duration: 0.4 },
+      }
 
   return (
     <>
-      <div className="px-5 md:px-10 py-8 w-full max-w-5xl mx-auto">
-        {/* ─── Page Header ─── */}
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-6 gap-3">
-          <div>
-            <h1 className="font-serif text-2xl font-bold text-ink tracking-tight">
-              The Board
-            </h1>
-            <p className="text-[13px] text-ink-soft mt-0.5">
-              {viewingCycle ? viewingCycle.label : 'What shall we build next?'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-            {/* Meeting date badge (inline, > 48h away) */}
-            {isViewingActive && (
-              <MeetingDateBadge cycle={viewingCycle} phase={phase} />
-            )}
-            {/* Phase pill */}
-            {isViewingActive && phase !== 'upcoming' && (
-              <div className="flex items-center gap-2">
-                <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full ${
-                  phase === 'open' ? 'bg-matcha-light text-matcha' :
-                  'bg-indigo-light text-indigo-jp'
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${
-                    phase === 'open' ? 'bg-matcha animate-pulse-soft' :
-                    'bg-indigo-jp'
-                  }`} />
-                  {phase === 'open' ? 'Open for votes' : 'Discussion mode'}
-                </span>
-              </div>
-            )}
-            {/* Submit CTA */}
-            {isViewingActive && phase === 'open' && !topic_submitted && (
-              <button
-                onClick={() => setShowSubmit(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-saffron text-parchment text-[13px] font-semibold rounded-lg hover:bg-saffron/90 transition-all shadow-[0_0_20px_rgba(232,145,58,0.15)]"
-              >
-                Pitch an Idea
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-              </button>
-            )}
-            {/* Board locked or already pitched - the bank is always open. */}
-            {(!isViewingActive || phase !== 'open' || topic_submitted) && (
+      <div className="px-5 md:px-10 py-8 w-full max-w-5xl mx-auto pb-28 md:pb-10">
+        <PageHeader
+          title="The Board"
+          subtitle={
+            viewingCycle
+              ? isViewingActive
+                ? phase === 'open'
+                  ? 'Open for pitches and votes.'
+                  : 'Voting is closed. Discussion and sparks are live.'
+                : `Viewing ${viewingCycle.label}.`
+              : 'What shall we build next?'
+          }
+          action={
+            <>
+              {isOpen && !topic_submitted && (
+                <Button onClick={() => setShowSubmit(true)}>Pitch an idea</Button>
+              )}
               <Link
                 href="/bank"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 border border-border-strong text-ink-soft text-[13px] font-semibold rounded-lg hover:bg-kinu transition-all"
+                className="press inline-flex items-center gap-1.5 px-3.5 py-2 border border-border-strong text-ink-soft text-[13px] font-semibold rounded-lg hover:bg-kinu transition-colors"
               >
                 💡 Bank an idea
               </Link>
-            )}
-            <Link
-              href="/bytes"
-              className="md:hidden inline-flex items-center gap-1.5 px-3.5 py-2 border border-border-strong text-ink-soft text-[13px] font-semibold rounded-lg hover:bg-kinu transition-all"
-            >
-              📡 Bytes
-            </Link>
-          </div>
-        </div>
+            </>
+          }
+        />
 
-        {/* ─── Cycle tabs - Peerlist week-style ─── */}
-        {allCycles.length > 0 && (
-          <div className="flex items-center gap-1 mb-5 overflow-x-auto pb-1 -mx-1 px-1">
-            {allCycles.map((c) => {
-              const isActive = c.id === viewingCycleId
-              const isCurrent = c.id === activeCycleId
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => setSelectedCycleId(c.id === activeCycleId ? null : c.id)}
-                  className={`shrink-0 px-3.5 py-1.5 rounded-full text-[13px] font-medium transition-all ${
-                    isActive
-                      ? 'bg-sumi text-saffron border border-border-strong'
-                      : 'text-cha hover:text-ink hover:bg-kinu/50 border border-transparent'
-                  } ${isCurrent && !isActive ? 'text-saffron/50' : ''}`}
-                >
-                  {MONTHS_SHORT[c.month - 1]} {c.year}
-                </button>
-              )
-            })}
-          </div>
+        {/* ─── Status strip ───
+            The dashboard answer to "where are we and what do I still have".
+            Everything here is a number the member can act on. */}
+        {isViewingActive && phase !== 'upcoming' && (
+          <motion.section {...section} className="mb-7" aria-label="Your cycle status">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              <StatTile
+                icon={phase === 'open' ? '🗓️' : '💬'}
+                value={
+                  days === null ? '-' : days > 0 ? days : days === 0 ? 'Today' : 'Done'
+                }
+                label={
+                  days === null
+                    ? 'No meeting set'
+                    : days > 1
+                      ? 'days to meeting'
+                      : days === 1
+                        ? 'day to meeting'
+                        : days === 0
+                          ? 'meeting day'
+                          : 'discussion mode'
+                }
+                tone={days !== null && days >= 0 && days <= 2 ? 'active' : 'default'}
+              />
+              <StatTile
+                icon="▲"
+                value={votes_remaining}
+                label={votes_remaining === 1 ? 'vote left' : 'votes left'}
+                tone={!isOpen ? 'spent' : votes_remaining > 0 ? 'active' : 'spent'}
+              />
+              <StatTile
+                icon="🤝"
+                value={contribs_remaining}
+                label={contribs_remaining === 1 ? 'hand raise' : 'hand raises'}
+                tone={!isOpen ? 'spent' : contribs_remaining > 0 ? 'active' : 'spent'}
+              />
+              <StatTile
+                icon={topic_submitted ? '✅' : '💡'}
+                value={topic_submitted ? '1' : '0'}
+                label={topic_submitted ? 'idea pitched' : 'ideas pitched'}
+                tone={topic_submitted ? 'default' : isOpen ? 'active' : 'spent'}
+                href={topic_submitted ? undefined : '/bank'}
+              />
+            </div>
+          </motion.section>
         )}
 
-        {/* ─── Token bar - your remaining actions ─── */}
-        {isViewingActive && phase === 'open' && (
-          <div className="flex flex-wrap items-center gap-2 mb-5 px-3 py-2.5 bg-paper/60 border border-border rounded-lg text-[12px]">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-kinu/50 text-ink-soft">
-              <span className="text-saffron text-xs">▲</span>
-              {votes_remaining} vote{votes_remaining !== 1 ? 's' : ''} left
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-kinu/50 text-ink-soft">
-              <span className="text-matcha text-xs">🤝</span>
-              {contribs_remaining} hand raise{contribs_remaining !== 1 ? 's' : ''} left
-            </span>
-            {topic_submitted && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-kinu/50 text-cha">
-                Idea pitched ✓
-              </span>
-            )}
-          </div>
-        )}
+        <div className="space-y-8">
+          {/* ─── What came of last cycle ─── */}
+          <OutcomesRecap />
 
-        {/* ─── What came of last cycle ─── */}
-        <OutcomesRecap />
+          {/* ─── Topics ─── */}
+          <motion.section {...section} aria-labelledby="board-topics">
+            <SectionHeader
+              id="board-topics"
+              title={isViewingActive ? 'On the board' : `${viewingCycle?.label ?? 'Archive'}`}
+              hint={
+                displayTopics.length > 0
+                  ? `${displayTopics.length} ${displayTopics.length === 1 ? 'topic' : 'topics'}`
+                  : undefined
+              }
+            />
 
-        {/* ─── Topic list ─── */}
-        {isLoading ? (
-          <div className="text-center py-20 text-cha text-sm animate-pulse-soft">Loading...</div>
-        ) : !viewingCycle ? (
-          <div className="text-center py-24">
-            <div className="text-saffron text-3xl mb-4">◈</div>
-            <p className="text-base font-medium text-ink-soft">The scroll is blank</p>
-            <p className="text-sm mt-1 text-cha">
-              An admin needs to open a cycle to get the guild rolling.
-            </p>
-          </div>
-        ) : (topicsLoading || archiveLoading) ? (
-          <div className="space-y-3 animate-pulse">
-            {Array.from({ length: 3 }).map((_, idx) => (
-              <div key={idx} className="bg-paper/50 border border-border rounded-xl p-4">
-                <div className="flex gap-3">
-                  <div className="flex-1 min-w-0 space-y-2">
-                    <div className="h-5 w-28 bg-kinu/70 rounded-full" />
-                    <div className="h-4 w-3/4 bg-kinu/70 rounded" />
-                    <div className="h-4 w-1/2 bg-kinu/50 rounded" />
-                    <div className="h-3 w-32 bg-kinu/50 rounded" />
-                  </div>
-                  <div className="w-12 space-y-2 shrink-0">
-                    <div className="h-16 bg-kinu/70 rounded-xl" />
-                    <div className="h-9 bg-kinu/60 rounded-lg" />
-                  </div>
-                </div>
+            {/* Cycle history. Secondary to the current board, so it sits with
+                the list it filters rather than at the top of the page. */}
+            {allCycles.length > 1 && (
+              <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
+                {allCycles.map(c => {
+                  const isActive = c.id === viewingCycleId
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedCycleId(c.id === activeCycleId ? null : c.id)}
+                      aria-pressed={isActive}
+                      className={`press shrink-0 px-3 py-1.5 rounded-full type-caption transition-colors border ${
+                        isActive
+                          ? 'bg-sumi text-saffron border-border-strong'
+                          : 'text-cha hover:text-ink hover:bg-kinu/50 border-transparent'
+                      }`}
+                    >
+                      {MONTHS_SHORT[c.month - 1]} {c.year}
+                    </button>
+                  )
+                })}
               </div>
-            ))}
-          </div>
-        ) : (
-          <TopicList
-            topics={displayTopics as any}
-            phase={displayPhase}
-            cycleId={viewingCycleId!}
-            currentUserId={user?.id}
-            votesRemaining={isViewingActive ? votes_remaining : 0}
-            contribsRemaining={isViewingActive ? contribs_remaining : 0}
-            onVote={handleVote}
-            onContrib={handleContrib}
-          />
-        )}
+            )}
+
+            {isLoading ? (
+              <CardSkeleton />
+            ) : !viewingCycle ? (
+              <EmptyState
+                icon="◈"
+                title="The scroll is blank"
+                body="An admin needs to open a cycle to get the guild rolling. Ideas you bank now carry over."
+                action={
+                  <Link
+                    href="/bank"
+                    className="press inline-flex items-center gap-1.5 px-3.5 py-2 border border-border-strong text-ink-soft text-[13px] font-semibold rounded-lg hover:bg-kinu transition-colors"
+                  >
+                    💡 Bank an idea
+                  </Link>
+                }
+              />
+            ) : topicsLoading || archiveLoading ? (
+              <CardSkeleton />
+            ) : displayTopics.length === 0 ? (
+              <EmptyState
+                icon="💡"
+                title="Nothing pitched yet"
+                body={
+                  isOpen
+                    ? 'Be the first. One good question is enough to start a cycle.'
+                    : 'This cycle came and went without a pitch.'
+                }
+                action={
+                  isOpen && !topic_submitted ? (
+                    <Button onClick={() => setShowSubmit(true)}>Pitch an idea</Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <TopicList
+                topics={displayTopics as any}
+                phase={displayPhase}
+                cycleId={viewingCycleId!}
+                currentUserId={user?.id}
+                votesRemaining={isViewingActive ? votes_remaining : 0}
+                contribsRemaining={isViewingActive ? contribs_remaining : 0}
+                onVote={handleVote}
+                onContrib={handleContrib}
+              />
+            )}
+          </motion.section>
+
+          {/* ─── This week in tech ─── */}
+          <BytesTeaser />
+        </div>
       </div>
 
-      {/* Submit modal */}
       {showSubmit && cycle && (
         <SubmitModal
           cycle={cycle}
@@ -275,10 +307,7 @@ export default function BoardPage() {
         />
       )}
 
-      {/* Floating meeting countdown pill */}
-      {isViewingActive && (
-        <MeetingPill cycle={viewingCycle} phase={phase} />
-      )}
+      {isViewingActive && <MeetingPill cycle={viewingCycle} phase={phase} />}
     </>
   )
 }

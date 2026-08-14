@@ -18,8 +18,6 @@ export interface GenerateOptions {
   periodStart?: string | null
   label?: string
   cycleId?: string | null
-  /** Weekly runs publish immediately, manual runs land as drafts for review. */
-  publish?: boolean
   createdBy: string
 }
 
@@ -51,7 +49,6 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
     kind = 'weekly',
     periodStart = null,
     cycleId = null,
-    publish = false,
     createdBy,
   } = opts
 
@@ -112,8 +109,12 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
       label,
       kind,
       period_start: periodStart,
-      status: publish ? 'published' : 'draft',
-      published_at: publish ? new Date().toISOString() : null,
+      // Digests go live on creation. The content is grounded (titles and links
+      // are verbatim from the feeds) and summaries are labeled as AI-drafted,
+      // so there is nothing for a review step to protect against. The admin
+      // curates in place afterwards instead: edit, annotate, or delete.
+      status: 'published',
+      published_at: new Date().toISOString(),
       created_by: createdBy,
     })
     .select()
