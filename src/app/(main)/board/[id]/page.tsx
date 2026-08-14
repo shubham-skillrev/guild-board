@@ -18,6 +18,7 @@ import { IoArrowBack } from 'react-icons/io5'
 import { FiEdit2, FiTrash2 } from 'react-icons/fi'
 import { SparkButton } from '@/components/voting/SparkButton'
 import { SignalRow } from '@/components/topics/SignalRow'
+import { AskPanel } from '@/components/topics/AskPanel'
 import type { Topic, Comment } from '@/types'
 
 interface TopicDetail extends Topic {
@@ -488,6 +489,8 @@ export default function TopicDetailPage({
           {/* Comments / Discussion section */}
           <div>
             <h2 className="text-sm font-semibold text-ink mb-4">Discussion</h2>
+            {/* A direct ask beats hoping the right person happens to look. */}
+            <AskPanel topicId={topic.id} />
             <CommentThread
               topicId={topic.id}
               currentUserId={user?.id}

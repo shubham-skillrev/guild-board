@@ -135,6 +135,18 @@ const COPY = {
     body: (label: string) =>
       `${label} discussions are done. Give your one spark to someone who stood out.`,
   },
+  asked: {
+    titles: [
+      "Aapko poocha gaya hai",
+      "Someone wants your take",
+      "Naam se bulaya gaya",
+      "Aapki raay chahiye",
+    ],
+    body: (asker: string, title: string, note: string | null) =>
+      note
+        ? `${asker} on "${title}": ${note}`
+        : `${asker} thinks you'd have something to say on "${title}".`,
+  },
   explainMore: {
     titles: [
       "Koi samajhna chahta hai",
@@ -370,6 +382,32 @@ export async function notifyOnCycleEnded(args: { label: string }) {
     body: COPY.cycleEnded.body(args.label),
     url: "/leaderboard",
     tag: `cycle-end:${args.label}`,
+    requireInteraction: true,
+  });
+}
+
+/**
+ * Someone was invited into a topic by name. The asker IS named here — that is
+ * the whole mechanism: a specific person asking you specifically is what makes
+ * it answerable, where a general call to thirty people is not.
+ */
+export async function notifyOnAsked(args: {
+  topicId: string;
+  toUserId: string;
+  askerId: string;
+  title: string;
+  note: string | null;
+}) {
+  if (args.toUserId === args.askerId) return;
+
+  const admin = createAdminClient();
+  const asker = await getUsername(admin, args.askerId);
+
+  await sendPushToUser(args.toUserId, {
+    title: pick(COPY.asked.titles),
+    body: COPY.asked.body(asker, truncate(args.title, 50), args.note),
+    url: `/board/${args.topicId}`,
+    tag: `asked:${args.topicId}:${args.toUserId}`,
     requireInteraction: true,
   });
 }
