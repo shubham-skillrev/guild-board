@@ -139,8 +139,13 @@ const COPY = {
       "Your weekly diff",
       "New bytes dropped",
     ],
-    body: (label: string, count: number) =>
-      `${label}: ${count} things worth knowing. Two minute read, tap what you want to discuss.`,
+    /* The breakdown is the part that earns the tap. "10 things worth knowing"
+       is every newsletter ever written; "6 reads, 2 talks" tells you what you
+       are opening and how long it will take. */
+    body: (label: string, count: number, parts: string[]) =>
+      parts.length
+        ? `${label}: ${parts.join(", ")}. Upvote what you want on the meeting agenda.`
+        : `${label}: ${count} things worth knowing. Upvote what you want on the meeting agenda.`,
   },
   asked: {
     titles: [
@@ -397,13 +402,35 @@ export async function notifyOnCycleEnded(args: { label: string }) {
  * A digest went live. Deliberately timed mid-cycle: it lands in the stretch
  * where the board is locked and there is otherwise nothing to come back for.
  */
-export async function notifyOnBytesPublished(args: { label: string; count: number }) {
+export async function notifyOnBytesPublished(args: {
+  label: string;
+  count: number;
+  mix?: { blog: number; news: number; video: number; hn: number };
+}) {
   await broadcast({
     title: pick(COPY.bytesPublished.titles),
-    body: COPY.bytesPublished.body(args.label, args.count),
+    body: COPY.bytesPublished.body(args.label, args.count, describeMix(args.mix)),
     url: "/bytes",
+    // One notification per digest label, so a re-run or a second device does
+    // not buzz twice for the same week.
     tag: `bytes:${args.label}`,
   });
+}
+
+/** "6 reads, 2 talks, 2 from the news" - omitting whatever came back empty. */
+function describeMix(mix?: {
+  blog: number;
+  news: number;
+  video: number;
+  hn: number;
+}): string[] {
+  if (!mix) return [];
+  const reads = mix.blog + mix.hn;
+  const parts: string[] = [];
+  if (reads) parts.push(`${reads} ${reads === 1 ? "read" : "reads"}`);
+  if (mix.video) parts.push(`${mix.video} ${mix.video === 1 ? "talk" : "talks"}`);
+  if (mix.news) parts.push(`${mix.news} from the news`);
+  return parts;
 }
 
 /**

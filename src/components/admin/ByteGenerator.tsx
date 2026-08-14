@@ -66,10 +66,15 @@ export function ByteGenerator() {
       })
       const data = await res.json()
       if (!res.ok) { toast(data.error || 'Generation failed', 'error'); return }
+      // The breakdown is worth surfacing: a run that came back with no video
+      // or no news means a feed is failing, and a bare count hides that.
+      const mix = data.mix
+        ? ` (${data.mix.blog + data.mix.hn} read, ${data.mix.news} news, ${data.mix.video} video)`
+        : ''
       toast(
         data.llm_available
-          ? `${data.count} stories in, ${data.summarized} summarized`
-          : `${data.count} stories in. No API key, so summaries are blank`,
+          ? `${data.count} stories in${mix}, ${data.summarized} summarized`
+          : `${data.count} stories in${mix}. No API key, so summaries are blank`,
         'success',
       )
       await load()
@@ -108,8 +113,9 @@ export function ByteGenerator() {
       />
 
       <p className="type-body text-cha mb-4 -mt-1">
-        Stories come from company engineering blogs, plus Hacker News and GitHub. Titles
-        and links are verbatim from those feeds. Summaries are AI-drafted and optional.
+        A mix of engineering blog posts, tech reporting and conference talks, with a
+        little Hacker News. Titles, links and thumbnails are verbatim from those feeds.
+        Summaries are AI-drafted and optional. Fetching notifies the guild.
       </p>
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">

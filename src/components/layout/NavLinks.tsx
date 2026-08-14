@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { UserAvatar } from '@/components/ui/UserAvatar'
+import { useUnseenDigest } from '@/lib/bytes/useUnseenDigest'
 import { cn } from '@/lib/utils/cn'
 
 interface NavLinksProps {
@@ -15,6 +16,7 @@ interface NavLinksProps {
 
 export function DesktopNavLinks({ role }: NavLinksProps) {
   const pathname = usePathname()
+  const { unseen: unseenBytes } = useUnseenDigest()
   const isBoard = pathname.startsWith('/board')
   const isBank = pathname.startsWith('/bank')
   const isBytes = pathname.startsWith('/bytes')
@@ -44,11 +46,20 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
       <Link
         href="/bytes"
         className={cn(
-          'px-3 py-2 border-b-2 transition-colors press',
+          'relative px-3 py-2 border-b-2 transition-colors press',
           isBytes ? 'text-ink border-saffron' : 'text-ink-soft border-transparent hover:text-ink'
         )}
       >
         Bytes
+        {/* A digest published since this browser last opened the page. Dropped
+            the moment you are on /bytes, so it never sits there while you read
+            the thing it is pointing at. */}
+        {unseenBytes && !isBytes && (
+          <span
+            aria-label="New digest"
+            className="absolute top-1.5 right-0.5 w-1.5 h-1.5 rounded-full bg-saffron"
+          />
+        )}
       </Link>
       <Link
         href="/leaderboard"

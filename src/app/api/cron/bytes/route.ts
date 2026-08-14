@@ -75,7 +75,7 @@ export async function GET(request: Request) {
   }
 
   notifyAfterResponse(
-    notifyOnBytesPublished({ label: result.label, count: result.count }),
+    notifyOnBytesPublished({ label: result.label, count: result.count, mix: result.mix }),
     'notifyOnBytesPublished',
   )
 

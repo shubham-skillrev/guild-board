@@ -81,6 +81,7 @@ export function selectForBreadth<T extends { domain: Domain; score: number }>(
   items: T[],
   limit: number,
 ): T[] {
+  if (limit <= 0) return []
   const byDomain = new Map<Domain, T[]>()
   for (const item of items) {
     const list = byDomain.get(item.domain) ?? []
@@ -106,6 +107,131 @@ export function selectForBreadth<T extends { domain: Domain; score: number }>(
       if (out.length >= limit) break
     }
     if (!added) break
+  }
+  return out
+}
+
+/**
+ * Target share of a digest per medium.
+ *
+ * Breadth alone does not produce a mix: engineering blogs out-publish every
+ * other source by an order of magnitude, so a purely score-ranked ten is ten
+ * blog posts and the video and news sources may as well not be wired up. Each
+ * medium therefore gets a floor, and the remainder fills by score.
+ *
+ * Articles still lead - they are the densest thing a guild can read before a
+ * meeting - but a week now reliably carries a talk and a piece of reporting.
+ */
+const MIX: { source: string[]; share: number }[] = [
+  { source: ['blog'], share: 0.5 },
+  { source: ['news'], share: 0.2 },
+  { source: ['video'], share: 0.2 },
+  { source: ['hn'], share: 0.1 },
+]
+
+/**
+ * Pick `limit` items spread across both medium and topic.
+ *
+ * Two passes. Each medium first takes its quota, chosen for topic breadth
+ * within that medium; then whatever is left over fills any shortfall by score,
+ * again spread across domains. A week where nobody published a video is
+ * therefore a week with an extra article, not a short digest.
+ */
+export function selectMix<
+  T extends { source: string; source_name?: string; domain: Domain; score: number },
+>(items: T[], limit: number): T[] {
+  if (limit <= 0) return []
+
+  /* No publisher owns a medium. Observed on a live run before this cap
+     existed: Cloudflare took four of the five article slots and one channel
+     took both video slots, because those sources publish daily and every item
+     within a medium carries a near-flat score, so the domain round-robin had
+     nothing to break the tie with. Topic breadth does not imply source
+     breadth - four Cloudflare posts about four different areas still reads as
+     a Cloudflare newsletter.
+     The cap is per medium rather than per digest: a third of the articles is a
+     reasonable share for one company, while a third of two video slots is one
+     video, which is exactly the intent. */
+  const capFor = (quota: number) => Math.max(1, Math.ceil(quota / 3))
+
+  const taken = new Set<T>()
+  const buckets = MIX.map(({ source, share }) => {
+    const quota = Math.max(1, Math.round(limit * share))
+    const bucket = capPerPublisher(items.filter(i => source.includes(i.source)), capFor(quota))
+    const chosen = selectForBreadth(bucket, quota)
+    for (const item of chosen) taken.add(item)
+    return chosen
+  })
+
+  // Interleave rather than concatenate, so the published order reads as a mix
+  // instead of five blog posts followed by the videos nobody scrolled to.
+  const picked: T[] = []
+  for (let round = 0; ; round++) {
+    let added = false
+    for (const bucket of buckets) {
+      const item = bucket[round]
+      if (!item) continue
+      picked.push(item)
+      added = true
+    }
+    if (!added) break
+  }
+
+  /* Rounding every quota up can overshoot. Truncating the interleaved order is
+     the right cut: round 0 holds the strongest item from each medium, so the
+     items lost are the extra ones from whichever medium ran deepest. */
+  if (picked.length > limit) return picked.slice(0, limit)
+
+  if (picked.length < limit) {
+    /* The shortfall fill respects the cap too, counting what each publisher
+       already contributed above - otherwise a quiet week for video hands the
+       spare slots straight back to whoever published most. */
+    const used = new Map<string, number>()
+    for (const item of picked) {
+      const key = publisherKey(item)
+      if (key) used.set(key, (used.get(key) ?? 0) + 1)
+    }
+    const rest = capPerPublisher(
+      items.filter(i => !taken.has(i)),
+      capFor(limit - picked.length),
+      used,
+    )
+    picked.push(...selectForBreadth(rest, limit - picked.length))
+  }
+
+  return picked
+}
+
+function publisherKey(item: { source_name?: string }): string | null {
+  const name = item.source_name?.trim().toLowerCase()
+  return name ? name : null
+}
+
+/**
+ * Keep at most `max` items per publisher, highest scoring first.
+ *
+ * Runs before selection rather than after, so the domain round-robin still
+ * sees a full spread of topics and simply picks a different company's post for
+ * the ones it drops. Items with no publisher are never capped: on Hacker News
+ * the "publisher" is the linked hostname, which is naturally varied.
+ */
+function capPerPublisher<T extends { source_name?: string; score: number }>(
+  items: T[],
+  max: number,
+  used: Map<string, number> = new Map(),
+): T[] {
+  const seen = new Map(used)
+  const out: T[] = []
+  for (const item of [...items].sort((a, b) => b.score - a.score)) {
+    const key = publisherKey(item)
+    if (!key) {
+      out.push(item)
+      continue
+    }
+    const count = seen.get(key) ?? 0
+    if (count >= max) continue
+    seen.set(key, count + 1)
+    out.push(item)
   }
   return out
 }

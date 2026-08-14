@@ -67,10 +67,14 @@ const RESPONSE_SCHEMA = {
 } as const
 
 const SYSTEM = [
-  'You summarize tech news items for a small engineering guild that meets monthly.',
+  'You summarize tech items for a small engineering guild that meets monthly.',
   '',
   'You are given items that were already fetched from real feeds. For each one,',
   'write a short, factual summary and a few topic tags.',
+  '',
+  'Each item carries a `medium`: article (an engineering blog post), news (tech',
+  'reporting) or video (a talk or explainer). Match it - a video is something to',
+  'watch, not to read - and never describe a video as an article.',
   '',
   'Ground every summary in the title and excerpt you are given. If an excerpt is',
   'missing or thin, say less - describe only what the title supports. Never invent',
@@ -104,6 +108,8 @@ export async function summarizeCandidates(
   const payload = candidates.map(c => ({
     source_id: c.source_id,
     title: c.title,
+    publisher: c.source_name,
+    medium: c.source === 'video' ? 'video' : c.source === 'news' ? 'news' : 'article',
     points: c.points,
     excerpt: c.excerpt ?? null,
   }))

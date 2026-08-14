@@ -17,10 +17,14 @@ import { NextResponse } from 'next/server'
 import { notifyOnNewTopic, notifyAfterResponse } from '@/lib/push/notify'
 import type { CategoryTag } from '@/types'
 
+/** Fallback link text when a row predates the source_name column. */
 const SOURCE_LABELS: Record<string, string> = {
   hn: 'Hacker News',
   devto: 'dev.to',
   github: 'GitHub',
+  blog: 'Engineering blog',
+  news: 'Article',
+  video: 'Watch',
 }
 
 export async function POST(request: Request) {
@@ -43,7 +47,7 @@ export async function POST(request: Request) {
 
   const { data: byte } = await admin
     .from('bytes')
-    .select('id, source, source_title, url, summary, editor_note, seeded_topic_id')
+    .select('id, source, source_title, source_name, url, summary, editor_note, seeded_topic_id')
     .eq('id', byte_id)
     .maybeSingle()
 
@@ -66,7 +70,9 @@ export async function POST(request: Request) {
   const description = [
     byte.summary ?? '',
     byte.editor_note ? `\n\n> ${byte.editor_note}` : '',
-    `\n\n[${SOURCE_LABELS[byte.source] ?? byte.source}](${byte.url}) · from this cycle's Bytes.`,
+    // Link text is the publisher when we have it: "Cloudflare" tells a reader
+    // more about what they are about to open than "Engineering blog" does.
+    `\n\n[${byte.source_name || SOURCE_LABELS[byte.source] || byte.source}](${byte.url}) · from this cycle's Bytes.`,
   ].join('').trim().slice(0, 1000)
 
   const { data: topic, error: topicErr } = await admin

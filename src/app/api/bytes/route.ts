@@ -30,9 +30,10 @@ interface RankableByte {
  */
 const FEED_REFERENCE: Record<string, number> = {
   hn: 2000,
+  video: 400_000, // YouTube views
   lobsters: 80,
   devto: 400,
-  github: 8000,
+  github: 8000, // retired source, still present in old rows
 }
 
 function topScore(b: RankableByte): number {
@@ -64,7 +65,7 @@ export async function GET() {
     supabase
       .from('bytes')
       .select(
-        'id, digest_id, source, source_title, url, source_points, summary, tags, editor_note, domain, interest_count, seeded_topic_id, position',
+        'id, digest_id, source, source_title, source_name, url, thumbnail_url, source_points, summary, tags, editor_note, domain, interest_count, seeded_topic_id, position',
       )
       .in('digest_id', digests.map(d => d.id)),
     supabase.from('byte_interests').select('byte_id').eq('user_id', user.id),

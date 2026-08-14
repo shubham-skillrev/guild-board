@@ -1,7 +1,7 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { fetchCandidates } from '@/lib/bytes/sources'
-import { selectForBreadth } from '@/lib/bytes/domains'
+import { selectMix } from '@/lib/bytes/domains'
 import { summarizeCandidates } from '@/lib/bytes/summarize'
 
 /**
@@ -22,8 +22,23 @@ export interface GenerateOptions {
   createdBy: string
 }
 
+/** How many of each medium landed, for the notification copy and the admin UI. */
+export interface MediumCounts {
+  blog: number
+  news: number
+  video: number
+  hn: number
+}
+
 export type GenerateResult =
-  | { ok: true; digestId: string; label: string; count: number; summarized: number }
+  | {
+      ok: true
+      digestId: string
+      label: string
+      count: number
+      summarized: number
+      mix: MediumCounts
+    }
   | { ok: false; reason: 'no_candidates' | 'all_seen' | 'duplicate_period' | 'db_error'; message: string }
 
 /** Monday 00:00 UTC of the week containing `date`. */
@@ -103,8 +118,9 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
     }
   }
 
-  // Breadth selection runs here, on what is actually available to publish.
-  const fresh = selectForBreadth(unseen, limit)
+  // Selection runs here, on what is actually available to publish. Mixed by
+  // medium first (articles, news, video, HN) and by topic within each.
+  const fresh = selectMix(unseen, limit)
 
   // Absent an API key this returns an empty map and the digest still lands,
   // just with blank summaries to fill in by hand.
@@ -138,8 +154,8 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
     return { ok: false, reason: 'db_error', message: digestErr.message }
   }
 
-  // source_title and url are written straight from the feed response. Nothing
-  // the model returned can reach those two columns.
+  // source_title, source_name, url and thumbnail_url are written straight from
+  // the feed response. Nothing the model returned can reach those columns.
   const rows = fresh.map((c, i) => {
     const s = summaries.get(c.source_id)
     return {
@@ -147,7 +163,9 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
       source: c.source,
       source_id: c.source_id,
       source_title: c.title,
+      source_name: c.source_name,
       url: c.url,
+      thumbnail_url: c.thumbnail ?? null,
       source_points: c.points,
       domain: c.domain,
       summary: s?.summary ?? null,
@@ -162,12 +180,16 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
     return { ok: false, reason: 'db_error', message: bytesErr.message }
   }
 
+  const mix: MediumCounts = { blog: 0, news: 0, video: 0, hn: 0 }
+  for (const c of fresh) mix[c.source] += 1
+
   return {
     ok: true,
     digestId: digest.id,
     label,
     count: rows.length,
     summarized: summaries.size,
+    mix,
   }
 }
 

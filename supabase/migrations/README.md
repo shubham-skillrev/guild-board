@@ -2,10 +2,10 @@
 
 Applied in numeric order. `001` to `010` are already live.
 
-## Pending: 011 to 015
+## Pending: 011 to 018
 
-These five ship with the activation work and are **not yet applied**. Nothing
-in the Idea Bank, signals, ask-by-name, or Bytes features works until they are.
+These ship with the activation work and are **not yet applied**. Nothing in the
+Idea Bank, signals, ask-by-name, or Bytes features works until they are.
 
 | # | File | Adds |
 |---|---|---|
@@ -14,10 +14,18 @@ in the Idea Bank, signals, ask-by-name, or Bytes features works until they are.
 | 013 | `013_topic_asks.sql` | `topic_asks`, invite a member by name, max 2 per topic |
 | 014 | `014_bytes.sql` | `byte_digests`, `bytes`, `byte_interests` |
 | 015 | `015_bytes_weekly.sql` | weekly cadence, `domain` breadth, Lobsters source |
+| 016 | `016_bytes_blog_source.sql` | engineering-blog source |
+| 017 | `017_release_deleted_promotions.sql` | frees a banked idea when its topic is deleted |
+| 018 | `018_bytes_media_mix.sql` | `news` and `video` sources, `source_name`, `thumbnail_url` |
 
 > **015 is required for the weekly cron.** Without it the source CHECK still
 > rejects Lobsters, so every automatic run dies on `bytes_source_check`. This
 > was confirmed against a live run, not assumed.
+
+> **018 is required for the current Bytes page.** The app now selects
+> `source_name` and `thumbnail_url`, and the generator writes `source = 'video'`
+> and `'news'`, so without it reads fail on the missing columns and every
+> insert fails the source CHECK.
 
 ### Applying them
 

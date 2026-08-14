@@ -12,6 +12,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { generateDigest } from '@/lib/bytes/generate'
+import { notifyOnBytesPublished, notifyAfterResponse } from '@/lib/push/notify'
 
 export const maxDuration = 120
 
@@ -53,12 +54,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: result.message }, { status })
   }
 
+  /* generateDigest publishes on creation, so an admin run is as live as the
+     cron one and has to announce itself the same way. It did not, which meant a
+     manually generated digest sat on the page with nobody told it existed. */
+  notifyAfterResponse(
+    notifyOnBytesPublished({ label: result.label, count: result.count, mix: result.mix }),
+    'notifyOnBytesPublished',
+  )
+
   return NextResponse.json(
     {
       digest_id: result.digestId,
       label: result.label,
       count: result.count,
       summarized: result.summarized,
+      mix: result.mix,
       // Surfaced so the admin knows to write summaries by hand.
       llm_available: !!process.env.ANTHROPIC_API_KEY,
     },
