@@ -19,12 +19,15 @@ export function ghostHandle(userId: string, topicId: string): string {
   return `ghost_${digest.slice(0, 6)}`
 }
 
+/**
+ * The fields the serializer needs. Deliberately has no index signature so
+ * Supabase's inferred row types satisfy it without a cast.
+ */
 type RawTopic = {
   id: string
   user_id: string
-  is_anonymous?: boolean
+  is_anonymous?: boolean | null
   users?: { username?: string } | { username?: string }[] | null
-  [key: string]: unknown
 }
 
 /** Supabase returns a joined to-one relation as an object or a 1-element array. */

@@ -43,7 +43,7 @@ export async function GET(
   ])
 
   return NextResponse.json({
-    ...serializeTopic(topic as any, user.id),
+    ...serializeTopic(topic, user.id),
     user_has_voted: !!userVote,
     user_has_contribed: !!userContrib,
     contributors,
