@@ -54,7 +54,7 @@ export function BytesTeaser() {
         href="/bytes"
         hrefLabel="Read all"
       />
-      <ul className="rounded-2xl border border-border bg-paper/40 divide-y divide-border overflow-hidden">
+      <ul className="rounded-(--radius-card) border border-border bg-paper/40 divide-y divide-border overflow-hidden">
         {items.map(b => (
           <li key={b.id}>
             {/* The teaser showed a truncated headline and nothing else, so it

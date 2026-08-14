@@ -52,9 +52,21 @@ export const SIGNAL_LABELS: Record<SignalKind, string> = {
   done_this: 'Done this',
 }
 
-export const SIGNAL_EMOJI: Record<SignalKind, string> = {
-  curious: '👀',
-  would_attend: '🙋',
-  explain_more: '🤔',
-  done_this: '🛠️',
+/**
+ * Each signal gets its own hue as well as its own glyph.
+ *
+ * Four emoji in a row differentiated on colour alone, with no labels, meant
+ * nobody could tell 🤔 "explain more" from 🤔 "I doubt this". Two things fix
+ * that: the label is always rendered now, and the tint is a second, redundant
+ * cue rather than the only one.
+ *
+ * These are the four palette colours that already have a job, so no new colour
+ * enters the system: indigo reads as attention, matcha as willingness, wisteria
+ * as a question, saffron as something already done.
+ */
+export const SIGNAL_TONES: Record<SignalKind, string> = {
+  curious: 'text-indigo-jp',
+  would_attend: 'text-matcha',
+  explain_more: 'text-wisteria',
+  done_this: 'text-saffron',
 }

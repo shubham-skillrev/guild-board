@@ -1,5 +1,6 @@
 'use client'
 
+import { ArrowFatUp, ArrowLeft, Handshake, PencilSimple, Trash } from '@phosphor-icons/react/dist/ssr'
 import { use, useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -8,14 +9,12 @@ import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils/cn'
 import { CATEGORY_LABELS, DESCRIPTION_MAX_LENGTH } from '@/lib/constants'
 import { UserAvatar } from '@/components/ui/UserAvatar'
+import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { CommentThread } from '@/components/topics/CommentThread'
 import { useAuth } from '@/hooks/useAuth'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useToast } from '@/hooks/useToast'
-import { BiUpvote, BiSolidUpvote } from 'react-icons/bi'
-import { FaHandshake } from 'react-icons/fa6'
-import { IoArrowBack } from 'react-icons/io5'
-import { FiEdit2, FiTrash2 } from 'react-icons/fi'
 import { SparkButton } from '@/components/voting/SparkButton'
 import { SignalRow } from '@/components/topics/SignalRow'
 import { AskPanel } from '@/components/topics/AskPanel'
@@ -27,11 +26,11 @@ interface TopicDetail extends Topic {
   contributors: { user_id: string; username: string }[]
 }
 
-const CATEGORY_STYLES: Record<string, { dot: string; badge: string }> = {
-  deep_dive: { dot: 'bg-indigo-jp', badge: 'text-indigo-jp bg-indigo-light' },
-  discussion: { dot: 'bg-saffron', badge: 'text-saffron bg-saffron-light' },
-  blog_idea: { dot: 'bg-matcha', badge: 'text-matcha bg-matcha-light' },
-  project_showcase: { dot: 'bg-wisteria', badge: 'text-wisteria bg-wisteria-light' },
+const CATEGORY_TONE: Record<string, React.ComponentProps<typeof Badge>['tone']> = {
+  deep_dive: 'indigo',
+  discussion: 'saffron',
+  blog_idea: 'matcha',
+  project_showcase: 'wisteria',
 }
 
 export default function TopicDetailPage({
@@ -291,13 +290,13 @@ export default function TopicDetailPage({
     )
   }
 
-  const style = CATEGORY_STYLES[topic.category] ?? CATEGORY_STYLES.discussion
+  const categoryTone = CATEGORY_TONE[topic.category] ?? 'saffron'
 
   return (
     <div className="px-5 md:px-10 py-8 w-full max-w-6xl mx-auto">
       {/* Back link */}
       <Link href="/board" className="inline-flex items-center gap-1.5 text-[13px] text-cha hover:text-ink-soft transition-colors mb-6">
-        <IoArrowBack className="w-4 h-4" />
+        <ArrowLeft className="w-4 h-4" />
         Back to board
       </Link>
 
@@ -306,16 +305,9 @@ export default function TopicDetailPage({
         <div className="flex-1 min-w-0">
           {/* Badges */}
           <div className="flex flex-wrap items-center gap-1.5 mb-3">
-            <span className={cn('inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full', style.badge)}>
-              <span className={cn('w-1.5 h-1.5 rounded-full', style.dot)} />
-              {CATEGORY_LABELS[topic.category]}
-            </span>
-            {topic.status === 'carry_forward' && (
-              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-indigo-light text-indigo-jp">↩ Returning</span>
-            )}
-            {topic.is_selected && (
-              <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-saffron-light text-saffron">★ Selected</span>
-            )}
+            <Badge tone={categoryTone}>{CATEGORY_LABELS[topic.category]}</Badge>
+            {topic.status === 'carry_forward' && <Badge tone="indigo">Returning</Badge>}
+            {topic.is_selected && <Badge tone="saffron">Selected</Badge>}
           </div>
 
           {/* Title + Edit/Delete */}
@@ -338,19 +330,15 @@ export default function TopicDetailPage({
               />
               <p className="text-[11px] text-cha text-right tabular-nums">{editDesc.length}/{DESCRIPTION_MAX_LENGTH}</p>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleSaveEdit}
-                  disabled={saving || !editTitle.trim() || !editDesc.trim()}
-                  className="px-4 py-2 bg-saffron text-parchment text-[13px] font-semibold rounded-lg hover:bg-saffron/90 disabled:opacity-40 transition-all"
-                >
-                  {saving ? 'Saving...' : 'Save Changes'}
-                </button>
-                <button
+                <Button onClick={handleSaveEdit} disabled={saving || !editTitle.trim() || !editDesc.trim()}>
+                  {saving ? 'Saving…' : 'Save changes'}
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={() => { setEditing(false); setEditTitle(topic.title); setEditDesc(topic.description) }}
-                  className="px-4 py-2 text-cha text-[13px] hover:text-ink-soft transition-colors"
                 >
                   Cancel
-                </button>
+                </Button>
               </div>
             </div>
           ) : (
@@ -358,45 +346,38 @@ export default function TopicDetailPage({
               <div className="flex items-start justify-between gap-3 mb-4">
                 <h1 className="font-serif text-2xl font-bold text-ink leading-snug">{topic.title}</h1>
                 {isOwner && phase === 'open' && (
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      onClick={() => setEditing(true)}
-                      className="inline-flex items-center gap-1 p-2 text-cha hover:text-ink-soft hover:bg-kinu/40 rounded-lg transition-colors"
-                      title="Edit topic"
-                    >
-                      <FiEdit2 className="w-4 h-4" />
-                      <span className="text-[12px] hidden sm:inline">Edit</span>
-                    </button>
-                    <button
-                      onClick={() => setConfirmDelete(true)}
-                      className="inline-flex items-center gap-1 p-2 text-cha hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"
-                      title="Delete topic"
-                    >
-                      <FiTrash2 className="w-4 h-4" />
-                      <span className="text-[12px] hidden sm:inline">Delete</span>
-                    </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button size="sm" variant="ghost" icon={PencilSimple} onClick={() => setEditing(true)} title="Edit topic">
+                      <span className="hidden sm:inline">Edit</span>
+                    </Button>
+                    <Button size="sm" variant="danger" icon={Trash} onClick={() => setConfirmDelete(true)} title="Delete topic">
+                      <span className="hidden sm:inline">Delete</span>
+                    </Button>
                   </div>
                 )}
               </div>
 
               {/* Delete confirmation */}
               {confirmDelete && (
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 px-4 py-3 bg-red-400/10 border border-red-400/20 rounded-lg text-[13px]">
-                  <span className="text-red-400">Permanently delete this topic?</span>
-                  <button
-                    onClick={handleDelete}
-                    disabled={deletePending}
-                    className="px-3 py-1 bg-red-400 text-parchment rounded-md text-[12px] font-medium hover:bg-red-500 transition-colors disabled:opacity-60"
-                  >
-                    {deletePending ? 'Deleting...' : 'Yes, delete'}
-                  </button>
-                  <button onClick={() => setConfirmDelete(false)} className="text-cha hover:text-ink-soft text-[12px]">
-                    Cancel
-                  </button>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4 px-(--pad-card) py-3 bg-vermillion/10 rounded-(--radius-card) text-footnote">
+                  <span className="text-vermillion sm:mr-2">Permanently delete this topic?</span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      className="bg-vermillion hover:bg-vermillion/90"
+                      onClick={handleDelete}
+                      disabled={deletePending}
+                    >
+                      {deletePending ? 'Deleting…' : 'Yes, delete'}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
               )}
               {deleteError && (
-                <div className="mb-4 px-4 py-3 bg-vermillion-light border border-vermillion/20 rounded-lg text-[12px] text-vermillion">
+                <div className="mb-4 px-(--pad-card) py-3 bg-vermillion/10 rounded-(--radius-card) text-[12px] text-vermillion">
                   {deleteError}
                 </div>
               )}
@@ -442,12 +423,12 @@ export default function TopicDetailPage({
               onClick={handleVote}
               disabled={!canVote || votePending}
               className={cn(
-                'inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border text-[13px] font-medium transition-all',
+                'inline-flex items-center gap-2 h-9 px-3 rounded-(--radius-control) border text-footnote font-medium transition-colors',
                 topic.user_has_voted
-                  ? 'bg-saffron/15 border-saffron/40 text-saffron shadow-[0_0_12px_rgba(232,145,58,0.15)]'
+                  ? 'bg-saffron/12 border-saffron/35 text-saffron'
                   : canVote
-                    ? 'bg-paper border-border text-ink-soft hover:border-saffron/30 hover:text-saffron hover:bg-saffron/5'
-                    : 'bg-paper/50 border-border text-cha opacity-50',
+                    ? 'border-border text-ink-soft hover:border-saffron/30 hover:text-saffron'
+                    : 'border-border text-ink-muted opacity-50',
                 votePending ? 'opacity-60 cursor-wait' : canVote ? 'cursor-pointer' : 'cursor-not-allowed',
               )}
             >
@@ -455,7 +436,7 @@ export default function TopicDetailPage({
                 <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
               ) : (
                 <span className={cn('transition-transform', votePop && 'animate-vote-pop')}>
-                  {topic.user_has_voted ? <BiSolidUpvote className="w-4 h-4" /> : <BiUpvote className="w-4 h-4" />}
+                  {topic.user_has_voted ? <ArrowFatUp className="w-4 h-4" /> : <ArrowFatUp className="w-4 h-4" />}
                 </span>
               )}
               <span className="font-bold tabular-nums">{topic.vote_count}</span>
@@ -465,12 +446,12 @@ export default function TopicDetailPage({
               onClick={handleContrib}
               disabled={!canContrib || contribPending}
               className={cn(
-                'inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border text-[13px] font-medium transition-all',
+                'inline-flex items-center gap-2 h-9 px-3 rounded-(--radius-control) border text-footnote font-medium transition-colors',
                 topic.user_has_contribed
-                  ? 'bg-matcha/15 border-matcha/40 text-matcha shadow-[0_0_10px_rgba(61,184,138,0.12)]'
+                  ? 'bg-matcha/12 border-matcha/35 text-matcha'
                   : canContrib
-                    ? 'bg-paper border-border text-ink-soft hover:border-matcha/30 hover:text-matcha hover:bg-matcha/5'
-                    : 'bg-paper/50 border-border text-cha opacity-50',
+                    ? 'border-border text-ink-soft hover:border-matcha/30 hover:text-matcha'
+                    : 'border-border text-ink-muted opacity-50',
                 contribPending ? 'opacity-60 cursor-wait' : canContrib ? 'cursor-pointer' : 'cursor-not-allowed',
               )}
             >
@@ -478,7 +459,7 @@ export default function TopicDetailPage({
                 <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
               ) : (
                 <span className={cn('transition-transform', contribPop && 'animate-vote-pop')}>
-                  <FaHandshake className="w-4 h-4" />
+                  <Handshake className="w-4 h-4" />
                 </span>
               )}
               <span className="font-bold tabular-nums">{topic.contrib_count}</span>
@@ -504,7 +485,7 @@ export default function TopicDetailPage({
         {/* ─── Right sidebar: Contributors ─── */}
         <aside className="w-full lg:w-64 shrink-0">
           <div className="lg:sticky lg:top-20">
-            <div className="bg-paper/50 border border-border rounded-xl p-4">
+            <div className="bg-paper/50 border border-border rounded-(--radius-card) p-(--pad-card)">
               <h3 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-3">
                 Contributors ({topic.contributors.length})
               </h3>
@@ -523,7 +504,7 @@ export default function TopicDetailPage({
             </div>
 
             {/* Topic stats */}
-            <div className="mt-4 bg-paper/50 border border-border rounded-xl p-4 space-y-2.5">
+            <div className="mt-4 bg-paper/50 border border-border rounded-(--radius-card) p-(--pad-card) space-y-2.5">
               <h3 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-2">Stats</h3>
               <div className="flex items-center justify-between text-[12px]">
                 <span className="text-cha">Votes</span>
@@ -545,7 +526,7 @@ export default function TopicDetailPage({
 
             {/* Spark budget indicator */}
             {sparkWindow && (
-              <div className="mt-4 bg-paper/50 border border-saffron/20 rounded-xl p-4">
+              <div className="mt-4 bg-paper/50 border border-saffron/20 rounded-(--radius-card) p-(--pad-card)">
                 <h3 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-2">Spark</h3>
                 {sparkWindow.sparkedUserId ? (
                   <p className="text-[12px] text-saffron font-medium">

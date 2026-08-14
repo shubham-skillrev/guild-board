@@ -124,14 +124,14 @@ export function PushOptIn() {
           <button
             disabled={busy}
             onClick={subscribe}
-            className="rounded-lg bg-saffron px-3 py-1.5 text-xs font-medium text-parchment hover:opacity-90 disabled:opacity-50"
+            className="press inline-flex items-center h-8 rounded-(--radius-control) bg-saffron px-3 text-footnote font-medium text-parchment hover:bg-saffron/90 disabled:opacity-40"
           >
             {busy ? "Enabling…" : "Enable"}
           </button>
           <button
             disabled={busy}
             onClick={dismiss}
-            className="rounded-lg border border-border-strong px-3 py-1.5 text-xs text-ink-soft hover:text-ink"
+            className="press inline-flex items-center h-8 rounded-(--radius-control) bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink"
           >
             Not now
           </button>
@@ -201,7 +201,7 @@ export function PushToggleButton() {
     <button
       onClick={toggle}
       disabled={busy}
-      className="rounded-lg border border-border-strong px-3 py-1.5 text-xs text-ink-soft hover:text-ink disabled:opacity-50"
+      className="press inline-flex items-center h-8 rounded-(--radius-control) bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink disabled:opacity-40"
     >
       {hasSub ? "Disable notifications" : "Enable notifications"}
     </button>

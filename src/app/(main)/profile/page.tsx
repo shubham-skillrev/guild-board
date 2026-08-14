@@ -1,9 +1,9 @@
+import { PencilLine } from '@phosphor-icons/react/dist/ssr'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { UserAvatar } from '@/components/ui/UserAvatar'
-import { LuPencilLine } from 'react-icons/lu'
 
 async function getProfile() {
   const supabase = await createClient()
@@ -49,7 +49,7 @@ export default async function ProfilePage() {
                 className="inline-flex items-center justify-center w-6 h-6 text-cha hover:text-ink hover:border-border-strong hover:bg-paper transition-all"
               >
                 <span className="text-[12px] leading-none">
-                  <LuPencilLine className="w-3.5 h-3.5" />
+                  <PencilLine className="w-3.5 h-3.5" />
                 </span>
               </Link>
               {profile.hall_of_flame && (
@@ -75,7 +75,7 @@ export default async function ProfilePage() {
         ) : (
           <div className="space-y-2.5">
             {topics.map((topic: any) => (
-              <div key={topic.id} className="p-4 bg-paper/50 rounded-xl border border-border hover:border-border-strong transition-colors">
+              <div key={topic.id} className="p-(--pad-card) bg-paper/50 rounded-(--radius-card) border border-border hover:border-border-strong transition-colors">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5">
@@ -87,7 +87,7 @@ export default async function ProfilePage() {
                         {topic.cycles?.label}
                       </span>
                       {topic.is_selected && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-saffron-light text-saffron">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-saffron/12 text-saffron">
                           ★ Selected
                         </span>
                       )}

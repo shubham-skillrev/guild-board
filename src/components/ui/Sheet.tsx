@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { X } from 'lucide-react'
+import { X } from '@phosphor-icons/react/dist/ssr'
 import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/utils/cn'
 

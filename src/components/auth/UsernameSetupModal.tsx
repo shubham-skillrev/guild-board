@@ -68,7 +68,7 @@ export function UsernameSetupModal() {
         <p className="text-cha text-[13px] mb-5">
           This is how you&apos;ll appear on GuildBoard.
         </p>
-        <div className="mb-5 rounded-xl border border-border bg-kinu/50 px-4 py-3 text-[12px] leading-6 text-ink-soft">
+        <div className="mb-5 rounded-(--radius-card) border border-border bg-kinu/50 px-(--pad-card) py-3 text-[12px] leading-6 text-ink-soft">
           {hintText}
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -81,7 +81,7 @@ export function UsernameSetupModal() {
                 setError(validate(e.target.value.toLowerCase()))
               }}
               placeholder="e.g. dev_wizard or code_ninja"
-              className="w-full px-3 py-2 bg-sumi border border-border-strong rounded-lg text-sm text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 placeholder:text-cha transition-all"
+              className="w-full px-3 py-2 bg-sumi border border-border rounded-(--radius-control) text-footnote text-ink focus:outline-none focus:border-saffron/50 placeholder:text-ink-muted transition-colors"
               autoFocus
               autoComplete="off"
             />
@@ -90,7 +90,7 @@ export function UsernameSetupModal() {
           <button
             type="submit"
             disabled={isSubmitting || !!validate(username)}
-            className="w-full py-2.5 bg-saffron text-parchment rounded-lg text-[13px] font-semibold hover:bg-saffron/90 disabled:opacity-50 transition-all"
+            className="press w-full inline-flex items-center justify-center h-9 bg-saffron text-parchment rounded-(--radius-control) text-footnote font-medium hover:bg-saffron/90 disabled:opacity-40 transition-colors"
           >
             {isSubmitting ? 'Saving...' : isEditMode ? 'Update username' : 'Lock it in'}
           </button>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { CATEGORY_LABELS, TITLE_MAX_LENGTH, DESCRIPTION_MAX_LENGTH } from '@/lib/constants'
+import { Button } from '@/components/ui/Button'
 import type { CategoryTag, Cycle } from '@/types'
 
 const CATEGORIES = Object.entries(CATEGORY_LABELS) as [CategoryTag, string][]
@@ -59,7 +60,7 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="bg-paper border border-border-strong rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-fade-up"
+        className="bg-paper border border-border-strong rounded-(--radius-card) shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto animate-fade-up"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -85,7 +86,7 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
                   key={value}
                   type="button"
                   onClick={() => setCategory(value)}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-[13px] transition-all text-left ${
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-(--radius-control) border text-[13px] transition-all text-left ${
                     category === value
                       ? 'border-saffron/40 bg-saffron-light text-saffron'
                       : 'border-border text-ink-soft hover:border-border-strong hover:bg-kinu/30'
@@ -114,7 +115,7 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
               maxLength={TITLE_MAX_LENGTH}
               required
               placeholder="e.g. Let's deep-dive into WebAssembly"
-              className="w-full px-3 py-2 bg-sumi border border-border-strong rounded-lg text-sm text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron/50 placeholder:text-cha transition-all"
+              className="w-full px-3 py-2 bg-sumi border border-border rounded-(--radius-control) text-sm text-ink focus:outline-none focus:border-saffron/50 placeholder:text-cha transition-all"
             />
             <p className="text-[11px] text-cha mt-1 text-right tabular-nums">{title.length}/{TITLE_MAX_LENGTH}</p>
           </div>
@@ -132,7 +133,7 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
               required
               rows={6}
               placeholder={"Why is this worth the guild's time?\n\nYou can use **bold**, *italic*, `code`, lists, and links."}
-              className="w-full px-3 py-2 bg-sumi border border-border-strong rounded-lg text-sm text-ink font-mono focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron/50 resize-y placeholder:text-cha transition-all"
+              className="w-full px-3 py-2 bg-sumi border border-border rounded-(--radius-control) text-sm text-ink font-mono focus:outline-none focus:border-saffron/50 resize-y placeholder:text-cha transition-all"
             />
             <p className="text-[11px] text-cha mt-1 text-right tabular-nums">{description.length}/{DESCRIPTION_MAX_LENGTH}</p>
           </div>
@@ -143,7 +144,7 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
               type="button"
               onClick={() => setIsAnonymous(v => !v)}
               aria-pressed={isAnonymous}
-              className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-lg border text-left transition-all ${
+              className={`w-full flex items-start gap-3 px-3 py-2.5 rounded-(--radius-control) border text-left transition-all ${
                 isAnonymous
                   ? 'border-wisteria/40 bg-wisteria/10'
                   : 'border-border hover:border-border-strong hover:bg-kinu/30'
@@ -174,26 +175,18 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
           </div>
 
           {error && (
-            <div className="p-3 bg-vermillion-light border border-vermillion/20 rounded-lg text-xs text-vermillion">
+            <div className="p-3 bg-vermillion/10 rounded-(--radius-control) text-[12px] text-vermillion">
               {error}
             </div>
           )}
 
-          <div className="flex gap-3 pt-1">
-            <button
-              type="submit"
-              disabled={loading || !title.trim() || !description.trim()}
-              className="px-5 py-2.5 bg-saffron text-parchment rounded-lg text-[13px] font-semibold hover:bg-saffron/90 disabled:opacity-40 transition-all"
-            >
-              {loading ? 'Submitting…' : 'Pitch It'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 border border-border-strong text-ink-soft rounded-lg text-[13px] hover:bg-kinu transition-all"
-            >
+          <div className="flex gap-2 pt-1">
+            <Button type="submit" disabled={loading || !title.trim() || !description.trim()}>
+              {loading ? 'Submitting…' : 'Pitch it'}
+            </Button>
+            <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
       </div>

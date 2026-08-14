@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Plus } from '@phosphor-icons/react/dist/ssr'
 import { CATEGORY_LABELS, OUTCOME_LABELS, MAX_SELECTED_TOPICS } from '@/lib/constants'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils/cn'
 import type { Cycle, OutcomeTag } from '@/types'
 
@@ -53,12 +56,14 @@ function nextMonth(): { month: number; year: number } {
   return m > 12 ? { month: 1, year: y + 1 } : { month: m, year: y }
 }
 
-const OUTCOME_COLORS: Record<OutcomeTag, string> = {
-  discussed: 'border-indigo-jp/40 bg-indigo-light text-indigo-jp',
-  blog_born: 'border-matcha/40 bg-matcha-light text-matcha',
-  project_started: 'border-saffron/40 bg-saffron-light text-saffron',
-  carry_forward: 'border-wisteria/40 bg-wisteria-light text-wisteria',
-  dropped: 'border-border bg-kinu text-cha',
+type BadgeTone = React.ComponentProps<typeof Badge>['tone']
+
+const OUTCOME_TONES: Record<OutcomeTag, BadgeTone> = {
+  discussed: 'indigo',
+  blog_born: 'matcha',
+  project_started: 'saffron',
+  carry_forward: 'wisteria',
+  dropped: 'neutral',
 }
 
 interface AdminControlsProps {
@@ -166,7 +171,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
     <div className="space-y-8">
       {/* Error */}
       {error && (
-        <div className="px-4 py-3 bg-vermillion-light border border-vermillion/20 rounded-lg text-sm text-vermillion">
+        <div className="px-(--pad-card) py-3 bg-vermillion/10 rounded-(--radius-card) text-footnote text-vermillion">
           {error}
         </div>
       )}
@@ -175,31 +180,34 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-[11px] font-semibold text-cha uppercase tracking-wider">Create Cycle</h2>
-          <button
+          <Button
+            size="sm"
+            variant={showNewCycle ? 'ghost' : 'tinted'}
+            icon={showNewCycle ? undefined : Plus}
             onClick={() => setShowNewCycle(!showNewCycle)}
-            className="text-[13px] text-saffron hover:text-saffron/80 transition-colors"
           >
-            {showNewCycle ? 'Cancel' : '+ New cycle'}
-          </button>
+            {showNewCycle ? 'Cancel' : 'New cycle'}
+          </Button>
         </div>
 
         {showNewCycle && (
-          <div className="p-5 bg-paper border border-border rounded-xl space-y-4">
+          <div className="p-(--pad-card) bg-paper border border-border rounded-(--radius-card) space-y-4">
             {/* Suggest next month button */}
             <div className="flex items-center justify-between">
               <p className="text-[12px] text-cha">Pre-fill with suggested next cycle</p>
-              <button
-                type="button"
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-saffron hover:text-saffron"
                 onClick={() => {
                   const s = nextMonth()
                   setNewCycleMonth(s.month)
                   setNewCycleYear(s.year)
                   setMeetingDate(getSecondFriday(s.month, s.year))
                 }}
-                className="text-[12px] text-saffron hover:text-saffron/80 transition-colors"
               >
-                ✦ Suggest {MONTHS[nextMonth().month - 1]} {nextMonth().year}
-              </button>
+                Suggest {MONTHS[nextMonth().month - 1]} {nextMonth().year}
+              </Button>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -212,7 +220,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                     setNewCycleMonth(m)
                     setMeetingDate(getSecondFriday(m, newCycleYear))
                   }}
-                  className="w-full px-3 py-2 bg-sumi border border-border-strong rounded-lg text-[13px] text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron/50"
+                  className="w-full px-3 py-2 bg-sumi border border-border rounded-(--radius-control) text-[13px] text-ink focus:outline-none focus:border-saffron/50"
                 >
                   {MONTHS.map((m, i) => (
                     <option key={m} value={i + 1}>{m}</option>
@@ -231,7 +239,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                   }}
                   min={2024}
                   max={2030}
-                  className="w-full px-3 py-2 bg-sumi border border-border-strong rounded-lg text-[13px] text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron/50"
+                  className="w-full px-3 py-2 bg-sumi border border-border rounded-(--radius-control) text-[13px] text-ink focus:outline-none focus:border-saffron/50"
                 />
               </div>
             </div>
@@ -243,7 +251,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                 type="datetime-local"
                 value={meetingDate}
                 onChange={e => setMeetingDate(e.target.value)}
-                className="w-full px-3 py-2 bg-sumi border border-border-strong rounded-lg text-[13px] text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron/50"
+                className="w-full px-3 py-2 bg-sumi border border-border rounded-(--radius-control) text-[13px] text-ink focus:outline-none focus:border-saffron/50"
               />
               {meetingDate && (
                 <p className="text-[11px] text-cha mt-1">
@@ -251,13 +259,9 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                 </p>
               )}
             </div>
-            <button
-              onClick={createCycle}
-              disabled={isLoading('create-cycle')}
-              className="px-4 py-2 bg-saffron text-parchment text-[13px] font-semibold rounded-lg hover:bg-saffron/90 disabled:opacity-40 transition-all"
-            >
+            <Button onClick={createCycle} disabled={isLoading('create-cycle')}>
               {isLoading('create-cycle') ? 'Creating…' : `Create ${MONTHS[newCycleMonth - 1]} ${newCycleYear}`}
-            </button>
+            </Button>
           </div>
         )}
       </section>
@@ -270,7 +274,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
           </h2>
 
           {/* Cycle controls */}
-          <div className="p-5 bg-paper border border-border rounded-xl mb-4 space-y-3">
+          <div className="p-(--pad-card) bg-paper border border-border rounded-(--radius-card) mb-4 space-y-3">
             <div className="grid sm:grid-cols-[1fr_auto] gap-3 items-end">
               <div>
                 <label className="block text-[11px] font-medium text-cha uppercase tracking-wider mb-1">Meeting date & time</label>
@@ -278,26 +282,23 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                   type="datetime-local"
                   value={activeMeetingDate}
                   onChange={e => setActiveMeetingDate(e.target.value)}
-                  className="w-full max-w-xs px-3 py-2 bg-sumi border border-border-strong rounded-lg text-[13px] text-ink focus:outline-none focus:ring-2 focus:ring-saffron/30 focus:border-saffron/50"
+                  className="w-full max-w-xs px-3 py-2 bg-sumi border border-border rounded-(--radius-control) text-[13px] text-ink focus:outline-none focus:border-saffron/50"
                 />
               </div>
-              <button
-                onClick={() => updateCycleDate(activeCycle.id)}
-                disabled={anyLoading}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-saffron/15 border border-saffron/40 text-saffron text-[13px] font-medium rounded-lg hover:bg-saffron/25 disabled:opacity-40 transition-all"
-              >
+              <Button variant="tinted" onClick={() => updateCycleDate(activeCycle.id)} disabled={anyLoading}>
                 {isLoading(`date-${activeCycle.id}`) ? 'Saving…' : 'Update date'}
-              </button>
+              </Button>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <button
+              <Button
+                variant="danger"
+                className="-ml-3"
                 onClick={() => deleteCycle(activeCycle.id)}
                 disabled={anyLoading}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-vermillion-light border border-vermillion/30 text-vermillion text-[13px] font-medium rounded-lg hover:bg-vermillion/20 disabled:opacity-40 transition-all"
               >
                 {isLoading(`delete-${activeCycle.id}`) ? 'Deleting…' : 'Delete cycle'}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -323,53 +324,46 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
               <div
                 key={topic.id}
                 className={cn(
-                  'p-4 bg-paper rounded-xl border transition-colors',
+                  'p-(--pad-card) bg-paper rounded-(--radius-card) border transition-colors',
                   topic.is_selected ? 'border-saffron/25 bg-saffron-light/30' : 'border-border',
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[11px] font-medium text-cha">{CATEGORY_LABELS[topic.category]}</span>
+                    <p className="text-footnote font-semibold text-ink">{topic.title}</p>
+                    <p className="text-[12px] text-ink-soft mt-0.5 line-clamp-1">{topic.description}</p>
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      <span className="text-[11px] text-cha">{CATEGORY_LABELS[topic.category]}</span>
                       <span className="text-border-strong">·</span>
                       <span className="text-[11px] text-cha">@{topic.users?.username ?? 'unknown'}</span>
-                      {topic.is_selected && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-saffron-light text-saffron border border-saffron/20">
-                          ★ Selected
-                        </span>
-                      )}
+                      {topic.is_selected && <Badge tone="saffron">Selected</Badge>}
                       {topic.outcome_tag && (
-                        <span className={cn(
-                          'text-[10px] font-medium px-1.5 py-0.5 rounded-full border',
-                          OUTCOME_COLORS[topic.outcome_tag as OutcomeTag] ?? 'border-border text-cha bg-kinu'
-                        )}>
+                        <Badge tone={OUTCOME_TONES[topic.outcome_tag as OutcomeTag] ?? 'neutral'}>
                           {OUTCOME_LABELS[topic.outcome_tag]}
-                        </span>
+                        </Badge>
                       )}
                     </div>
-                    <p className="text-[14px] font-medium text-ink">{topic.title}</p>
-                    <p className="text-[12px] text-ink-soft mt-0.5 line-clamp-1">{topic.description}</p>
                   </div>
                   <div className="shrink-0 text-right min-w-14">
-                    <p className="text-[15px] font-bold text-ink tabular-nums">{topic.score.toFixed(1)}</p>
-                    <p className="text-[11px] text-cha tabular-nums">▲{topic.vote_count} · 🤝{topic.contrib_count}</p>
+                    <p className="text-footnote font-semibold text-ink num">{topic.score.toFixed(1)}</p>
+                    <p className="text-[11px] text-cha mt-0.5">
+                      <span className="num">{topic.vote_count}</span> votes ·{' '}
+                      <span className="num">{topic.contrib_count}</span> in
+                    </p>
                   </div>
                 </div>
 
                 {/* Row actions */}
                 <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/60">
-                  <button
+                  <Button
+                    size="sm"
+                    variant={topic.is_selected ? 'ghost' : 'tinted'}
+                    className="-ml-2.5"
                     onClick={() => selectTopic(topic.id, !topic.is_selected)}
                     disabled={anyLoading || (!topic.is_selected && localTopics.filter((t: any) => t.is_selected).length >= MAX_SELECTED_TOPICS)}
-                    className={cn(
-                      'px-3 py-1.5 text-[12px] font-medium rounded-lg border transition-all disabled:opacity-40',
-                      topic.is_selected
-                        ? 'bg-kinu border-border text-ink-soft hover:text-ink hover:border-border-strong'
-                        : 'bg-saffron-light border-saffron/30 text-saffron hover:bg-saffron/20',
-                    )}
                   >
-                    {isLoading(`select-${topic.id}`) ? '…' : topic.is_selected ? 'Deselect' : '⭐ Select'}
-                  </button>
+                    {isLoading(`select-${topic.id}`) ? '…' : topic.is_selected ? 'Deselect' : 'Select'}
+                  </Button>
                 </div>
               </div>
             ))}

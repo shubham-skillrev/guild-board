@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { Calendar } from 'lucide-react'
+import { CalendarBlank } from '@phosphor-icons/react/dist/ssr'
 import { Icon } from '@/components/ui/Icon'
 import type { Cycle } from '@/types'
 
@@ -76,8 +76,8 @@ export function MeetingDate({ cycle, phase }: { cycle: Cycle | null | undefined;
   if (withinWindow !== true) return null
 
   return (
-    <span className="inline-flex items-center gap-1.5 text-meta px-2.5 py-1.5 rounded-full bg-paper/60 border border-border text-ink-soft">
-      <Icon icon={Calendar} size="sm" className="text-ink-muted" />
+    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-paper/60 border border-border text-ink-soft">
+      <Icon icon={CalendarBlank} size="sm" className="text-ink-muted" />
       {format(meeting)}
     </span>
   )
@@ -94,7 +94,7 @@ export function CycleStatus({ phase }: { phase: string }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 text-meta px-2.5 py-1.5 rounded-full ${
+      className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full ${
         isOpen ? 'bg-matcha-light text-matcha' : 'bg-indigo-light text-indigo-jp'
       }`}
     >

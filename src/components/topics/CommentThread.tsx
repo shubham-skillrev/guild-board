@@ -1,11 +1,11 @@
 'use client'
 
+import { ArrowBendUpRight, PencilSimple, ThumbsUp, Trash } from '@phosphor-icons/react/dist/ssr'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { cn } from '@/lib/utils/cn'
 import { UserAvatar } from '@/components/ui/UserAvatar'
+import { Button } from '@/components/ui/Button'
 import { useToast } from '@/hooks/useToast'
-import { FiEdit2, FiTrash2, FiThumbsUp } from 'react-icons/fi'
-import { IoReturnUpForward } from 'react-icons/io5'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import type { Comment } from '@/types'
@@ -132,10 +132,10 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
               key={o.key}
               onClick={() => setSort(o.key)}
               className={cn(
-                'px-2.5 py-1 rounded-full text-[11px] font-medium transition-all cursor-pointer',
+                'press inline-flex items-center h-6.5 px-2 pointer-coarse:h-9 pointer-coarse:px-2.5 rounded-md text-[11px] font-medium transition-colors',
                 sort === o.key
-                  ? 'bg-saffron/15 text-saffron border border-saffron/30'
-                  : 'text-cha hover:text-ink-soft border border-transparent hover:border-border',
+                  ? 'bg-fill text-ink'
+                  : 'text-ink-muted hover:text-ink hover:bg-kinu/60',
               )}
             >
               {o.label}
@@ -169,9 +169,9 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
     <div className="space-y-2">
       {replyTo && (
         <div className="flex items-center gap-2 text-[12px] text-cha">
-          <IoReturnUpForward className="w-3.5 h-3.5" />
+          <ArrowBendUpRight className="w-3.5 h-3.5" />
           <span>Replying to <span className="text-ink-soft">@{replyTo.username}</span></span>
-          <button onClick={() => setReplyTo(null)} className="text-red-400 hover:text-red-300 ml-1">&times;</button>
+          <button onClick={() => setReplyTo(null)} className="text-ink-muted hover:text-ink ml-1">&times;</button>
         </div>
       )}
       <div className="flex gap-2 items-end">
@@ -187,22 +187,17 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
           }}
           onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
           placeholder="Write a comment… (markdown supported)"
-          className="flex-1 bg-kinu/30 border border-border rounded-lg px-3 py-2.5 text-[13px] text-ink placeholder:text-cha focus:outline-none focus:border-saffron/40 transition-colors resize-none overflow-y-auto"
+          className="flex-1 bg-kinu/30 border border-border rounded-(--radius-control) px-3 py-2.5 text-footnote text-ink placeholder:text-ink-muted focus:outline-none focus:border-saffron/40 transition-colors resize-none overflow-y-auto"
           style={{ maxHeight: '200px' }}
           maxLength={2000}
         />
-        <button
+        <Button
+          variant={newComment.trim() ? 'primary' : 'secondary'}
           onClick={handleSubmit}
           disabled={!newComment.trim() || submitting}
-          className={cn(
-            'px-4 py-2.5 rounded-lg text-[13px] font-medium transition-all',
-            newComment.trim() && !submitting
-              ? 'bg-saffron text-parchment hover:bg-saffron/90'
-              : 'bg-kinu/30 text-cha cursor-not-allowed'
-          )}
         >
-          {submitting ? '...' : 'Send'}
-        </button>
+          {submitting ? '…' : 'Send'}
+        </Button>
       </div>
     </div>
   )
@@ -367,7 +362,7 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
                 reactionPending && 'opacity-50 cursor-wait',
               )}
             >
-              <FiThumbsUp className={cn('w-3 h-3', comment.user_reaction === 1 && 'animate-vote-pop')} />
+              <ThumbsUp className={cn('w-3 h-3', comment.user_reaction === 1 && 'animate-vote-pop')} />
               {likeCount > 0 && <span>{likeCount}</span>}
             </button>
           )}
@@ -377,7 +372,7 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
               onClick={() => onReply(comment.id, comment.author_username ?? 'user')}
               className="inline-flex items-center gap-1 text-[11px] text-cha hover:text-ink-soft transition-colors cursor-pointer"
             >
-              <IoReturnUpForward className="w-3 h-3" />
+              <ArrowBendUpRight className="w-3 h-3" />
               Reply
             </button>
           )}
@@ -387,14 +382,14 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
                 onClick={() => { setEditBody(comment.body); setEditing(true) }}
                 className="inline-flex items-center gap-1 text-[11px] text-cha hover:text-ink-soft transition-colors cursor-pointer"
               >
-                <FiEdit2 className="w-3 h-3" />
+                <PencilSimple className="w-3 h-3" />
                 Edit
               </button>
               <button
                 onClick={() => onDelete(comment.id)}
                 className="inline-flex items-center gap-1 text-[11px] text-red-400/70 hover:text-red-400 transition-colors cursor-pointer"
               >
-                <FiTrash2 className="w-3 h-3" />
+                <Trash className="w-3 h-3" />
                 Delete
               </button>
             </>

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
-import { Check, MessageSquare } from 'lucide-react'
+import { Check, ChatCircle } from '@phosphor-icons/react/dist/ssr'
 import { DOMAIN_LABELS, type Domain } from '@/lib/bytes/domains'
 import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/utils/cn'
@@ -75,8 +75,11 @@ export function ByteCard({ byte, rank }: ByteCardProps) {
       {/* Rank sits in its own column as plain text. It was a saffron disc
           pinned outside the card corner, which put the loudest colour on the
           page next to the least important number on it. */}
+      {/* Saffron here is earned: a rank only exists in "Top right now", and
+          that ordering is the guild's own interest taps rather than a feed
+          score. It is the one thing on this page the members produced. */}
       {rank !== undefined && (
-        <span aria-hidden className="w-5 shrink-0 pt-0.5 text-footnote text-ink-muted tabular">
+        <span aria-hidden className="w-5 shrink-0 pt-0.5 text-footnote text-saffron tabular">
           {rank}
         </span>
       )}
@@ -143,13 +146,17 @@ export function ByteCard({ byte, rank }: ByteCardProps) {
         whileTap={reduceMotion ? undefined : { scale: 0.94 }}
         transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
         className={cn(
-          'self-start shrink-0 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-full border text-meta transition-colors disabled:opacity-60',
+          'self-start shrink-0 inline-flex items-center gap-1.5 h-7 px-2 rounded-md border text-meta transition-colors disabled:opacity-60',
           interested
-            ? 'border-saffron/40 bg-saffron-light text-saffron'
-            : 'border-border text-ink-muted hover:border-border-strong hover:text-ink-soft',
+            ? 'border-saffron/40 bg-saffron/12 text-saffron'
+            : count > 0
+              // Someone in the guild already wants this discussed. That is a
+              // signal worth carrying colour even before you have tapped.
+              ? 'border-saffron/25 text-saffron hover:bg-saffron/12'
+              : 'border-border text-ink-muted hover:border-border-strong hover:text-ink-soft',
         )}
       >
-        <Icon icon={interested ? Check : MessageSquare} size="sm" />
+        <Icon icon={interested ? Check : ChatCircle} size="sm" />
         {count > 0 && <span className="tabular">{count}</span>}
       </motion.button>
     </article>

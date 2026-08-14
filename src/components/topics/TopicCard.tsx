@@ -1,34 +1,23 @@
 'use client'
 
+import { ArrowFatUp, ChatCircle, Handshake } from '@phosphor-icons/react/dist/ssr'
 import { useState } from 'react'
 import Link from 'next/link'
 import { SignalRow } from '@/components/topics/SignalRow'
 import { cn } from '@/lib/utils/cn'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { UserAvatar } from '@/components/ui/UserAvatar'
-import { BiUpvote, BiSolidUpvote } from 'react-icons/bi'
-import { FaHandshake } from 'react-icons/fa6'
-import { IoChatbubbleOutline } from 'react-icons/io5'
+import { Badge } from '@/components/ui/Badge'
 import type { Topic } from '@/types'
+
+type BadgeTone = React.ComponentProps<typeof Badge>['tone']
 import type { CyclePhase } from '@/hooks/useCurrentCycle'
 
-const CATEGORY_STYLES: Record<string, { dot: string; badge: string }> = {
-  deep_dive: {
-    dot: 'bg-indigo-jp',
-    badge: 'text-indigo-jp bg-indigo-light',
-  },
-  discussion: {
-    dot: 'bg-saffron',
-    badge: 'text-saffron bg-saffron-light',
-  },
-  blog_idea: {
-    dot: 'bg-matcha',
-    badge: 'text-matcha bg-matcha-light',
-  },
-  project_showcase: {
-    dot: 'bg-wisteria',
-    badge: 'text-wisteria bg-wisteria-light',
-  },
+const CATEGORY_TONE: Record<string, BadgeTone> = {
+  deep_dive: 'indigo',
+  discussion: 'saffron',
+  blog_idea: 'matcha',
+  project_showcase: 'wisteria',
 }
 
 interface TopicCardProps {
@@ -63,7 +52,7 @@ export function TopicCard({
   const isOwner = topic.is_owner ?? currentUserId === topic.user_id
   const canVote = phase === 'open' && !isOwner
   const canContrib = phase === 'open' && !isOwner
-  const style = CATEGORY_STYLES[topic.category] ?? CATEGORY_STYLES.discussion
+  const categoryTone = CATEGORY_TONE[topic.category] ?? 'saffron'
   const commentCount = (topic as Topic & { comment_count?: number }).comment_count ?? 0
   const withSignals = topic as Topic & {
     signal_counts?: Record<string, number>
@@ -71,8 +60,10 @@ export function TopicCard({
   }
   const signalCounts = withSignals.signal_counts ?? {}
   const mySignals = withSignals.my_signals ?? []
-  const titlePreview = topic.title.length > 52 ? `${topic.title.slice(0, 52)}...` : topic.title
-  const descriptionPreview = topic.description.length > 50 ? `${topic.description.slice(0, 50)}...` : topic.description
+  /* Truncation is CSS's job, not a character count's. A fixed 52-char slice cut
+     mid-word well short of the card's actual width and then CSS clipped what
+     was left, so a title lost two words it had room for. `truncate` ellipsizes
+     at the real edge, whatever the viewport is. */
 
   const hasVoted = !!topic.user_has_voted
   const hasContributed = !!topic.user_has_contribed
@@ -96,8 +87,8 @@ export function TopicCard({
   }
 
   const cardClassName = cn(
-    'group flex gap-3 sm:gap-4 bg-paper/40 border border-border rounded-2xl p-3.5 sm:p-4 transition-colors press',
-    'hover:border-border-strong hover:bg-paper/70',
+    'group flex gap-3 sm:gap-4 bg-paper/50 border border-border rounded-(--radius-card) p-(--pad-card) transition-colors press',
+    'hover:border-border-strong hover:bg-paper/80',
     topic.is_selected && 'ring-1 ring-saffron/30 border-saffron/20',
     (votePending || contribPending) && 'opacity-75',
   )
@@ -105,6 +96,9 @@ export function TopicCard({
   const cardContent = (
     <>
       {/* Rank */}
+      {/* Medals for the podium. This is a monthly contest between colleagues,
+          and the top three being visibly the top three is the point of ranking
+          them at all. */}
       <div className="hidden sm:flex flex-col items-center pt-0.5 shrink-0 w-8">
         <span className={cn(
           'text-sm font-semibold tabular',
@@ -118,43 +112,40 @@ export function TopicCard({
       <div className="flex-1 min-w-0 space-y-1.5">
         {/* Badges */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={cn('inline-flex items-center gap-1 type-caption px-2 py-0.5 rounded-full', style.badge)}>
-            <span className={cn('w-1.5 h-1.5 rounded-full', style.dot)} />
-            {CATEGORY_LABELS[topic.category]}
-          </span>
-          {topic.status === 'carry_forward' && (
-            <span className="type-caption px-2 py-0.5 rounded-full bg-indigo-light text-indigo-jp">↩ Returning</span>
-          )}
-          {topic.is_selected && (
-            <span className="type-caption px-2 py-0.5 rounded-full bg-saffron-light text-saffron">★ Selected</span>
-          )}
+          <Badge tone={categoryTone} dot>{CATEGORY_LABELS[topic.category]}</Badge>
+          {topic.status === 'carry_forward' && <Badge tone="indigo">↩ Returning</Badge>}
+          {topic.is_selected && <Badge tone="saffron">★ Selected</Badge>}
         </div>
 
-        {/* Title */}
-        <h3 className="type-title text-ink group-hover:text-saffron transition-colors line-clamp-2">
-          {titlePreview}
+        {/* Title and blurb are one line each. A board is a list you scan for
+            the one topic you care about, and two wrapped lines per field turned
+            six cards into a page and a half of scrolling. The full text is one
+            tap away. */}
+        {/* The display serif, on purpose. It is the page voice everywhere else
+            in the product, and a board is a list of titles - the one place a
+            card title is the content rather than a label on it. */}
+        <h3 className="font-serif text-title-3 text-ink group-hover:text-saffron transition-colors truncate">
+          {topic.title}
         </h3>
 
-        {/* Description preview */}
-        <p className="type-body text-ink-soft line-clamp-2">
-          {descriptionPreview}
+        <p className="text-body text-ink-soft truncate">
+          {topic.description}
         </p>
 
-        {/* Bottom: author + comments */}
-        <div className="flex items-center gap-3 pt-1">
+        {/* One metadata line: who, how much talk, and the one-tap signals.
+            The signals used to sit in a row of their own under this, four
+            labelled pills wide, which read as a second card stapled to the
+            first. Compact mode drops the labels so they weigh the same as the
+            comment count they sit beside. */}
+        <div className="flex items-center gap-3 pt-1 flex-wrap">
           <div className="flex items-center gap-1.5">
             <UserAvatar username={topic.author_username ?? 'user'} size={18} />
             <span className="type-caption text-ink-soft">@{topic.author_username}</span>
           </div>
           <span className="inline-flex items-center gap-1 type-caption text-cha">
-            <IoChatbubbleOutline className="w-3.5 h-3.5" />
+            <ChatCircle className="w-3.5 h-3.5" />
             {commentCount > 0 ? commentCount : 'Discuss'}
           </span>
-        </div>
-
-        {/* One-tap signals. Counts arrive inline with /api/topics, and the
-            buttons stop propagation so they work inside the card's Link. */}
-        <div className="pt-1.5">
           <SignalRow
             topicId={topic.id}
             compact
@@ -170,12 +161,15 @@ export function TopicCard({
           disabled={!canVote || voteDisabled}
           aria-label={hasVoted ? 'Remove vote' : 'Upvote'}
           className={cn(
-            'flex flex-col items-center justify-center gap-0.5 w-12 sm:w-14 h-16 sm:h-18 rounded-xl border text-center transition-all',
+            /* The two counters are the whole reason a member opens the board on
+               a phone, so they are sized as thumb targets first: 48x60 on
+               touch, trimmed to 44x56 where there is a cursor. */
+            'flex flex-col items-center justify-center gap-0.5 w-12 sm:w-11 h-15 sm:h-14 rounded-(--radius-card) border text-center transition-colors',
             hasVoted
-              ? 'bg-saffron/20 border-saffron/60 text-saffron shadow-[0_0_12px_rgba(232,145,58,0.2)]'
+              ? 'bg-saffron/15 border-saffron/50 text-saffron'
               : canVote && !voteDisabled
-                ? 'bg-kinu/40 border-border-strong text-ink hover:border-saffron/45 hover:text-saffron hover:bg-saffron/10'
-                : 'bg-kinu/30 border-border-strong text-ink-soft',
+                ? 'bg-kinu/40 border-border text-ink-soft hover:border-saffron/45 hover:text-saffron hover:bg-saffron/10'
+                : 'border-border text-ink-muted',
             votePending
               ? 'opacity-60 cursor-wait'
               : canVote && !voteDisabled
@@ -186,9 +180,9 @@ export function TopicCard({
           {votePending ? (
             <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
           ) : hasVoted ? (
-            <BiSolidUpvote className="w-5 h-5 scale-110" />
+            <ArrowFatUp className="w-5 h-5" weight="fill" />
           ) : (
-            <BiUpvote className="w-5 h-5" />
+            <ArrowFatUp className="w-5 h-5" />
           )}
           <span className="text-[15px] font-bold tabular-nums leading-none">{topic.vote_count}</span>
         </button>
@@ -198,12 +192,12 @@ export function TopicCard({
           disabled={!canContrib || contribDisabled}
           aria-label={hasContributed ? 'Withdraw' : "I'll contribute"}
           className={cn(
-            'flex items-center justify-center gap-1 w-12 sm:w-14 h-9 rounded-lg border text-[12px] font-medium transition-all',
+            'flex items-center justify-center gap-1 w-12 sm:w-11 h-10 sm:h-9 rounded-(--radius-control) border text-footnote font-medium transition-colors',
             hasContributed
-              ? 'bg-matcha/20 border-matcha/60 text-matcha shadow-[0_0_10px_rgba(61,184,138,0.18)]'
+              ? 'bg-matcha/15 border-matcha/50 text-matcha'
               : canContrib && !contribDisabled
-                ? 'bg-kinu/40 border-border-strong text-ink hover:border-matcha/45 hover:text-matcha hover:bg-matcha/10'
-                : 'bg-kinu/30 border-border-strong text-ink-soft',
+                ? 'bg-kinu/40 border-border text-ink-soft hover:border-matcha/45 hover:text-matcha hover:bg-matcha/10'
+                : 'border-border text-ink-muted',
             contribPending
               ? 'opacity-60 cursor-wait'
               : canContrib && !contribDisabled
@@ -214,7 +208,7 @@ export function TopicCard({
           {contribPending ? (
             <span className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
           ) : (
-            <FaHandshake className={cn('w-3.5 h-3.5', hasContributed && 'scale-110')} />
+            <Handshake className={cn('w-4 h-4', hasContributed && 'scale-110')} />
           )}
           <span className="tabular-nums font-semibold">{topic.contrib_count}</span>
         </button>

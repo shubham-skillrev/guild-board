@@ -6,7 +6,7 @@ import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useToast } from '@/hooks/useToast'
 import { IdeaCard } from '@/components/bank/IdeaCard'
 import { BankIdeaModal } from '@/components/bank/BankIdeaModal'
-import { Lightbulb, HandHelping } from 'lucide-react'
+import { Lightbulb, HandHeart, Plus } from '@phosphor-icons/react/dist/ssr'
 import { Button } from '@/components/ui/Button'
 import { PageHeader, EmptyState, CardSkeleton } from '@/components/ui/Section'
 import type { BankedIdea } from '@/types'
@@ -68,7 +68,36 @@ export default function BankPage() {
     await load()
   }
 
+  /** Delete the promoted topic. The idea returns to the bank, re-pitchable. */
+  const removeFromBoard = async (idea: BankedIdea): Promise<boolean> => {
+    if (!idea.promoted_topic_id) return true
+    const res = await fetch('/api/topics', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: idea.promoted_topic_id }),
+    })
+    // A topic already gone is the state we wanted, so treat 404 as success.
+    return res.ok || res.status === 404
+  }
+
+  const handleRemoveFromBoard = async (idea: BankedIdea) => {
+    if (!(await removeFromBoard(idea))) {
+      toast('Could not remove it from the board', 'error')
+      return
+    }
+    toast('Back in your bank', 'info')
+    await load()
+  }
+
   const handleDelete = async (idea: BankedIdea) => {
+    /* A promoted idea cannot be deleted while the topic still points at it,
+       so the topic goes first. Doing it in this order is what makes "Delete
+       everywhere" a single action rather than two the member has to discover. */
+    if (idea.promoted_topic_id && !(await removeFromBoard(idea))) {
+      toast('Could not remove it from the board', 'error')
+      return
+    }
+
     const res = await fetch('/api/idea-bank', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -86,11 +115,17 @@ export default function BankPage() {
   ]
 
   return (
-    <div className="px-5 md:px-10 py-8 w-full max-w-3xl mx-auto pb-28 md:pb-8">
+    <div className="px-(--pad-page-x) py-8 w-full max-w-(--measure-read) mx-auto pb-28 md:pb-10">
       <PageHeader
         title="Idea Bank"
         subtitle="Park an idea the moment you have it, any day of any cycle. Bank as many as you like; one goes on the board each cycle."
-        action={<Button onClick={() => setShowModal(true)}>+ Bank an idea</Button>}
+        /* Saffron. Banking an idea is the entire job of this screen, so the one
+           control that does it is the one warm thing on it. */
+        action={
+          <Button icon={Plus} onClick={() => setShowModal(true)}>
+            Bank an idea
+          </Button>
+        }
       />
 
       <div className="flex items-center gap-2 mb-5 flex-wrap">
@@ -124,16 +159,23 @@ export default function BankPage() {
         <CardSkeleton />
       ) : list.length === 0 ? (
         <EmptyState
-          icon={tab === 'mine' ? Lightbulb : HandHelping}
+          icon={tab === 'mine' ? Lightbulb : HandHeart}
           title={tab === 'mine' ? 'Nothing banked yet' : 'No ideas up for grabs'}
           body={
             tab === 'mine'
               ? 'Next time something annoys you in a standup, park it here. Takes ten seconds.'
               : 'When someone offers an idea they cannot get to, it shows up here for anyone to pitch.'
           }
+          /* The one solid button on this screen. An empty list is the single
+             moment the invitation deserves to be the loudest thing on it. */
+          action={
+            tab === 'mine' ? (
+              <Button onClick={() => setShowModal(true)}>Bank an idea</Button>
+            ) : undefined
+          }
         />
       ) : (
-        <div className="space-y-3 stagger-children">
+        <div className="space-y-(--gap-list) stagger-children">
           {list.map(idea => (
             <IdeaCard
               key={idea.id}
@@ -142,6 +184,7 @@ export default function BankPage() {
               onPromote={handlePromote}
               onToggleOpen={tab === 'mine' ? handleToggleOpen : undefined}
               onDelete={tab === 'mine' ? handleDelete : undefined}
+              onRemoveFromBoard={tab === 'mine' ? handleRemoveFromBoard : undefined}
             />
           ))}
         </div>

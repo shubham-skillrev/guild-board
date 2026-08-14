@@ -51,7 +51,7 @@ export function OutcomesRecap() {
   if (!cycle || outcomes.length === 0) return null
 
   return (
-    <section className="mb-6 rounded-xl border border-border bg-paper/50 overflow-hidden">
+    <section className="mb-6 rounded-(--radius-card) border border-border bg-paper/50 overflow-hidden">
       <button
         type="button"
         onClick={() => setCollapsed(c => !c)}

@@ -3,7 +3,7 @@
 import { useCallback, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, useReducedMotion } from 'framer-motion'
-import { LayoutGrid, Lightbulb } from 'lucide-react'
+import { SquaresFour, Lightbulb, Plus } from '@phosphor-icons/react/dist/ssr'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useTopics } from '@/hooks/useTopics'
 import { useUserTokens } from '@/hooks/useUserTokens'
@@ -155,9 +155,9 @@ export default function BoardPage() {
                   prominent invitation. */}
               {!listIsEmpty &&
                 (isOpen && !topic_submitted ? (
-                  <Button onClick={() => setShowSubmit(true)}>Pitch an idea</Button>
+                  <Button icon={Plus} onClick={() => setShowSubmit(true)}>Pitch an idea</Button>
                 ) : (
-                  <Button variant="secondary" onClick={() => router.push('/bank')}>
+                  <Button icon={Lightbulb} onClick={() => router.push('/bank')}>
                     Bank an idea
                   </Button>
                 ))}
@@ -204,19 +204,26 @@ export default function BoardPage() {
             {/* Cycle history. Secondary to the current board, so it sits with
                 the list it filters rather than at the top of the page. */}
             {allCycles.length > 1 && (
-              <div className="flex items-center gap-1.5 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
+              <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
                 {allCycles.map(c => {
                   const isActive = c.id === viewingCycleId
+                  const isCurrent = c.id === activeCycleId
                   return (
                     <button
                       key={c.id}
                       onClick={() => setSelectedCycleId(c.id === activeCycleId ? null : c.id)}
                       aria-pressed={isActive}
-                      className={`press shrink-0 px-3 py-1.5 rounded-full type-caption transition-colors border ${
+                      /* Full-size tabs, not micro-chips. These are the primary
+                         way to move around a year of cycles, and at caption
+                         size they read as a footnote about the list rather
+                         than a control over it. The live cycle keeps a hint of
+                         saffron even when you are looking at an old one, so
+                         "where is now" never needs hunting for. */
+                      className={`press shrink-0 inline-flex items-center h-9 px-3.5 rounded-full text-footnote font-medium transition-colors ${
                         isActive
-                          ? 'bg-sumi text-saffron border-border-strong'
-                          : 'text-cha hover:text-ink hover:bg-kinu/50 border-transparent'
-                      }`}
+                          ? 'bg-sumi text-saffron border border-border-strong'
+                          : 'border border-transparent text-cha hover:text-ink hover:bg-kinu/50'
+                      } ${isCurrent && !isActive ? 'text-saffron/60' : ''}`}
                     >
                       {MONTHS_SHORT[c.month - 1]} {c.year}
                     </button>
@@ -229,11 +236,11 @@ export default function BoardPage() {
               <CardSkeleton />
             ) : !viewingCycle ? (
               <EmptyState
-                icon={LayoutGrid}
+                icon={SquaresFour}
                 title="The scroll is blank"
                 body="An admin needs to open a cycle to get the guild rolling. Ideas you bank now carry over."
                 action={
-                  <Button variant="secondary" onClick={() => router.push('/bank')}>
+                  <Button icon={Lightbulb} onClick={() => router.push('/bank')}>
                     Bank an idea
                   </Button>
                 }
@@ -251,9 +258,9 @@ export default function BoardPage() {
                 }
                 action={
                   isOpen && !topic_submitted ? (
-                    <Button onClick={() => setShowSubmit(true)}>Pitch an idea</Button>
+                    <Button icon={Plus} onClick={() => setShowSubmit(true)}>Pitch an idea</Button>
                   ) : (
-                    <Button variant="secondary" onClick={() => router.push('/bank')}>
+                    <Button icon={Lightbulb} onClick={() => router.push('/bank')}>
                       Bank an idea
                     </Button>
                   )

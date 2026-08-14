@@ -99,7 +99,7 @@ export function ByteGenerator() {
   const isLive = digest?.status === 'published'
 
   return (
-    <section className="rounded-2xl border border-border bg-paper/40 p-4 md:p-5">
+    <section className="rounded-(--radius-card) border border-border bg-paper/40 p-(--pad-card)">
       <SectionHeader
         title="Bytes"
         hint="fetched every Monday, live on arrival"
@@ -113,7 +113,7 @@ export function ByteGenerator() {
       </p>
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <Button size="sm" onClick={generate} disabled={generating}>
+        <Button size="sm" variant="tinted" onClick={generate} disabled={generating}>
           {generating ? 'Fetching…' : 'Fetch more now'}
         </Button>
         {digest && (

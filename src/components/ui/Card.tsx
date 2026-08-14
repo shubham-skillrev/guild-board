@@ -10,7 +10,7 @@ export function Card({ interactive = false, className, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        'bg-paper/50 border border-border rounded-xl',
+        'bg-paper/50 border border-border rounded-(--radius-card)',
         interactive && 'transition-colors hover:bg-kinu/30 hover:border-border-strong',
         className,
       )}
