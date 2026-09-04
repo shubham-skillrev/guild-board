@@ -47,21 +47,30 @@ export function SectionHeader({
   hrefLabel?: string
   id?: string
 }) {
+  /* Two lines, not one.
+     Title, hint and link used to share a single baseline row, which works
+     right up until the hint is a sentence: at "New \u00b7 August 2026 Bytes" the
+     row ran out of width and wrapped *the heading* to two lines, so "Fresh
+     bytes" broke across a line while the clarifier beside it did the same. The
+     title now owns its line and truncates rather than wraps, and the hint sits
+     under it where a long one costs nothing. */
   return (
-    <div className="flex items-baseline gap-2 mb-3">
-      <h2 id={id} className="text-title-3 text-label">
-        {title}
-      </h2>
-      {hint && <span className="text-caption text-label-3">{hint}</span>}
-      {href && (
-        <Link
-          href={href}
-          className="press ml-auto shrink-0 inline-flex items-center gap-1 text-caption text-accent hover:underline"
-        >
-          {hrefLabel}
-          <Icon icon={ArrowRight} size="sm" />
-        </Link>
-      )}
+    <div className="mb-3">
+      <div className="flex items-baseline gap-3">
+        <h2 id={id} className="text-title-3 text-label min-w-0 truncate">
+          {title}
+        </h2>
+        {href && (
+          <Link
+            href={href}
+            className="press ml-auto shrink-0 inline-flex items-center gap-1 text-caption text-accent hover:underline"
+          >
+            {hrefLabel}
+            <Icon icon={ArrowRight} size="sm" />
+          </Link>
+        )}
+      </div>
+      {hint && <p className="text-caption text-label-3 mt-0.5">{hint}</p>}
     </div>
   )
 }
