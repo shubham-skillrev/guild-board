@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { SectionHeader } from '@/components/ui/Section'
 import { useUnseenDigest } from '@/lib/bytes/useUnseenDigest'
+import { mediumLabel, hasReaderPage } from '@/lib/bytes/labels'
 
 interface TeaserByte {
   id: string
@@ -14,23 +15,18 @@ interface TeaserByte {
   interest_count: number
 }
 
-/** Format first, publisher second - same line the digest itself shows. */
-const MEDIUM_LABELS: Record<string, string> = {
-  blog: 'Article',
-  hn: 'Article',
-  news: 'News',
-  video: 'Video',
-  github: 'Repo',
-  lobsters: 'Article',
-  devto: 'Article',
-}
-
 /**
- * Compact pointer to the week's digest.
+ * Compact pointer to the latest drop.
  *
  * The board is the page people land on, and Bytes is the thing that gives them
  * a reason to return between meetings, so the two need to be connected. Shows
  * nothing at all when there is no digest, rather than an empty shell.
+ *
+ * Reads `current` - the newest digest, in published order. It used to read
+ * `[...top, ...bytes]`, which meant Top filled all three slots, and Top is
+ * ranked across a window of past digests: the board sat on the same three
+ * rows for weeks while fresh digests published behind it. "Fresh bytes" has to
+ * be fresh, so the teaser now takes the newest digest and only the newest.
  */
 export function BytesTeaser() {
   const { unseen } = useUnseenDigest()
@@ -38,15 +34,22 @@ export function BytesTeaser() {
   const [items, setItems] = useState<TeaserByte[]>([])
 
   useEffect(() => {
-    fetch('/api/bytes')
+    let cancelled = false
+
+    // no-store: a digest that landed this morning must not be hidden behind a
+    // response the browser cached before dawn.
+    fetch('/api/bytes', { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
-        if (!data?.digest) return
+        if (cancelled || !data?.digest) return
         setLabel(data.digest.label)
-        const all = [...(data.top ?? []), ...(data.bytes ?? [])]
-        setItems(all.slice(0, 3))
+        setItems((data.current ?? data.bytes ?? []).slice(0, 3))
       })
       .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   if (!label || items.length === 0) return null
@@ -65,11 +68,11 @@ export function BytesTeaser() {
       <ul className="rounded-(--radius-card) border border-border bg-paper/40 divide-y divide-border overflow-hidden">
         {items.map(b => (
           <li key={b.id}>
-            {/* The teaser showed a truncated headline and nothing else, so it
-                read as a list of links rather than as news. The summary is the
-                part that tells you whether it is worth opening. */}
+            {/* Straight into the reader, not onto the index. A teaser that
+                drops you at the top of /bytes makes you find the row you just
+                tapped. */}
             <Link
-              href="/bytes"
+              href={hasReaderPage(b.source) ? `/bytes/${b.id}` : '/bytes'}
               className="block px-4 py-3 hover:bg-kinu/30 transition-colors"
             >
               <div className="flex items-start gap-2">
@@ -82,13 +85,13 @@ export function BytesTeaser() {
                   </span>
                 )}
               </div>
+              {/* The summary is the part that tells you whether it is worth
+                  opening. One line here; the row is a pointer, not the digest. */}
               {b.summary && (
-                <p className="text-meta text-ink-muted mt-1 line-clamp-2">{b.summary}</p>
+                <p className="text-meta text-ink-muted mt-1 line-clamp-1">{b.summary}</p>
               )}
               <p className="text-meta text-cha mt-1">
-                {[MEDIUM_LABELS[b.source] ?? b.source, b.source_name]
-                  .filter(Boolean)
-                  .join(' · ')}
+                {[mediumLabel(b.source), b.source_name].filter(Boolean).join(' · ')}
               </p>
             </Link>
           </li>

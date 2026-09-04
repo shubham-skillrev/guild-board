@@ -27,10 +27,19 @@ interface RankableByte {
 /**
  * Rank for the Top section.
  *
- * Combines what the guild engaged with (interest taps) and how the story did
- * on its own platform (feed score). Taps are weighted far higher because they
- * are this guild's own signal, while the feed score is normalized per source
- * and mainly breaks ties in a fresh week where nothing has been tapped yet.
+ * Ordering *among items the guild has upvoted*. Taps carry the weight; the
+ * per-source-normalized feed score only breaks ties between two stories on the
+ * same number of taps.
+ *
+ * It used to rank every byte in the window, taps or not, and that quietly
+ * froze the section. With nothing upvoted, `interest_count` is 0 everywhere
+ * and the feed score alone decides - so the retired `github` rows, which carry
+ * star counts, beat every blog post, which carries `points: 0`. Top held the
+ * same three repositories from the oldest digest in the window indefinitely,
+ * and because the board teaser reads Top first, the board showed those three
+ * and never the drop that landed that morning. The gate below is the fix: no
+ * upvotes means no Top section, which is the honest answer to "what is the
+ * guild most interested in".
  */
 const FEED_REFERENCE: Record<string, number> = {
   hn: 2000,
@@ -83,12 +92,13 @@ export async function GET() {
     .filter(b => b.digest_id === current.id)
     .sort((a, b) => a.position - b.position)
 
-  // Top draws from the whole window so a story that gained traction last week
-  // can still lead. Nothing appears in both sections.
+  /* Top draws from the whole window so a story that gained traction last week
+     can still lead - but only from stories somebody actually upvoted. Nothing
+     appears in both sections. */
   const topIds = new Set(
-    [...all]
+    all
+      .filter(b => b.interest_count > 0)
       .sort((a, b) => topScore(b) - topScore(a))
-      .filter(b => topScore(b) > 0)
       .slice(0, TOP_COUNT)
       .map(b => b.id),
   )
@@ -102,6 +112,11 @@ export async function GET() {
       .sort((a, b) => topScore(b) - topScore(a))
       .map(b => ({ ...b, digest_label: labelById.get(b.digest_id) ?? null })),
     bytes: currentBytes.filter(b => !topIds.has(b.id)),
+    /* The newest digest in full, in published order, regardless of what Top
+       took. Anything that wants to show "the latest drop" - the board teaser -
+       reads this and cannot accidentally end up rendering the Top section's
+       cross-digest leftovers instead. */
+    current: currentBytes,
     archive: digests.slice(1).map(d => ({ id: d.id, label: d.label })),
   })
 }
