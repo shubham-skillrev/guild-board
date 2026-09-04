@@ -25,18 +25,45 @@ present on those same rows.
 
 | # | File | Adds |
 |---|---|---|
-| 020 | `020_bytes_reader.sql` | `content_md` and friends, for reading a byte inside the app |
+| 020 | `020_bytes_reader.sql` | `content_html` and `reading_minutes`, for reading a syndicated article in the app |
 
-> **020 is required for the reader page.** `/bytes/[id]` and
-> `/api/bytes/[id]/read` select and write `content_md`, `content_source`,
-> `content_fetched_at`, `content_failed_at` and `reading_minutes`. Until it is
-> applied, opening any story from the digest returns a Postgres error about a
-> missing column. Everything else — the digest itself, the board teaser, the
-> crons — works without it.
+> **020 is required for the reader page.** `/bytes/[id]`, `/api/bytes/[id]` and
+> the generator all reference `content_html` and `reading_minutes`. Until it is
+> applied, `/api/bytes` returns a Postgres error about a missing column and the
+> **whole Bytes page fails to load**, not just the reader — `reading_minutes`
+> is in the digest list query, because it doubles as the "does this row open in
+> the app" flag.
 >
 > It is additive only (`ADD COLUMN IF NOT EXISTS`), touches no existing data,
 > and rewrites no rows, so it is safe to apply against the live database at any
-> time.
+> time. Existing rows get NULL in both columns, which reads as "link out" —
+> correct, since none of them were generated with a body.
+
+### Which rows get a reader page
+
+Only the ones whose feed shipped the whole article, in `content:encoded` (or
+Atom `content`, or a `description` long enough to be a body rather than a
+teaser). Measured against the live feeds:
+
+| Full body in feed | Link-out only |
+|---|---|
+| Cloudflare, Netflix, GitHub, Meta, Airbnb, Slack, Pinterest, Sentry, Fly.io, AWS Architecture, Grafana, IEEE Spectrum | Stripe, Shopify, Datadog, Spotify, Canva, Google Research, Simon Willison, Pragmatic Engineer, Ars Technica, InfoQ |
+
+Hacker News rows never qualify: they point at arbitrary sites the feed knows
+nothing about. Videos always link out to the platform.
+
+A feed carrying the full text is the publisher syndicating it deliberately, so
+nothing here is scraped and no extraction service is involved. A truncated feed
+is the publisher asking readers to come to them, and the answer to that is to
+send them.
+
+Feed HTML is third-party input and reaches the DOM through
+`dangerouslySetInnerHTML`, so it is filtered through the allowlist in
+`lib/bytes/articleHtml.ts` on **read**, not on write — a hole closed in that
+file is closed for every row already in the table. Fourteen payloads (script,
+svg onload, `javascript:` href, form, base, meta refresh, nested-tag smuggling)
+were checked against it, and eight live feeds survive filtering with 77–100% of
+their markup intact.
 
 ### Applying them
 

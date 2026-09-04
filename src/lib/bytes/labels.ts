@@ -28,9 +28,6 @@ export const POINT_LABELS: Record<string, string> = {
   github: 'stars',
 }
 
-/** Sources whose body can be transcribed. A repo has no article behind it. */
-export const READABLE_SOURCES = new Set(['blog', 'news', 'hn', 'lobsters', 'devto'])
-
 export function mediumLabel(source: string): string {
   return MEDIUM_LABELS[source] ?? source
 }
@@ -42,19 +39,14 @@ export function compactCount(n: number): string {
 }
 
 /**
- * The reader is only worth linking to when there is something to read there.
- * A video opens its own page too - the embed plus the summary is a real page -
- * but a retired GitHub row is a name and a star count, so it keeps linking out.
+ * Does this row open in the app, or at the publisher?
+ *
+ * The answer is not a property of the source but of the individual item: two
+ * Cloudflare posts can differ if one feed entry was truncated. `reading_minutes`
+ * is written exactly when a body was, so it doubles as the flag - and it is a
+ * smallint, which means the digest list can ask this question without pulling
+ * a quarter of a megabyte of article bodies down to render ten link rows.
  */
-export function hasReaderPage(source: string): boolean {
-  return READABLE_SOURCES.has(source) || source === 'video'
-}
-
-/** `yt:dQw4w9WgXcQ` -> `dQw4w9WgXcQ`. Null for anything that is not a video. */
-export function youtubeId(source: string, sourceId: string): string | null {
-  if (source !== 'video') return null
-  const id = sourceId.startsWith('yt:') ? sourceId.slice(3) : sourceId
-  // The feed only ever yields the 11-character form; anything else is an old
-  // row and is safer left un-embedded than interpolated into an iframe src.
-  return /^[\w-]{11}$/.test(id) ? id : null
+export function hasReaderPage(byte: { reading_minutes?: number | null }): boolean {
+  return byte.reading_minutes != null
 }

@@ -2,59 +2,52 @@
 
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import { ArrowLeft, ArrowSquareOut, Sparkle } from '@phosphor-icons/react/dist/ssr'
 import { Icon } from '@/components/ui/Icon'
 import { InterestButton } from '@/components/bytes/InterestButton'
 import { DOMAIN_LABELS, type Domain } from '@/lib/bytes/domains'
-import { mediumLabel, compactCount, POINT_LABELS, youtubeId } from '@/lib/bytes/labels'
+import { mediumLabel, compactCount, POINT_LABELS } from '@/lib/bytes/labels'
 
 /**
- * Read a byte without leaving the app.
+ * Read a byte here, when the publisher syndicated it.
  *
- * The digest's whole job is to collect upvotes for the meeting agenda, and
- * every row used to be a link out - to a page with a cookie banner, a
- * newsletter modal and no way back. People read the article and never returned
- * to press the one button the feature exists for. The body lands here instead,
- * with the upvote directly under it.
+ * Roughly half the feeds ship the whole article in the feed element, and those
+ * rows render below. The rest are link-outs and never link here in the first
+ * place - a truncated feed is the publisher asking readers to come to them,
+ * and the answer to that is to send them, not to go and fetch the text anyway.
  *
- * The text belongs to whoever published it, so the publisher's name sits above
- * the first line and a link to the original sits at the top and the bottom.
- * This is a reading view of someone else's work, and it says so on the page.
+ * Landing here by URL on a link-out row is still handled: the page falls back
+ * to the summary and a button to the original, which is the honest version of
+ * what it knows.
  */
 
 interface ReaderByte {
   id: string
   source: string
-  source_id: string
   source_title: string
   source_name: string | null
   url: string
-  thumbnail_url: string | null
   source_points: number | null
   summary: string | null
-  tags: string[] | null
   editor_note: string | null
   domain: string | null
   interest_count: number
   seeded_topic_id: string | null
   user_interested?: boolean
-  content_md: string | null
+  content_html: string | null
   reading_minutes: number | null
 }
 
 export default function ByteReaderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const [byte, setByte] = useState<ReaderByte | null>(null)
-  const [unreadable, setUnreadable] = useState(false)
   const [loading, setLoading] = useState(true)
   const [missing, setMissing] = useState(false)
 
   useEffect(() => {
     let cancelled = false
 
-    fetch(`/api/bytes/${id}/read`, { cache: 'no-store' })
+    fetch(`/api/bytes/${id}`, { cache: 'no-store' })
       .then(async r => {
         if (r.status === 404) {
           if (!cancelled) setMissing(true)
@@ -63,9 +56,7 @@ export default function ByteReaderPage({ params }: { params: Promise<{ id: strin
         return r.ok ? r.json() : null
       })
       .then(data => {
-        if (cancelled || !data) return
-        setByte(data.byte ?? null)
-        setUnreadable(!!data.unreadable)
+        if (!cancelled && data) setByte(data.byte ?? null)
       })
       .catch(() => {})
       .finally(() => {
@@ -78,9 +69,20 @@ export default function ByteReaderPage({ params }: { params: Promise<{ id: strin
   }, [id])
 
   const publisher = byte?.source_name?.trim() || (byte ? mediumLabel(byte.source) : '')
-  const videoId = byte ? youtubeId(byte.source, byte.source_id) : null
   const domain = byte?.domain as Domain | null | undefined
   const pointLabel = byte ? POINT_LABELS[byte.source] : undefined
+
+  const original = byte && (
+    <a
+      href={byte.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="press inline-flex items-center gap-1.5 text-caption text-accent hover:underline"
+    >
+      Read the original on {publisher}
+      <Icon icon={ArrowSquareOut} size="sm" />
+    </a>
+  )
 
   return (
     <div className="px-5 md:px-10 py-8 w-full max-w-2xl mx-auto pb-28 md:pb-10">
@@ -144,31 +146,7 @@ export default function ByteReaderPage({ params }: { params: Promise<{ id: strin
 
           <h1 className="text-title-1 text-label">{byte.source_title}</h1>
 
-          <a
-            href={byte.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="press mt-3 inline-flex items-center gap-1.5 text-caption text-accent hover:underline"
-          >
-            Read the original on {publisher}
-            <Icon icon={ArrowSquareOut} size="sm" />
-          </a>
-
-          {/* A talk's body is the talk. nocookie so an embed does not set an
-              advertising cookie on a member who only opened a page. */}
-          {videoId && (
-            <div className="mt-6 aspect-video w-full overflow-hidden rounded-(--radius-card) border border-border bg-kinu">
-              <iframe
-                src={`https://www.youtube-nocookie.com/embed/${videoId}`}
-                title={byte.source_title}
-                allow="accelerometer; clipboard-write; encrypted-media; picture-in-picture"
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="strict-origin-when-cross-origin"
-                className="w-full h-full border-0"
-              />
-            </div>
-          )}
+          <div className="mt-3">{original}</div>
 
           {/* Labelled, always. A machine-written paragraph sitting in the same
               type as the article it precedes is the one thing that would make
@@ -190,19 +168,39 @@ export default function ByteReaderPage({ params }: { params: Promise<{ id: strin
             </p>
           )}
 
-          {byte.content_md ? (
-            <div className="prose-guild prose-read mt-8">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{byte.content_md}</ReactMarkdown>
+          {byte.content_html ? (
+            <>
+              {/* Sanitized server-side on the way out of /api/bytes/[id], with
+                  an allowlist that permits no script, iframe, style or event
+                  handler. Never render this without that pass. */}
+              <div
+                className="prose-guild prose-read mt-8"
+                dangerouslySetInnerHTML={{ __html: byte.content_html }}
+              />
+              <p className="text-meta text-ink-muted mt-8">
+                Published by {publisher} and syndicated in full through their own feed.
+                Copyright remains theirs.
+              </p>
+            </>
+          ) : (
+            /* A link-out row reached by URL. Say what it is and point at the
+               publisher rather than showing an article-shaped empty page. */
+            <div className="mt-8 rounded-(--radius-card) border border-border bg-paper/40 p-5 text-center">
+              <p className="text-footnote text-ink-soft">
+                {publisher} publishes this one on their own site only.
+              </p>
+              <a
+                href={byte.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="press mt-3 inline-flex items-center gap-2 h-(--control-h) px-4 rounded-(--radius-control) border border-saffron/40 bg-saffron/12 text-saffron text-footnote hover:bg-saffron/20 transition-colors"
+              >
+                Read the full article on {publisher}
+                <Icon icon={ArrowSquareOut} size="sm" />
+              </a>
             </div>
-          ) : unreadable ? (
-            <p className="text-footnote text-ink-muted mt-8 py-6 border-y border-border">
-              This one will not open here - the publisher serves it behind a paywall,
-              a login, or a page this reader cannot transcribe. The link above goes
-              to the original.
-            </p>
-          ) : null}
+          )}
 
-          {/* ─── Attribution and the one action ─── */}
           <footer className="mt-10 pt-6 border-t border-border flex flex-wrap items-center gap-3">
             <InterestButton
               byteId={byte.id}
@@ -210,15 +208,7 @@ export default function ByteReaderPage({ params }: { params: Promise<{ id: strin
               initialInterested={!!byte.user_interested}
               layout="wide"
             />
-            <a
-              href={byte.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="press inline-flex items-center gap-1.5 text-caption text-accent hover:underline"
-            >
-              Read the original on {publisher}
-              <Icon icon={ArrowSquareOut} size="sm" />
-            </a>
+            {original}
             {byte.seeded_topic_id && (
               <Link
                 href={`/board/${byte.seeded_topic_id}`}
@@ -228,13 +218,6 @@ export default function ByteReaderPage({ params }: { params: Promise<{ id: strin
               </Link>
             )}
           </footer>
-
-          {byte.content_md && (
-            <p className="text-meta text-ink-muted mt-4">
-              Text published by {publisher}, shown here for the guild. Copyright remains
-              theirs.
-            </p>
-          )}
         </article>
       )}
     </div>

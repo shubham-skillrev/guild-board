@@ -29,6 +29,8 @@ export interface Byte {
   seeded_topic_id: string | null
   user_interested?: boolean
   digest_label?: string | null
+  /** Non-null exactly when the feed syndicated the whole article. */
+  reading_minutes?: number | null
 }
 
 interface ByteCardProps {
@@ -41,18 +43,20 @@ export function ByteCard({ byte }: ByteCardProps) {
   const publisher = byte.source_name?.trim() || mediumLabel(byte.source)
   const pointLabel = POINT_LABELS[byte.source]
 
-  /* Read it here when there is something to read here, and only then. A
-     retired GitHub row has no article behind it, so it keeps its outbound
-     link rather than opening a reader page that would be empty. */
-  const readerHref = hasReaderPage(byte.source) ? `/bytes/${byte.id}` : null
+  /* Read it here only when the publisher syndicated the whole piece in their
+     feed. Everything else - a truncated feed, a talk, an HN link to someone
+     else's site - goes where it was always going. */
+  const readerHref = hasReaderPage(byte) ? `/bytes/${byte.id}` : null
 
   return (
     <article className="group relative flex gap-3 px-4 py-3.5 transition-colors hover:bg-kinu/20">
       {/* A talk needs a still frame or it reads as one more blue link. Small
           and fixed-size, so ten rows still fit on a phone screen. */}
       {isVideo && byte.thumbnail_url && (
-        <Link
-          href={readerHref ?? byte.url}
+        <a
+          href={byte.url}
+          target="_blank"
+          rel="noopener noreferrer"
           aria-hidden
           tabIndex={-1}
           className="relative shrink-0 w-24 h-14 rounded-(--radius-control) overflow-hidden border border-border bg-kinu"
@@ -67,7 +71,7 @@ export function ByteCard({ byte }: ByteCardProps) {
           <span className="absolute inset-0 grid place-items-center bg-black/25 text-white/90">
             <PlayCircle className="w-6 h-6" weight="fill" />
           </span>
-        </Link>
+        </a>
       )}
 
       <div className="min-w-0 flex-1">
@@ -95,11 +99,20 @@ export function ByteCard({ byte }: ByteCardProps) {
               </span>
             </>
           ) : null}
+          {/* Says the tap stays in the app, before it is tapped. Half the rows
+              leave and half do not, and a list where that is invisible teaches
+              you to distrust every row in it. */}
+          {readerHref && (
+            <>
+              <span aria-hidden>&middot;</span>
+              <span className="text-saffron tabular">{byte.reading_minutes} min read</span>
+            </>
+          )}
         </div>
 
-        {/* Into the reader, not out of the app. The upvote is the one thing
-            the digest collects, and a member who leaves for the publisher's
-            site does not come back to press it. */}
+        {/* Into the reader when the feed gave us the article, out to the
+            publisher when it did not. The read-time badge is the tell, so a
+            row that opens in the app looks different before it is tapped. */}
         {readerHref ? (
           <Link
             href={readerHref}

@@ -11,8 +11,10 @@ interface TeaserByte {
   source_title: string
   source_name?: string | null
   summary: string | null
+  url: string
   source: string
   interest_count: number
+  reading_minutes?: number | null
 }
 
 /**
@@ -68,11 +70,13 @@ export function BytesTeaser() {
       <ul className="rounded-(--radius-card) border border-border bg-paper/40 divide-y divide-border overflow-hidden">
         {items.map(b => (
           <li key={b.id}>
-            {/* Straight into the reader, not onto the index. A teaser that
-                drops you at the top of /bytes makes you find the row you just
-                tapped. */}
+            {/* Straight into the reader when the feed syndicated the piece,
+                straight to the publisher when it did not. Neither drops you at
+                the top of /bytes to find the row you just tapped. */}
             <Link
-              href={hasReaderPage(b.source) ? `/bytes/${b.id}` : '/bytes'}
+              href={hasReaderPage(b) ? `/bytes/${b.id}` : b.url}
+              target={hasReaderPage(b) ? undefined : '_blank'}
+              rel={hasReaderPage(b) ? undefined : 'noopener noreferrer'}
               className="block px-4 py-3 hover:bg-kinu/30 transition-colors"
             >
               <div className="flex items-start gap-2">

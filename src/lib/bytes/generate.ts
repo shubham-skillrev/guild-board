@@ -253,6 +253,10 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
       source_name: c.source_name,
       url: c.url,
       thumbnail_url: c.thumbnail ?? null,
+      /* Only set for feeds that syndicate in full. NULL is not a failure here,
+         it is the row telling the UI to link out to the publisher instead. */
+      content_html: c.content ?? null,
+      reading_minutes: c.readingMinutes ?? null,
       source_points: c.points,
       domain: c.domain,
       summary: s?.summary ?? null,

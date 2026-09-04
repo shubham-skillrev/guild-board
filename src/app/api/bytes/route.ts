@@ -78,7 +78,7 @@ export async function GET() {
     supabase
       .from('bytes')
       .select(
-        'id, digest_id, source, source_title, source_name, url, thumbnail_url, source_points, summary, tags, editor_note, domain, interest_count, seeded_topic_id, position',
+        'id, digest_id, source, source_title, source_name, url, thumbnail_url, source_points, summary, tags, editor_note, domain, interest_count, seeded_topic_id, position, reading_minutes',
       )
       .in('digest_id', digests.map(d => d.id)),
     supabase.from('byte_interests').select('byte_id').eq('user_id', user.id),

@@ -1,6 +1,7 @@
 import 'server-only'
 import { XMLParser } from 'fast-xml-parser'
 import { classifyDomain, type Domain } from '@/lib/bytes/domains'
+import { readingMinutes, usableArticleBody } from '@/lib/bytes/articleHtml'
 
 /**
  * Feed sources for the digest.
@@ -118,6 +119,16 @@ export interface Candidate {
   points: number
   /** Short excerpt passed to the summarizer for context. */
   excerpt?: string
+  /**
+   * The whole article, when the feed shipped one. Publisher HTML, verbatim.
+   *
+   * Present for roughly half the feeds - the ones that syndicate in full via
+   * content:encoded - and absent for the rest, which is exactly the signal the
+   * UI uses to decide whether a row opens here or at the publisher.
+   */
+  content?: string
+  /** Read time for `content`. Undefined whenever `content` is. */
+  readingMinutes?: number
   /** Still frame, video only. */
   thumbnail?: string
   /** Topic bucket, used to spread the digest across areas. */
@@ -315,6 +326,18 @@ function articleCandidate(
     firstString(item['content:encoded'])
   const excerpt = rawExcerpt ? stripHtml(rawExcerpt).slice(0, 500) : undefined
 
+  /* Where the full text hides, in the order worth trying.
+     content:encoded is the RSS convention and covers most of them. Fly.io uses
+     Atom's <content> instead. Grafana and IEEE Spectrum put the whole post in
+     <description>, which is also where every truncated feed puts its teaser -
+     so the length test in usableArticleBody, not the element name, is what
+     decides whether this is an article. */
+  const body = usableArticleBody(
+    firstString(item['content:encoded']) ??
+      firstString(item.content) ??
+      firstString(item.description),
+  )
+
   return {
     source: feed.kind === 'news' ? 'news' : 'blog',
     source_id: `${feed.kind}:${url}`,
@@ -327,6 +350,8 @@ function articleCandidate(
     // ships on a schedule whether or not it has something to say.
     points: 0,
     excerpt,
+    content: body ?? undefined,
+    readingMinutes: body ? readingMinutes(body) : undefined,
     domain: classifyDomain(title, excerpt),
     score: feed.kind === 'news' ? 0.62 : 0.75,
   }
