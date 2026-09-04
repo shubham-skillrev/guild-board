@@ -56,13 +56,13 @@ export function ByteGenerator() {
 
   useEffect(() => { load() }, [load])
 
-  const generate = async () => {
+  const generate = async (mode: 'fresh' | 'monthly' = 'fresh') => {
     setGenerating(true)
     try {
       const res = await fetch('/api/admin/bytes/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ mode }),
       })
       const data = await res.json()
       if (!res.ok) { toast(data.error || 'Generation failed', 'error'); return }
@@ -107,7 +107,7 @@ export function ByteGenerator() {
     <section className="rounded-(--radius-card) border border-border bg-paper/40 p-(--pad-card)">
       <SectionHeader
         title="Bytes"
-        hint="fetched every other morning, live on arrival"
+        hint="fetched every other morning, plus a top-of-month look-back on the 1st"
         href="/bytes"
         hrefLabel="View"
       />
@@ -119,8 +119,25 @@ export function ByteGenerator() {
       </p>
 
       <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <Button size="sm" variant="tinted" onClick={generate} disabled={generating}>
+        <Button
+          size="sm"
+          variant="tinted"
+          onClick={() => generate('fresh')}
+          disabled={generating}
+        >
           {generating ? 'Fetching…' : 'Fetch more now'}
+        </Button>
+        {/* The same look-back the 1st-of-the-month job builds. Separate button
+            rather than a mode toggle: the two produce different digests, and a
+            control whose meaning depends on a switch elsewhere is a control
+            you have to read twice. */}
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => generate('monthly')}
+          disabled={generating}
+        >
+          Rebuild top of the month
         </Button>
         {digest && (
           <Button size="sm" variant="secondary" onClick={toggleHidden}>
@@ -133,7 +150,8 @@ export function ByteGenerator() {
         <p className="type-body text-cha">Loading…</p>
       ) : !digest ? (
         <p className="type-body text-cha">
-          No digest yet. The scheduled job creates one every other morning, or fetch now.
+          No digest yet. The scheduled job creates one every other morning, and a
+          top-of-month look-back lands on the 1st. Or fetch now.
         </p>
       ) : (
         <>

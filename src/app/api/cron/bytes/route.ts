@@ -6,9 +6,9 @@
 // RLS: service-role client inside generateDigest (no user context exists here)
 
 import { NextResponse } from 'next/server'
-import { timingSafeEqual } from 'crypto'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateDigest, dayStart } from '@/lib/bytes/generate'
+import { rejectIfNotCron, firstAdminId } from '@/lib/bytes/cron'
 import { notifyOnBytesPublished, notifyAfterResponse } from '@/lib/push/notify'
 
 /* Cadence, in one place.
@@ -24,54 +24,32 @@ const MIN_GAP_HOURS = 36
 
 // Fetching four feeds plus a summarization pass can exceed the default limit.
 export const maxDuration = 120
-export const dynamic = 'force-dynamic'
-
-/** Constant-time compare so the secret cannot be recovered by timing. */
-function secretMatches(provided: string, expected: string): boolean {
-  const a = Buffer.from(provided)
-  const b = Buffer.from(expected)
-  if (a.length !== b.length) return false
-  return timingSafeEqual(a, b)
-}
 
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) {
-    console.error('cron/bytes: CRON_SECRET is not set, refusing to run')
-    return NextResponse.json({ error: 'Not configured' }, { status: 500 })
-  }
+  const rejected = rejectIfNotCron(request)
+  if (rejected) return rejected
 
-  // Vercel Cron sends `Authorization: Bearer $CRON_SECRET`.
-  const header = request.headers.get('authorization') ?? ''
-  const token = header.startsWith('Bearer ') ? header.slice(7) : ''
-  if (!token || !secretMatches(token, secret)) {
-    // Deliberately vague: this endpoint should not confirm it exists.
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  }
-
-  const admin = createAdminClient()
-
-  // Digests need a creator. Attribute automatic runs to an admin account.
-  const { data: owner } = await admin
-    .from('users')
-    .select('id')
-    .eq('role', 'admin')
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle()
-
+  const owner = await firstAdminId()
   if (!owner) {
     console.error('cron/bytes: no admin user to attribute the digest to')
     return NextResponse.json({ error: 'No admin user' }, { status: 500 })
   }
 
+  const admin = createAdminClient()
+
   /* The schedule is `0 6 *​/2 * *`, which is every other day *of the month* -
      so a 31-day month runs the 31st and then the 1st back to back. This guard
      is what actually enforces the cadence; the cron expression only decides
-     which mornings it is even considered. */
+     which mornings it is even considered.
+
+     Scoped to daily digests. It used to look at every digest, which meant the
+     monthly top-of-month run - firing on the 1st, one hour after this one -
+     would suppress the next two daily drops for being "too soon". The two jobs
+     produce different things and must not gate each other. */
   const { data: last } = await admin
     .from('byte_digests')
     .select('published_at')
+    .eq('kind', 'daily')
     .not('published_at', 'is', null)
     .order('published_at', { ascending: false })
     .limit(1)
@@ -95,7 +73,7 @@ export async function GET(request: Request) {
     periodStart,
     days: DAYS,
     limit: LIMIT,
-    createdBy: owner.id,
+    createdBy: owner,
   })
 
   if (!result.ok) {

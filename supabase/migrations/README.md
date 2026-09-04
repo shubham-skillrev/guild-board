@@ -96,22 +96,40 @@ SELECT qual FROM pg_policies
  WHERE tablename = 'byte_digests' AND cmd = 'SELECT';
 ```
 
-## Weekly Bytes cron
+## Bytes crons
 
-`vercel.json` schedules `/api/cron/bytes` for **06:00 UTC every Monday**. Two
-env vars gate it, both set in the Vercel dashboard:
+`vercel.json` schedules two jobs. They are independent and must not gate each
+other, which is why the every-other-day guard below only looks at `daily`
+digests.
+
+| Path | Schedule | Builds |
+|---|---|---|
+| `/api/cron/bytes` | `0 6 */2 * *` | 6 items from a 3-day window, only stories that have not run before |
+| `/api/cron/bytes/monthly` | `0 7 1 * *` | 10 items from the month that just ended, re-ranked with the guild's own upvotes, repeats allowed |
+
+Vercel's Hobby plan permits two cron jobs, so this is exactly at the limit; a
+third needs Pro.
+
+Two env vars gate both, set in the Vercel dashboard:
 
 | Var | Required | Effect if missing |
 |---|---|---|
-| `CRON_SECRET` | **Yes** | The route refuses to run and returns 500. |
-| `ANTHROPIC_API_KEY` | No | The digest is still built from the real feeds, with blank summaries to fill in by hand. |
+| `CRON_SECRET` | **Yes** | Both routes refuse to run and return 500 on every fire. |
+| `ANTHROPIC_API_KEY` | No | Digests are still built from the real feeds, with blank summaries to fill in by hand. |
+
+> **This is the failure that stopped the digest.** Between 2026-08-24 and
+> 2026-09-04 no digest published: five exist, all `kind = monthly` from the
+> admin's manual button, and not one `daily` row has ever been written despite
+> the job being scheduled since 2026-08-14. Every published byte also has
+> `summary = NULL`. Both symptoms are the two variables above being unset in
+> the deployment. Set them and the schedule resumes on its own.
 
 Generate the secret with `openssl rand -hex 32`. Vercel sends it automatically
 as `Authorization: Bearer $CRON_SECRET`; the route compares it in constant time
 and returns **404** (not 403) to anything else, so the endpoint does not confirm
 it exists.
 
-Test it without waiting for Monday:
+Test it without waiting for the schedule:
 
 ```sh
 curl -i -H "Authorization: Bearer $CRON_SECRET" \
@@ -121,6 +139,13 @@ curl -i -H "Authorization: Bearer $CRON_SECRET" \
 Expected responses:
 
 - `200 {"published":true,...}` on a successful run
-- `200 {"skipped":true,"reason":"duplicate_period"}` if this week already ran,
+- `200 {"skipped":true,"reason":"duplicate_period"}` if this period already ran,
   which is the normal no-op for a repeat firing
+- `200 {"skipped":true,"reason":"too_soon"}` if the last daily drop was under
+  36 hours ago
 - `404` if the secret is wrong or absent
+- `500 {"error":"Not configured"}` if `CRON_SECRET` is unset — check this first
+  when the page has gone stale
+
+The monthly job answers the same way at `/api/cron/bytes/monthly`. It can never
+return `all_seen`: it runs with repeats allowed on purpose.

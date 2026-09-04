@@ -1,9 +1,8 @@
 // ROUTE: POST /api/admin/bytes/generate
 // AUTH: admin only
-// PURPOSE: Fetch real feed items, summarize them, and create a DRAFT digest.
-//          Admin-triggered rather than cron: the admin already runs a monthly
-//          ritual, and an unreviewed LLM digest going to the whole guild would
-//          eventually publish something wrong.
+// PURPOSE: Fetch real feed items, summarize them, and publish a digest on the
+//          spot. Two modes: `fresh` pulls what has not run before, `monthly`
+//          rebuilds a top-of-month look-back over the last 32 days.
 // DB TABLES: byte_digests, bytes, cycles, users
 // RLS: server client for identity; admin client for writes (drafts are not
 //      readable under RLS by design)
@@ -11,7 +10,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import { generateDigest } from '@/lib/bytes/generate'
+import { generateDigest, monthStart } from '@/lib/bytes/generate'
 import { notifyOnBytesPublished, notifyAfterResponse } from '@/lib/push/notify'
 
 export const maxDuration = 120
@@ -33,16 +32,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  let body: { days?: number; cycle_id?: string; label?: string } = {}
+  let body: {
+    days?: number
+    cycle_id?: string
+    label?: string
+    mode?: 'fresh' | 'monthly'
+  } = {}
   try { body = await request.json() } catch { /* all fields optional */ }
 
-  // Ad-hoc run alongside the weekly job. No period_start, so it never
-  // collides with the week the scheduled job owns.
+  const monthly = body.mode === 'monthly'
+
+  /* The same look-back the 1st-of-the-month cron builds, on demand.
+     `allowSeen` is the whole difference: by the end of a month every item
+     worth collecting has already run in some daily drop, so a top-of-month
+     pass that filtered those out would return the leftovers. Repetition is
+     the point - see the monthly cron route.
+
+     Ad-hoc runs carry no period_start and so never collide with the period a
+     scheduled job owns; a manual monthly can be re-run as often as the admin
+     likes without the unique index rejecting it. */
   const result = await generateDigest({
-    kind: "monthly",
-    days: Math.min(Math.max(body.days ?? 30, 1), 90),
+    kind: 'monthly',
+    days: monthly ? 32 : Math.min(Math.max(body.days ?? 30, 1), 90),
     limit: 10,
-    label: body.label,
+    allowSeen: monthly,
+    label:
+      body.label ??
+      (monthly
+        ? `Top of ${new Date(`${monthStart()}T00:00:00Z`).toLocaleDateString('en-US', {
+            month: 'long',
+            timeZone: 'UTC',
+          })}, so far`
+        : undefined),
     cycleId: body.cycle_id ?? null,
     createdBy: user.id,
   })
