@@ -1,11 +1,13 @@
 # Migrations
 
-Applied in numeric order. `001` to `010` are already live.
+Applied in numeric order.
 
-## Pending: 011 to 018
+## Live: 001 to 019
 
-These ship with the activation work and are **not yet applied**. Nothing in the
-Idea Bank, signals, ask-by-name, or Bytes features works until they are.
+`001` to `019` are applied. Confirmed against the database rather than assumed:
+rows written on 2026-08-24 carry `source_name`, `domain` and the `news`/`video`
+sources, all of which 018 introduced, and the columns 015 and 019 add are
+present on those same rows.
 
 | # | File | Adds |
 |---|---|---|
@@ -19,18 +21,22 @@ Idea Bank, signals, ask-by-name, or Bytes features works until they are.
 | 018 | `018_bytes_media_mix.sql` | `news` and `video` sources, `source_name`, `thumbnail_url` |
 | 019 | `019_bytes_daily_kind.sql` | `daily` digest kind, for the every-other-day cron |
 
-> **015 is required for the weekly cron.** Without it the source CHECK still
-> rejects Lobsters, so every automatic run dies on `bytes_source_check`. This
-> was confirmed against a live run, not assumed.
+## Pending: 020
 
-> **018 is required for the current Bytes page.** The app now selects
-> `source_name` and `thumbnail_url`, and the generator writes `source = 'video'`
-> and `'news'`, so without it reads fail on the missing columns and every
-> insert fails the source CHECK.
+| # | File | Adds |
+|---|---|---|
+| 020 | `020_bytes_reader.sql` | `content_md` and friends, for reading a byte inside the app |
 
-> **019 is required for the cron.** It runs every other morning and writes
-> `kind = 'daily'`, which the old CHECK rejects, so every automatic run dies on
-> `byte_digests_kind_check` until this is applied.
+> **020 is required for the reader page.** `/bytes/[id]` and
+> `/api/bytes/[id]/read` select and write `content_md`, `content_source`,
+> `content_fetched_at`, `content_failed_at` and `reading_minutes`. Until it is
+> applied, opening any story from the digest returns a Postgres error about a
+> missing column. Everything else — the digest itself, the board teaser, the
+> crons — works without it.
+>
+> It is additive only (`ADD COLUMN IF NOT EXISTS`), touches no existing data,
+> and rewrites no rows, so it is safe to apply against the live database at any
+> time.
 
 ### Applying them
 
