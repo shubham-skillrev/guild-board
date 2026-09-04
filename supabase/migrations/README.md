@@ -21,23 +21,32 @@ present on those same rows.
 | 018 | `018_bytes_media_mix.sql` | `news` and `video` sources, `source_name`, `thumbnail_url` |
 | 019 | `019_bytes_daily_kind.sql` | `daily` digest kind, for the every-other-day cron |
 
-## Pending: 020
+## Live: 020
 
-| # | File | Adds |
-|---|---|---|
-| 020 | `020_bytes_reader.sql` | `content_html` and `reading_minutes`, for reading a syndicated article in the app |
+`020_bytes_reader.sql` is applied. It was written for an extraction service
+that has since been retired; six rows still hold a `content_md` body it
+fetched. The file is left exactly as applied — never edit a migration that has
+run, or the repo stops describing the database.
 
-> **020 is required for the reader page.** `/bytes/[id]`, `/api/bytes/[id]` and
-> the generator all reference `content_html` and `reading_minutes`. Until it is
-> applied, `/api/bytes` returns a Postgres error about a missing column and the
-> **whole Bytes page fails to load**, not just the reader — `reading_minutes`
-> is in the digest list query, because it doubles as the "does this row open in
-> the app" flag.
+## Pending: 021, and 022 when you want it
+
+| # | File | Adds | Safe to apply |
+|---|---|---|---|
+| 021 | `021_bytes_feed_html.sql` | `content_html`, for bodies the feed syndicated | Yes — additive only |
+| 022 | `022_drop_extractor_columns.sql` | drops the four retired extractor columns | **Destructive** — deletes 6 cached bodies |
+
+> **021 is required by what is on `main` right now.** The generator writes
+> `content_html` on every insert, so until this is applied **every digest
+> generation fails** — both crons and the admin button — and `/bytes/[id]`
+> errors. The digest list page itself is fine, since `reading_minutes` came
+> with 020.
 >
-> It is additive only (`ADD COLUMN IF NOT EXISTS`), touches no existing data,
-> and rewrites no rows, so it is safe to apply against the live database at any
-> time. Existing rows get NULL in both columns, which reads as "link out" —
-> correct, since none of them were generated with a body.
+> It adds a column and drops nothing, so applying it cannot break the running
+> deployment.
+
+> **022 can wait indefinitely.** Run it only after 021 is applied and a digest
+> has generated cleanly. It makes rollback to any earlier deployment impossible,
+> because that code selects `content_md`.
 
 ### Which rows get a reader page
 
@@ -53,9 +62,9 @@ Hacker News rows never qualify: they point at arbitrary sites the feed knows
 nothing about. Videos always link out to the platform.
 
 A feed carrying the full text is the publisher syndicating it deliberately, so
-nothing here is scraped and no extraction service is involved. A truncated feed
-is the publisher asking readers to come to them, and the answer to that is to
-send them.
+nothing is scraped and no extraction service is involved. A truncated feed is
+the publisher asking readers to come to them, and the answer to that is to send
+them.
 
 Feed HTML is third-party input and reaches the DOM through
 `dangerouslySetInnerHTML`, so it is filtered through the allowlist in
@@ -64,64 +73,6 @@ file is closed for every row already in the table. Fourteen payloads (script,
 svg onload, `javascript:` href, form, base, meta refresh, nested-tag smuggling)
 were checked against it, and eight live feeds survive filtering with 77–100% of
 their markup intact.
-
-### Applying them
-
-Paste each file into the Supabase SQL editor **in order**, or use the CLI:
-
-```sh
-supabase db push          # if the project is linked
-# or, per file:
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/011_idea_bank.sql
-```
-
-`015` alters tables created by `014`, so those two must run in order. The rest
-are independent, but numeric order keeps the convention intact.
-
-### After applying
-
-Verify the tables and their policies landed:
-
-```sql
-SELECT tablename, rowsecurity FROM pg_tables
- WHERE schemaname = 'public'
-   AND tablename IN ('idea_bank','topic_signals','topic_asks',
-                     'byte_digests','bytes','byte_interests')
- ORDER BY tablename;
--- expect 6 rows, rowsecurity = true on every one
-
-SELECT tablename, policyname FROM pg_policies
- WHERE schemaname = 'public'
-   AND tablename IN ('idea_bank','topic_signals','topic_asks',
-                     'byte_digests','bytes','byte_interests')
- ORDER BY tablename, policyname;
--- expect 15 policies (idea_bank 4, topic_signals 3, topic_asks 3, bytes tables 5)
-```
-
-Then confirm 015 specifically:
-
-```sql
--- Lobsters must be an accepted source, or the weekly cron fails.
-SELECT pg_get_constraintdef(oid) FROM pg_constraint
- WHERE conname = 'bytes_source_check';
--- expect: CHECK (source IN ('hn','devto','github','lobsters'))
-
--- One automatic digest per week.
-SELECT indexdef FROM pg_indexes WHERE indexname = 'uniq_byte_digest_period';
-```
-
-Two things worth checking by hand, because they are the security-relevant ones:
-
-```sql
--- idea_bank must NOT be world-readable: a private bank stays private.
--- Expect exactly: (auth.uid() = user_id) OR (is_open = true)
-SELECT qual FROM pg_policies
- WHERE tablename = 'idea_bank' AND cmd = 'SELECT';
-
--- Draft digests must be invisible to members until published.
-SELECT qual FROM pg_policies
- WHERE tablename = 'byte_digests' AND cmd = 'SELECT';
-```
 
 ## Bytes crons
 
