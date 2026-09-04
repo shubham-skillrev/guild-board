@@ -441,6 +441,33 @@ body {
   font-weight: 600;
 }
 
+/* Reading size. `prose-guild` is sized for a topic description - a paragraph
+   or two inside a card - and 14px over a two-thousand-word article is a
+   squint. Applied alongside it, never instead of it, so a body only overrides
+   the measurements and inherits every colour and code style from above. */
+.prose-read {
+  font-size: 16px;
+  line-height: 1.75;
+}
+.prose-read p { margin-bottom: 1.1em; }
+.prose-read h1, .prose-read h2, .prose-read h3 {
+  margin-top: 1.8em;
+  margin-bottom: 0.6em;
+}
+/* Extracted bodies carry the publisher's own figures. Full-bleed of the
+   measure, rounded to match every other surface, and never taller than half a
+   screen so the text stays the thing being read. */
+.prose-read img {
+  display: block;
+  max-width: 100%;
+  max-height: 60vh;
+  height: auto;
+  margin: 1.5em auto;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+.prose-read li { margin-bottom: 0.4em; }
+
 /* ═══ Spinner ═══ */
 @keyframes spin {
   to { transform: rotate(360deg); }

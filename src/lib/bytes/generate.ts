@@ -19,6 +19,18 @@ export interface GenerateOptions {
   kind?: DigestKind
   /** The date the digest covers. Enforces one automatic digest per period. */
   periodStart?: string | null
+  /**
+   * Include stories that already ran in an earlier digest.
+   *
+   * Off for the every-other-day drop, which exists to show you what is new.
+   * On for the monthly look-back, which exists to show you what mattered - and
+   * by the end of a month every item worth collecting has already appeared in
+   * some daily drop, so filtering them out would leave the monthly digest with
+   * whatever nobody picked. When on, an item the guild actually upvoted first
+   * time round is boosted, so "top of the month" means the guild's top and not
+   * just the feed's.
+   */
+  allowSeen?: boolean
   label?: string
   cycleId?: string | null
   createdBy: string
@@ -79,6 +91,24 @@ export function weekLabel(periodStart: string): string {
   })}`
 }
 
+/** The 1st of the month, 00:00 UTC. The period a monthly digest covers. */
+export function monthStart(date = new Date()): string {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1))
+    .toISOString()
+    .slice(0, 10)
+}
+
+/**
+ * "Top of August". Deliberately not "August 2026 Bytes", which is what the
+ * admin's ad-hoc button produces: the monthly job is a look back over the
+ * month's strongest items, and the label has to say so or the two are
+ * indistinguishable in the archive list.
+ */
+export function monthPeriodLabel(periodStart: string): string {
+  const d = new Date(`${periodStart}T00:00:00Z`)
+  return `Top of ${d.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' })}`
+}
+
 export async function generateDigest(opts: GenerateOptions): Promise<GenerateResult> {
   const {
     days = 8,
@@ -86,6 +116,7 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
     kind = 'weekly',
     periodStart = null,
     cycleId = null,
+    allowSeen = false,
     createdBy,
   } = opts
 
@@ -121,27 +152,54 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
     return { ok: false, reason: 'no_candidates', message: 'No stories came back from any feed.' }
   }
 
-  // Skip anything already published, so a long-running story does not reappear
-  // week after week.
-  const { data: seen } = await admin
-    .from('bytes')
-    .select('source, source_id')
-    .in('source_id', pool.map(c => c.source_id))
+  /* What has run before, and how the guild reacted to it.
+     Chunked because a 31-day monthly window returns several hundred
+     candidates, and PostgREST takes its `in` list in the query string - one
+     request with every source_id in it is a URL long enough for a proxy to
+     reject, which would come back as a silent empty result and quietly turn
+     the seen-filter off. */
+  const priorByKey = new Map<string, number>()
+  for (let i = 0; i < pool.length; i += 100) {
+    const { data } = await admin
+      .from('bytes')
+      .select('source, source_id, interest_count')
+      .in('source_id', pool.slice(i, i + 100).map(c => c.source_id))
 
-  const seenKeys = new Set((seen ?? []).map(s => `${s.source}:${s.source_id}`))
-  const unseen = pool.filter(c => !seenKeys.has(`${c.source}:${c.source_id}`))
-
-  if (!unseen.length) {
-    return {
-      ok: false,
-      reason: 'all_seen',
-      message: 'Everything found has already appeared in a previous digest.',
+    for (const row of data ?? []) {
+      const key = `${row.source}:${row.source_id}`
+      // Same story can sit in two digests; keep the strongest reaction it got.
+      priorByKey.set(key, Math.max(priorByKey.get(key) ?? 0, row.interest_count ?? 0))
     }
   }
 
-  // Selection runs here, on what is actually available to publish. Mixed by
-  // medium first (articles, news, video, HN) and by topic within each.
-  const fresh = selectMix(unseen, limit)
+  let fresh: typeof pool
+  if (allowSeen) {
+    /* One upvote is worth more than any gap in feed score, which is what makes
+       this a look-back rather than a second copy of the feed's own ranking.
+       Capped at 1 so a single runaway story cannot take every slot in its
+       medium - the mix and per-publisher caps still have to bite. */
+    const ranked = pool.map(c => ({
+      ...c,
+      score: Math.min(1, c.score + (priorByKey.get(`${c.source}:${c.source_id}`) ?? 0) * 0.15),
+    }))
+    fresh = selectMix(ranked, limit)
+  } else {
+    // Skip anything already published, so a long-running story does not
+    // reappear week after week.
+    const unseen = pool.filter(c => !priorByKey.has(`${c.source}:${c.source_id}`))
+
+    if (!unseen.length) {
+      return {
+        ok: false,
+        reason: 'all_seen',
+        message: 'Everything found has already appeared in a previous digest.',
+      }
+    }
+
+    // Selection runs here, on what is actually available to publish. Mixed by
+    // medium first (articles, news, video, HN) and by topic within each.
+    fresh = selectMix(unseen, limit)
+  }
 
   // Absent an API key this returns an empty map and the digest still lands,
   // just with blank summaries to fill in by hand.
@@ -152,7 +210,9 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
     (periodStart
       ? kind === 'daily'
         ? dayLabel(periodStart)
-        : weekLabel(periodStart)
+        : kind === 'monthly'
+          ? monthPeriodLabel(periodStart)
+          : weekLabel(periodStart)
       : monthLabel())
 
   const { data: digest, error: digestErr } = await admin

@@ -4,6 +4,10 @@
     {
       "path": "/api/cron/bytes",
       "schedule": "0 6 */2 * *"
+    },
+    {
+      "path": "/api/cron/bytes/monthly",
+      "schedule": "0 7 1 * *"
     }
   ]
 }
