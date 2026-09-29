@@ -5,6 +5,7 @@
 // RLS: server client
 
 import { createClient } from '@/lib/supabase/server'
+import { getViewer } from '@/lib/supabase/viewer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { notifyOnNewTopic, notifyAfterResponse } from '@/lib/push/notify'
@@ -16,8 +17,7 @@ import type { Cycle } from '@/types'
 import type { CategoryTag } from '@/types'
 
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getViewer()
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

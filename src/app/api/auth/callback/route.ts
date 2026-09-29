@@ -7,6 +7,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+import { GUEST_COOKIE } from '@/lib/guest'
 import { isAllowedEmailDomain } from '@/lib/utils/email'
 
 function resolveAppOrigin(request: Request): string {
@@ -35,6 +36,8 @@ export async function GET(request: Request) {
   const redirect = (url: string) => {
     const res = NextResponse.redirect(url)
     if (intent) res.cookies.set(INTENT_COOKIE, '', { path: '/api/auth', maxAge: 0 })
+    // Signing in, or trying to, ends guest mode.
+    res.cookies.delete(GUEST_COOKIE)
     return res
   }
   const code = searchParams.get('code')

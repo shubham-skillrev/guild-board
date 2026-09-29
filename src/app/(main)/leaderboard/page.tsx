@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { SYSTEM_USERNAME } from '@/lib/system/identity'
-import { createClient } from '@/lib/supabase/server'
+import { getViewer } from '@/lib/supabase/viewer'
 import { redirect } from 'next/navigation'
 import { Lightbulb, Users, CheckCircle } from '@phosphor-icons/react/dist/ssr'
 import { UserAvatar } from '@/components/ui/UserAvatar'
@@ -37,9 +37,8 @@ async function getLeaderboard(): Promise<{
   members: { id: string; username: string }[]
   stats: CycleStats | null
 }> {
-  // Auth gate: user must be signed in
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Auth gate: user must be signed in, or browsing as a guest
+  const { supabase, user, isGuest } = await getViewer()
   if (!user) redirect('/login')
 
   // Admin client bypasses RLS for cross-user aggregation.
@@ -150,8 +149,9 @@ async function getLeaderboard(): Promise<{
     .limit(1)
     .maybeSingle()
 
+  // Guests are read-only, so they never get a spark to give.
   let sparkWindow: SparkWindowInfo | null = null
-  if (activeCycle) {
+  if (activeCycle && !isGuest) {
     const { data: existingSpark } = await supabase
       .from('sparks')
       .select('to_user_id')

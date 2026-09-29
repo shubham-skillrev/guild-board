@@ -5,7 +5,7 @@
 // DB TABLES: byte_digests, bytes, byte_interests
 // RLS: server client (published-only policies do the filtering)
 
-import { createClient } from '@/lib/supabase/server'
+import { getViewer } from '@/lib/supabase/viewer'
 import { NextResponse } from 'next/server'
 
 /* How many past digests the Top section draws from. Counted in digests, not
@@ -57,14 +57,15 @@ function topScore(b: RankableByte): number {
 }
 
 export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getViewer()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Recent published digests, newest first. RLS hides drafts.
+  // Recent published digests, newest first. RLS hides drafts from members;
+  // the explicit filter covers guests, who read past RLS.
   const { data: digests } = await supabase
     .from('byte_digests')
     .select('id, label, kind, period_start, published_at')
+    .eq('status', 'published')
     .order('published_at', { ascending: false, nullsFirst: false })
     .limit(TOP_WINDOW)
 

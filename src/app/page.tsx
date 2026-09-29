@@ -15,6 +15,7 @@ import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { PROBLEM_MONTH } from '@/lib/experiment'
 import { createClient } from '@/lib/supabase/server'
 import { getGuildStatus, getLatestBytes } from '@/lib/landing/guildStatus'
+import { enterGuestMode } from '@/app/actions/guest'
 
 /**
  * GuildBoard by SkillRev: where SkillRev talks tech.
@@ -98,6 +99,17 @@ export default async function LandingPage() {
               >
                 How it works
               </a>
+              {/* Guest mode: every member page, read-only, no sign-in. */}
+              {!isAuthed && (
+                <form action={enterGuestMode}>
+                  <button
+                    type="submit"
+                    className="press inline-flex items-center h-11 px-5 rounded-full text-[14px] font-medium text-ink-soft hover:text-ink hover:bg-kinu/50 transition-colors"
+                  >
+                    Look around as a guest
+                  </button>
+                </form>
+              )}
             </div>
             <p className="mt-5 text-[13px] text-cha">
               <s className="decoration-vermillion/70 decoration-2">Not another slide deck.</s>{' '}

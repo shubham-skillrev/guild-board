@@ -8,6 +8,8 @@ import { SiteFooter } from "@/components/layout/SiteFooter";
 import { UsernameSetupModal } from "@/components/auth/UsernameSetupModal";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Wordmark } from "@/components/ui/Wordmark";
+import { GuestBanner } from "@/components/layout/GuestBanner";
+import { isGuestSession } from "@/lib/supabase/viewer";
 
 async function getUser() {
   try {
@@ -33,6 +35,7 @@ export default async function MainLayout({
   children: React.ReactNode;
 }) {
   const profile = await getUser();
+  const isGuest = !profile && (await isGuestSession());
 
   return (
     <>
@@ -40,6 +43,8 @@ export default async function MainLayout({
         <Suspense fallback={null}>
           <UsernameSetupModal />
         </Suspense>
+
+        {isGuest && <GuestBanner />}
 
         {/* ─── Top bar ───
           Translucent, and terminated by a real hairline. The gradient edge that
@@ -78,7 +83,16 @@ export default async function MainLayout({
                 </Link>
               )}
               <ThemeToggle />
-              <LogoutButton />
+              {isGuest ? (
+                <Link
+                  href="/login"
+                  className="press inline-flex items-center h-8 px-3.5 rounded-full bg-ink text-parchment text-[13px] font-medium whitespace-nowrap hover:bg-ink/85 transition-colors"
+                >
+                  Sign in
+                </Link>
+              ) : (
+                <LogoutButton />
+              )}
             </div>
           </div>
         </header>
@@ -91,7 +105,11 @@ export default async function MainLayout({
       </div>
 
       {/* Mobile bottom nav stays outside scrolling container for stable viewport pinning */}
-      <MobileBottomNav role={profile?.role} username={profile?.username} />
+      <MobileBottomNav
+        role={profile?.role}
+        username={profile?.username}
+        isGuest={isGuest}
+      />
     </>
   );
 }

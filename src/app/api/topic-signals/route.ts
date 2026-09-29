@@ -7,6 +7,7 @@
 // RLS: server client
 
 import { createClient } from '@/lib/supabase/server'
+import { getViewer } from '@/lib/supabase/viewer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { notifyOnExplainMore, notifyAfterResponse } from '@/lib/push/notify'
@@ -14,8 +15,7 @@ import { SIGNAL_KINDS, type SignalKind } from '@/lib/constants'
 
 /** GET ?topic_id=… → counts per signal + which ones the caller has sent. */
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getViewer()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const topicId = new URL(request.url).searchParams.get('topic_id')

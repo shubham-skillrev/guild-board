@@ -2,7 +2,7 @@
 // AUTH: authenticated
 // PURPOSE: Fetch topic detail + contributor list
 
-import { createClient } from '@/lib/supabase/server'
+import { getViewer } from '@/lib/supabase/viewer'
 import { NextResponse } from 'next/server'
 import { serializeTopic, joinedUsername } from '@/lib/utils/anonymity'
 
@@ -11,8 +11,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getViewer()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Fetch topic

@@ -5,12 +5,12 @@
 // RLS: server client
 
 import { createClient } from '@/lib/supabase/server'
+import { getViewer } from '@/lib/supabase/viewer'
 import { type NextRequest, NextResponse } from 'next/server'
 import { notifyOnSpark, notifyAfterResponse } from '@/lib/push/notify'
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getViewer()
 
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

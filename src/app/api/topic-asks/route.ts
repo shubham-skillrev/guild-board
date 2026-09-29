@@ -6,6 +6,7 @@
 // RLS: server client; admin client only to list guild members for the picker
 
 import { createClient } from '@/lib/supabase/server'
+import { getViewer } from '@/lib/supabase/viewer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { notifyOnAsked, notifyAfterResponse } from '@/lib/push/notify'
@@ -15,8 +16,7 @@ const NOTE_MAX = 140
 
 /** GET ?topic_id=… → who has been asked, plus who can still be asked. */
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { user } = await getViewer()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const topicId = new URL(request.url).searchParams.get('topic_id')

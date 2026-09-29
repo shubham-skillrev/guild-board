@@ -6,7 +6,7 @@
 // DB TABLES: bytes, byte_interests
 // RLS: server client (published-only policies do the filtering)
 
-import { createClient } from '@/lib/supabase/server'
+import { getViewer } from '@/lib/supabase/viewer'
 import { NextResponse } from 'next/server'
 import { sanitizeArticleHtml } from '@/lib/bytes/articleHtml'
 
@@ -15,8 +15,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user, isGuest } = await getViewer()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { data: byte } = await supabase
@@ -28,6 +27,17 @@ export async function GET(
   // RLS hides bytes in unpublished digests, so "hidden" and "gone" are the
   // same 404 here on purpose.
   if (!byte) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  // Guests read past RLS, so check the digest is published by hand.
+  if (isGuest) {
+    const { data: digest } = await supabase
+      .from('byte_digests')
+      .select('id')
+      .eq('id', byte.digest_id)
+      .eq('status', 'published')
+      .maybeSingle()
+    if (!digest) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
 
   const { data: mine } = await supabase
     .from('byte_interests')

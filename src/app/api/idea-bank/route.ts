@@ -6,6 +6,7 @@
 // RLS: server client (own rows + is_open rows, enforced by policy)
 
 import { createClient } from '@/lib/supabase/server'
+import { getViewer } from '@/lib/supabase/viewer'
 import { NextResponse } from 'next/server'
 import { TITLE_MAX_LENGTH, ALL_CATEGORIES } from '@/lib/constants'
 import { joinedUsername } from '@/lib/utils/anonymity'
@@ -42,8 +43,7 @@ function serialize(row: IdeaRow, viewerId: string) {
 }
 
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getViewer()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // ?scope=open  → the up-for-grabs pool (everyone's, unpromoted)

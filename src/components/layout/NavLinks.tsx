@@ -13,6 +13,7 @@ import { PROBLEM_MONTH, PROBLEM_COPY, HIDE_BYTES } from '@/lib/experiment'
 interface NavLinksProps {
   role?: string
   username?: string | null
+  isGuest?: boolean
 }
 
 export function DesktopNavLinks({ role }: NavLinksProps) {
@@ -76,7 +77,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
   )
 }
 
-export function MobileBottomNav({ role, username }: NavLinksProps) {
+export function MobileBottomNav({ role, username, isGuest }: NavLinksProps) {
   const pathname = usePathname()
   const isBoard = pathname.startsWith('/board')
   const isLeaders = pathname.startsWith('/leaderboard')
@@ -85,10 +86,11 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
   const isBytes = pathname.startsWith('/bytes')
   const { unseen: unseenBytes } = useUnseenDigest()
 
-  // Board, Leaders and You always; Bytes and Admin when they apply. Written
-  // out as literals so Tailwind generates each class.
-  const tabCount = 3 + (HIDE_BYTES ? 0 : 1) + (role === 'admin' ? 1 : 0)
-  const cols = { 3: 'grid-cols-3', 4: 'grid-cols-4', 5: 'grid-cols-5' }[tabCount] ?? 'grid-cols-5'
+  // Board and Leaders always; Bytes, Admin and You when they apply. A guest
+  // has no profile to open. Written out as literals so Tailwind generates
+  // each class.
+  const tabCount = 2 + (isGuest ? 0 : 1) + (HIDE_BYTES ? 0 : 1) + (role === 'admin' ? 1 : 0)
+  const cols = { 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4', 5: 'grid-cols-5' }[tabCount] ?? 'grid-cols-5'
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
@@ -148,18 +150,20 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
             <span>Admin</span>
           </Link>
         )}
-        <Link
-          href="/profile"
-          className={cn(
-            'flex flex-col items-center justify-center gap-1 py-1 text-[11px] transition-colors rounded-(--radius-control) press-sm',
-            isProfile ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
-          )}
-        >
-          <span className="w-5.5 h-5.5 rounded-full overflow-hidden border border-border-strong">
-            <UserAvatar username={username ?? 'user'} size={22} />
-          </span>
-          <span>You</span>
-        </Link>
+        {!isGuest && (
+          <Link
+            href="/profile"
+            className={cn(
+              'flex flex-col items-center justify-center gap-1 py-1 text-[11px] transition-colors rounded-(--radius-control) press-sm',
+              isProfile ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
+            )}
+          >
+            <span className="w-5.5 h-5.5 rounded-full overflow-hidden border border-border-strong">
+              <UserAvatar username={username ?? 'user'} size={22} />
+            </span>
+            <span>You</span>
+          </Link>
+        )}
       </div>
     </nav>
   )

@@ -3,6 +3,7 @@
 // PURPOSE: CRUD for threaded comments on topics
 
 import { createClient } from '@/lib/supabase/server'
+import { getViewer } from '@/lib/supabase/viewer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyOnComment, notifyAfterResponse } from '@/lib/push/notify'
 import { NextResponse } from 'next/server'
@@ -10,8 +11,7 @@ import { NextResponse } from 'next/server'
 const COMMENT_MAX_LENGTH = 2000
 
 export async function GET(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { supabase, user } = await getViewer()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const url = new URL(request.url)

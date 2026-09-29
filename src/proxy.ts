@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { GUEST_BLOCKED_PAGES, GUEST_COOKIE, GUEST_READ_ONLY_ERROR } from '@/lib/guest'
 
 const isSupabaseConfigured = !!(
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -53,6 +54,25 @@ export async function proxy(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
+
+  // Guest mode - read-only browsing without a session. Pages load; the API
+  // answers reads only. Page POSTs are server actions, which check auth
+  // themselves (and include leaving guest mode), so they pass.
+  const isGuest = !user && request.cookies.get(GUEST_COOKIE)?.value === '1'
+  if (isGuest && !isPublicRoute) {
+    if (GUEST_BLOCKED_PAGES.some(p => pathname === p || pathname.startsWith(`${p}/`))) {
+      return pathname.startsWith('/admin')
+        ? new NextResponse(null, { status: 404 })
+        : NextResponse.redirect(new URL('/login', request.url))
+    }
+    if (pathname.startsWith('/api/admin')) {
+      return new NextResponse(null, { status: 404 })
+    }
+    if (pathname.startsWith('/api') && request.method !== 'GET' && request.method !== 'HEAD') {
+      return NextResponse.json({ error: GUEST_READ_ONLY_ERROR }, { status: 403 })
+    }
+    return response
+  }
 
   // Unauthenticated - redirect to login (except public routes)
   if (!user && !isPublicRoute) {
