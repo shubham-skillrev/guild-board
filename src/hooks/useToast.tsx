@@ -59,9 +59,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               exit={{ opacity: 0, x: 20, scale: 0.9 }}
               transition={{ type: 'spring', stiffness: 420, damping: 32 }}
               className={`
-                flex items-center gap-2 px-3.5 py-2.5 rounded-xl
+                flex items-center gap-2 px-3.5 py-2.5 rounded-(--radius-card)
                 border text-[12px] font-medium
-                shadow-[0_4px_24px_rgba(0,0,0,0.4)]
+                shadow-[0_4px_24px_var(--shadow-tint)]
                 backdrop-blur-sm pointer-events-auto
                 max-w-[280px]
                 ${VARIANT_STYLES[t.variant]}

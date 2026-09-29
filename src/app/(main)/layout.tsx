@@ -1,30 +1,38 @@
-import { Suspense } from 'react'
-import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import { LogoutButton } from '@/components/layout/LogoutButton'
-import { UserAvatar } from '@/components/ui/UserAvatar'
-import { DesktopNavLinks, MobileBottomNav } from '@/components/layout/NavLinks'
-import { SiteFooter } from '@/components/layout/SiteFooter'
-import { UsernameSetupModal } from '@/components/auth/UsernameSetupModal'
+import { Suspense } from "react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { LogoutButton } from "@/components/layout/LogoutButton";
+import { UserAvatar } from "@/components/ui/UserAvatar";
+import { DesktopNavLinks, MobileBottomNav } from "@/components/layout/NavLinks";
+import { SiteFooter } from "@/components/layout/SiteFooter";
+import { UsernameSetupModal } from "@/components/auth/UsernameSetupModal";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { Wordmark } from "@/components/ui/Wordmark";
 
 async function getUser() {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return null
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
     const { data } = await supabase
-      .from('users')
-      .select('username, role')
-      .eq('id', user.id)
-      .single()
-    return data
+      .from("users")
+      .select("username, role")
+      .eq("id", user.id)
+      .single();
+    return data;
   } catch {
-    return null
+    return null;
   }
 }
 
-export default async function MainLayout({ children }: { children: React.ReactNode }) {
-  const profile = await getUser()
+export default async function MainLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const profile = await getUser();
 
   return (
     <>
@@ -33,53 +41,57 @@ export default async function MainLayout({ children }: { children: React.ReactNo
           <UsernameSetupModal />
         </Suspense>
 
-      {/* ─── Top bar ───
+        {/* ─── Top bar ───
           Translucent, and terminated by a real hairline. The gradient edge that
           replaced this border left the chrome with no defined bottom, so the
           header and the page read as one undifferentiated surface. */}
-      <header className="bg-paper/80 backdrop-blur-xl border-b border-border sticky top-0 z-(--z-chrome)">
-        <div className="flex items-center justify-between px-5 md:px-10 h-14 w-full max-w-7xl mx-auto">
-          {/* Left: Logo + Nav */}
-          <div className="flex items-center gap-7">
-            <Link href="/board" className="flex items-center gap-2.5 group press">
-              <span className="text-saffron text-base leading-none transition-transform group-hover:scale-110">◈</span>
-              <span className="font-serif font-semibold text-ink text-base tracking-tight">
-                GuildBoard
-              </span>
-            </Link>
-            <DesktopNavLinks role={profile?.role} />
-          </div>
-
-          {/* Right: Profile + Logout */}
-          <div className="flex items-center gap-2">
-            {profile && (
+        <header className="bg-paper/80 backdrop-blur-xl border-b border-border sticky top-0 z-(--z-chrome)">
+          <div className="flex items-center justify-between px-5 md:px-10 h-14 w-full max-w-7xl mx-auto">
+            {/* Left: Logo + Nav */}
+            <div className="flex items-center gap-7">
               <Link
-                href="/profile"
-                className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[13px] text-ink-soft hover:bg-kinu transition-colors group press"
+                href="/"
+                className="press"
+                aria-label="GuildBoard by SkillRev"
               >
-                <span className="w-7 h-7 rounded-full overflow-hidden border border-border-strong group-hover:border-saffron/40 transition-colors">
-                  <UserAvatar username={profile.username ?? 'user'} size={28} />
-                </span>
-                <span className="hidden sm:inline text-ink font-medium">@{profile.username}</span>
+                <Wordmark />
               </Link>
-            )}
-            <LogoutButton />
+              <DesktopNavLinks role={profile?.role} />
+            </div>
+
+            {/* Right: Profile + Logout */}
+            <div className="flex items-center gap-2">
+              {profile && (
+                <Link
+                  href="/profile"
+                  className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-(--radius-control) text-[13px] text-ink-soft hover:bg-kinu transition-colors group press"
+                >
+                  <span className="w-7 h-7 rounded-full overflow-hidden border border-border-strong group-hover:border-saffron/40 transition-colors">
+                    <UserAvatar
+                      username={profile.username ?? "user"}
+                      size={28}
+                    />
+                  </span>
+                  <span className="hidden sm:inline text-ink font-medium">
+                    @{profile.username}
+                  </span>
+                </Link>
+              )}
+              <ThemeToggle />
+              <LogoutButton />
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
         {/* ─── Main content ─── */}
-        <main className="flex-1 min-w-0 w-full pb-24 md:pb-0">
-          {children}
-        </main>
+        <main className="flex-1 min-w-0 w-full pb-24 md:pb-0">{children}</main>
 
-      {/* ─── Footer ─── */}
+        {/* ─── Footer ─── */}
         <SiteFooter className="hidden md:block" />
       </div>
 
       {/* Mobile bottom nav stays outside scrolling container for stable viewport pinning */}
       <MobileBottomNav role={profile?.role} username={profile?.username} />
     </>
-  )
+  );
 }
-

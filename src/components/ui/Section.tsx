@@ -194,7 +194,7 @@ export function StatChip({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 h-7 px-2 rounded-md text-[12px]',
+        'inline-flex items-center gap-1.5 h-7 px-2 rounded-(--radius-control) text-[12px]',
         tone === 'spent' ? 'bg-saffron/12 text-saffron' : 'bg-kinu/50 text-ink-soft',
       )}
     >

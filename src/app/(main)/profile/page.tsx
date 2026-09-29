@@ -87,7 +87,7 @@ export default async function ProfilePage() {
                         {topic.cycles?.label}
                       </span>
                       {topic.is_selected && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-saffron/12 text-saffron">
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-(--radius-control) bg-saffron/12 text-saffron">
                           ★ Selected
                         </span>
                       )}
@@ -117,7 +117,7 @@ export default async function ProfilePage() {
             {sparksReceived.map((spark: any) => (
               <div
                 key={spark.id}
-                className="px-3 py-1.5 bg-paper/50 border border-border rounded-lg text-[13px] text-ink-soft hover:border-border-strong transition-colors"
+                className="px-3 py-1.5 bg-paper/50 border border-border rounded-(--radius-control) text-[13px] text-ink-soft hover:border-border-strong transition-colors"
               >
                 ⚡ <span className="font-medium text-ink">@{spark.from_user?.username}</span>
                 <span className="text-cha ml-1.5 text-[11px]">{spark.cycles?.label}</span>

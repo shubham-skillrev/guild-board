@@ -1,77 +1,124 @@
 @import "tailwindcss";
 
+/* `dark:` follows the class on <html>, set before first paint by the inline
+   script in the root layout, not the OS media query directly. That is what
+   lets a member override their OS. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* ═══════════════════════════════════════════════════════
      GuildBoard design tokens
-     Dark only. Cold neutral ramp, one warm accent, semantic colour.
-     Rule: a colour means something or it does not appear.
+     Two themes from one set of names. Light is the default here, and `.dark`
+     below overrides the same variables, so every utility (`bg-paper`,
+     `text-ink`, `border-border`) switches without a `dark:` prefix anywhere.
 
-     The ramp runs cold and the single accent runs warm, so the one thing
-     you can act on separates from everything else by temperature as well
-     as by brightness. That is the whole colour system.
+     Rule: a colour means something or it does not appear. A neutral ramp,
+     one amber accent, and semantic colour for state. Minimal and
+     professional, in the SkillRev family alongside Aiden: off-white ground,
+     near-black ink, hairlines, and one warm word per headline.
      ═══════════════════════════════════════════════════════ */
 
   /* ─── Surfaces ───
-     The original GuildBoard ramp: warm near-black ground, lacquered-wood and
-     charcoal-paper surfaces. Depth comes from surface lightness first and
-     shadow second, which is how a dark UI layers without muddy drop shadows.
-     Not pure #000 on purpose: it flattens, and it kills every shadow above it. */
-  --color-parchment: #08080C;    /* L0  page ground */
-  --color-paper: #101016;        /* L1  cards, rows */
-  --color-sumi: #161620;         /* L2  sheets, modals */
-  --color-kinu: #1E1E2A;         /* L3  menus, popovers, hover */
+     The names are historical (parchment, paper, sumi, kinu) and now mean
+     levels, not materials: L0 ground, L1 cards, L2 sheets and inputs,
+     L3 hover and menus. In light, depth reads as a step *down* in lightness
+     from a white card; in dark, as a step up. */
+  --color-parchment: #FAFAF8;    /* L0  page ground */
+  --color-paper: #FFFFFF;        /* L1  cards, rows */
+  --color-sumi: #F4F3F0;         /* L2  sheets, inputs */
+  --color-kinu: #ECEAE6;         /* L3  menus, popovers, hover */
 
-  /* Semantic aliases onto the same four, so components written against either
-     naming resolve to one ramp. */
   --color-bg: var(--color-parchment);
   --color-surface-1: var(--color-paper);
   --color-surface-2: var(--color-sumi);
   --color-surface-3: var(--color-kinu);
 
-  /* ─── Fills ───
-     Tinted rather than solid so they sit correctly on any surface level. */
-  --color-fill: rgba(160, 152, 172, 0.14);
-  --color-fill-strong: rgba(160, 152, 172, 0.24);
+  /* ─── Fills ─── Tinted, so they sit correctly on any surface level. */
+  --color-fill: rgba(22, 24, 29, 0.05);
+  --color-fill-strong: rgba(22, 24, 29, 0.09);
 
   /* ─── Content ───
-     Warm parchment white rather than a cold grey ramp. The brand values, with
-     one correction: contrast is measured against the highest surface the text
-     can land on (kinu), not just the page ground, because a card on a card is
-     where these actually fail.
-       ink        13.5:1 on kinu   AA
-       ink-soft    7.2:1 on kinu   AA
-       ink-muted   4.5:1 on kinu   AA  (was #807972, 4.2:1, under the line)
-       cha         4.6:1 on kinu   AA  (was #6A6474, 2.9:1, well under)
-     Two were lightened. `cha` matters most: it is described in the original
-     palette as muted text and icons, and it is used as caption and body text
-     in 126 places, so 2.9:1 was a real failure across most of the product
-     rather than a rounding issue. The cool cast is preserved, only lifted. */
-  --color-ink: #EDE8E1;          /* primary */
-  --color-ink-soft: #B0AAA3;     /* secondary */
-  --color-ink-muted: #8D857D;    /* tertiary, AA on every surface */
-  --color-cha: #8B8398;          /* quaternary, cool cast, still AA */
+     Measured against the highest surface text can land on (kinu), because a
+     card on a card is where contrast actually fails.
+       light  ink 14.8  ink-soft 7.0  ink-muted 4.9  cha 4.6   (on #ECEAE6)
+       dark   ink 13.2  ink-soft 7.0  ink-muted 4.7  cha 4.7   (on #212125) */
+  --color-ink: #16181D;
+  --color-ink-soft: #4A4D55;
+  --color-ink-muted: #62656D;
+  --color-cha: #64666E;
 
   --color-label: var(--color-ink);
   --color-label-2: var(--color-ink-soft);
   --color-label-3: var(--color-ink-muted);
   --color-label-4: var(--color-cha);
 
-  /* ─── Lines ─── */
-  --color-border: #1E1E2A;
-  --color-border-strong: #2E2E3C;
+  /* ─── Lines ─── Hairlines carry most of the structure. */
+  --color-border: #E7E5E0;
+  --color-border-strong: #D6D3CC;
   --color-separator: var(--color-border);
   --color-hairline: var(--color-border-strong);
 
   /* ─── Accent and semantics ───
-     Saffron leads. Vermillion and matcha are states. Indigo and wisteria are
-     back as real colours rather than resolving to grey: they carry category
-     and tone, and flattening them is what drained the palette. Each still has
-     one job, so the rule holds. */
+     Saffron leads and is used sparingly: the accent word, a selected state,
+     a live dot. It is not a button fill; primary buttons are ink.
+     Each light value is deepened until it clears 4.5:1 as small text on
+     every light surface, since these also colour captions and errors. */
+  --color-saffron: #A34C07;
+  --color-saffron-light: #FBF1E6;
+  --color-vermillion: #B53620;
+  --color-vermillion-light: #FBEAE7;
+  --color-matcha: #16774F;
+  --color-matcha-light: #E6F4EE;
+  --color-indigo-jp: #2F5FC4;
+  --color-indigo-light: #E9EFFB;
+  --color-wisteria: #6A48B0;
+  --color-wisteria-light: #F0EBF8;
+
+  --color-accent: var(--color-saffron);
+  --color-accent-tint: color-mix(in srgb, var(--color-saffron) 12%, transparent);
+  --color-success: var(--color-matcha);
+  --color-success-tint: color-mix(in srgb, var(--color-matcha) 12%, transparent);
+  --color-danger: var(--color-vermillion);
+  --color-danger-tint: color-mix(in srgb, var(--color-vermillion) 12%, transparent);
+
+  /* ─── Fonts ───
+     Geist for everything you read and every heading. Instrument Serif,
+     italic, for the one word a headline leans on (see `.accent-word`), and
+     for nothing else: it is a voice, not a body face. Geist Mono only for
+     numbers and the small tracked-caps eyebrow labels. */
+  --font-sans: var(--font-sans-ui), ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', Roboto, sans-serif;
+  --font-mono: var(--font-mono-ui), ui-monospace, SFMono-Regular, Menlo,
+    monospace;
+  --font-serif: var(--font-display), 'Iowan Old Style', Georgia, serif;
+}
+
+:root {
+  color-scheme: light;
+  /* Shadows are ink-tinted and light in light mode; a dark UI needs them far
+     heavier to read at all. Only overlays cast one. */
+  --shadow-tint: rgba(22, 24, 29, 0.08);
+  --shadow-tint-strong: rgba(22, 24, 29, 0.14);
+}
+
+/* The dark theme: the graphite ramp. */
+.dark {
+  color-scheme: dark;
+  --color-parchment: #0A0A0B;
+  --color-paper: #111113;
+  --color-sumi: #18181B;
+  --color-kinu: #212125;
+  --color-fill: rgba(160, 160, 168, 0.14);
+  --color-fill-strong: rgba(160, 160, 168, 0.24);
+  --color-ink: #EDE8E1;
+  --color-ink-soft: #B0AAA3;
+  --color-ink-muted: #918981;
+  --color-cha: #8F889C;
+  --color-border: #222226;
+  --color-border-strong: #33333A;
   --color-saffron: #E8913A;
   --color-saffron-light: #1A1208;
-  /* Lightened from #DC4A3A, which measured 4.4:1 on kinu. Error text is small
-     text, so it has to clear 4.5 rather than the large-text allowance. */
-  --color-vermillion: #EC503E;
+  --color-vermillion: #EE5A48;
   --color-vermillion-light: #1C0C0A;
   --color-matcha: #3DB88A;
   --color-matcha-light: #0A1A14;
@@ -79,28 +126,8 @@
   --color-indigo-light: #0C1220;
   --color-wisteria: #9A7BD4;
   --color-wisteria-light: #12101E;
-
-  --color-accent: var(--color-saffron);
-  --color-accent-tint: rgba(232, 145, 58, 0.14);
-  --color-success: var(--color-matcha);
-  --color-success-tint: rgba(61, 184, 138, 0.14);
-  --color-danger: var(--color-vermillion);
-  --color-danger-tint: rgba(220, 74, 58, 0.14);
-
-  /* ─── Fonts ───
-     Geist for UI. It is a grotesque built for developer tools, it has a real
-     mono sibling, and it does not read as the default-everything face.
-     Geist Mono carries every number in the product: vote counts, days to
-     meeting, quotas remaining. Those are values a member scans and compares,
-     so they get tabular figures rather than proportional ones.
-     Playfair carries the wordmark and the two largest title steps. It stops
-     there: pushed down to card titles it lands on every row of every screen at
-     once, which reads as noise rather than character. */
-  --font-sans: var(--font-sans-ui), ui-sans-serif, system-ui, -apple-system,
-    'Segoe UI', Roboto, sans-serif;
-  --font-mono: var(--font-mono-ui), ui-monospace, SFMono-Regular, Menlo,
-    monospace;
-  --font-serif: var(--font-display), Georgia, serif;
+  --shadow-tint: rgba(6, 6, 10, 0.55);
+  --shadow-tint-strong: rgba(6, 6, 10, 0.65);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -130,11 +157,10 @@
   --z-toast: 60;     /* transient confirmations, never blocking */
 
   /* ─── Shape lock ───
-     Two radii, one rule: controls are 10, surfaces are 14, and pills are
-     reserved for chips only. Anything else is a bug. The previous system had
-     eight radii in play, which is what made screens look unrelated. */
-  --radius-control: 10px;
-  --radius-card: 14px;
+     Three shapes: inputs and small controls are 8, surfaces are 12, and
+     buttons and chips are pills. Anything else is a bug. */
+  --radius-control: 8px;
+  --radius-card: 12px;
 
   /* ─── Content measures ───
      Two widths, not the eight that were in use. Reading is the narrow one,
@@ -151,8 +177,8 @@
     --gap-section: 40px;
     --control-h: 36px; /* precise pointer, so tighter reads better */
     --icon: 16px;
-    --radius-control: 10px;
-    --radius-card: 16px;
+    --radius-control: 8px;
+    --radius-card: 12px;
   }
 }
 
@@ -172,14 +198,14 @@ body {
    second dot used the retired wisteria and rendered as noise. */
 .pattern-asanoha {
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(233, 235, 241, 0.045) 1px, transparent 0);
+    radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--color-ink) 7%, transparent) 1px, transparent 0);
   background-size: 32px 32px;
 }
 
 /* Single warm bloom behind the hero. The only decorative gradient in the
    product, and it uses the accent rather than inventing a colour. */
 .glow-saffron {
-  background: radial-gradient(ellipse at 50% 0%, rgba(232, 145, 58, 0.10) 0%, transparent 62%);
+  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--color-saffron) 9%, transparent) 0%, transparent 62%);
 }
 
 /* ═══ Scrollbar - bamboo thin ═══ */
@@ -189,7 +215,7 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--color-cha); }
 
 /* ═══ Selection ═══ */
-::selection { background: rgba(232, 145, 58, 0.2); color: var(--color-ink); }
+::selection { background: color-mix(in srgb, var(--color-saffron) 22%, transparent); color: var(--color-ink); }
 
 /* ═══════════════════════════════════════════════════════
    Type scale
@@ -204,28 +230,24 @@ body {
    Every historical class name is mapped onto these six, so the three scales
    that were running at once now resolve to one without touching a call site. */
 
-/* The serif is a page-level voice, not a heading style. It carries the two
-   largest steps and stops there.
-   Pushing it down to 17px card titles put a display serif on every topic row,
-   every section header and every card in the product at once, which is most of
-   what made the redesign read as loud. At that size it stops being character
-   and starts being noise.
-   Playfair's `y g j p q` sit low, so leading never drops below 1.2x here. */
+/* Two voices. Page titles, one per screen, are Instrument Serif: the face that
+   makes GuildBoard look like itself. Everything below that step is Geist, so
+   the serif stays a page-level voice and never lands on every row at once.
+   Inside a sans heading the serif appears only as one italic accent word. */
 
 /* 1. Display. Page titles only, one per screen. */
 :is(.text-display, .text-title-1, .type-display) {
   font-family: var(--font-serif);
-  font-size: 1.75rem;      /* 28, back from 32 */
-  line-height: 2.25rem;    /* 36, clears Playfair descenders */
+  font-size: 2.375rem;     /* 38: the serif's small x-height needs the size */
+  line-height: 2.625rem;   /* 42 */
   letter-spacing: -0.012em;
-  font-weight: 600;
+  font-weight: 400;
 }
 /* 2. Title. The one section heading per screen that earns weight. */
 :is(.text-title, .text-title-2) {
-  font-family: var(--font-serif);
   font-size: 1.25rem;      /* 20 */
   line-height: 1.625rem;   /* 26 */
-  letter-spacing: -0.008em;
+  letter-spacing: -0.02em;
   font-weight: 600;
 }
 /* 3. Heading. Card titles, row titles, section headers. Sans, deliberately.
@@ -263,6 +285,30 @@ body {
   font-weight: 500;
 }
 
+/* The one word a headline leans on, in Instrument Serif italic and the
+   accent colour: "Where SkillRev *talks* tech." The serif's x-height is
+   smaller than Geist's, so it is set a touch larger to sit on the same line
+   visually. One per heading, at most. */
+.accent-word {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.08em;
+  letter-spacing: -0.01em;
+  color: var(--color-saffron);
+}
+
+/* The small tracked-caps line above a heading, e.g.
+   "GUILDBOARD BY SKILLREV · MONTHLY ENGINEERING GUILD". */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--color-cha);
+}
+
 /* Numbers are compared down a column, so they get the mono face and tabular
    figures. This is the one place a second typeface earns its keep. */
 .tabular,
@@ -288,12 +334,12 @@ body {
 .elev-2 {
   background: var(--color-surface-2);
   border: 1px solid var(--color-hairline);
-  box-shadow: 0 8px 24px rgba(6, 6, 10, 0.55);
+  box-shadow: 0 8px 24px var(--shadow-tint);
 }
 .elev-3 {
   background: var(--color-surface-3);
   border: 1px solid var(--color-hairline);
-  box-shadow: 0 16px 40px rgba(6, 6, 10, 0.65);
+  box-shadow: 0 16px 40px var(--shadow-tint-strong);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -310,7 +356,7 @@ body {
   background: color-mix(in oklab, var(--color-surface-2) 82%, transparent);
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.40);
+  box-shadow: 0 8px 24px var(--shadow-tint);
 }
 /* Fade content out where it meets floating chrome, instead of a hard 1px rule. */
 .scroll-edge-top {
@@ -318,11 +364,17 @@ body {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px);
 }
 
-/* Focus ring. One definition, so every control agrees. */
-:where(a, button, input, textarea, select, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-  border-radius: var(--radius-control);
+/* Focus ring. One definition, so every control agrees.
+   In the base layer on purpose: unlayered CSS beats every Tailwind utility
+   regardless of specificity, so when this sat outside a layer a field's
+   `focus:outline-none` could never win, and text fields that show focus on
+   their container instead got a second, orange ring drawn inside it. */
+@layer base {
+  :where(a, button, input, textarea, select, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-control);
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -348,6 +400,22 @@ body {
 }
 .animate-fade-up { animation: fadeUp 0.4s ease-out both; }
 .animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
+
+/* Scroll reveal for the landing page, in CSS alone. A section fades up as it
+   enters the viewport, driven by scroll position rather than a timer, so it
+   never replays and never needs JavaScript. Where scroll timelines are not
+   supported, or motion is reduced, the rule does not apply and the content is
+   simply there. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      animation: fadeUp linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
+  }
+}
+
 
 /* Staggered children animation */
 .stagger-children > * {

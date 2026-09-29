@@ -2,12 +2,12 @@
 
 export function SignupForm() {
   return (
-    <div className="w-full max-w-sm mx-auto bg-paper/80 backdrop-blur-sm p-7 rounded-xl border border-border relative overflow-hidden">
+    <div className="w-full max-w-sm mx-auto bg-paper/80 backdrop-blur-sm p-7 rounded-(--radius-card) border border-border relative overflow-hidden">
       {/* Accent top line */}
       <div className="absolute top-0 left-0 w-full h-0.5 bg-linear-to-r from-saffron via-wisteria to-indigo-jp opacity-60" />
 
       <div className="text-center space-y-1.5 mb-6">
-        <h2 className="font-serif text-xl font-bold text-ink">
+        <h2 className="text-xl font-semibold tracking-[-0.02em] text-ink">
           Join the Guild
         </h2>
         <p className="text-xs text-ink-soft">

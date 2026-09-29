@@ -162,11 +162,11 @@ export function InstallPrompt() {
 
   return (
     <Portal>
-      <div className="fixed inset-x-3 bottom-20 z-(--z-overlay) mx-auto max-w-sm rounded-(--radius-card) border border-saffron/25 bg-sumi/95 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)] backdrop-blur sm:left-auto sm:right-4 sm:bottom-4">
+      <div className="fixed inset-x-3 bottom-20 z-(--z-overlay) mx-auto max-w-sm rounded-(--radius-card) border border-saffron/25 bg-sumi/95 p-4 shadow-[0_20px_60px_var(--shadow-tint-strong)] backdrop-blur sm:left-auto sm:right-4 sm:bottom-4">
         {!showHow ? (
           <div className="flex items-start gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/icon-192.png" alt="" width={44} height={44} className="rounded-xl" />
+            <img src="/icon-192.png" alt="" width={44} height={44} className="rounded-(--radius-card)" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-ink">Install GuildBoard</p>
               <p className="mt-1 text-xs text-ink-soft">
@@ -176,14 +176,14 @@ export function InstallPrompt() {
                 {deferred ? (
                   <button
                     onClick={installNative}
-                    className="press inline-flex items-center h-8 rounded-(--radius-control) bg-saffron px-3 text-footnote font-medium text-parchment hover:bg-saffron/90"
+                    className="press inline-flex items-center h-8 rounded-full bg-ink px-3 text-footnote font-medium text-parchment hover:bg-ink/85"
                   >
                     Install
                   </button>
                 ) : (
                   <button
                     onClick={() => setShowHow(true)}
-                    className="press inline-flex items-center h-8 rounded-(--radius-control) bg-saffron px-3 text-footnote font-medium text-parchment hover:bg-saffron/90"
+                    className="press inline-flex items-center h-8 rounded-full bg-ink px-3 text-footnote font-medium text-parchment hover:bg-ink/85"
                   >
                     How to install
                   </button>

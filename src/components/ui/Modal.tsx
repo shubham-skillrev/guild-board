@@ -36,7 +36,7 @@ export function Modal({ title, subtitle, onClose, children, className }: ModalPr
     // A modal is a blocking task, so it pairs the surface with a dimming scrim
     // that pushes the background back.
     <motion.div
-      className="fixed inset-0 z-(--z-scrim) flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-(--z-scrim) flex items-center justify-center bg-black/35 dark:bg-black/60 backdrop-blur-sm"
       onClick={onClose}
       initial={reduceMotion ? { opacity: 0 } : { opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -48,7 +48,7 @@ export function Modal({ title, subtitle, onClose, children, className }: ModalPr
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'material-raised border border-border-strong rounded-2xl w-full max-w-lg mx-4',
+          'material-raised border border-border-strong rounded-(--radius-card) w-full max-w-lg mx-4',
           'max-h-[90vh] overflow-y-auto',
           className,
         )}
@@ -70,7 +70,7 @@ export function Modal({ title, subtitle, onClose, children, className }: ModalPr
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="text-cha hover:text-ink transition-colors p-1 rounded-md hover:bg-kinu shrink-0"
+            className="text-cha hover:text-ink transition-colors p-1 rounded-(--radius-control) hover:bg-kinu shrink-0"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
