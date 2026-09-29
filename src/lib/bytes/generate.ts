@@ -2,7 +2,8 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { fetchCandidates } from '@/lib/bytes/sources'
 import { selectMix } from '@/lib/bytes/domains'
-import { summarizeCandidates } from '@/lib/bytes/summarize'
+import { curateCandidates, summarizeCandidates } from '@/lib/bytes/summarize'
+import type { Candidate } from '@/lib/bytes/sources'
 
 /**
  * Build one digest. Shared by the scheduled cron and the admin's manual button
@@ -34,6 +35,20 @@ export interface GenerateOptions {
   label?: string
   cycleId?: string | null
   createdBy: string
+  /** Build and summarise, but write nothing: returns what would be published. */
+  dryRun?: boolean
+}
+
+export interface DigestPreview {
+  title: string
+  source_name: string
+  source: string
+  url: string
+  domain: string
+  score: number
+  relevance: number | null
+  summary: string | null
+  tags: string[] | null
 }
 
 /** How many of each medium landed, for the notification copy and the admin UI. */
@@ -53,7 +68,14 @@ export type GenerateResult =
       summarized: number
       mix: MediumCounts
     }
-  | { ok: false; reason: 'no_candidates' | 'all_seen' | 'duplicate_period' | 'db_error'; message: string }
+  | GenerateFailure
+
+type GenerateFailure = { ok: false; reason: 'no_candidates' | 'all_seen' | 'duplicate_period' | 'db_error'; message: string }
+
+/** What a dry run returns: the would-be digest, nothing written. */
+export type PreviewResult =
+  | { ok: true; dryRun: true; poolSize: number; curated: number; items: DigestPreview[] }
+  | GenerateFailure
 
 /** The UTC date itself, which is the period a daily digest covers. */
 export function dayStart(date = new Date()): string {
@@ -109,7 +131,9 @@ export function monthPeriodLabel(periodStart: string): string {
   return `Top of ${d.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' })}`
 }
 
-export async function generateDigest(opts: GenerateOptions): Promise<GenerateResult> {
+export async function generateDigest(opts: GenerateOptions & { dryRun: true }): Promise<PreviewResult>
+export async function generateDigest(opts: GenerateOptions & { dryRun?: false }): Promise<GenerateResult>
+export async function generateDigest(opts: GenerateOptions): Promise<GenerateResult | PreviewResult> {
   const {
     days = 8,
     limit = 10,
@@ -124,7 +148,7 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
 
   // One automatic digest per period. Checked up front so a duplicate cron
   // firing is a cheap no-op rather than a wasted fetch and summarization pass.
-  if (periodStart) {
+  if (periodStart && !opts.dryRun) {
     const { data: existing } = await admin
       .from('byte_digests')
       .select('id')
@@ -182,7 +206,7 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
       ...c,
       score: Math.min(1, c.score + (priorByKey.get(`${c.source}:${c.source_id}`) ?? 0) * 0.15),
     }))
-    fresh = selectMix(ranked, limit)
+    fresh = selectMix(await curate(ranked), limit)
   } else {
     // Skip anything already published, so a long-running story does not
     // reappear week after week.
@@ -198,12 +222,35 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
 
     // Selection runs here, on what is actually available to publish. Mixed by
     // medium first (articles, news, video, HN) and by topic within each.
-    fresh = selectMix(unseen, limit)
+    fresh = selectMix(await curate(unseen), limit)
   }
 
   // Absent an API key this returns an empty map and the digest still lands,
   // just with blank summaries to fill in by hand.
   const summaries = await summarizeCandidates(fresh)
+
+  if (opts.dryRun) {
+    return {
+      ok: true,
+      dryRun: true,
+      poolSize: pool.length,
+      curated: lastCuration.size,
+      items: fresh.map(c => {
+        const s = summaries.get(c.source_id)
+        return {
+          title: c.title,
+          source_name: c.source_name,
+          source: c.source,
+          url: c.url,
+          domain: c.domain,
+          score: Number(c.score.toFixed(3)),
+          relevance: lastCuration.get(c.source_id) ?? null,
+          summary: s?.summary ?? null,
+          tags: s?.tags ?? null,
+        }
+      }),
+    }
+  }
 
   const label =
     opts.label?.trim() ||
@@ -282,6 +329,28 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
     summarized: summaries.size,
     mix,
   }
+}
+
+/* ─── Curation ───
+   Gemini scores every candidate for how worth a guild's time it is, and the
+   feed score is blended with it before selection. Weak items (funding news,
+   listicles, local news that mentions tech) are dropped outright. The pool is
+   capped first so a 31-day monthly window stays one reasonable request.
+   Without a key nothing is judged and feed ranking decides, as before. */
+const CURATE_POOL_MAX = 120
+const DROP_BELOW = 0.35
+let lastCuration = new Map<string, number>()
+
+async function curate<T extends Candidate>(items: T[]): Promise<T[]> {
+  const top = [...items].sort((a, b) => b.score - a.score).slice(0, CURATE_POOL_MAX)
+  lastCuration = await curateCandidates(top)
+  if (lastCuration.size === 0) return top
+  return top
+    .filter(c => (lastCuration.get(c.source_id) ?? 1) >= DROP_BELOW)
+    .map(c => {
+      const r = lastCuration.get(c.source_id)
+      return r === undefined ? c : { ...c, score: 0.4 * c.score + 0.6 * r }
+    })
 }
 
 function monthLabel(): string {

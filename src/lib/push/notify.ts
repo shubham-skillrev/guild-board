@@ -3,7 +3,7 @@ import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUser, sendPushToUsers } from "@/lib/push/send";
 import { PROBLEM_MONTH, HIDE_BYTES } from "@/lib/experiment";
-import { postToSlack, escapeSlack, appLink } from "@/lib/slack/send";
+import { postToSlack, escapeSlack, appLink, extLink } from "@/lib/slack/send";
 
 /**
  * Fire a notification without blocking the response.
@@ -253,7 +253,7 @@ const SLACK = {
     lines.push(`Bring one thing to talk about: ${appLink("/board?share=1", "add yours")}`);
     return lines.join("\n");
   },
-  systemTopics: (label: string, topics: { id: string; title: string }[]) =>
+  systemTopics: (label: string, topics: SystemTopicNotice[]) =>
     [
       `*GuildBoard suggested ${topics.length} ${topics.length === 1 ? 'topic' : 'topics'} for ${escapeSlack(label)}.* Mark the ones you want to talk about.`,
       ...topics.map(t => `• ${appLink(`/board/${t.id}`, truncate(t.title, 90))}`),
@@ -541,16 +541,52 @@ export async function notifyMeetingReminder(args: {
   ]);
 }
 
+export interface SystemTopicNotice {
+  id: string;
+  title: string;
+  why?: string;
+  sources?: { name: string; url: string }[];
+}
+
+/** Every suggested topic as its own block: linked title, a line of what it is,
+    and where it came from. The plain `text` stays as the notification preview. */
+function systemTopicBlocks(label: string, topics: SystemTopicNotice[]): unknown[] {
+  const blocks: unknown[] = [
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*GuildBoard suggested ${topics.length} ${topics.length === 1 ? "topic" : "topics"} for ${escapeSlack(label)}.*\nMark the ones you want to talk about on the board.`,
+      },
+    },
+    { type: "divider" },
+  ];
+  for (const t of topics) {
+    const lines = [`*${appLink(`/board/${t.id}`, truncate(t.title, 100))}*`];
+    if (t.why) lines.push(escapeSlack(truncate(t.why, 240)));
+    if (t.sources?.length) lines.push(`_Sources:_ ${t.sources.slice(0, 3).map(s => extLink(s.url, s.name)).join(" · ")}`);
+    blocks.push({ type: "section", text: { type: "mrkdwn", text: lines.join("\n") } });
+  }
+  blocks.push({
+    type: "context",
+    elements: [{ type: "mrkdwn", text: `${appLink("/board", "Open the board")} · posted by GuildBoard` }],
+  });
+  return blocks;
+}
+
 /**
- * GuildBoard posted its monthly suggestions. One message for the batch, not
- * one per topic.
+ * GuildBoard posted suggestions. One message for the batch, not one per topic,
+ * with every topic linked.
  */
 export async function notifyOnSystemTopics(args: {
   label: string;
-  topics: { id: string; title: string }[];
+  topics: SystemTopicNotice[];
 }) {
   await Promise.all([
-    postToSlack({ text: SLACK.systemTopics(args.label, args.topics) }),
+    postToSlack({
+      text: SLACK.systemTopics(args.label, args.topics),
+      blocks: systemTopicBlocks(args.label, args.topics),
+    }),
     broadcast({
       title: "New on the board from GuildBoard",
       body: `${args.topics.length} suggested ${args.topics.length === 1 ? "topic" : "topics"} for ${args.label}. Mark what you want to talk about.`,

@@ -9,20 +9,21 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { rejectIfNotCron } from '@/lib/bytes/cron'
 import { CURATED } from '@/lib/system/curated'
-import { countSystemTopics, postSystemTopics } from '@/lib/system/topics'
+import { countSystemTopics, publishSystemTopics } from '@/lib/system/topics'
 import { suggestSystemTopics } from '@/lib/system/suggest'
-import { notifyOnSystemTopics } from '@/lib/push/notify'
 
 /* Runs daily, acts once: the first run that finds an open cycle with no
    system posts fills it, and every later run that cycle is a no-op. Cycles
    are opened by hand, so a fixed monthly date would miss a late opening.
    A month listed in CURATED uses those hand-checked picks; any other month
-   asks the model (web search, then structuring). */
+   asks Gemini to pick 3-5 from this week's fetched news (1-2 AI, 2-3
+   engineering). ?dry=1 skips both guards and returns Gemini's picks without
+   posting or notifying, for checking the output. */
 
-// Research with web search can take a few minutes.
+// Fetching the pool plus one Gemini call, with retries on rate limits.
 export const maxDuration = 300
 
-const SUGGESTIONS_PER_CYCLE = 3
+const SUGGESTIONS_PER_CYCLE = 5
 
 export async function GET(request: Request) {
   const rejected = rejectIfNotCron(request)
@@ -39,6 +40,17 @@ export async function GET(request: Request) {
     .maybeSingle()
   if (!cycle) return NextResponse.json({ skipped: true, reason: 'no_open_cycle' })
 
+  const dry = new URL(request.url).searchParams.get('dry') === '1'
+  if (dry) {
+    const { data: topics } = await admin.from('topics').select('title').eq('cycle_id', cycle.id).eq('is_deleted', false)
+    const drafts = await suggestSystemTopics({
+      monthLabel: cycle.label,
+      existingTitles: (topics ?? []).map(t => t.title),
+      count: SUGGESTIONS_PER_CYCLE,
+    })
+    return NextResponse.json({ dryRun: true, count: drafts.length, drafts })
+  }
+
   if ((await countSystemTopics(cycle.id)) > 0) {
     return NextResponse.json({ skipped: true, reason: 'already_posted' })
   }
@@ -50,15 +62,11 @@ export async function GET(request: Request) {
   if (!drafts) {
     source = 'generated'
     const since90 = new Date(Date.now() - 90 * 86_400_000).toISOString()
-    const since30 = new Date(Date.now() - 30 * 86_400_000).toISOString()
-    const [{ data: topics }, { data: bytes }] = await Promise.all([
-      admin.from('topics').select('title').eq('is_deleted', false).gte('created_at', since90),
-      admin.from('bytes').select('source_title').gte('created_at', since30),
-    ])
+    const { data: topics } = await admin
+      .from('topics').select('title').eq('is_deleted', false).gte('created_at', since90)
     drafts = await suggestSystemTopics({
       monthLabel: cycle.label,
       existingTitles: (topics ?? []).map(t => t.title),
-      byteTitles: (bytes ?? []).map(b => b.source_title),
       count: SUGGESTIONS_PER_CYCLE,
     })
   }
@@ -67,7 +75,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ skipped: true, reason: 'nothing_to_suggest', source })
   }
 
-  const posted = await postSystemTopics(cycle.id, drafts.slice(0, SUGGESTIONS_PER_CYCLE))
-  if (posted.length) await notifyOnSystemTopics({ label: cycle.label, topics: posted })
+  const posted = await publishSystemTopics(cycle, drafts.slice(0, SUGGESTIONS_PER_CYCLE))
   return NextResponse.json({ posted: posted.length, source, titles: posted.map(p => p.title) })
 }

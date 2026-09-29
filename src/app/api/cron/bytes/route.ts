@@ -23,7 +23,7 @@ const DAYS = 3
 const MIN_GAP_HOURS = 36
 
 // Fetching four feeds plus a summarization pass can exceed the default limit.
-export const maxDuration = 120
+export const maxDuration = 300
 
 export async function GET(request: Request) {
   const rejected = rejectIfNotCron(request)
@@ -36,6 +36,14 @@ export async function GET(request: Request) {
   }
 
   const admin = createAdminClient()
+
+  /* ?dry=1: build, curate and summarise a digest from today's pool and return
+     it, without writing a row or notifying anyone. For checking what Gemini
+     picks before it ships. Same secret as the real run. */
+  if (new URL(request.url).searchParams.get('dry') === '1') {
+    const preview = await generateDigest({ kind: 'daily', days: DAYS, limit: LIMIT, createdBy: owner, dryRun: true })
+    return NextResponse.json(preview)
+  }
 
   /* The schedule is `0 6 *​/2 * *`, which is every other day *of the month* -
      so a 31-day month runs the 31st and then the 1st back to back. This guard

@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { KINDS, composeDescription, type Kind } from '@/lib/kinds'
 import { TITLE_MAX_LENGTH, DESCRIPTION_MAX_LENGTH } from '@/lib/constants'
 import { SYSTEM_USERNAME } from '@/lib/system/identity'
+import { notifyOnSystemTopics } from '@/lib/push/notify'
 
 /**
  * GuildBoard as an author.
@@ -127,4 +128,52 @@ export async function countSystemTopics(cycleId: string): Promise<number> {
     .eq('is_system', true)
     .eq('is_deleted', false)
   return count ?? 0
+}
+
+/**
+ * Post drafts and announce them: one Slack message and one push, listing
+ * every topic with its link, description and sources. Shared by the monthly
+ * job and the admin "Suggest topics" button.
+ */
+export async function publishSystemTopics(
+  cycle: { id: string; label: string },
+  drafts: SystemTopicDraft[],
+) {
+  const posted = await postSystemTopics(cycle.id, drafts)
+  if (posted.length) {
+    const byTitle = new Map(drafts.map(d => [d.title.trim().slice(0, TITLE_MAX_LENGTH).toLowerCase(), d]))
+    await notifyOnSystemTopics({
+      label: cycle.label,
+      topics: posted.map(p => {
+        const d = byTitle.get(p.title.toLowerCase())
+        return { id: p.id, title: p.title, why: d?.why, sources: d?.sources }
+      }),
+    })
+  }
+  return posted
+}
+
+/**
+ * Drafts that come back from the admin's browser are untrusted input: keep
+ * only well-formed ones, with https sources and sane lengths.
+ */
+export function sanitizeDrafts(raw: unknown): SystemTopicDraft[] {
+  if (!Array.isArray(raw)) return []
+  const kinds = new Set(KINDS.map(k => k.value))
+  return raw.flatMap(item => {
+    if (!item || typeof item !== 'object') return []
+    const d = item as Record<string, unknown>
+    const kind = typeof d.kind === 'string' && kinds.has(d.kind as Kind) ? (d.kind as Kind) : null
+    const title = typeof d.title === 'string' ? d.title.trim().slice(0, TITLE_MAX_LENGTH) : ''
+    const why = typeof d.why === 'string' ? d.why.trim().slice(0, 900) : ''
+    const sources = (Array.isArray(d.sources) ? d.sources : [])
+      .filter((s): s is { name: string; url: string } =>
+        !!s && typeof s === 'object' &&
+        typeof (s as Record<string, unknown>).name === 'string' &&
+        typeof (s as Record<string, unknown>).url === 'string' &&
+        /^https:\/\//.test((s as Record<string, string>).url))
+      .slice(0, 3)
+      .map(s => ({ name: s.name.slice(0, 80), url: s.url.slice(0, 500) }))
+    return kind && title && why ? [{ kind, title, why, sources }] : []
+  })
 }

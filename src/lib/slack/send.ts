@@ -29,10 +29,22 @@ export function escapeSlack(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-/** An absolute link back into the app. Slack cannot follow a relative path. */
+/**
+ * An absolute link back into the app. Slack cannot follow a relative path.
+ *
+ * SLACK_LINK_BASE_URL wins when set: a dev server posting to the real channel
+ * would otherwise send http://localhost links that open for nobody.
+ */
 export function appLink(path: string, label: string): string {
-  const origin = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim().replace(/\/$/, "");
+  const origin = (process.env.SLACK_LINK_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "")
+    .trim()
+    .replace(/\/$/, "");
   return `<${origin}${path}|${escapeSlack(label)}>`;
+}
+
+/** A link to anywhere, for Slack mrkdwn. */
+export function extLink(url: string, label: string): string {
+  return `<${url.replace(/[<>|]/g, "")}|${escapeSlack(label)}>`;
 }
 
 export interface SlackMessage {

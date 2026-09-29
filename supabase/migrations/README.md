@@ -105,7 +105,7 @@ Two env vars gate both, set in the Vercel dashboard:
 | Var | Required | Effect if missing |
 |---|---|---|
 | `CRON_SECRET` | **Yes** | Both routes refuse to run and return 500 on every fire. |
-| `ANTHROPIC_API_KEY` | No | Digests are still built from the real feeds, with blank summaries to fill in by hand. |
+| `GEMINI_API_KEY` | No | Gemini curates the pool and writes summaries. Without it digests are still built from the real feeds, uncurated, with blank summaries to fill in by hand. |
 
 > **This is the failure that stopped the digest.** Between 2026-08-24 and
 > 2026-09-04 no digest published: five exist, all `kind = monthly` from the
