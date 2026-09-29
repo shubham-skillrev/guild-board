@@ -1,6 +1,6 @@
 'use client'
 
-import { ShieldCheck, SquaresFour, Trophy } from '@phosphor-icons/react/dist/ssr'
+import { Broadcast, ShieldCheck, SquaresFour, Trophy } from '@phosphor-icons/react/dist/ssr'
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
@@ -82,6 +82,13 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
   const isLeaders = pathname.startsWith('/leaderboard')
   const isAdmin = pathname.startsWith('/admin')
   const isProfile = pathname.startsWith('/profile')
+  const isBytes = pathname.startsWith('/bytes')
+  const { unseen: unseenBytes } = useUnseenDigest()
+
+  // Board, Leaders and You always; Bytes and Admin when they apply. Written
+  // out as literals so Tailwind generates each class.
+  const tabCount = 3 + (HIDE_BYTES ? 0 : 1) + (role === 'admin' ? 1 : 0)
+  const cols = { 3: 'grid-cols-3', 4: 'grid-cols-4', 5: 'grid-cols-5' }[tabCount] ?? 'grid-cols-5'
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
@@ -92,7 +99,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
        colour itself, so it read as a flat opaque strip. Paper sits a step
        above the ground, so the blur is actually visible against it. */
     <nav className="md:hidden fixed inset-x-0 bottom-0 z-(--z-chrome) bg-paper/80 backdrop-blur-xl border-t border-border pb-[env(safe-area-inset-bottom)]">
-      <div className={cn('grid px-2 py-1.5', role === 'admin' ? 'grid-cols-4' : 'grid-cols-3')}>
+      <div className={cn('grid px-2 py-1.5', cols)}>
         <Link
           href="/board"
           className={cn(
@@ -103,6 +110,22 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
           <SquaresFour className="w-4.5 h-4.5" />
           <span>{PROBLEM_MONTH ? PROBLEM_COPY.boardNav : 'Board'}</span>
         </Link>
+        {!HIDE_BYTES && (
+          <Link
+            href="/bytes"
+            className={cn(
+              'relative flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-(--radius-control) press-sm',
+              isBytes ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
+            )}
+          >
+            <Broadcast className="w-4.5 h-4.5" />
+            <span>Bytes</span>
+            {/* Same "new digest" dot as the desktop nav, dropped while on /bytes. */}
+            {unseenBytes && !isBytes && (
+              <span aria-label="New digest" className="absolute top-1.5 right-[calc(50%-14px)] w-1.5 h-1.5 rounded-full bg-saffron" />
+            )}
+          </Link>
+        )}
         <Link
           href="/leaderboard"
           className={cn(

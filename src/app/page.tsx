@@ -40,16 +40,21 @@ export default async function LandingPage() {
           <Link href="/" aria-label="GuildBoard by SkillRev, home">
             <Wordmark />
           </Link>
-          <nav className="flex items-center gap-2 sm:gap-6 text-[14px]">
+          <nav className="flex items-center gap-2 sm:gap-6 text-[14px] shrink-0">
             <a href="#how" className="hidden sm:inline text-ink-soft hover:text-ink transition-colors">
               How it works
             </a>
             <ThemeToggle />
             <Link
               href={isAuthed ? '/board' : '/login'}
-              className="press inline-flex items-center h-9 px-4 rounded-full bg-ink text-parchment font-medium hover:bg-ink/85 transition-colors"
+              className="press inline-flex items-center h-9 px-4 rounded-full bg-ink text-parchment font-medium whitespace-nowrap hover:bg-ink/85 transition-colors"
             >
-              {isAuthed ? 'Open the board' : 'Sign in'}
+              {isAuthed ? (
+                <>
+                  <span className="sm:hidden">Board</span>
+                  <span className="hidden sm:inline">Open the board</span>
+                </>
+              ) : 'Sign in'}
             </Link>
           </nav>
         </div>

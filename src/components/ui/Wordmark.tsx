@@ -7,12 +7,14 @@ import { cn } from '@/lib/utils/cn'
  */
 export function Wordmark({ className }: { className?: string }) {
   return (
-    <span className={cn('inline-flex items-baseline gap-2', className)}>
+    // Never wraps. On the narrowest phones the byline steps aside so the
+    // header's actions keep their room; from 400px up the full lockup shows.
+    <span className={cn('inline-flex items-baseline gap-2 whitespace-nowrap', className)}>
       <span className="inline-flex items-center gap-1.5 text-[16px] font-semibold tracking-[-0.02em] text-ink">
         <span className="text-saffron" aria-hidden>◈</span>
         guildboard
       </span>
-      <span className="font-mono text-[11px] text-cha">by SkillRev</span>
+      <span className="hidden min-[400px]:inline font-mono text-[11px] text-cha">by SkillRev</span>
     </span>
   )
 }
