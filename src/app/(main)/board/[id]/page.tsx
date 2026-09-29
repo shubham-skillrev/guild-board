@@ -7,17 +7,19 @@ import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils/cn'
-import { CATEGORY_LABELS, DESCRIPTION_MAX_LENGTH } from '@/lib/constants'
+import { CATEGORY_LABELS, CATEGORY_TONE, DESCRIPTION_MAX_LENGTH } from '@/lib/constants'
+import { kindOf, reactionFor } from '@/lib/kinds'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { CommentThread } from '@/components/topics/CommentThread'
+import { AuthorMark } from '@/components/topics/AuthorMark'
 import { useAuth } from '@/hooks/useAuth'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useToast } from '@/hooks/useToast'
 import { SparkButton } from '@/components/voting/SparkButton'
 import { SignalRow } from '@/components/topics/SignalRow'
-import { AskPanel } from '@/components/topics/AskPanel'
+import { PROBLEM_MONTH } from '@/lib/experiment'
 import type { Topic, Comment } from '@/types'
 
 interface TopicDetail extends Topic {
@@ -26,12 +28,6 @@ interface TopicDetail extends Topic {
   contributors: { user_id: string; username: string }[]
 }
 
-const CATEGORY_TONE: Record<string, React.ComponentProps<typeof Badge>['tone']> = {
-  deep_dive: 'indigo',
-  discussion: 'saffron',
-  blog_idea: 'matcha',
-  project_showcase: 'wisteria',
-}
 
 export default function TopicDetailPage({
   params,
@@ -75,7 +71,7 @@ export default function TopicDetailPage({
     try {
       const res = await fetch(`/api/topics/${id}`)
       if (!res.ok) {
-        setError('Topic not found')
+        setError(PROBLEM_MONTH ? 'Problem not found' : 'Topic not found')
         return
       }
       const data = await res.json()
@@ -138,9 +134,9 @@ export default function TopicDetailPage({
       })
       if (res.ok) {
         if (!wasVoted) {
-          toast('Vote committed to the ledger ⚡', 'success')
+          toast(PROBLEM_MONTH ? `Marked: ${reactionFor(topic.category).idle.toLowerCase()}` : 'Vote committed to the ledger ⚡', 'success')
         } else {
-          toast('Vote withdrawn', 'info')
+          toast(PROBLEM_MONTH ? 'Unmarked' : 'Vote withdrawn', 'info')
         }
         fetchTopic() // background sync, no await
       } else {
@@ -238,7 +234,7 @@ export default function TopicDetailPage({
       if (res.ok) {
         setEditing(false)
         await fetchTopic()
-        toast('Topic updated', 'success')
+        toast(PROBLEM_MONTH ? 'Problem updated' : 'Topic updated', 'success')
       } else {
         const data = await res.json().catch(() => ({}))
         toast(data.error ?? 'Edit failed. Try again.', 'error')
@@ -284,7 +280,7 @@ export default function TopicDetailPage({
   if (error || !topic) {
     return (
       <div className="px-5 md:px-10 py-24 w-full max-w-6xl mx-auto text-center">
-        <p className="text-ink-soft text-base mb-4">{error || 'Topic not found'}</p>
+        <p className="text-ink-soft text-base mb-4">{error || (PROBLEM_MONTH ? 'Problem not found' : 'Topic not found')}</p>
         <Link href="/board" className="text-saffron text-sm hover:underline">← Back to board</Link>
       </div>
     )
@@ -305,7 +301,7 @@ export default function TopicDetailPage({
         <div className="flex-1 min-w-0">
           {/* Badges */}
           <div className="flex flex-wrap items-center gap-1.5 mb-3">
-            <Badge tone={categoryTone}>{CATEGORY_LABELS[topic.category]}</Badge>
+            {(!PROBLEM_MONTH || kindOf(topic.category)) && <Badge tone={categoryTone}>{CATEGORY_LABELS[topic.category]}</Badge>}
             {topic.status === 'carry_forward' && <Badge tone="indigo">Returning</Badge>}
             {topic.is_selected && <Badge tone="saffron">Selected</Badge>}
           </div>
@@ -317,7 +313,7 @@ export default function TopicDetailPage({
                 value={editTitle}
                 onChange={e => setEditTitle(e.target.value)}
                 maxLength={80}
-                className="w-full bg-kinu/30 border border-border rounded-lg px-4 py-2.5 text-xl font-bold text-ink focus:outline-none focus:border-saffron/40 transition-colors"
+                className="w-full bg-kinu/30 border border-border rounded-(--radius-control) px-4 py-2.5 text-xl font-bold text-ink focus:outline-none focus:border-saffron/40 transition-colors"
                 autoFocus
               />
               <textarea
@@ -325,7 +321,7 @@ export default function TopicDetailPage({
                 onChange={e => setEditDesc(e.target.value)}
                 maxLength={DESCRIPTION_MAX_LENGTH}
                 rows={10}
-                className="w-full bg-kinu/30 border border-border rounded-lg px-4 py-3 text-[14px] text-ink font-mono focus:outline-none focus:border-saffron/40 resize-y transition-colors"
+                className="w-full bg-kinu/30 border border-border rounded-(--radius-control) px-4 py-3 text-[14px] text-ink font-mono focus:outline-none focus:border-saffron/40 resize-y transition-colors"
                 placeholder="Supports **markdown** formatting"
               />
               <p className="text-[11px] text-cha text-right tabular-nums">{editDesc.length}/{DESCRIPTION_MAX_LENGTH}</p>
@@ -344,13 +340,13 @@ export default function TopicDetailPage({
           ) : (
             <>
               <div className="flex items-start justify-between gap-3 mb-4">
-                <h1 className="font-serif text-2xl font-bold text-ink leading-snug">{topic.title}</h1>
+                <h1 className="font-serif text-[2.25rem] md:text-[2.625rem] font-normal tracking-[-0.012em] text-ink leading-[1.1] text-balance">{topic.title}</h1>
                 {isOwner && phase === 'open' && (
                   <div className="flex items-center gap-1 shrink-0">
-                    <Button size="sm" variant="ghost" icon={PencilSimple} onClick={() => setEditing(true)} title="Edit topic">
+                    <Button size="sm" variant="ghost" icon={PencilSimple} onClick={() => setEditing(true)} title={PROBLEM_MONTH ? 'Edit problem' : 'Edit topic'}>
                       <span className="hidden sm:inline">Edit</span>
                     </Button>
-                    <Button size="sm" variant="danger" icon={Trash} onClick={() => setConfirmDelete(true)} title="Delete topic">
+                    <Button size="sm" variant="danger" icon={Trash} onClick={() => setConfirmDelete(true)} title={PROBLEM_MONTH ? 'Delete problem' : 'Delete topic'}>
                       <span className="hidden sm:inline">Delete</span>
                     </Button>
                   </div>
@@ -360,7 +356,7 @@ export default function TopicDetailPage({
               {/* Delete confirmation */}
               {confirmDelete && (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4 px-(--pad-card) py-3 bg-vermillion/10 rounded-(--radius-card) text-footnote">
-                  <span className="text-vermillion sm:mr-2">Permanently delete this topic?</span>
+                  <span className="text-vermillion sm:mr-2">{PROBLEM_MONTH ? 'Permanently delete this problem?' : 'Permanently delete this topic?'}</span>
                   <div className="flex items-center gap-1">
                     <Button
                       size="sm"
@@ -384,8 +380,7 @@ export default function TopicDetailPage({
 
               {/* Author line */}
               <div className="flex items-center gap-2 mb-5">
-                <UserAvatar username={topic.author_username ?? 'user'} size={24} />
-                <span className="text-[13px] text-ink-soft">@{topic.author_username}</span>
+                <AuthorMark username={topic.author_username} isSystem={topic.is_system} size={24} className="text-[13px]" />
                 <span className="text-[11px] text-cha">· {new Date(topic.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                 {/* Spark button - visible during discussion phase */}
                 {/* Ghost authors are not sparkable - can_spark_author is false and
@@ -440,7 +435,9 @@ export default function TopicDetailPage({
                 </span>
               )}
               <span className="font-bold tabular-nums">{topic.vote_count}</span>
-              <span className="text-[12px]">{topic.user_has_voted ? 'Upvoted' : 'Upvote'}</span>
+              <span className="text-[12px]">{PROBLEM_MONTH
+                  ? topic.user_has_voted ? reactionFor(topic.category).done : reactionFor(topic.category).idle
+                  : topic.user_has_voted ? 'Upvoted' : 'Upvote'}</span>
             </button>
             <button
               onClick={handleContrib}
@@ -463,15 +460,20 @@ export default function TopicDetailPage({
                 </span>
               )}
               <span className="font-bold tabular-nums">{topic.contrib_count}</span>
-              <span className="text-[12px]">{topic.user_has_contribed ? "I'm in" : 'Join discussion'}</span>
+              <span className="text-[12px]">{PROBLEM_MONTH
+                  ? topic.user_has_contribed ? reactionFor(topic.category).contribDone : reactionFor(topic.category).contrib
+                  : topic.user_has_contribed ? "I'm in" : 'Join discussion'}</span>
             </button>
           </div>
 
           {/* Comments / Discussion section */}
           <div>
-            <h2 className="text-sm font-semibold text-ink mb-4">Discussion</h2>
-            {/* A direct ask beats hoping the right person happens to look. */}
-            <AskPanel topicId={topic.id} />
+            <h2 className="flex items-baseline gap-2 mb-4 text-[17px] font-semibold tracking-[-0.01em] text-ink">
+              Discussion
+              {topic.comment_count > 0 && (
+                <span className="text-[13px] font-normal text-cha tabular-nums">{topic.comment_count}</span>
+              )}
+            </h2>
             <CommentThread
               topicId={topic.id}
               currentUserId={user?.id}
@@ -507,11 +509,11 @@ export default function TopicDetailPage({
             <div className="mt-4 bg-paper/50 border border-border rounded-(--radius-card) p-(--pad-card) space-y-2.5">
               <h3 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-2">Stats</h3>
               <div className="flex items-center justify-between text-[12px]">
-                <span className="text-cha">Votes</span>
+                <span className="text-cha">{PROBLEM_MONTH ? (kindOf(topic.category)?.value === 'problem' ? 'Hit this too' : 'Want to discuss') : 'Votes'}</span>
                 <span className="text-ink font-medium tabular-nums">{topic.vote_count}</span>
               </div>
               <div className="flex items-center justify-between text-[12px]">
-                <span className="text-cha">Contributors</span>
+                <span className="text-cha">{PROBLEM_MONTH ? (kindOf(topic.category)?.value === 'problem' ? 'Dealt with it' : 'Can add') : 'Contributors'}</span>
                 <span className="text-ink font-medium tabular-nums">{topic.contrib_count}</span>
               </div>
               <div className="flex items-center justify-between text-[12px]">

@@ -1,6 +1,6 @@
 'use client'
 
-import { Lightbulb, ShieldCheck, SquaresFour, Trophy } from '@phosphor-icons/react/dist/ssr'
+import { ShieldCheck, SquaresFour, Trophy } from '@phosphor-icons/react/dist/ssr'
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useUnseenDigest } from '@/lib/bytes/useUnseenDigest'
 import { cn } from '@/lib/utils/cn'
+import { PROBLEM_MONTH, PROBLEM_COPY, HIDE_BYTES } from '@/lib/experiment'
 
 interface NavLinksProps {
   role?: string
@@ -18,7 +19,6 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
   const pathname = usePathname()
   const { unseen: unseenBytes } = useUnseenDigest()
   const isBoard = pathname.startsWith('/board')
-  const isBank = pathname.startsWith('/bank')
   const isBytes = pathname.startsWith('/bytes')
   const isLeaders = pathname.startsWith('/leaderboard')
   const isAdmin = pathname.startsWith('/admin')
@@ -32,18 +32,9 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
           isBoard ? 'text-ink border-saffron' : 'text-ink-soft border-transparent hover:text-ink'
         )}
       >
-        Board
+        {PROBLEM_MONTH ? PROBLEM_COPY.boardNav : 'Board'}
       </Link>
-      <Link
-        href="/bank"
-        className={cn(
-          'px-3 py-2 border-b-2 transition-colors press',
-          isBank ? 'text-ink border-saffron' : 'text-ink-soft border-transparent hover:text-ink'
-        )}
-      >
-        Ideas
-      </Link>
-      <Link
+      {!HIDE_BYTES && <Link
         href="/bytes"
         className={cn(
           'relative px-3 py-2 border-b-2 transition-colors press',
@@ -60,7 +51,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
             className="absolute top-1.5 right-0.5 w-1.5 h-1.5 rounded-full bg-saffron"
           />
         )}
-      </Link>
+      </Link>}
       <Link
         href="/leaderboard"
         className={cn(
@@ -88,7 +79,6 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
 export function MobileBottomNav({ role, username }: NavLinksProps) {
   const pathname = usePathname()
   const isBoard = pathname.startsWith('/board')
-  const isBank = pathname.startsWith('/bank')
   const isLeaders = pathname.startsWith('/leaderboard')
   const isAdmin = pathname.startsWith('/admin')
   const isProfile = pathname.startsWith('/profile')
@@ -102,31 +92,21 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
        colour itself, so it read as a flat opaque strip. Paper sits a step
        above the ground, so the blur is actually visible against it. */
     <nav className="md:hidden fixed inset-x-0 bottom-0 z-(--z-chrome) bg-paper/80 backdrop-blur-xl border-t border-border pb-[env(safe-area-inset-bottom)]">
-      <div className={cn('grid px-2 py-1.5', role === 'admin' ? 'grid-cols-5' : 'grid-cols-4')}>
+      <div className={cn('grid px-2 py-1.5', role === 'admin' ? 'grid-cols-4' : 'grid-cols-3')}>
         <Link
           href="/board"
           className={cn(
-            'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-lg press-sm',
+            'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-(--radius-control) press-sm',
             isBoard ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
           )}
         >
           <SquaresFour className="w-4.5 h-4.5" />
-          <span>Board</span>
-        </Link>
-        <Link
-          href="/bank"
-          className={cn(
-            'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-lg press-sm',
-            isBank ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
-          )}
-        >
-          <Lightbulb className="w-4.5 h-4.5" />
-          <span>Ideas</span>
+          <span>{PROBLEM_MONTH ? PROBLEM_COPY.boardNav : 'Board'}</span>
         </Link>
         <Link
           href="/leaderboard"
           className={cn(
-            'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-lg press-sm',
+            'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-(--radius-control) press-sm',
             isLeaders ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
           )}
         >
@@ -137,7 +117,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
           <Link
             href="/admin"
             className={cn(
-              'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-lg press-sm',
+              'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-(--radius-control) press-sm',
               isAdmin ? 'text-saffron bg-saffron-light/60' : 'text-saffron/80 hover:text-saffron'
             )}
           >
@@ -148,7 +128,7 @@ export function MobileBottomNav({ role, username }: NavLinksProps) {
         <Link
           href="/profile"
           className={cn(
-            'flex flex-col items-center justify-center gap-1 py-1 text-[11px] transition-colors rounded-lg press-sm',
+            'flex flex-col items-center justify-center gap-1 py-1 text-[11px] transition-colors rounded-(--radius-control) press-sm',
             isProfile ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
           )}
         >

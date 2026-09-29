@@ -18,6 +18,18 @@ interface CommentThreadProps {
   inline?: boolean
 }
 
+interface Member { id: string; username: string }
+interface Ask { asked_id: string; username: string; can_withdraw: boolean }
+
+/** An @ being typed right before the caret: where it starts and what follows it. */
+function detectMention(text: string, caret: number): { start: number; query: string } | null {
+  const m = text.slice(0, caret).match(/(?:^|\s)@([\w.-]{0,30})$/)
+  return m ? { start: caret - m[1].length - 1, query: m[1] } : null
+}
+
+/** The note an ask carries is capped server-side at 140 characters. */
+const ASK_NOTE_MAX = 140
+
 type SortKey = 'newest' | 'top' | 'replies'
 
 function sortComments(list: Comment[], by: SortKey): Comment[] {
@@ -39,6 +51,88 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
   const [submitting, setSubmitting] = useState(false)
   const [sort, setSort] = useState<SortKey>('newest')
 
+  /* Mentions and asks, in the one composer. Typing @ lists every member.
+     Mentioning someone who can still be asked also sends them a direct ask
+     (2 per person per topic, enforced server-side), carrying the comment as
+     the note: the old separate "Ask someone in" panel, folded into writing. */
+  const [members, setMembers] = useState<Member[]>([])
+  const [askable, setAskable] = useState<Set<string>>(new Set())
+  const [asksLeft, setAsksLeft] = useState(0)
+  const [asked, setAsked] = useState<Ask[]>([])
+  const [asksVersion, setAsksVersion] = useState(0)
+  const [mention, setMention] = useState<{ start: number; query: string } | null>(null)
+  const [activeIdx, setActiveIdx] = useState(0)
+
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    fetch(`/api/topic-asks?topic_id=${topicId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return
+        setMembers(data.members ?? [])
+        setAskable(new Set((data.candidates ?? []).map((c: Member) => c.id)))
+        setAsksLeft(data.remaining ?? 0)
+        setAsked(data.asks ?? [])
+      })
+      .catch(() => { /* mentions are a nicety; the composer works without them */ })
+    return () => { cancelled = true }
+  }, [topicId, isOpen, asksVersion])
+
+  const suggestions = mention
+    ? members
+        .filter(m => m.username.toLowerCase().includes(mention.query.toLowerCase()))
+        .sort((a, b) => {
+          const q = mention.query.toLowerCase()
+          return Number(b.username.toLowerCase().startsWith(q)) - Number(a.username.toLowerCase().startsWith(q))
+        })
+    : []
+
+  const mentionedNames = new Set(
+    [...newComment.matchAll(/(?:^|\s)@([\w.-]+)/g)].map(m => m[1].toLowerCase()),
+  )
+  const willAsk = members
+    .filter(m => mentionedNames.has(m.username.toLowerCase()) && askable.has(m.id))
+    .slice(0, asksLeft)
+
+  const insertMention = (member: Member) => {
+    const el = textareaRef.current
+    if (!el || !mention) return
+    const caret = el.selectionStart
+    const insert = `@${member.username} `
+    const next = newComment.slice(0, mention.start) + insert + newComment.slice(caret)
+    setNewComment(next)
+    setMention(null)
+    const pos = mention.start + insert.length
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(pos, pos) })
+  }
+
+  /* The @ button: puts an @ at the caret (with a space before it if needed)
+     and opens the member list, for anyone who does not know the shortcut. */
+  const startMention = () => {
+    const el = textareaRef.current
+    if (!el) return
+    const caret = el.selectionStart ?? newComment.length
+    const before = newComment.slice(0, caret)
+    const pad = before && !/\s$/.test(before) ? ' ' : ''
+    const next = before + pad + '@' + newComment.slice(caret)
+    setNewComment(next)
+    const pos = caret + pad.length + 1
+    setMention({ start: pos - 1, query: '' })
+    setActiveIdx(0)
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(pos, pos) })
+  }
+
+  const withdrawAsk = async (ask: Ask) => {
+    const res = await fetch('/api/topic-asks', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic_id: topicId, asked_id: ask.asked_id }),
+    })
+    if (!res.ok) { toast('Could not withdraw', 'error'); return }
+    setAsksVersion(v => v + 1)
+  }
+
   const fetchComments = useCallback(async () => {
     setLoading(true)
     try {
@@ -56,13 +150,32 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
   const handleSubmit = async () => {
     if (!newComment.trim() || submitting) return
     setSubmitting(true)
+    const body = newComment.trim()
+    const toAsk = willAsk
     try {
       const res = await fetch('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic_id: topicId, parent_id: replyTo?.id ?? null, body: newComment.trim() }),
+        body: JSON.stringify({ topic_id: topicId, parent_id: replyTo?.id ?? null, body }),
       })
-      if (res.ok) { setNewComment(''); setReplyTo(null); if (textareaRef.current) textareaRef.current.style.height = 'auto'; await fetchComments() }
+      if (res.ok) {
+        setNewComment(''); setReplyTo(null); setMention(null)
+        if (textareaRef.current) textareaRef.current.style.height = 'auto'
+        await fetchComments()
+        if (toAsk.length) {
+          const note = body.length > ASK_NOTE_MAX ? body.slice(0, ASK_NOTE_MAX - 1) + '…' : body
+          const results = await Promise.all(toAsk.map(m =>
+            fetch('/api/topic-asks', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ topic_id: topicId, asked_id: m.id, note }),
+            }).then(r => r.ok).catch(() => false),
+          ))
+          const done = toAsk.filter((_, i) => results[i])
+          if (done.length) toast(`Asked ${done.map(m => `@${m.username}`).join(' and ')} to weigh in`, 'success')
+          setAsksVersion(v => v + 1)
+        }
+      }
     } finally {
       setSubmitting(false)
     }
@@ -132,7 +245,7 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
               key={o.key}
               onClick={() => setSort(o.key)}
               className={cn(
-                'press inline-flex items-center h-6.5 px-2 pointer-coarse:h-9 pointer-coarse:px-2.5 rounded-md text-[11px] font-medium transition-colors',
+                'press inline-flex items-center h-6.5 px-2 pointer-coarse:h-9 pointer-coarse:px-2.5 rounded-(--radius-control) text-[11px] font-medium transition-colors',
                 sort === o.key
                   ? 'bg-fill text-ink'
                   : 'text-ink-muted hover:text-ink hover:bg-kinu/60',
@@ -147,7 +260,7 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
       {loading ? (
         <p className="text-cha text-sm text-center py-4">Loading...</p>
       ) : comments.length === 0 ? (
-        <p className="text-cha text-sm text-center py-6">No comments yet. Start the discussion!</p>
+        <p className="text-[13px] text-cha py-4">No replies yet. Start it off.</p>
       ) : (
         sorted.map(comment => (
           <CommentNode
@@ -174,31 +287,104 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
           <button onClick={() => setReplyTo(null)} className="text-ink-muted hover:text-ink ml-1">&times;</button>
         </div>
       )}
-      <div className="flex gap-2 items-end">
+      {/* One box: the text, the member list when an @ is being typed, then a
+          footer with the @ button, the hint and Send. */}
+      <div className="rounded-(--radius-card) border border-border bg-paper focus-within:border-border-strong transition-colors">
         <textarea
           ref={textareaRef}
           value={newComment}
           rows={2}
           onChange={e => {
             setNewComment(e.target.value)
+            setMention(detectMention(e.target.value, e.target.selectionStart))
+            setActiveIdx(0)
             const el = e.target
             el.style.height = 'auto'
             el.style.height = Math.min(el.scrollHeight, 200) + 'px'
           }}
-          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() } }}
-          placeholder="Write a comment… (markdown supported)"
-          className="flex-1 bg-kinu/30 border border-border rounded-(--radius-control) px-3 py-2.5 text-footnote text-ink placeholder:text-ink-muted focus:outline-none focus:border-saffron/40 transition-colors resize-none overflow-y-auto"
+          onSelect={e => {
+            const el = e.currentTarget
+            setMention(detectMention(el.value, el.selectionStart))
+          }}
+          onBlur={() => setTimeout(() => setMention(null), 120)}
+          onKeyDown={e => {
+            if (mention && suggestions.length) {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setActiveIdx(i => (i + 1) % suggestions.length); return }
+              if (e.key === 'ArrowUp') { e.preventDefault(); setActiveIdx(i => (i - 1 + suggestions.length) % suggestions.length); return }
+              if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); insertMention(suggestions[activeIdx]); return }
+              if (e.key === 'Escape') { e.preventDefault(); setMention(null); return }
+            }
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() }
+          }}
+          placeholder={replyTo ? `Reply to @${replyTo.username}…` : 'Add to the discussion… type @ to bring someone in'}
+          aria-label="Write a reply"
+          aria-autocomplete="list"
+          className="block w-full bg-transparent px-4 pt-3.5 pb-2 text-[14px] leading-relaxed text-ink placeholder:text-cha focus:outline-none resize-none overflow-y-auto"
           style={{ maxHeight: '200px' }}
           maxLength={2000}
         />
-        <Button
-          variant={newComment.trim() ? 'primary' : 'secondary'}
-          onClick={handleSubmit}
-          disabled={!newComment.trim() || submitting}
-        >
-          {submitting ? '…' : 'Send'}
-        </Button>
+
+        {mention && suggestions.length > 0 && (
+          <ul role="listbox" aria-label="Members" className="mx-2 mb-2 max-h-56 overflow-y-auto rounded-(--radius-control) border border-border bg-sumi py-1">
+            {suggestions.map((m, i) => {
+              const canAsk = askable.has(m.id) && asksLeft > 0
+              return (
+                <li key={m.id} role="option" aria-selected={i === activeIdx}>
+                  <button
+                    type="button"
+                    // mousedown, not click: it fires before the textarea blurs.
+                    onMouseDown={e => { e.preventDefault(); insertMention(m) }}
+                    onMouseEnter={() => setActiveIdx(i)}
+                    className={cn(
+                      'w-full flex items-center gap-2.5 px-3 py-1.5 text-left text-[13px] transition-colors',
+                      i === activeIdx ? 'bg-kinu text-ink' : 'text-ink-soft',
+                    )}
+                  >
+                    <UserAvatar username={m.username} size={20} />
+                    <span className="truncate">@{m.username}</span>
+                    {canAsk && <span className="ml-auto text-[11px] text-cha">also asks them</span>}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+
+        <div className="flex items-center gap-2 px-2 pb-2.5 pl-2.5">
+          <button
+            type="button"
+            onClick={startMention}
+            aria-label="Mention someone"
+            title="Mention someone"
+            className="press inline-flex items-center justify-center w-8 h-8 rounded-full text-[15px] text-ink-soft hover:text-ink hover:bg-kinu/60 transition-colors"
+          >
+            @
+          </button>
+          <span className="min-w-0 truncate text-[12px] text-cha">
+            {willAsk.length > 0
+              ? <>Also asks {willAsk.map(m => <span key={m.id} className="text-ink-soft">@{m.username}</span>).reduce<React.ReactNode[]>((acc, el, i) => (i ? [...acc, ' and ', el] : [el]), [])} to weigh in</>
+              : <>Markdown works · <kbd className="font-sans">Enter</kbd> to send</>}
+          </span>
+          <Button className="ml-auto" onClick={handleSubmit} disabled={!newComment.trim() || submitting}>
+            {submitting ? 'Sending…' : 'Send'}
+          </Button>
+        </div>
       </div>
+
+      {asked.length > 0 && (
+        <p className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[12px] text-cha">
+          Asked:
+          {asked.map(a => (
+            <span key={a.asked_id} className="inline-flex items-center gap-1 pl-0.5 pr-2 h-6 rounded-full border border-border text-ink-soft">
+              <UserAvatar username={a.username} size={18} />
+              @{a.username}
+              {a.can_withdraw && (
+                <button type="button" onClick={() => withdrawAsk(a)} aria-label={`Withdraw ask to ${a.username}`} className="text-cha hover:text-vermillion">×</button>
+              )}
+            </span>
+          ))}
+        </p>
+      )}
     </div>
   )
 
@@ -207,7 +393,7 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
     return (
       <div>
         {composeArea}
-        <div className="mt-5">{commentsList}</div>
+        <div className="mt-6">{commentsList}</div>
       </div>
     )
   }
@@ -216,7 +402,7 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]">
       <div className="absolute inset-0 bg-parchment/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-2xl max-h-[75vh] flex flex-col bg-paper border border-border rounded-xl shadow-2xl animate-fade-up">
+      <div className="relative w-full max-w-2xl max-h-[75vh] flex flex-col bg-paper border border-border rounded-(--radius-card) shadow-2xl animate-fade-up">
         <div className="flex items-center justify-between px-5 py-3 border-b border-border">
           <h3 className="text-sm font-semibold text-ink">Discussion</h3>
           <button onClick={onClose} className="text-cha hover:text-ink transition-colors text-lg leading-none">&times;</button>
@@ -322,7 +508,7 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit() }
                 if (e.key === 'Escape') setEditing(false)
               }}
-              className="w-full bg-kinu/30 border border-border rounded-md px-2.5 py-1.5 text-[13px] text-ink focus:outline-none focus:border-saffron/40 resize-none overflow-y-auto"
+              className="w-full bg-kinu/30 border border-border rounded-(--radius-control) px-2.5 py-1.5 text-[13px] text-ink focus:outline-none focus:border-saffron/40 resize-none overflow-y-auto"
               style={{ maxHeight: '200px' }}
               autoFocus
               onFocus={e => {

@@ -1,7 +1,6 @@
 'use client'
 
-import { useCallback, useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useCallback, useState, useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { SquaresFour, Lightbulb, Plus } from '@phosphor-icons/react/dist/ssr'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
@@ -11,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { TopicList } from '@/components/topics/TopicList'
 import { SubmitModal } from '@/components/topics/SubmitModal'
+import { ShareIntent } from '@/components/topics/ShareIntent'
 import { MeetingPill } from '@/components/layout/MeetingPill'
 import { OutcomesRecap } from '@/components/board/OutcomesRecap'
 import { BytesTeaser } from '@/components/board/BytesTeaser'
@@ -19,6 +19,7 @@ import { MeetingDate, CycleStatus } from '@/components/board/CycleMeta'
 import { QuotaStrip } from '@/components/board/QuotaStrip'
 import { PageHeader, SectionHeader, EmptyState, CardSkeleton } from '@/components/ui/Section'
 import { Button } from '@/components/ui/Button'
+import { PROBLEM_MONTH, PROBLEM_COPY, HIDE_BYTES } from '@/lib/experiment'
 import type { Cycle, Topic } from '@/types'
 
 const MONTHS_SHORT = [
@@ -27,12 +28,11 @@ const MONTHS_SHORT = [
 ]
 
 export default function BoardPage() {
-  const router = useRouter()
   const reduceMotion = useReducedMotion()
   const { user, isLoading: authLoading } = useAuth()
   const { cycle, phase, isLoading: cycleLoading } = useCurrentCycle()
   const { topics, isLoading: topicsLoading, mutate, optimisticVote, optimisticContrib } = useTopics(cycle?.id)
-  const { votes_remaining, contribs_remaining, topic_submitted, refresh: refreshTokens } = useUserTokens(cycle?.id)
+  const { votes_remaining, contribs_remaining, topic_submitted, isLoading: tokensLoading, refresh: refreshTokens } = useUserTokens(cycle?.id)
   const toast = useToast()
 
   const [allCycles, setAllCycles] = useState<Cycle[]>([])
@@ -82,8 +82,8 @@ export default function BoardPage() {
         const data = await res.json().catch(() => ({}))
         toast(data.error ?? 'Vote failed', 'error')
       } else {
-        if (!hasVoted) toast('Vote committed ⚡', 'success')
-        else toast('Vote withdrawn', 'info')
+        if (!hasVoted) toast(PROBLEM_MONTH ? 'Marked' : 'Vote committed ⚡', 'success')
+        else toast(PROBLEM_MONTH ? 'Unmarked' : 'Vote withdrawn', 'info')
         refreshTokens()
       }
     } catch {
@@ -119,6 +119,7 @@ export default function BoardPage() {
   const displayTopics = isViewingActive ? topics : archiveTopics
   const displayPhase = isViewingActive ? phase : 'discussion'
   const isOpen = isViewingActive && phase === 'open'
+  const showRail = !PROBLEM_MONTH || !HIDE_BYTES
 
   /* The empty state and the page header both want to offer the same action, so
      only one of them is allowed to at a time. */
@@ -144,30 +145,32 @@ export default function BoardPage() {
             then state, then the one action. */}
         <PageHeader
           title="The Board"
-          subtitle={viewingCycle ? viewingCycle.label : 'What shall we build next?'}
+          subtitle={
+            PROBLEM_MONTH
+              ? viewingCycle ? `${viewingCycle.label} · ${PROBLEM_COPY.boardSubtitle}` : PROBLEM_COPY.boardSubtitle
+              : viewingCycle ? viewingCycle.label : 'What shall we build next?'
+          }
           action={
             <>
               {isViewingActive && <MeetingDate cycle={viewingCycle} phase={phase} />}
               {isViewingActive && <CycleStatus phase={phase} />}
-              {/* One action. Pitching and banking are the same intent at two
-                  moments, so the header offers whichever applies. When the list
-                  is empty the empty state carries it instead, being the more
+              {/* One action, only while the board is open. When the list is
+                  empty the empty state carries it instead, being the more
                   prominent invitation. */}
-              {!listIsEmpty &&
-                (isOpen && !topic_submitted ? (
-                  <Button icon={Plus} onClick={() => setShowSubmit(true)}>Pitch an idea</Button>
-                ) : (
-                  <Button icon={Lightbulb} onClick={() => router.push('/bank')}>
-                    Bank an idea
-                  </Button>
-                ))}
+              {!listIsEmpty && isOpen && !topic_submitted && (
+                <Button icon={Plus} onClick={() => setShowSubmit(true)}>
+                  {PROBLEM_MONTH ? PROBLEM_COPY.share : 'Pitch an idea'}
+                </Button>
+              )}
             </>
           }
         />
 
         {/* ─── What you have left ───
             A strip, not a row of hero tiles. See QuotaStrip for why. */}
-        {isViewingActive && phase !== 'upcoming' && (
+        {/* Problem Month hides the budget: signals are uncapped for the month
+            and a quota reads as a scoreboard. */}
+        {!PROBLEM_MONTH && isViewingActive && phase !== 'upcoming' && (
           <motion.section {...section} className="mb-(--gap-section)" aria-label="What you have left this cycle">
             <QuotaStrip
               votesRemaining={isOpen ? votes_remaining : 0}
@@ -184,7 +187,9 @@ export default function BoardPage() {
             Below lg it is one column and the rail falls under the list, which
             is the correct priority order on a phone rather than an accident of
             source order. */}
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-x-10 gap-y-(--gap-section) items-start">
+        <div className={!showRail
+          ? 'grid grid-cols-1 gap-y-(--gap-section) items-start'
+          : 'grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-x-10 gap-y-(--gap-section) items-start'}>
           <div className="min-w-0 space-y-(--gap-section)">
           {/* ─── What came of last cycle ─── */}
           <OutcomesRecap />
@@ -196,7 +201,9 @@ export default function BoardPage() {
               title={isViewingActive ? 'On the board' : `${viewingCycle?.label ?? 'Archive'}`}
               hint={
                 displayTopics.length > 0
-                  ? `${displayTopics.length} ${displayTopics.length === 1 ? 'topic' : 'topics'}`
+                  ? `${displayTopics.length} ${displayTopics.length === 1
+                      ? PROBLEM_MONTH ? PROBLEM_COPY.noun : 'topic'
+                      : PROBLEM_MONTH ? PROBLEM_COPY.nounPlural : 'topics'}`
                   : undefined
               }
             />
@@ -237,33 +244,30 @@ export default function BoardPage() {
             ) : !viewingCycle ? (
               <EmptyState
                 icon={SquaresFour}
-                title="The scroll is blank"
-                body="An admin needs to open a cycle to get the guild rolling. Ideas you bank now carry over."
-                action={
-                  <Button icon={Lightbulb} onClick={() => router.push('/bank')}>
-                    Bank an idea
-                  </Button>
-                }
+                title="The board opens soon"
+                body="An admin opens the board for each month's session. Check back shortly."
               />
             ) : topicsLoading || archiveLoading ? (
               <CardSkeleton />
             ) : displayTopics.length === 0 ? (
               <EmptyState
                 icon={Lightbulb}
-                title="Nothing pitched yet"
+                title={PROBLEM_MONTH ? 'No problems yet' : 'Nothing pitched yet'}
                 body={
-                  isOpen
-                    ? 'Be the first. One good question is enough to start a cycle.'
-                    : 'This cycle came and went without a pitch.'
+                  PROBLEM_MONTH
+                    ? isOpen
+                      ? 'Be the first. A flaky test, a slow build, a design call you are unsure about. Two lines is enough.'
+                      : 'This cycle came and went without a problem.'
+                    : isOpen
+                      ? 'Be the first. One good question is enough to start a cycle.'
+                      : 'This cycle came and went without a pitch.'
                 }
                 action={
                   isOpen && !topic_submitted ? (
-                    <Button icon={Plus} onClick={() => setShowSubmit(true)}>Pitch an idea</Button>
-                  ) : (
-                    <Button icon={Lightbulb} onClick={() => router.push('/bank')}>
-                      Bank an idea
+                    <Button icon={Plus} onClick={() => setShowSubmit(true)}>
+                      {PROBLEM_MONTH ? PROBLEM_COPY.share : 'Pitch an idea'}
                     </Button>
-                  )
+                  ) : undefined
                 }
               />
             ) : (
@@ -285,10 +289,14 @@ export default function BoardPage() {
               Glanceable, never load-bearing. It sticks below the header on a
               pointer so it stays with you down a long topic list, and it is a
               plain stacked column on a phone. */}
-          <aside className="min-w-0 space-y-(--gap-section) lg:sticky lg:top-20">
-            <TopContributors topics={displayTopics as Topic[]} />
-            <BytesTeaser />
-          </aside>
+          {/* Problem Month hides the contributor ranking: it muddies what is
+              being measured. Bytes has its own switch. */}
+          {showRail && (
+            <aside className="min-w-0 space-y-(--gap-section) lg:sticky lg:top-20">
+              {!PROBLEM_MONTH && <TopContributors topics={displayTopics as Topic[]} />}
+              {!HIDE_BYTES && <BytesTeaser />}
+            </aside>
+          )}
         </div>
       </div>
 
@@ -299,6 +307,14 @@ export default function BoardPage() {
           onSubmitted={() => { setShowSubmit(false); mutate(); refreshTokens() }}
         />
       )}
+
+      <Suspense fallback={null}>
+        <ShareIntent
+          cycle={cycle}
+          canShare={!showSubmit && isOpen && !tokensLoading && !topic_submitted}
+          onSubmitted={() => { mutate(); refreshTokens() }}
+        />
+      </Suspense>
 
       {isViewingActive && <MeetingPill cycle={viewingCycle} phase={phase} />}
     </>
