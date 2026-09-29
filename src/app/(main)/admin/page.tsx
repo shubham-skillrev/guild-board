@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { AdminControls } from '@/components/admin/AdminControls'
 import { CycleListCards } from '@/components/admin/CycleListCards'
 import { ByteGenerator } from '@/components/admin/ByteGenerator'
+import { SystemTopicsPanel } from '@/components/admin/SystemTopicsPanel'
 import { PageHeader, SectionHeader } from '@/components/ui/Section'
 import type { Cycle } from '@/types'
 
@@ -67,6 +68,7 @@ export default async function AdminPage() {
             activeCycle={activeCycle as Cycle | null}
             topics={activeCycleTopics as any[]}
           />
+          <SystemTopicsPanel />
         </div>
 
         <aside className="min-w-0 space-y-(--gap-section) lg:sticky lg:top-20">
