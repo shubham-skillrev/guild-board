@@ -4,7 +4,10 @@ export type UserRole = 'user' | 'admin'
 
 export type CycleStatus = 'upcoming' | 'open' | 'frozen' | 'closed'
 
-export type CategoryTag = 'deep_dive' | 'discussion' | 'blog_idea' | 'project_showcase'
+export type CategoryTag =
+  | 'deep_dive' | 'discussion' | 'blog_idea' | 'project_showcase'
+  // Discussion kinds (migration 024). See src/lib/kinds.ts.
+  | 'problem' | 'learned' | 'new_tech' | 'take' | 'show_tell'
 
 export type TopicStatus = 'active' | 'selected' | 'carry_forward' | 'dropped'
 
@@ -51,6 +54,8 @@ export interface Topic {
    */
   user_id?: string
   is_anonymous: boolean
+  /** Posted by GuildBoard itself (derived from the author, see serializeTopic). */
+  is_system?: boolean
   title: string
   description: string
   category: CategoryTag

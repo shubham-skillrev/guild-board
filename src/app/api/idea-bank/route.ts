@@ -7,12 +7,12 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { TITLE_MAX_LENGTH } from '@/lib/constants'
+import { TITLE_MAX_LENGTH, ALL_CATEGORIES } from '@/lib/constants'
 import { joinedUsername } from '@/lib/utils/anonymity'
 import type { CategoryTag } from '@/types'
 
 const NOTE_MAX_LENGTH = 500
-const CATEGORIES = ['deep_dive', 'discussion', 'blog_idea', 'project_showcase']
+const CATEGORIES = ALL_CATEGORIES
 
 const SELECT =
   'id,user_id,title,note,category,is_open,is_anonymous,promoted_topic_id,promoted_by,promoted_at,created_at,updated_at,users!idea_bank_user_id_fkey(username)'

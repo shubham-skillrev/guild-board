@@ -16,6 +16,7 @@
 import { useEffect, useState } from 'react'
 import { CalendarBlank } from '@phosphor-icons/react/dist/ssr'
 import { Icon } from '@/components/ui/Icon'
+import { PROBLEM_MONTH } from '@/lib/experiment'
 import type { Cycle } from '@/types'
 
 function getSecondFriday(year: number, month: number): Date {
@@ -103,7 +104,7 @@ export function CycleStatus({ phase }: { phase: string }) {
           isOpen ? 'bg-matcha animate-pulse-soft' : 'bg-indigo-jp'
         }`}
       />
-      {isOpen ? 'Open for votes' : 'Discussion mode'}
+      {isOpen ? (PROBLEM_MONTH ? 'Open for problems' : 'Open for votes') : 'Discussion mode'}
     </span>
   )
 }

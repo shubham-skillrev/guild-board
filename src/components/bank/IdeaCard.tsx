@@ -1,19 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { CATEGORY_LABELS } from '@/lib/constants'
+import { CATEGORY_LABELS, CATEGORY_TONE } from '@/lib/constants'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import type { BankedIdea } from '@/types'
-
-const CATEGORY_TONE = {
-  deep_dive: 'indigo',
-  discussion: 'matcha',
-  blog_idea: 'wisteria',
-  project_showcase: 'saffron',
-} as const
 
 interface IdeaCardProps {
   idea: BankedIdea

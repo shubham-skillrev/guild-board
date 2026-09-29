@@ -1,21 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { CATEGORY_LABELS, TITLE_MAX_LENGTH } from '@/lib/constants'
+import { TITLE_MAX_LENGTH } from '@/lib/constants'
+import { KINDS } from '@/lib/kinds'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Label, CharCount } from '@/components/ui/Input'
 import type { CategoryTag } from '@/types'
 
-const CATEGORIES = Object.entries(CATEGORY_LABELS) as [CategoryTag, string][]
 const NOTE_MAX = 500
-
-const CATEGORY_ICONS: Record<string, string> = {
-  deep_dive: '🔬',
-  discussion: '💬',
-  blog_idea: '✍️',
-  project_showcase: '🚀',
-}
 
 interface BankIdeaModalProps {
   onClose: () => void
@@ -94,21 +87,23 @@ export function BankIdeaModal({ onClose, onSaved }: BankIdeaModalProps) {
         </div>
 
         <div>
-          <Label>Category <span className="font-normal normal-case tracking-normal text-cha">(optional)</span></Label>
-          <div className="grid grid-cols-2 gap-2">
-            {CATEGORIES.map(([value, label]) => (
+          <Label>Kind <span className="font-normal normal-case tracking-normal text-cha">(optional)</span></Label>
+          {/* Same pills as the composer, but optional: tap the selected one
+              again to clear it. */}
+          <div className="flex flex-wrap gap-1.5">
+            {KINDS.map(k => (
               <button
-                key={value}
+                key={k.value}
                 type="button"
-                onClick={() => setCategory(category === value ? '' : value)}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-(--radius-control) border text-[13px] transition-all text-left ${
-                  category === value
-                    ? 'border-saffron/40 bg-saffron-light text-saffron'
-                    : 'border-border text-ink-soft hover:border-border-strong hover:bg-kinu/30'
+                aria-pressed={category === k.value}
+                onClick={() => setCategory(category === k.value ? '' : k.value)}
+                className={`press inline-flex items-center h-8 px-3 rounded-full border text-[13px] font-medium transition-colors ${
+                  category === k.value
+                    ? 'bg-ink border-ink text-parchment'
+                    : 'border-border-strong text-ink-soft hover:text-ink hover:border-ink/40'
                 }`}
               >
-                <span>{CATEGORY_ICONS[value]}</span>
-                <span>{label}</span>
+                {k.label}
               </button>
             ))}
           </div>
