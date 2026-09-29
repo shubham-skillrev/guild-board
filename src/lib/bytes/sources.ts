@@ -102,6 +102,29 @@ const VIDEO_FEEDS: FeedSpec[] = [
   { name: 'ArjanCodes', url: ytFeed('UCVhQ2NnY5Rskt6UjCUkJ_DA'), kind: 'video' },
 ]
 
+/**
+ * Google News search, as RSS. Topics, not publishers: each query is a subject
+ * the guild cares about, and Google decides who covered it this week. This is
+ * the part of the pool that is not a hand-picked list, so something
+ * significant published somewhere unexpected still gets in.
+ *
+ * Keyless. `when:7d` keeps it to the last week. The link on each item is a
+ * news.google.com redirect that opens the publisher's article; the publisher
+ * itself comes from the item's <source> element.
+ */
+const GOOGLE_NEWS_QUERIES: string[] = [
+  '"artificial intelligence" OR LLM OR "AI model"',
+  '"software engineering" OR "software development"',
+  '"developer tools" OR "programming language"',
+  'kubernetes OR "cloud infrastructure" OR serverless',
+  'cybersecurity vulnerability OR "security flaw"',
+  'database OR postgres OR "data engineering"',
+]
+
+function googleNewsFeed(query: string): string {
+  return `https://news.google.com/rss/search?q=${encodeURIComponent(`${query} when:7d`)}&hl=en-US&gl=US&ceid=US:en`
+}
+
 function ytFeed(channelId: string): string {
   return `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`
 }
@@ -259,6 +282,59 @@ function cleanVideoDescription(raw: string): string | undefined {
  * One failing feed must never take the digest down with it, so a fetch or parse
  * failure returns an empty list rather than throwing.
  */
+/** One Google News query. Titles arrive as "Headline - Publisher". */
+async function fetchGoogleNews(
+  parser: XMLParser,
+  query: string,
+  sinceMs: number,
+  perQueryMax: number,
+): Promise<Candidate[]> {
+  const xml = await getXml(googleNewsFeed(query))
+  if (!xml) return []
+  let doc: Record<string, Record<string, unknown> | undefined>
+  try {
+    doc = parser.parse(xml)
+  } catch {
+    return []
+  }
+  const channel = (doc?.rss as { channel?: Record<string, unknown> } | undefined)?.channel ?? {}
+  const raw = channel.item ?? []
+  const items: Record<string, unknown>[] = Array.isArray(raw) ? raw : [raw]
+
+  const out: Candidate[] = []
+  for (const [i, item] of items.entries()) {
+    if (out.length >= perQueryMax) break
+    const fullTitle = firstString(item.title)?.trim()
+    const url = firstString(item.link)?.trim()
+    if (!fullTitle || !url) continue
+
+    const published = new Date(firstString(item.pubDate) ?? '').getTime()
+    if (Number.isFinite(published) && published < sinceMs) continue
+
+    const src = record(item.source)
+    const publisher = (src ? firstString(src['#text']) : firstString(item.source))?.trim()
+    // Drop the " - Publisher" suffix Google appends, when it matches.
+    const title =
+      publisher && fullTitle.endsWith(` - ${publisher}`)
+        ? fullTitle.slice(0, -(publisher.length + 3)).trim()
+        : fullTitle
+
+    out.push({
+      source: 'news',
+      source_id: `gnews:${firstString(item.guid) ?? url}`,
+      title,
+      source_name: (publisher ?? 'Google News').slice(0, 80),
+      url,
+      points: 0,
+      domain: classifyDomain(title),
+      // Google's own order is the ranking signal: the top result for a topic
+      // this week ranks a little above the tenth.
+      score: Math.max(0.5, 0.66 - i * 0.012),
+    })
+  }
+  return out
+}
+
 async function fetchFeed(
   parser: XMLParser,
   feed: FeedSpec,
@@ -495,6 +571,7 @@ export async function fetchCandidates(days = 8, limit = 10): Promise<Candidate[]
   const feeds = [...BLOG_FEEDS, ...NEWS_FEEDS, ...VIDEO_FEEDS]
   const results = await Promise.all([
     ...feeds.map(feed => fetchFeed(parser, feed, sinceMs, perFeedMax)),
+    ...GOOGLE_NEWS_QUERIES.map(q => fetchGoogleNews(parser, q, sinceMs, perFeedMax)),
     fetchHN(sinceUnix),
   ])
 
