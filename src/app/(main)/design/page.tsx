@@ -32,10 +32,10 @@ import {
 import { Icon } from '@/components/ui/Icon'
 
 const SURFACES = [
-  { token: '--color-parchment', value: '#08080C', role: 'L0 page ground' },
-  { token: '--color-paper', value: '#101016', role: 'L1 cards, rows' },
-  { token: '--color-sumi', value: '#161620', role: 'L2 sheets, modals' },
-  { token: '--color-kinu', value: '#1E1E2A', role: 'L3 menus, popovers' },
+  { token: '--color-parchment', value: '#0A0A0B', role: 'L0 page ground' },
+  { token: '--color-paper', value: '#111113', role: 'L1 cards, rows' },
+  { token: '--color-sumi', value: '#18181B', role: 'L2 sheets, modals' },
+  { token: '--color-kinu', value: '#212125', role: 'L3 menus, popovers' },
 ]
 
 const CONTENT = [

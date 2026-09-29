@@ -2,16 +2,16 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "GuildBoard - Where Guilds Shape What’s Next",
+    name: "GuildBoard by SkillRev",
     short_name: "GuildBoard",
     description:
-      "A structured, async platform for engineering guilds to surface ideas, vote on what to explore, and track outcomes - cycle by cycle.",
+      "SkillRev's monthly engineering guild. New tech, old tech, something you learned, a problem you're stuck on. Put it on the board, then talk it through.",
     start_url: "/",
     scope: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#0B0B0E",
-    theme_color: "#E8913A",
+    background_color: "#FAFAF8",
+    theme_color: "#FAFAF8",
     categories: ["productivity", "social", "business"],
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

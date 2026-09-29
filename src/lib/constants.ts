@@ -10,7 +10,29 @@ export const CATEGORY_LABELS: Record<string, string> = {
   discussion: 'Discussion',
   blog_idea: 'Blog Idea',
   project_showcase: 'Project Showcase',
+  problem: 'Problem',
+  learned: 'Learned',
+  new_tech: 'New tech',
+  take: 'Take',
+  show_tell: 'Show & tell',
 }
+
+/** Badge tone per category. One map, so the board, the detail page and the
+    bank cannot drift apart again. */
+export const CATEGORY_TONE: Record<string, 'neutral' | 'saffron' | 'matcha' | 'indigo' | 'wisteria' | 'vermillion'> = {
+  deep_dive: 'indigo',
+  discussion: 'saffron',
+  blog_idea: 'matcha',
+  project_showcase: 'wisteria',
+  problem: 'saffron',
+  learned: 'matcha',
+  new_tech: 'indigo',
+  take: 'wisteria',
+  show_tell: 'neutral',
+}
+
+/** Every value `category` accepts, for server-side validation. */
+export const ALL_CATEGORIES = Object.keys(CATEGORY_LABELS)
 
 export const CATEGORY_BONUS: Record<string, number> = {
   deep_dive: 0.10, // +10% of base score

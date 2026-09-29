@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { UserTokens } from '@/types'
 import { TOKEN_LIMITS } from '@/lib/constants'
+import { PROBLEM_MONTH } from '@/lib/experiment'
 
 interface UserTokensState extends UserTokens {
   isLoading: boolean
@@ -41,8 +42,9 @@ export function useUserTokens(cycleId: string | null | undefined) {
     const topicCount = topics?.length ?? 0
 
     setState({
-      votes_remaining: TOKEN_LIMITS.VOTES_PER_CYCLE - (voteCount ?? 0),
-      contribs_remaining: TOKEN_LIMITS.CONTRIBS_PER_CYCLE - (contribCount ?? 0),
+      // Problem Month drops both caps (migration 023), so nothing runs out.
+      votes_remaining: PROBLEM_MONTH ? Infinity : TOKEN_LIMITS.VOTES_PER_CYCLE - (voteCount ?? 0),
+      contribs_remaining: PROBLEM_MONTH ? Infinity : TOKEN_LIMITS.CONTRIBS_PER_CYCLE - (contribCount ?? 0),
       spark_given: (sparkCount ?? 0) > 0,
       topic_submitted: (topicCount ?? 0) > 0,
       isLoading: false,

@@ -124,7 +124,7 @@ export function PushOptIn() {
           <button
             disabled={busy}
             onClick={subscribe}
-            className="press inline-flex items-center h-8 rounded-(--radius-control) bg-saffron px-3 text-footnote font-medium text-parchment hover:bg-saffron/90 disabled:opacity-40"
+            className="press inline-flex items-center h-8 rounded-full bg-ink px-3 text-footnote font-medium text-parchment hover:bg-ink/85 disabled:opacity-40"
           >
             {busy ? "Enabling…" : "Enable"}
           </button>

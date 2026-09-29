@@ -29,7 +29,7 @@ export function Chip({ tone = 'neutral', icon, className, children, ...props }: 
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-caption whitespace-nowrap',
+        'inline-flex items-center gap-1 rounded-(--radius-control) px-1.5 py-0.5 text-caption whitespace-nowrap',
         TONES[tone],
         className,
       )}

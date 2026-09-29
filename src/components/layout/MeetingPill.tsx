@@ -137,7 +137,7 @@ export function MeetingPill({ cycle, phase }: MeetingPillProps) {
       aria-label="Collapse meeting countdown"
       className={[
         'fixed bottom-20 right-4 md:bottom-6 md:right-6 z-(--z-overlay)',
-        'flex items-center gap-2.5 px-3 py-2 rounded-xl border',
+        'flex items-center gap-2.5 px-3 py-2 rounded-(--radius-card) border',
         'shadow-lg backdrop-blur-sm transition-all active:scale-95',
         isToday
           ? 'bg-saffron border-saffron shadow-saffron/20 text-parchment'

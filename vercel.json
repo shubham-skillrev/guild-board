@@ -8,6 +8,14 @@
     {
       "path": "/api/cron/bytes/monthly",
       "schedule": "0 7 1 * *"
+    },
+    {
+      "path": "/api/cron/meeting-reminder",
+      "schedule": "30 5 * * *"
+    },
+    {
+      "path": "/api/cron/system-topics",
+      "schedule": "0 4 * * *"
     }
   ]
 }

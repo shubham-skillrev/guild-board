@@ -31,14 +31,10 @@ type Variant = 'primary' | 'tinted' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md'
 
 const VARIANTS: Record<Variant, string> = {
-  /* Saffron marks the one thing you can act on, so it stays rare. Parchment
-     label rather than black: black on saffron is a harder edge than anything
-     else in the product.
-     No glow. A drop shadow on a filled accent button adds bulk without adding
-     information, and it was making the primary look inflated next to its
-     neighbours. */
-  primary:
-    'bg-saffron text-parchment hover:bg-saffron/90 shadow-[0_0_20px_rgba(232,145,58,0.15)]',
+  /* Ink, not accent: dark on light, light on dark, from the same tokens.
+     Saffron is kept for emphasis (an accent word, a selected state), so the
+     primary action reads as confident rather than loud. No glow or shadow. */
+  primary: 'bg-ink text-parchment hover:bg-ink/85',
   /* Accent colour, no fill weight. This is what most "primary" actions in the
      product actually want: the row still reads as text with one warm word in
      it, rather than as a stack of orange blocks. */
@@ -81,7 +77,7 @@ export function Button({
     <button
       type={type}
       className={cn(
-        'press inline-flex items-center justify-center gap-1.5 rounded-(--radius-control)',
+        'press inline-flex items-center justify-center gap-1.5 rounded-full',
         'font-medium whitespace-nowrap',
         'transition-colors disabled:opacity-40 disabled:pointer-events-none',
         SIZES[size],

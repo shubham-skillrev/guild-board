@@ -21,7 +21,10 @@ interface TopicListProps {
  */
 export function TopicList(props: TopicListProps) {
   return (
-    <div className="space-y-(--gap-list) stagger-children">
+    /* A grid of cards, two across from md up, in rank order reading left to
+       right. Rows stretch to their tallest card and each card pins its footer
+       to the bottom, so the counts line up across a row. */
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 stagger-children">
       {props.topics.map((topic, i) => (
         <TopicCard key={topic.id} topic={topic} rank={i + 1} {...props} />
       ))}

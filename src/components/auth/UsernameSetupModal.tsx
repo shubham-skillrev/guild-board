@@ -62,8 +62,8 @@ export function UsernameSetupModal() {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-paper border border-border-strong rounded-xl shadow-2xl p-7 w-full max-w-md mx-4 animate-fade-up">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/35 dark:bg-black/60 backdrop-blur-sm">
+      <div className="bg-paper border border-border-strong rounded-(--radius-card) shadow-2xl p-7 w-full max-w-md mx-4 animate-fade-up">
         <h2 className="text-lg font-semibold text-ink mb-1">Pick a username</h2>
         <p className="text-cha text-[13px] mb-5">
           This is how you&apos;ll appear on GuildBoard.
@@ -90,7 +90,7 @@ export function UsernameSetupModal() {
           <button
             type="submit"
             disabled={isSubmitting || !!validate(username)}
-            className="press w-full inline-flex items-center justify-center h-9 bg-saffron text-parchment rounded-(--radius-control) text-footnote font-medium hover:bg-saffron/90 disabled:opacity-40 transition-colors"
+            className="press w-full inline-flex items-center justify-center h-9 bg-ink text-parchment rounded-full text-footnote font-medium hover:bg-ink/85 disabled:opacity-40 transition-colors"
           >
             {isSubmitting ? 'Saving...' : isEditMode ? 'Update username' : 'Lock it in'}
           </button>

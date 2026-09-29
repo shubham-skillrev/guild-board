@@ -45,7 +45,7 @@ export function Sheet({ title, subtitle, onClose, children, className }: SheetPr
   return (
     <motion.div
       // A blocking task, so it gets a scrim that pushes the page back.
-      className="fixed inset-0 z-(--z-scrim) flex items-end sm:items-center justify-center bg-black/60"
+      className="fixed inset-0 z-(--z-scrim) flex items-end sm:items-center justify-center bg-black/35 dark:bg-black/60"
       onClick={onClose}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -73,7 +73,7 @@ export function Sheet({ title, subtitle, onClose, children, className }: SheetPr
       >
         {/* Grab handle. Purely a mobile affordance, so it hides on desktop. */}
         <div className="sm:hidden flex justify-center pt-2.5 pb-1" aria-hidden>
-          <div className="h-1 w-9 rounded-full bg-white/20" />
+          <div className="h-1 w-9 rounded-full bg-border-strong" />
         </div>
 
         <div className="flex items-start justify-between gap-3 px-(--pad-card) py-3.5 border-b border-separator">
@@ -85,7 +85,7 @@ export function Sheet({ title, subtitle, onClose, children, className }: SheetPr
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="press-sm shrink-0 rounded-lg p-1.5 text-label-3 hover:text-label hover:bg-fill transition-colors"
+            className="press-sm shrink-0 rounded-(--radius-control) p-1.5 text-label-3 hover:text-label hover:bg-fill transition-colors"
           >
             <Icon icon={X} size="lg" />
           </button>

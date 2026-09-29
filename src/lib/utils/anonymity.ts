@@ -1,4 +1,5 @@
 import { createHash } from 'crypto'
+import { SYSTEM_USERNAME } from '@/lib/system/identity'
 
 /**
  * Ghost handles for topics posted anonymously.
@@ -54,12 +55,17 @@ export function serializeTopic<T extends RawTopic>(topic: T, viewerId: string) {
 
   const { users: _joined, ...rest } = topic
 
+  // GuildBoard's own suggestions, recognised by the reserved author name.
+  const isSystem = !topic.is_anonymous && joinedUsername(topic.users) === SYSTEM_USERNAME
+
   const base = {
     ...rest,
     is_owner: isOwner,
+    is_system: isSystem,
     // Sparks go to a person, and a ghost author is not addressable. Sparking is
-    // a post-meeting act on named work, so this is an acceptable trade.
-    can_spark_author: !isOwner && !isGhost,
+    // a post-meeting act on named work, so this is an acceptable trade. The
+    // system is not a person either.
+    can_spark_author: !isOwner && !isGhost && !isSystem,
   }
 
   if (isGhost) {

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { Providers } from "@/components/ui/Providers";
@@ -13,8 +13,8 @@ const sansFont = Geist({
   display: "swap",
 });
 
-// Every number in the product renders in mono with tabular figures, so counts
-// line up when they are compared down a column.
+// Numbers and the small tracked-caps labels. Tabular figures, so counts line
+// up down a column.
 const monoFont = Geist_Mono({
   variable: "--font-mono-ui",
   subsets: ["latin"],
@@ -22,19 +22,25 @@ const monoFont = Geist_Mono({
   display: "swap",
 });
 
-// Titles and the wordmark. This is the face that makes GuildBoard look like
-// itself, so it carries all three title steps rather than the wordmark alone.
-// Running text stays sans.
-const displayFont = Playfair_Display({
+// The accent voice: one italic word per headline. It only ships in 400, and
+// only the italic is used, but the upright is kept for the rare fallback.
+const displayFont = Instrument_Serif({
   variable: "--font-display",
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: "400",
+  style: ["normal", "italic"],
   display: "swap",
 });
 
+/* Runs before first paint so the page never flashes the wrong theme. An
+   explicit choice ("light" / "dark") wins; otherwise the OS decides. The
+   ThemeToggle component writes the same key. */
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('gb-theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d)}catch(e){}})()`;
+
 export const metadata: Metadata = {
-  title: "GuildBoard - Where Guilds Shape What\u2019s Next",
-  description: "A structured, async platform for engineering guilds to surface ideas, vote on what to explore, and track outcomes - cycle by cycle.",
+  title: "GuildBoard by SkillRev \u00b7 Where SkillRev talks tech",
+  description:
+    "SkillRev's monthly engineering guild. New tech, old tech, something you learned, a problem you're stuck on. Put it on the board, then talk it through.",
   applicationName: "GuildBoard",
   appleWebApp: {
     capable: true,
@@ -57,8 +63,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#E8913A" },
-    { media: "(prefers-color-scheme: dark)", color: "#08080C" },
+    { media: "(prefers-color-scheme: light)", color: "#FAFAF8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0A0A0B" },
   ],
 };
 
@@ -68,10 +74,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+    // suppressHydrationWarning: the theme script adds `dark` to this element
+    // before React hydrates, which is intended.
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${sansFont.variable} ${monoFont.variable} ${displayFont.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col font-sans">
         <Providers>
           {children}

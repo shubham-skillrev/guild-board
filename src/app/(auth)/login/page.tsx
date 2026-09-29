@@ -56,7 +56,7 @@ function LoginPageContent() {
         {/* Logo */}
         <div className="text-center space-y-3">
           <div className="text-saffron text-2xl">◈</div>
-          <h1 className="font-serif text-2xl font-bold text-ink tracking-tight">
+          <h1 className="font-serif text-[2.25rem] font-normal leading-tight text-ink tracking-[-0.012em]">
             Welcome back
           </h1>
           <p className="text-sm text-ink-soft">
@@ -69,7 +69,7 @@ function LoginPageContent() {
           <form action="/api/auth/login" method="POST" className="space-y-3">
             <button
               type="submit"
-              className="w-full inline-flex items-center justify-center gap-3 px-5 py-2.5 bg-paper border border-border-strong rounded-lg text-ink text-sm font-medium hover:bg-kinu transition-all"
+              className="w-full inline-flex items-center justify-center gap-3 px-5 py-2.5 bg-paper border border-border-strong rounded-(--radius-control) text-ink text-sm font-medium hover:bg-kinu transition-all"
             >
               <svg className="w-4.5 h-4.5" viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -80,20 +80,20 @@ function LoginPageContent() {
               Sign in with Google
             </button>
             {oauthErrorMessage && (
-              <div className="p-3 bg-vermillion-light border border-vermillion/20 rounded-lg text-xs text-vermillion">
+              <div className="p-3 bg-vermillion-light border border-vermillion/20 rounded-(--radius-control) text-xs text-vermillion">
                 {oauthErrorMessage}
               </div>
             )}
           </form>
         ) : (
           <div className="space-y-3">
-            <div className="rounded-lg border border-border bg-paper px-4 py-3 text-center text-[13px] text-ink-soft">
+            <div className="rounded-(--radius-control) border border-border bg-paper px-4 py-3 text-center text-[13px] text-ink-soft">
               You are already signed in.
             </div>
             <button
               type="button"
               onClick={() => router.push('/board')}
-              className="w-full inline-flex items-center justify-center px-5 py-2.5 bg-saffron text-parchment rounded-lg text-sm font-semibold hover:bg-saffron/90 transition-all"
+              className="w-full inline-flex items-center justify-center px-5 py-2.5 bg-ink text-parchment rounded-full text-sm font-semibold hover:bg-ink/85 transition-all"
             >
               Continue to Board
             </button>
@@ -113,9 +113,9 @@ function LoginPageFallback() {
       <div className="w-full max-w-sm p-8">
         <div className="animate-pulse space-y-4">
           <div className="h-6 w-32 mx-auto rounded bg-kinu/60" />
-          <div className="h-10 rounded-lg bg-kinu/60" />
-          <div className="h-10 rounded-lg bg-kinu/60" />
-          <div className="h-10 rounded-lg bg-kinu/60" />
+          <div className="h-10 rounded-(--radius-control) bg-kinu/60" />
+          <div className="h-10 rounded-(--radius-control) bg-kinu/60" />
+          <div className="h-10 rounded-(--radius-control) bg-kinu/60" />
         </div>
       </div>
     </div>

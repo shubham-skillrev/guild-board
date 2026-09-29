@@ -2,6 +2,8 @@ import "server-only";
 import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUser, sendPushToUsers } from "@/lib/push/send";
+import { PROBLEM_MONTH, HIDE_BYTES } from "@/lib/experiment";
+import { postToSlack, escapeSlack, appLink } from "@/lib/slack/send";
 
 /**
  * Fire a notification without blocking the response.
@@ -34,7 +36,7 @@ export function notifyAfterResponse(
 // body says what it means and what to do. No em dashes anywhere in user copy.
 const pick = <T>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
 
-const COPY = {
+const BASE_COPY = {
   newTopic: {
     titles: [
       "New topic deployed",
@@ -195,7 +197,70 @@ const COPY = {
   },
 };
 
+// Problem Month: the board collects problems, a vote means "I've hit this too"
+// and a hand raise means "I've dealt with this". Neither is capped this month.
+const COPY: typeof BASE_COPY = PROBLEM_MONTH
+  ? {
+      ...BASE_COPY,
+      newTopic: {
+        titles: ["New problem on the board", "Someone's stuck on something", "Have you hit this?"],
+        body: (author: string, title: string) =>
+          `${author} shared "${title}". Hit this too? Say so before the meeting.`,
+      },
+      vote: {
+        titles: ["Someone's hit this too", "You're not the only one", "+1 on your problem"],
+        body: (voter: string, title: string) =>
+          `${voter} has hit "${title}" too. Worth bringing to the meeting.`,
+      },
+      contribute: {
+        titles: ["Someone's dealt with this", "Help has arrived", "Someone's been here before"],
+        body: (helper: string, title: string) =>
+          `${helper} has dealt with "${title}". Ask them what worked.`,
+      },
+      cycleOpen: {
+        titles: ["Bring a problem", "Board is open for problems", "What's slowing you down?"],
+        body: (label: string) =>
+          `${label} is open. Share one tech problem you've hit lately. Two lines is enough.`,
+      },
+    }
+  : BASE_COPY;
+
 const truncate = (s: string, n = 100) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+
+// ─── Slack copy ──────────────────────────────────────────────
+// The channel only hears about guild-wide moments: a new problem, a cycle
+// opening, a digest. Votes, comments, likes and sparks are about one person
+// and stay as push; in a channel of thirty they would be noise.
+// No random title pool here: a channel reads top to bottom, and the same shape
+// every time is what makes it scannable.
+const SLACK = {
+  newTopic: (author: string, title: string, id: string) =>
+    PROBLEM_MONTH
+      ? `*New problem* from ${escapeSlack(author)}\n> ${escapeSlack(title)}\nHit this too? ${appLink(`/board/${id}`, "Say so on GuildBoard")}`
+      : `*New topic* from ${escapeSlack(author)}\n> ${escapeSlack(title)}\n${appLink(`/board/${id}`, "Vote on GuildBoard")}`,
+  cycleOpen: (label: string) =>
+    PROBLEM_MONTH
+      ? `*${escapeSlack(label)} is open.* Share one tech problem you've hit lately. Two lines is enough. ${appLink("/board?share=1", "Share a problem")}`
+      : `*${escapeSlack(label)} is open.* ${appLink("/board", "Pitch a topic")}`,
+  meetingReminder: (when: string, count: number, top: { id: string; title: string }[]) => {
+    const lines = [
+      `*Guild tomorrow, ${escapeSlack(when)}.* ${count === 0 ? 'Nothing on the board yet.' : `${count} on the board.`}`,
+    ];
+    if (top.length) {
+      lines.push("Most wanted so far:");
+      top.forEach((t, i) => lines.push(`${i + 1}. ${appLink(`/board/${t.id}`, truncate(t.title, 90))}`));
+    }
+    lines.push(`Bring one thing to talk about: ${appLink("/board?share=1", "add yours")}`);
+    return lines.join("\n");
+  },
+  systemTopics: (label: string, topics: { id: string; title: string }[]) =>
+    [
+      `*GuildBoard suggested ${topics.length} ${topics.length === 1 ? 'topic' : 'topics'} for ${escapeSlack(label)}.* Mark the ones you want to talk about.`,
+      ...topics.map(t => `• ${appLink(`/board/${t.id}`, truncate(t.title, 90))}`),
+    ].join("\n"),
+  bytes: (label: string, parts: string[]) =>
+    `*Bytes · ${escapeSlack(label)}*${parts.length ? ` · ${parts.join(", ")}` : ""}\n${appLink("/bytes", "Read it on GuildBoard")}`,
+};
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -235,6 +300,11 @@ export async function notifyOnNewTopic(args: { topicId: string; actorId: string 
   const author = topic.is_anonymous ? "Kisi guild member" : await getUsername(admin, args.actorId);
   const url = `/board/${topic.id}`;
 
+  // Slack goes out regardless of how many members have push turned on.
+  const slack = postToSlack({
+    text: SLACK.newTopic(topic.is_anonymous ? "a guild member" : author, truncate(topic.title, 140), topic.id),
+  });
+
   // Broadcast to everyone with a subscription except the author.
   const { data: subs } = await admin
     .from("push_subscriptions")
@@ -242,14 +312,17 @@ export async function notifyOnNewTopic(args: { topicId: string; actorId: string 
     .neq("user_id", args.actorId);
 
   const userIds = Array.from(new Set((subs ?? []).map((s) => s.user_id)));
-  if (!userIds.length) return;
-
-  await sendPushToUsers(userIds, {
-    title: pick(COPY.newTopic.titles),
-    body: COPY.newTopic.body(author, truncate(topic.title, 60)),
-    url,
-    tag: `topic:${topic.id}`,
-  });
+  await Promise.all([
+    slack,
+    userIds.length
+      ? sendPushToUsers(userIds, {
+          title: pick(COPY.newTopic.titles),
+          body: COPY.newTopic.body(author, truncate(topic.title, 60)),
+          url,
+          tag: `topic:${topic.id}`,
+        })
+      : null,
+  ]);
 }
 
 export async function notifyOnVote(args: { topicId: string; actorId: string }) {
@@ -382,12 +455,15 @@ async function broadcast(payload: Parameters<typeof sendPushToUsers>[1], exclude
 }
 
 export async function notifyOnCycleOpen(args: { label: string }) {
-  await broadcast({
-    title: pick(COPY.cycleOpen.titles),
-    body: COPY.cycleOpen.body(args.label),
-    url: "/board",
-    tag: `cycle-open:${args.label}`,
-  });
+  await Promise.all([
+    postToSlack({ text: SLACK.cycleOpen(args.label) }),
+    broadcast({
+      title: pick(COPY.cycleOpen.titles),
+      body: COPY.cycleOpen.body(args.label),
+      url: "/board",
+      tag: `cycle-open:${args.label}`,
+    }),
+  ]);
 }
 
 export async function notifyOnCycleEnded(args: { label: string }) {
@@ -409,14 +485,79 @@ export async function notifyOnBytesPublished(args: {
   count: number;
   mix?: { blog: number; news: number; video: number; hn: number };
 }) {
-  await broadcast({
-    title: pick(COPY.bytesPublished.titles),
-    body: COPY.bytesPublished.body(args.label, args.count, describeMix(args.mix)),
-    url: "/bytes",
-    // One notification per digest label, so a re-run or a second device does
-    // not buzz twice for the same week.
-    tag: `bytes:${args.label}`,
-  });
+  // With Bytes hidden this push would land on a redirect.
+  if (HIDE_BYTES) return;
+  const parts = describeMix(args.mix);
+  await Promise.all([
+    postToSlack({ text: SLACK.bytes(args.label, parts) }),
+    broadcast({
+      title: pick(COPY.bytesPublished.titles),
+      body: COPY.bytesPublished.body(args.label, args.count, parts),
+      url: "/bytes",
+      // One notification per digest label, so a re-run or a second device does
+      // not buzz twice for the same week.
+      tag: `bytes:${args.label}`,
+    }),
+  ]);
+}
+
+/**
+ * The day before the session: the one message most likely to get people to
+ * turn up with something to say. Goes to Slack and to every push subscriber.
+ * The caller (a daily cron) decides whether today is the day.
+ */
+export async function notifyMeetingReminder(args: {
+  cycleId: string;
+  when: string;
+}) {
+  const admin = createAdminClient();
+  const [{ count }, { data: top }] = await Promise.all([
+    admin
+      .from("topics")
+      .select("id", { count: "exact", head: true })
+      .eq("cycle_id", args.cycleId)
+      .eq("is_deleted", false),
+    admin
+      .from("topics")
+      .select("id, title")
+      .eq("cycle_id", args.cycleId)
+      .eq("is_deleted", false)
+      .order("score", { ascending: false })
+      .limit(3),
+  ]);
+  const n = count ?? 0;
+
+  await Promise.all([
+    postToSlack({ text: SLACK.meetingReminder(args.when, n, top ?? []) }),
+    broadcast({
+      title: `Guild tomorrow, ${args.when}`,
+      body:
+        n === 0
+          ? "Nothing on the board yet. Bring one thing to talk about."
+          : `${n} on the board. Add yours, or mark what you want to talk about.`,
+      url: "/board",
+      tag: `meeting:${args.cycleId}`,
+    }),
+  ]);
+}
+
+/**
+ * GuildBoard posted its monthly suggestions. One message for the batch, not
+ * one per topic.
+ */
+export async function notifyOnSystemTopics(args: {
+  label: string;
+  topics: { id: string; title: string }[];
+}) {
+  await Promise.all([
+    postToSlack({ text: SLACK.systemTopics(args.label, args.topics) }),
+    broadcast({
+      title: "New on the board from GuildBoard",
+      body: `${args.topics.length} suggested ${args.topics.length === 1 ? "topic" : "topics"} for ${args.label}. Mark what you want to talk about.`,
+      url: "/board",
+      tag: `system-topics:${args.label}`,
+    }),
+  ]);
 }
 
 /** "6 reads, 2 talks, 2 from the news" - omitting whatever came back empty. */

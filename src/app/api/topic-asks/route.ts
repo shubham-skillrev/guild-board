@@ -47,6 +47,10 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     asks: askRows,
+    // Everyone you can @mention in a comment. Mentioning is open to all;
+    // only `candidates` below can also receive a direct ask. Placeholder
+    // usernames (user_xxxxxxxx, before setup) are left out.
+    members: (members ?? []).filter(m => m.id !== user.id && m.username && !m.username.startsWith('user_')),
     // Already-asked members are excluded so nobody gets piled on.
     candidates: (members ?? []).filter(m => m.id !== user.id && !askedIds.has(m.id)),
     remaining: Math.max(0, 2 - myAskCount),

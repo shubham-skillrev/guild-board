@@ -9,6 +9,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { notifyOnNewTopic, notifyAfterResponse } from '@/lib/push/notify'
 import { serializeTopic } from '@/lib/utils/anonymity'
+import { isInteractionLocked } from '@/lib/utils/cycle'
+import { PROBLEM_MONTH } from '@/lib/experiment'
+import { ALL_CATEGORIES } from '@/lib/constants'
+import type { Cycle } from '@/types'
 import type { CategoryTag } from '@/types'
 
 export async function GET(request: Request) {
@@ -109,13 +113,16 @@ export async function POST(request: Request) {
   if (!title?.trim() || !description?.trim() || !category) {
     return NextResponse.json({ error: 'title, description, and category are required' }, { status: 400 })
   }
+  if (!ALL_CATEGORIES.includes(category)) {
+    return NextResponse.json({ error: 'Invalid category' }, { status: 400 })
+  }
   if (title.length > 80) return NextResponse.json({ error: 'Title too long' }, { status: 400 })
   if (description.length > 1000) return NextResponse.json({ error: 'Description too long (max 1000 characters)' }, { status: 400 })
 
   // Get current open cycle - most recent by year/month
   const { data: cycle } = await supabase
     .from('cycles')
-    .select('id, status')
+    .select('id, status, meeting_at')
     .eq('status', 'open')
     .order('year', { ascending: false })
     .order('month', { ascending: false })
@@ -124,6 +131,10 @@ export async function POST(request: Request) {
 
   if (!cycle) {
     return NextResponse.json({ error: 'No open cycle' }, { status: 400 })
+  }
+  // Same rule the board applies: writing closes when the meeting starts.
+  if (isInteractionLocked(cycle as Cycle)) {
+    return NextResponse.json({ error: 'The meeting has started. Submissions reopen next cycle.' }, { status: 409 })
   }
 
   // DB trigger enforces 1 topic per user per cycle - insert will fail if limit exceeded
@@ -142,7 +153,7 @@ export async function POST(request: Request) {
 
   if (error) {
     if (error.message.includes('Topic limit reached')) {
-      return NextResponse.json({ error: 'You have already submitted a topic this cycle' }, { status: 409 })
+      return NextResponse.json({ error: PROBLEM_MONTH ? "You've already shared a problem this cycle" : 'You have already submitted a topic this cycle' }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

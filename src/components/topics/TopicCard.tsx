@@ -1,24 +1,19 @@
 'use client'
 
-import { ArrowFatUp, ChatCircle, Handshake } from '@phosphor-icons/react/dist/ssr'
+import { ArrowFatUp, Handshake } from '@phosphor-icons/react/dist/ssr'
 import { useState } from 'react'
 import Link from 'next/link'
 import { SignalRow } from '@/components/topics/SignalRow'
 import { cn } from '@/lib/utils/cn'
-import { CATEGORY_LABELS } from '@/lib/constants'
-import { UserAvatar } from '@/components/ui/UserAvatar'
+import { CATEGORY_LABELS, CATEGORY_TONE } from '@/lib/constants'
+import { kindOf, reactionFor } from '@/lib/kinds'
+import { AuthorMark } from '@/components/topics/AuthorMark'
 import { Badge } from '@/components/ui/Badge'
+import { PROBLEM_MONTH, problemBlurb } from '@/lib/experiment'
+import { timeAgo } from '@/lib/utils/time'
 import type { Topic } from '@/types'
 
-type BadgeTone = React.ComponentProps<typeof Badge>['tone']
 import type { CyclePhase } from '@/hooks/useCurrentCycle'
-
-const CATEGORY_TONE: Record<string, BadgeTone> = {
-  deep_dive: 'indigo',
-  discussion: 'saffron',
-  blog_idea: 'matcha',
-  project_showcase: 'wisteria',
-}
 
 interface TopicCardProps {
   topic: Topic & { user_has_voted?: boolean; user_has_contribed?: boolean }
@@ -66,6 +61,7 @@ export function TopicCard({
      at the real edge, whatever the viewport is. */
 
   const hasVoted = !!topic.user_has_voted
+  const reaction = reactionFor(topic.category)
   const hasContributed = !!topic.user_has_contribed
   const voteDisabled = votePending || (!hasVoted && votesRemaining === 0)
   const contribDisabled = contribPending || (!hasContributed && contribsRemaining === 0)
@@ -86,132 +82,106 @@ export function TopicCard({
     try { await onContrib(topic.id, cycleId, hasContributed) } finally { setContribPending(false) }
   }
 
+  /* The wall card from the landing page, made real: kind first, then the
+     title, a short blurb, and one quiet footer of counts. Flex column so the
+     footer sits on the bottom edge and lines up across a grid row. */
   const cardClassName = cn(
-    'group flex gap-3 sm:gap-4 bg-paper/50 border border-border rounded-(--radius-card) p-(--pad-card) transition-colors press',
-    'hover:border-border-strong hover:bg-paper/80',
-    topic.is_selected && 'ring-1 ring-saffron/30 border-saffron/20',
+    'group flex flex-col h-full bg-paper border border-border rounded-(--radius-card) p-5 transition-[border-color,box-shadow,transform]',
+    'hover:border-border-strong hover:shadow-[0_12px_32px_-16px_var(--shadow-tint-strong)]',
+    topic.is_selected && 'border-saffron/40',
     (votePending || contribPending) && 'opacity-75',
   )
 
+  const pill = 'press inline-flex items-center gap-1.5 h-8 px-3 rounded-full border text-[13px] font-medium transition-colors pointer-coarse:h-10 disabled:cursor-not-allowed'
+
   const cardContent = (
     <>
-      {/* Rank */}
-      {/* Medals for the podium. This is a monthly contest between colleagues,
-          and the top three being visibly the top three is the point of ranking
-          them at all. */}
-      <div className="hidden sm:flex flex-col items-center pt-0.5 shrink-0 w-8">
-        <span className={cn(
-          'text-sm font-semibold tabular',
-          rank <= 3 ? 'text-saffron' : 'text-cha',
-        )}>
-          {rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `#${rank}`}
-        </span>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 min-w-0 space-y-1.5">
-        {/* Badges */}
+      <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge tone={categoryTone} dot>{CATEGORY_LABELS[topic.category]}</Badge>
-          {topic.status === 'carry_forward' && <Badge tone="indigo">↩ Returning</Badge>}
-          {topic.is_selected && <Badge tone="saffron">★ Selected</Badge>}
+          {/* Kinds always show: a mixed board is scanned by kind. The old
+              categories only outside Problem Month. */}
+          {(!PROBLEM_MONTH || kindOf(topic.category)) && (
+            <Badge tone={categoryTone} dot>{CATEGORY_LABELS[topic.category]}</Badge>
+          )}
+          {topic.is_selected && <Badge tone="saffron">On the agenda</Badge>}
+          {topic.status === 'carry_forward' && <Badge tone="indigo">Returning</Badge>}
         </div>
-
-        {/* Title and blurb are one line each. A board is a list you scan for
-            the one topic you care about, and two wrapped lines per field turned
-            six cards into a page and a half of scrolling. The full text is one
-            tap away. */}
-        {/* The display serif, on purpose. It is the page voice everywhere else
-            in the product, and a board is a list of titles - the one place a
-            card title is the content rather than a label on it. */}
-        <h3 className="font-serif text-title-3 text-ink group-hover:text-saffron transition-colors truncate">
-          {topic.title}
-        </h3>
-
-        <p className="text-body text-ink-soft truncate">
-          {topic.description}
-        </p>
-
-        {/* One metadata line: who, how much talk, and the one-tap signals.
-            The signals used to sit in a row of their own under this, four
-            labelled pills wide, which read as a second card stapled to the
-            first. Compact mode drops the labels so they weigh the same as the
-            comment count they sit beside. */}
-        <div className="flex items-center gap-3 pt-1 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <UserAvatar username={topic.author_username ?? 'user'} size={18} />
-            <span className="type-caption text-ink-soft">@{topic.author_username}</span>
-          </div>
-          <span className="inline-flex items-center gap-1 type-caption text-cha">
-            <ChatCircle className="w-3.5 h-3.5" />
-            {commentCount > 0 ? commentCount : 'Discuss'}
+        {!PROBLEM_MONTH && (
+          <span className={cn('font-mono text-[12px] tabular-nums pt-0.5', rank <= 3 ? 'text-saffron' : 'text-cha')}>
+            #{rank}
           </span>
-          <SignalRow
-            topicId={topic.id}
-            compact
-            initialCounts={signalCounts}
-            initialMine={mySignals}
-          />
-        </div>
+        )}
       </div>
 
-      <div className="flex flex-col items-center gap-1.5 shrink-0 pt-0.5 justify-end">
+      <h3 className="mt-3.5 text-[16px] font-semibold leading-snug tracking-[-0.015em] text-ink line-clamp-3">
+        {topic.title}
+      </h3>
+      <p className="mt-1.5 text-[13px] leading-relaxed text-cha line-clamp-2">
+        {problemBlurb(topic.description)}
+      </p>
+
+      <div className="mt-2.5 flex items-center gap-1.5 text-[12px] text-cha">
+        <AuthorMark username={topic.author_username} isSystem={topic.is_system} />
+        <span aria-hidden>·</span>
+        <time dateTime={topic.created_at} className="shrink-0">{timeAgo(topic.created_at)}</time>
+      </div>
+
+      {/* mt-auto: whatever the text height, the counts sit on the bottom edge. */}
+      {/* One row, never wrapping: the counts on the left, replies pinned right. */}
+      <div className="mt-auto pt-4 flex items-center gap-1.5">
         <button
           onClick={handleVote}
           disabled={!canVote || voteDisabled}
-          aria-label={hasVoted ? 'Remove vote' : 'Upvote'}
+          aria-pressed={hasVoted}
+          aria-label={
+            PROBLEM_MONTH
+              ? hasVoted ? `${reaction.done} (unmark)` : reaction.idle
+              : hasVoted ? 'Remove vote' : 'Upvote'
+          }
+          title={PROBLEM_MONTH ? (hasVoted ? reaction.done : reaction.idle) : undefined}
           className={cn(
-            /* The two counters are the whole reason a member opens the board on
-               a phone, so they are sized as thumb targets first: 48x60 on
-               touch, trimmed to 44x56 where there is a cursor. */
-            'flex flex-col items-center justify-center gap-0.5 w-12 sm:w-11 h-15 sm:h-14 rounded-(--radius-card) border text-center transition-colors',
+            pill,
             hasVoted
-              ? 'bg-saffron/15 border-saffron/50 text-saffron'
+              ? 'bg-saffron-light border-saffron/40 text-saffron'
               : canVote && !voteDisabled
-                ? 'bg-kinu/40 border-border text-ink-soft hover:border-saffron/45 hover:text-saffron hover:bg-saffron/10'
+                ? 'border-border text-ink-soft hover:border-saffron/40 hover:text-saffron'
                 : 'border-border text-ink-muted',
-            votePending
-              ? 'opacity-60 cursor-wait'
-              : canVote && !voteDisabled
-                ? 'cursor-pointer'
-                : 'cursor-not-allowed',
+            votePending && 'opacity-60 cursor-wait',
           )}
         >
-          {votePending ? (
-            <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
-          ) : hasVoted ? (
-            <ArrowFatUp className="w-5 h-5" weight="fill" />
-          ) : (
-            <ArrowFatUp className="w-5 h-5" />
-          )}
-          <span className="text-[15px] font-bold tabular-nums leading-none">{topic.vote_count}</span>
+          {votePending
+            ? <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
+            : <ArrowFatUp className="w-3.5 h-3.5" weight={hasVoted ? 'fill' : 'regular'} />}
+          <span className="tabular-nums font-semibold">{topic.vote_count}</span>
         </button>
 
         <button
           onClick={handleContrib}
           disabled={!canContrib || contribDisabled}
-          aria-label={hasContributed ? 'Withdraw' : "I'll contribute"}
+          aria-pressed={hasContributed}
+          aria-label={hasContributed ? 'Withdraw' : PROBLEM_MONTH ? reaction.contrib : "I'll contribute"}
+          title={PROBLEM_MONTH ? (hasContributed ? reaction.contribDone : reaction.contrib) : undefined}
           className={cn(
-            'flex items-center justify-center gap-1 w-12 sm:w-11 h-10 sm:h-9 rounded-(--radius-control) border text-footnote font-medium transition-colors',
+            pill,
             hasContributed
-              ? 'bg-matcha/15 border-matcha/50 text-matcha'
+              ? 'bg-matcha-light border-matcha/40 text-matcha'
               : canContrib && !contribDisabled
-                ? 'bg-kinu/40 border-border text-ink-soft hover:border-matcha/45 hover:text-matcha hover:bg-matcha/10'
+                ? 'border-border text-ink-soft hover:border-matcha/40 hover:text-matcha'
                 : 'border-border text-ink-muted',
-            contribPending
-              ? 'opacity-60 cursor-wait'
-              : canContrib && !contribDisabled
-                ? 'cursor-pointer'
-                : 'cursor-not-allowed',
+            contribPending && 'opacity-60 cursor-wait',
           )}
         >
-          {contribPending ? (
-            <span className="w-3 h-3 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
-          ) : (
-            <Handshake className={cn('w-4 h-4', hasContributed && 'scale-110')} />
-          )}
+          {contribPending
+            ? <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
+            : <Handshake className="w-3.5 h-3.5" weight={hasContributed ? 'fill' : 'regular'} />}
           <span className="tabular-nums font-semibold">{topic.contrib_count}</span>
         </button>
+
+        <SignalRow topicId={topic.id} compact initialCounts={signalCounts} initialMine={mySignals} />
+
+        <span className="ml-auto shrink-0 pl-2 text-[13px] text-cha tabular-nums">
+          {commentCount === 0 ? 'Discuss' : `${commentCount} ${commentCount === 1 ? 'reply' : 'replies'}`}
+        </span>
       </div>
     </>
   )

@@ -13,8 +13,16 @@ function resolveAppOrigin(): string {
   return configured.replace(/\/$/, '')
 }
 
-export async function POST() {
+// Where to land after sign-in, carried in a short-lived cookie rather than on
+// the OAuth redirect URL, so the Supabase redirect allowlist stays one exact
+// entry. Only known intents are accepted: this is not an open redirect.
+const INTENT_COOKIE = 'gb_intent'
+const INTENTS = new Set(['share'])
+
+export async function POST(request: Request) {
   const appOrigin = resolveAppOrigin()
+  const form = await request.formData().catch(() => null)
+  const intent = form?.get('intent')
   const supabase = await createClient()
 
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -30,5 +38,15 @@ export async function POST() {
   }
 
   // 302 (not default 307) so the browser converts to GET when following to Supabase OAuth
-  return NextResponse.redirect(data.url, { status: 302 })
+  const response = NextResponse.redirect(data.url, { status: 302 })
+  if (typeof intent === 'string' && INTENTS.has(intent)) {
+    response.cookies.set(INTENT_COOKIE, intent, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: appOrigin.startsWith('https://'),
+      path: '/api/auth',
+      maxAge: 600,
+    })
+  }
+  return response
 }
