@@ -34,6 +34,8 @@ run, or the repo stops describing the database.
 |---|---|---|---|
 | 021 | `021_bytes_feed_html.sql` | `content_html`, for bodies the feed syndicated | Yes — additive only |
 | 022 | `022_drop_extractor_columns.sql` | drops the four retired extractor columns | **Destructive** — deletes 6 cached bodies |
+| 023 | `023_problem_month_unlimited_signals.sql` | drops the per-cycle vote and contribution caps for Problem Month | Yes — drops two triggers, keeps their functions |
+| 024 | `024_discussion_kinds.sql` | five discussion kinds (problem, learned, new tech, take, show & tell) allowed in `category` on topics and the idea bank | Yes — widens two CHECKs, old values stay valid |
 
 > **021 is required by what is on `main` right now.** The generator writes
 > `content_html` on every insert, so until this is applied **every digest
@@ -43,6 +45,16 @@ run, or the repo stops describing the database.
 >
 > It adds a column and drops nothing, so applying it cannot break the running
 > deployment.
+
+> **023 goes with the Problem Month branch.** Apply it after 021, before the
+> announcement. It is independent of 022. The code already treats both signals
+> as unlimited while `PROBLEM_MONTH` is on; without 023 a member hits a raw
+> "limit reached" error at their fourth vote. The file header has the two
+> statements that put the caps back.
+
+> **024 must be applied before the new share form ships.** The form posts
+> `category = 'problem'` (or another kind), which the old CHECK rejects, so
+> without it every new post fails. It only widens the allowed values.
 
 > **022 can wait indefinitely.** Run it only after 021 is applied and a digest
 > has generated cleanly. It makes rollback to any earlier deployment impossible,

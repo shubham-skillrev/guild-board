@@ -6,6 +6,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { RESERVED_USERNAMES } from '@/lib/system/identity'
 
 const USERNAME_REGEX = /^[a-z0-9_]{3,30}$/
 
@@ -34,6 +35,9 @@ export async function POST(request: Request) {
   }
 
   const normalizedUsername = username.toLowerCase()
+  if (RESERVED_USERNAMES.has(normalizedUsername)) {
+    return NextResponse.json({ error: 'That username is reserved' }, { status: 400 })
+  }
 
   const { data: profile } = await supabase
     .from('users')

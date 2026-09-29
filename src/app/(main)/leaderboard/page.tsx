@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { SYSTEM_USERNAME } from '@/lib/system/identity'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { Lightbulb, Users, CheckCircle } from '@phosphor-icons/react/dist/ssr'
@@ -132,7 +133,8 @@ async function getLeaderboard(): Promise<{
       }
     })
     // Only people who actually did something place. A score of 0 never ranks.
-    .filter(e => e.guild_score > 0)
+    // GuildBoard's own suggestions are not a person's work.
+    .filter(e => e.guild_score > 0 && e.username !== SYSTEM_USERNAME)
     .sort((a, b) => b.guild_score - a.guild_score)
 
   // Check for active spark window:
@@ -187,7 +189,7 @@ export default async function LeaderboardPage() {
     <div className="px-5 md:px-10 py-8 w-full max-w-4xl mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="type-display font-serif text-ink">
+        <h1 className="type-display text-ink">
           Top Builders
         </h1>
         <p className="type-body text-ink-soft mt-1.5">
@@ -215,10 +217,10 @@ export default async function LeaderboardPage() {
       )}
 
       {hallOfFame.length > 0 && (
-        <section className="mb-8 rounded-[1.75rem] border border-saffron/20 bg-linear-to-br from-saffron-light/30 via-paper/90 to-wisteria-light/25 p-5 md:p-6 shadow-[0_24px_70px_rgba(0,0,0,0.28)] overflow-hidden">
+        <section className="mb-8 rounded-(--radius-card) border border-saffron/20 bg-linear-to-br from-saffron-light/30 via-paper/90 to-wisteria-light/25 p-5 md:p-6 shadow-[0_24px_70px_rgba(0,0,0,0.28)] overflow-hidden">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="font-serif text-xl md:text-2xl text-ink">Hall of Fame</h2>
+              <h2 className="font-serif text-[1.75rem] md:text-[2rem] font-normal tracking-[-0.01em] text-ink">Hall of Fame</h2>
               <p className="text-[12px] text-ink-soft mt-1">The most celebrated builders in the guild.</p>
             </div>
             <span className="text-[11px] font-semibold tracking-[0.24em] uppercase text-saffron/80">Top 3</span>
@@ -252,7 +254,7 @@ export default async function LeaderboardPage() {
             )}
 
             {hallOfFame[0] && (
-              <div className="order-1 lg:order-2 rounded-[1.75rem] border border-saffron/25 bg-linear-to-b from-saffron-light/50 to-paper/90 p-5 md:p-6 shadow-[0_22px_50px_rgba(232,145,58,0.12)] relative">
+              <div className="order-1 lg:order-2 rounded-(--radius-card) border border-saffron/25 bg-linear-to-b from-saffron-light/50 to-paper/90 p-5 md:p-6 shadow-[0_22px_50px_rgba(232,145,58,0.12)] relative">
                 <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-saffron/50 to-transparent" />
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-3xl">🥇</span>
