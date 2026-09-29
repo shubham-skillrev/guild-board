@@ -23,25 +23,36 @@ function resolveAppOrigin(request: Request): string {
   return `${proto}://${host}`
 }
 
+// Set by /api/auth/login when sign-in started from "Share a problem".
+const INTENT_COOKIE = 'gb_intent'
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const appOrigin = resolveAppOrigin(request)
+  const intent = request.headers.get('cookie')?.match(/(?:^|;\s*)gb_intent=([^;]+)/)?.[1]
+  const share = intent === 'share'
+  // Every exit from here clears the intent, success or not.
+  const redirect = (url: string) => {
+    const res = NextResponse.redirect(url)
+    if (intent) res.cookies.set(INTENT_COOKIE, '', { path: '/api/auth', maxAge: 0 })
+    return res
+  }
   const code = searchParams.get('code')
 
   if (!code) {
-    return NextResponse.redirect(`${appOrigin}/login?error=auth_failed`)
+    return redirect(`${appOrigin}/login?error=auth_failed`)
   }
 
   const supabase = await createClient()
   const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error || !data.user) {
-    return NextResponse.redirect(`${appOrigin}/login?error=auth_failed`)
+    return redirect(`${appOrigin}/login?error=auth_failed`)
   }
 
   if (!isAllowedEmailDomain(data.user.email ?? null)) {
     await supabase.auth.signOut()
-    return NextResponse.redirect(`${appOrigin}/login?error=domain_not_allowed`)
+    return redirect(`${appOrigin}/login?error=domain_not_allowed`)
   }
 
   const admin = createAdminClient()
@@ -62,14 +73,14 @@ export async function GET(request: Request) {
     })
     if (insertError) {
       console.error('Insert Error details:', insertError)
-      return NextResponse.redirect(`${appOrigin}/login?error=user_creation_failed`)
+      return redirect(`${appOrigin}/login?error=user_creation_failed`)
     }
-    return NextResponse.redirect(`${appOrigin}/board?setup=username`)
+    return redirect(`${appOrigin}/board?setup=username${share ? '&share=1' : ''}`)
   }
 
   if (!existingUser.username || existingUser.username.startsWith('user_')) {
-    return NextResponse.redirect(`${appOrigin}/board?setup=username`)
+    return redirect(`${appOrigin}/board?setup=username${share ? '&share=1' : ''}`)
   }
 
-  return NextResponse.redirect(`${appOrigin}/board`)
+  return redirect(`${appOrigin}/board${share ? '?share=1' : ''}`)
 }

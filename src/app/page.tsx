@@ -1,121 +1,141 @@
 import Link from 'next/link'
-import { SignupForm } from '@/components/auth/SignupForm'
-import { SiteFooter } from '@/components/layout/SiteFooter'
+import { BoardWall, Marker } from '@/components/landing/BoardWall'
+import { SessionCountdown } from '@/components/landing/SessionCountdown'
+import { ShareCta } from '@/components/landing/ShareCta'
+import {
+  Accent,
+  WhatPeopleBring,
+  HowItWorks,
+  ThisMonth,
+  BetweenSessions,
+  ClosingCta,
+} from '@/components/landing/Sections'
+import { Wordmark } from '@/components/ui/Wordmark'
+import { ThemeToggle } from '@/components/ui/ThemeToggle'
+import { PROBLEM_MONTH } from '@/lib/experiment'
 import { createClient } from '@/lib/supabase/server'
+import { getGuildStatus, getLatestBytes } from '@/lib/landing/guildStatus'
 
+/**
+ * GuildBoard by SkillRev: where SkillRev talks tech.
+ *
+ * The page sells a monthly ritual, not an app. Minimal on purpose, in the
+ * SkillRev family alongside Aiden: plain headings with one italic accent
+ * word, ink buttons, whitespace instead of dividers, and a single moving
+ * thing (the composer in the hero).
+ */
 export default async function LandingPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const [{ data: { user } }, status, bytes] = await Promise.all([
+    supabase.auth.getUser(),
+    getGuildStatus(),
+    getLatestBytes(),
+  ])
   const isAuthed = !!user
 
   return (
     <div className="min-h-screen bg-parchment flex flex-col font-sans">
-      {/* Nav */}
-      <header className="flex items-center justify-between px-5 md:px-10 h-14 border-b border-border max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-2.5">
-          <span className="text-saffron text-base">◈</span>
-          <span className="font-serif font-bold text-ink text-base tracking-tight">
-            GuildBoard
-          </span>
-        </div>
-        <Link
-          href={isAuthed ? '/board' : '/login'}
-          className="px-4 py-2 text-[13px] font-semibold text-ink bg-paper border border-border-strong rounded-lg hover:bg-kinu hover:border-cha transition-all"
-        >
-          {isAuthed ? 'Continue to Board' : 'Sign in'}
-        </Link>
-      </header>
-
-      {/* Hero */}
-      <main className="flex-1 flex flex-col lg:flex-row items-center justify-center pattern-asanoha glow-saffron px-5 md:px-10 gap-16 py-16 lg:py-0">
-        <div className="flex-1 max-w-xl text-center lg:text-left space-y-8">
-          {/* Tagline chip */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sumi border border-border text-[11px] text-ink-soft uppercase tracking-widest">
-            <span className="w-1.5 h-1.5 rounded-full bg-matcha animate-pulse-soft" />
-            Engineering Guild Platform
-          </div>
-
-          <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl font-bold text-ink tracking-tight leading-[1.1]">
-            Where Guilds Shape<br />
-            <span className="text-saffron italic font-normal">What&apos;s Next</span>
-          </h1>
-
-          <p className="text-base md:text-lg text-ink-soft leading-relaxed max-w-md mx-auto lg:mx-0">
-            Surface ideas. Rally votes. Ship outcomes.
-            Your monthly engineering guild meeting, reinvented.
-          </p>
-
-          <div className="lg:hidden">
+      <header className="sticky top-0 z-(--z-chrome) border-b border-border bg-parchment/80 backdrop-blur-xl">
+        <div className="flex items-center justify-between h-16 px-(--pad-page-x) max-w-(--measure-wide) mx-auto">
+          <Link href="/" aria-label="GuildBoard by SkillRev, home">
+            <Wordmark />
+          </Link>
+          <nav className="flex items-center gap-2 sm:gap-6 text-[14px]">
+            <a href="#how" className="hidden sm:inline text-ink-soft hover:text-ink transition-colors">
+              How it works
+            </a>
+            <ThemeToggle />
             <Link
               href={isAuthed ? '/board' : '/login'}
-              className="inline-flex items-center justify-center px-5 py-2.5 text-[13px] font-semibold text-parchment bg-saffron rounded-lg hover:bg-saffron/90 transition-all"
+              className="press inline-flex items-center h-9 px-4 rounded-full bg-ink text-parchment font-medium hover:bg-ink/85 transition-colors"
             >
-              {isAuthed ? 'Continue to Board' : 'Get Started'}
+              {isAuthed ? 'Open the board' : 'Sign in'}
             </Link>
+          </nav>
+        </div>
+      </header>
+
+      <main className="flex-1">
+        {/* ─── Hero ───
+            Centred: a live countdown pill, a two-tone headline, one action.
+            Then the stat strip and a wall of example posts as the picture. */}
+        <section aria-labelledby="hero-title" className="relative overflow-hidden">
+          <div aria-hidden className="absolute inset-x-0 top-0 h-[520px] glow-saffron" />
+          <div className="relative px-(--pad-page-x) max-w-(--measure-wide) mx-auto pt-16 md:pt-24 text-center">
+            <SessionCountdown
+              meetingAt={status.meetingAt}
+              fallback={
+                status.nextSession
+                  ? `Next guild session · ${status.nextSession.date}${status.nextSession.time ? `, ${status.nextSession.time}` : ''}`
+                  : 'Next guild session date to be announced'
+              }
+            />
+
+            <h1
+              id="hero-title"
+              className="mt-7 mx-auto max-w-[15ch] sm:max-w-none text-[2.75rem] sm:text-[3.75rem] lg:text-[4.5rem] font-semibold leading-[1.02] tracking-[-0.045em] text-balance"
+            >
+              <span className="text-ink">Where SkillRev <Marker><Accent>talks</Accent></Marker> tech.</span>
+              <br />
+              <span className="text-ink-muted/70">Once a month, out loud.</span>
+            </h1>
+
+            <p className="mt-7 mx-auto max-w-[36rem] text-[18px] leading-[1.6] text-ink-soft">
+              New tech, old tech, something you learned, a problem you’re stuck on. Put it on the
+              board in two lines, then talk it through at the guild.
+            </p>
+
+            <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+              <ShareCta isAuthed={isAuthed} boardOpen={status.isOpen} />
+              <a
+                href="#how"
+                className="press inline-flex items-center h-11 px-5 rounded-full border border-border-strong bg-paper text-[14px] font-medium text-ink hover:bg-kinu/50 transition-colors"
+              >
+                How it works
+              </a>
+            </div>
+            <p className="mt-5 text-[13px] text-cha">
+              <s className="decoration-vermillion/70 decoration-2">Not another slide deck.</s>{' '}
+              Just people talking about what they build.
+            </p>
+
+            {/* The stat strip: the whole ask, in numbers. */}
+            <dl className="mt-14 mx-auto max-w-[46rem] grid grid-cols-2 sm:grid-cols-4 rounded-(--radius-card) border border-border bg-paper divide-x divide-y sm:divide-y-0 divide-border overflow-hidden">
+              {[
+                ['5', 'kinds of discussion'],
+                ['2', 'lines to post'],
+                ['1', 'hour, monthly'],
+                [status.isOpen ? String(status.problemCount) : '0', status.isOpen ? 'on the board now' : 'slides required'],
+              ].map(([n, label]) => (
+                <div key={label} className="px-4 py-5">
+                  <dt className="sr-only">{label}</dt>
+                  <dd>
+                    <span className="block font-mono text-[26px] font-medium tabular-nums text-ink">{n}</span>
+                    <span className="mt-1 block text-[12px] text-cha">{label}</span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
 
-          {/* Three pillars - simple cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-2 sm:pt-4">
-            <div className="group p-4 sm:p-5 bg-paper/55 border border-border hover:border-saffron/35 transition-all rounded-2xl sm:rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.22)] sm:shadow-none">
-              <div className="flex items-center justify-center sm:block gap-3 sm:gap-0">
-                <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl sm:rounded-lg bg-saffron/12 flex items-center justify-center text-saffron text-base sm:text-sm shrink-0">▲</div>
-                <div className="text-left">
-                  <h3 className="text-[15px] sm:text-sm font-semibold text-ink mb-1">Upvote Ideas</h3>
-                  <p className="text-[13px] sm:text-xs text-ink-soft leading-relaxed">
-                    3 votes per cycle. Choose wisely.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="group p-4 sm:p-5 bg-paper/55 border border-matcha/35 sm:border-border hover:border-matcha/45 transition-all rounded-2xl sm:rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.22)] sm:shadow-none">
-              <div className="flex items-center justify-center sm:block gap-3 sm:gap-0">
-                <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl sm:rounded-lg bg-matcha/12 flex items-center justify-center text-matcha text-base sm:text-sm shrink-0">🤝</div>
-                <div className="text-left">
-                  <h3 className="text-[15px] sm:text-sm font-semibold text-ink mb-1">Contribute</h3>
-                  <p className="text-[13px] sm:text-xs text-ink-soft leading-relaxed">
-                    Volunteer to lead the discussion.
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="group p-4 sm:p-5 bg-paper/55 border border-border hover:border-wisteria/35 transition-all rounded-2xl sm:rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.22)] sm:shadow-none">
-              <div className="flex items-center justify-center sm:block gap-3 sm:gap-0">
-                <div className="w-10 h-10 sm:w-8 sm:h-8 rounded-xl sm:rounded-lg bg-wisteria/12 flex items-center justify-center text-wisteria text-base sm:text-sm shrink-0">⚡</div>
-                <div className="text-left">
-                  <h3 className="text-[15px] sm:text-sm font-semibold text-ink mb-1">Earn Sparks</h3>
-                  <p className="text-[13px] sm:text-xs text-ink-soft leading-relaxed">
-                    Great contributors get recognized.
-                  </p>
-                </div>
-              </div>
-            </div>
+          <div className="relative px-(--pad-page-x) max-w-(--measure-wide) mx-auto mt-16 md:mt-20">
+            <BoardWall />
           </div>
-        </div>
+        </section>
 
-        {/* Signup Form */}
-        <div className="hidden lg:block w-full lg:max-w-sm pt-4 lg:pt-0">
-          {isAuthed ? (
-            <div className="w-full max-w-sm mx-auto bg-paper/80 backdrop-blur-sm p-7 rounded-xl border border-border relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-0.5 bg-linear-to-r from-saffron via-wisteria to-indigo-jp opacity-60" />
-              <div className="space-y-3 text-center">
-                <h2 className="font-serif text-xl font-bold text-ink">Welcome back</h2>
-                <p className="text-xs text-ink-soft">You are already signed in and ready to continue.</p>
-                <Link
-                  href="/board"
-                  className="inline-flex items-center justify-center w-full py-2.5 bg-saffron text-parchment rounded-lg text-sm font-semibold hover:bg-saffron/90 transition-all"
-                >
-                  Continue to Board
-                </Link>
-              </div>
-            </div>
-          ) : (
-            <SignupForm />
-          )}
-        </div>
+        <WhatPeopleBring />
+        <HowItWorks />
+        {PROBLEM_MONTH && <ThisMonth status={status} isAuthed={isAuthed} />}
+        <BetweenSessions bytes={bytes} isAuthed={isAuthed} />
+        <ClosingCta status={status} isAuthed={isAuthed} />
       </main>
 
-      {/* Footer */}
-      <SiteFooter />
+      <footer className="border-t border-border">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 py-6 sm:py-0 sm:h-16 px-(--pad-page-x) max-w-(--measure-wide) mx-auto">
+          <Wordmark />
+          <p className="text-[12px] text-cha">© 2026 SkillRev · The monthly engineering guild</p>
+        </div>
+      </footer>
     </div>
   )
 }
