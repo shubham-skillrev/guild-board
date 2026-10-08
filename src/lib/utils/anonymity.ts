@@ -1,5 +1,5 @@
 import { createHash } from 'crypto'
-import { SYSTEM_USERNAME } from '@/lib/system/identity'
+import { isSystemUsername } from '@/lib/system/identity'
 
 /**
  * Ghost handles for topics posted anonymously.
@@ -55,8 +55,8 @@ export function serializeTopic<T extends RawTopic>(topic: T, viewerId: string) {
 
   const { users: _joined, ...rest } = topic
 
-  // GuildBoard's own suggestions, recognised by the reserved author name.
-  const isSystem = !topic.is_anonymous && joinedUsername(topic.users) === SYSTEM_USERNAME
+  // GuildBot's suggestions, recognised by the reserved author name.
+  const isSystem = !topic.is_anonymous && isSystemUsername(joinedUsername(topic.users))
 
   const base = {
     ...rest,

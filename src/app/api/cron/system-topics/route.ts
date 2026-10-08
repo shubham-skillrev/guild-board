@@ -1,6 +1,6 @@
 // ROUTE: GET /api/cron/system-topics
 // AUTH: shared secret via Authorization: Bearer $CRON_SECRET (NOT a user session)
-// PURPOSE: Once per cycle, GuildBoard suggests a few topics nobody has brought
+// PURPOSE: Once per cycle, GuildBot suggests a few topics nobody has brought
 //          yet (recent tech and AI releases), posted to the board as its own.
 // DB TABLES: cycles, topics, bytes, users
 // RLS: service-role client (no user context exists here)

@@ -98,7 +98,7 @@ their markup intact.
 | Path | Schedule (UTC) | Does |
 |---|---|---|
 | `/api/cron/autopilot` | `30 3 * * *` (~09:00 IST) | Runs the month: closes the cycle the day after its meeting, opens next month (2nd Friday 11:00 IST, a theme from `src/lib/themes/catalog.ts`, Slack + push), and publishes Bytes: 10 stories ~15 days before the meeting and 10 more ~3 days before |
-| `/api/cron/system-topics` | `0 4 * * *` | GuildBoard's suggested topics for a newly opened month |
+| `/api/cron/system-topics` | `0 4 * * *` | GuildBot's suggested topics for a newly opened month |
 | `/api/cron/meeting-reminder` | `30 5 * * *` | "Guild tomorrow" on Slack and push |
 
 Every autopilot step decides from stored state (cycle status, existing

@@ -3,7 +3,7 @@ import { SYSTEM_DISPLAY_NAME } from '@/lib/system/identity'
 import { cn } from '@/lib/utils/cn'
 
 /**
- * Who posted it. A person gets their avatar and @handle; GuildBoard's own
+ * Who posted it. A person gets their avatar and @handle; GuildBot's
  * suggestions get the ◈ mark, the name, and a "Suggested" tag, so nobody
  * mistakes a system pick for a colleague's post.
  */

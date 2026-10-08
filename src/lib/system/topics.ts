@@ -2,11 +2,11 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { KINDS, composeDescription, type Kind } from '@/lib/kinds'
 import { TITLE_MAX_LENGTH, DESCRIPTION_MAX_LENGTH } from '@/lib/constants'
-import { SYSTEM_USERNAME } from '@/lib/system/identity'
+import { SYSTEM_USERNAME, SYSTEM_DISPLAY_NAME } from '@/lib/system/identity'
 import { notifyOnSystemTopics } from '@/lib/push/notify'
 
 /**
- * GuildBoard as an author.
+ * GuildBot as an author.
  *
  * Once a month the system suggests a few things worth discussing that nobody
  * has brought yet. They are ordinary posts on the board: people vote, react
@@ -46,7 +46,7 @@ export async function ensureSystemUser(admin: Admin = createAdminClient()): Prom
   const created = await admin.auth.admin.createUser({
     email: SYSTEM_EMAIL,
     email_confirm: true,
-    user_metadata: { full_name: 'GuildBoard' },
+    user_metadata: { full_name: SYSTEM_DISPLAY_NAME },
     app_metadata: { system: true },
   })
   if (created.data.user) {
@@ -61,7 +61,7 @@ export async function ensureSystemUser(admin: Admin = createAdminClient()): Prom
     id: authId,
     email: SYSTEM_EMAIL,
     username: SYSTEM_USERNAME,
-    real_name: 'GuildBoard',
+    real_name: SYSTEM_DISPLAY_NAME,
     is_system: true,
   })
   if (error) throw new Error(`Could not create the system user row: ${error.message}`)
@@ -84,7 +84,7 @@ function toDescription(draft: SystemTopicDraft): string {
 }
 
 /**
- * Post drafts into a cycle as GuildBoard. Skips any whose title is already
+ * Post drafts into a cycle as GuildBot. Skips any whose title is already
  * on this cycle's board, so a re-run never duplicates. Returns what was
  * posted.
  */

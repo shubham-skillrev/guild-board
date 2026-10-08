@@ -1,4 +1,4 @@
--- 026  A theme per month, and a record of what the guild was told
+-- 026  A theme per month, a record of what the guild was told, and GuildBot
 --
 -- Themes. Problem Month was a build-time flag, so every past month on the
 -- board wore whatever the code said this month was. Each cycle now carries its
@@ -33,6 +33,12 @@ SET theme = jsonb_build_object(
   'open_line', 'Share one tech problem you''ve hit lately. Two lines is enough.'
 )
 WHERE year = 2026 AND month = 10 AND theme IS NULL;
+
+-- The system author is now GuildBot. Its posts are recognised by username,
+-- so the row is renamed here; the app also still accepts the old name.
+UPDATE public.users
+SET username = 'guildbot', real_name = 'GuildBot'
+WHERE is_system = true AND username = 'guildboard';
 
 CREATE TABLE IF NOT EXISTS public.announcements (
   id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -58,7 +58,7 @@ export interface Topic {
    */
   user_id?: string
   is_anonymous: boolean
-  /** Posted by GuildBoard itself (derived from the author, see serializeTopic). */
+  /** Posted by GuildBot (derived from the author, see serializeTopic). */
   is_system?: boolean
   title: string
   description: string

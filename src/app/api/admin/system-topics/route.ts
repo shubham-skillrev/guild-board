@@ -4,7 +4,7 @@
 //          Gemini's picks before anything reaches the board or Slack:
 //            { action: 'preview' }          -> 3-5 drafts, nothing written
 //            { action: 'post', drafts: [] } -> post the chosen drafts as
-//                                              GuildBoard, then one Slack
+//                                              GuildBot, then one Slack
 //                                              message and one push
 // DB TABLES: cycles, topics, users
 // RLS: server client for identity; admin client for writes

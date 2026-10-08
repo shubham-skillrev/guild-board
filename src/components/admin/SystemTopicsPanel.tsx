@@ -18,11 +18,11 @@ interface Draft {
 }
 
 /**
- * Ask GuildBoard for suggestions now, instead of waiting for the monthly job.
+ * Ask GuildBot for suggestions now, instead of waiting for the monthly job.
  *
  * Two steps on purpose: Gemini's picks are shown first, with their sources,
  * and only the ones left ticked are posted. Posting puts them on the board as
- * GuildBoard and sends one Slack message listing every topic with its link.
+ * GuildBot and sends one Slack message listing every topic with its link.
  */
 export function SystemTopicsPanel() {
   const router = useRouter()
@@ -86,7 +86,7 @@ export function SystemTopicsPanel() {
 
   return (
     <section aria-labelledby="admin-suggest" className="mt-(--gap-section)">
-      <SectionHeader id="admin-suggest" title="GuildBoard suggestions" hint="from this week's tech news" />
+      <SectionHeader id="admin-suggest" title="GuildBot suggestions" hint="from this week's tech news" />
       <div className="rounded-(--radius-card) border border-border bg-paper p-(--pad-card)">
         {drafts.length === 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -145,7 +145,7 @@ export function SystemTopicsPanel() {
               })}
             </ul>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[12px] text-cha">Posts as GuildBoard and sends one Slack message with every link.</p>
+              <p className="text-[12px] text-cha">Posts as GuildBot and sends one Slack message with every link.</p>
               <div className="flex items-center gap-2">
                 <Button variant="ghost" onClick={preview} disabled={busy !== null}>
                   {busy === 'preview' ? 'Reading…' : 'Try again'}

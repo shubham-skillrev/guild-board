@@ -4,7 +4,7 @@ import { fetchCandidates, type Candidate } from '@/lib/bytes/sources'
 import type { SystemTopicDraft } from '@/lib/system/topics'
 
 /**
- * GuildBoard's monthly board suggestions, from this week's tech news.
+ * GuildBot's monthly board suggestions, from this week's tech news.
  *
  * 1. Fetch the latest from our sources: Google News search on AI and
  *    engineering topics, the engineering blogs and talks, and Hacker News.

@@ -255,7 +255,7 @@ const SLACK = {
   },
   systemTopics: (label: string, topics: SystemTopicNotice[]) =>
     [
-      `*GuildBoard suggested ${topics.length} ${topics.length === 1 ? 'topic' : 'topics'} for ${escapeSlack(label)}.* Mark the ones you want to talk about.`,
+      `*GuildBot suggested ${topics.length} ${topics.length === 1 ? 'topic' : 'topics'} for ${escapeSlack(label)}.* Mark the ones you want to talk about.`,
       ...topics.map(t => `• ${appLink(`/board/${t.id}`, truncate(t.title, 90))}`),
     ].join("\n"),
   bytes: (label: string, parts: string[]) =>
@@ -560,7 +560,7 @@ function systemTopicBlocks(label: string, topics: SystemTopicNotice[]): unknown[
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*GuildBoard suggested ${topics.length} ${topics.length === 1 ? "topic" : "topics"} for ${escapeSlack(label)}.*\nMark the ones you want to talk about on the board.`,
+        text: `*GuildBot suggested ${topics.length} ${topics.length === 1 ? "topic" : "topics"} for ${escapeSlack(label)}.*\nMark the ones you want to talk about on the board.`,
       },
     },
     { type: "divider" },
@@ -573,13 +573,13 @@ function systemTopicBlocks(label: string, topics: SystemTopicNotice[]): unknown[
   }
   blocks.push({
     type: "context",
-    elements: [{ type: "mrkdwn", text: `${appLink("/board", "Open the board")} · posted by GuildBoard` }],
+    elements: [{ type: "mrkdwn", text: `${appLink("/board", "Open the board")} · posted by GuildBot` }],
   });
   return blocks;
 }
 
 /**
- * GuildBoard posted suggestions. One message for the batch, not one per topic,
+ * GuildBot posted suggestions. One message for the batch, not one per topic,
  * with every topic linked.
  */
 export async function notifyOnSystemTopics(args: {
@@ -592,7 +592,7 @@ export async function notifyOnSystemTopics(args: {
       blocks: systemTopicBlocks(args.label, args.topics),
     }),
     broadcast({
-      title: "New on the board from GuildBoard",
+      title: "New on the board from GuildBot",
       body: `${args.topics.length} suggested ${args.topics.length === 1 ? "topic" : "topics"} for ${args.label}. Mark what you want to talk about.`,
       url: "/board",
       tag: `system-topics:${args.label}`,

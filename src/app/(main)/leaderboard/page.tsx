@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { SYSTEM_USERNAME } from '@/lib/system/identity'
+import { isSystemUsername } from '@/lib/system/identity'
 import { getViewer } from '@/lib/supabase/viewer'
 import { redirect } from 'next/navigation'
 import { Lightbulb, Users, CheckCircle } from '@phosphor-icons/react/dist/ssr'
@@ -135,8 +135,8 @@ async function getLeaderboard(): Promise<{
       }
     })
     // Only people who actually did something place. A score of 0 never ranks.
-    // GuildBoard's own suggestions are not a person's work.
-    .filter(e => e.guild_score > 0 && e.username !== SYSTEM_USERNAME)
+    // GuildBot's suggestions are not a person's work.
+    .filter(e => e.guild_score > 0 && !isSystemUsername(e.username))
     .sort((a, b) => b.guild_score - a.guild_score)
 
   // Check for active spark window:
