@@ -9,7 +9,7 @@ import { CATEGORY_LABELS, CATEGORY_TONE } from '@/lib/constants'
 import { kindOf, reactionFor } from '@/lib/kinds'
 import { AuthorMark } from '@/components/topics/AuthorMark'
 import { Badge } from '@/components/ui/Badge'
-import { PROBLEM_MONTH, problemBlurb } from '@/lib/experiment'
+import { FOCUS_FORMAT, problemBlurb } from '@/lib/experiment'
 import { timeAgo } from '@/lib/utils/time'
 import type { Topic } from '@/types'
 
@@ -100,13 +100,13 @@ export function TopicCard({
         <div className="flex flex-wrap items-center gap-1.5">
           {/* Kinds always show: a mixed board is scanned by kind. The old
               categories only outside Problem Month. */}
-          {(!PROBLEM_MONTH || kindOf(topic.category)) && (
+          {(!FOCUS_FORMAT || kindOf(topic.category)) && (
             <Badge tone={categoryTone} dot>{CATEGORY_LABELS[topic.category]}</Badge>
           )}
           {topic.is_selected && <Badge tone="saffron">On the agenda</Badge>}
           {topic.status === 'carry_forward' && <Badge tone="indigo">Returning</Badge>}
         </div>
-        {!PROBLEM_MONTH && (
+        {!FOCUS_FORMAT && (
           <span className={cn('font-mono text-[12px] tabular-nums pt-0.5', rank <= 3 ? 'text-saffron' : 'text-cha')}>
             #{rank}
           </span>
@@ -134,11 +134,11 @@ export function TopicCard({
           disabled={!canVote || voteDisabled}
           aria-pressed={hasVoted}
           aria-label={
-            PROBLEM_MONTH
+            FOCUS_FORMAT
               ? hasVoted ? `${reaction.done} (unmark)` : reaction.idle
               : hasVoted ? 'Remove vote' : 'Upvote'
           }
-          title={PROBLEM_MONTH ? (hasVoted ? reaction.done : reaction.idle) : undefined}
+          title={FOCUS_FORMAT ? (hasVoted ? reaction.done : reaction.idle) : undefined}
           className={cn(
             pill,
             hasVoted
@@ -159,8 +159,8 @@ export function TopicCard({
           onClick={handleContrib}
           disabled={!canContrib || contribDisabled}
           aria-pressed={hasContributed}
-          aria-label={hasContributed ? 'Withdraw' : PROBLEM_MONTH ? reaction.contrib : "I'll contribute"}
-          title={PROBLEM_MONTH ? (hasContributed ? reaction.contribDone : reaction.contrib) : undefined}
+          aria-label={hasContributed ? 'Withdraw' : FOCUS_FORMAT ? reaction.contrib : "I'll contribute"}
+          title={FOCUS_FORMAT ? (hasContributed ? reaction.contribDone : reaction.contrib) : undefined}
           className={cn(
             pill,
             hasContributed

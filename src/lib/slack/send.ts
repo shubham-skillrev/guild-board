@@ -15,7 +15,8 @@ import "server-only";
  * SLACK_CHANNEL_ID at it.
  *
  * Same rule as push: a failed post must never fail the mutation that caused
- * it, so this never throws. It logs Slack's error code, never the token.
+ * it, so this never throws. It logs Slack's error code, never the token, and
+ * resolves to whether Slack accepted the message (false when turned off).
  */
 
 const TIMEOUT_MS = 5000;
@@ -54,10 +55,10 @@ export interface SlackMessage {
   blocks?: unknown[];
 }
 
-export async function postToSlack(message: SlackMessage): Promise<void> {
+export async function postToSlack(message: SlackMessage): Promise<boolean> {
   const token = process.env.SLACK_BOT_TOKEN;
   const channel = process.env.SLACK_CHANNEL_ID;
-  if (!token || !channel) return;
+  if (!token || !channel) return false;
 
   try {
     const res = await fetch("https://slack.com/api/chat.postMessage", {
@@ -80,7 +81,9 @@ export async function postToSlack(message: SlackMessage): Promise<void> {
     // Slack answers 200 with `ok: false` for most failures.
     const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
     if (!data?.ok) console.warn("slack post failed", data?.error ?? res.status);
+    return !!data?.ok;
   } catch (err) {
     console.warn("slack post failed", err instanceof Error ? err.name : "unknown");
+    return false;
   }
 }

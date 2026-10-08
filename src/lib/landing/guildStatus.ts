@@ -1,6 +1,7 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { mediumLabel } from '@/lib/bytes/labels'
+import { sanitizeTheme, type CycleTheme } from '@/lib/themes'
 
 /**
  * What the public landing page is allowed to know about the guild.
@@ -21,9 +22,11 @@ export interface GuildStatus {
   meetingAt: string | null
   isOpen: boolean
   problemCount: number
+  /** The cycle's theme, for the "This month" section. Null hides it. */
+  theme: CycleTheme | null
 }
 
-const EMPTY: GuildStatus = { month: null, nextSession: null, meetingAt: null, isOpen: false, problemCount: 0 }
+const EMPTY: GuildStatus = { month: null, nextSession: null, meetingAt: null, isOpen: false, problemCount: 0, theme: null }
 
 // The guild meets in India. Server time is UTC, so format explicitly rather
 // than let the deployment region pick the day.
@@ -49,7 +52,7 @@ function formatTime(d: Date): string {
 export async function getGuildStatus(): Promise<GuildStatus> {
   try {
     const admin = createAdminClient()
-    const columns = 'id, month, year, status, meeting_at'
+    const columns = 'id, month, year, status, meeting_at, theme'
 
     // Same priority as /api/cycles: the open cycle, else the next upcoming one.
     const { data: open } = await admin
@@ -105,7 +108,14 @@ export async function getGuildStatus(): Promise<GuildStatus> {
       .toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' })
       .toLowerCase()
 
-    return { month, nextSession, meetingAt: upcoming ? meeting.toISOString() : null, isOpen, problemCount }
+    return {
+      month,
+      nextSession,
+      meetingAt: upcoming ? meeting.toISOString() : null,
+      isOpen,
+      problemCount,
+      theme: sanitizeTheme(cycle.theme),
+    }
   } catch {
     // The landing page must render even if the database is unreachable.
     return EMPTY

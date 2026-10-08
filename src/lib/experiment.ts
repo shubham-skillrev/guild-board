@@ -1,32 +1,25 @@
 /**
- * Problem Month: a one-off guild format. Members bring one real tech problem
- * instead of a topic, and the meeting is built around the ones people relate
- * to most. The point is participation: more people posting, more people
- * speaking.
+ * The board's format: how participation works, the same every month.
  *
- * Everything the experiment changes in the UI reads from here, so going back
- * to the usual format is flipping this flag. The one thing it cannot undo is
- * migration 023, which drops the per-cycle vote and contribution caps.
+ * Problem Month (Oct 2026) introduced it: uncapped "me too" and "I can help"
+ * reactions, no rank or quota strip, the leaders rail off, one post each. It
+ * stuck, so it now applies to every month. What a month is *about* is its
+ * theme, stored per cycle (src/lib/themes, migration 026), and themes change
+ * copy only, never these mechanics.
+ *
+ * Flipping this off restores the old capped, ranked board in the UI. It
+ * cannot undo migration 023, which dropped the vote and contribution caps in
+ * the database; that file's header has the statements that put them back.
  */
-export const PROBLEM_MONTH = true
+export const FOCUS_FORMAT = true
 
 /**
- * Bytes stays on for Problem Month. It was hidden at first on the argument
- * that it competes with sharing a problem; it is kept because it is the one
- * reason to open GuildBoard between sessions. Separate from PROBLEM_MONTH so
- * either can change without the other.
+ * Bytes stays on. It was hidden at first on the argument that it competes
+ * with sharing a problem; it is kept because it is the one reason to open
+ * GuildBoard between sessions. Separate from FOCUS_FORMAT so either can change
+ * without the other.
  */
 export const HIDE_BYTES = false
-
-/** The month's vocabulary on the board. Reaction wording is per kind and
-    lives in src/lib/kinds.ts. */
-export const PROBLEM_COPY = {
-  share: 'Share a problem',
-  noun: 'discussion',
-  nounPlural: 'discussions',
-  boardNav: 'Board',
-  boardSubtitle: "This month's theme: bring a problem",
-} as const
 
 /**
  * A card shows a line or two of the description as plain text, where markdown

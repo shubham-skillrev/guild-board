@@ -2,7 +2,9 @@ import "server-only";
 import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUser, sendPushToUsers } from "@/lib/push/send";
-import { PROBLEM_MONTH, HIDE_BYTES } from "@/lib/experiment";
+import { HIDE_BYTES } from "@/lib/experiment";
+import type { CycleTheme } from "@/lib/themes";
+import type { AnnouncementChannel } from "@/lib/announce";
 import { postToSlack, escapeSlack, appLink, extLink } from "@/lib/slack/send";
 
 /**
@@ -122,7 +124,7 @@ const BASE_COPY = {
       "Fresh cycle, clean slate",
     ],
     body: (label: string) =>
-      `${label} is open. You have 1 topic, 3 votes and 2 hand raises to spend.`,
+      `${label} is open. One post each, and two lines is enough.`,
   },
   cycleEnded: {
     titles: [
@@ -197,33 +199,31 @@ const BASE_COPY = {
   },
 };
 
-// Problem Month: the board collects problems, a vote means "I've hit this too"
-// and a hand raise means "I've dealt with this". Neither is capped this month.
-const COPY: typeof BASE_COPY = PROBLEM_MONTH
-  ? {
-      ...BASE_COPY,
-      newTopic: {
-        titles: ["New problem on the board", "Someone's stuck on something", "Have you hit this?"],
-        body: (author: string, title: string) =>
-          `${author} shared "${title}". Hit this too? Say so before the meeting.`,
-      },
-      vote: {
-        titles: ["Someone's hit this too", "You're not the only one", "+1 on your problem"],
-        body: (voter: string, title: string) =>
-          `${voter} has hit "${title}" too. Worth bringing to the meeting.`,
-      },
-      contribute: {
-        titles: ["Someone's dealt with this", "Help has arrived", "Someone's been here before"],
-        body: (helper: string, title: string) =>
-          `${helper} has dealt with "${title}". Ask them what worked.`,
-      },
-      cycleOpen: {
-        titles: ["Bring a problem", "Board is open for problems", "What's slowing you down?"],
-        body: (label: string) =>
-          `${label} is open. Share one tech problem you've hit lately. Two lines is enough.`,
-      },
-    }
-  : BASE_COPY;
+// A problem post speaks in its own voice: a vote means "I've hit this too" and
+// a hand raise means "I've dealt with this". Chosen by the post's kind, so a
+// problem reads the same in any month and other kinds keep the base copy.
+// The cycle-open message comes from the month's theme instead (see SLACK).
+const PROBLEM_COPY: Pick<typeof BASE_COPY, "newTopic" | "vote" | "contribute"> = {
+  newTopic: {
+    titles: ["New problem on the board", "Someone's stuck on something", "Have you hit this?"],
+    body: (author: string, title: string) =>
+      `${author} shared "${title}". Hit this too? Say so before the meeting.`,
+  },
+  vote: {
+    titles: ["Someone's hit this too", "You're not the only one", "+1 on your problem"],
+    body: (voter: string, title: string) =>
+      `${voter} has hit "${title}" too. Worth bringing to the meeting.`,
+  },
+  contribute: {
+    titles: ["Someone's dealt with this", "Help has arrived", "Someone's been here before"],
+    body: (helper: string, title: string) =>
+      `${helper} has dealt with "${title}". Ask them what worked.`,
+  },
+};
+
+const COPY = BASE_COPY;
+const copyFor = (category: string | null | undefined) =>
+  category === "problem" ? PROBLEM_COPY : BASE_COPY;
 
 const truncate = (s: string, n = 100) => (s.length > n ? s.slice(0, n - 1) + "â€¦" : s);
 
@@ -234,14 +234,14 @@ const truncate = (s: string, n = 100) => (s.length > n ? s.slice(0, n - 1) + "â€
 // No random title pool here: a channel reads top to bottom, and the same shape
 // every time is what makes it scannable.
 const SLACK = {
-  newTopic: (author: string, title: string, id: string) =>
-    PROBLEM_MONTH
+  newTopic: (author: string, title: string, id: string, category: string | null) =>
+    category === "problem"
       ? `*New problem* from ${escapeSlack(author)}\n> ${escapeSlack(title)}\nHit this too? ${appLink(`/board/${id}`, "Say so on GuildBoard")}`
-      : `*New topic* from ${escapeSlack(author)}\n> ${escapeSlack(title)}\n${appLink(`/board/${id}`, "Vote on GuildBoard")}`,
-  cycleOpen: (label: string) =>
-    PROBLEM_MONTH
-      ? `*${escapeSlack(label)} is open.* Share one tech problem you've hit lately. Two lines is enough. ${appLink("/board?share=1", "Share a problem")}`
-      : `*${escapeSlack(label)} is open.* ${appLink("/board", "Pitch a topic")}`,
+      : `*New post* from ${escapeSlack(author)}\n> ${escapeSlack(title)}\n${appLink(`/board/${id}`, "Join in on GuildBoard")}`,
+  cycleOpen: (label: string, theme: CycleTheme | null) =>
+    theme
+      ? `*${escapeSlack(label)} is open. ${escapeSlack(theme.title)}*\n${escapeSlack(theme.open_line)} ${appLink("/board?share=1", theme.cta)}`
+      : `*${escapeSlack(label)} is open.* One post each, two lines is enough. ${appLink("/board?share=1", "Share something")}`,
   meetingReminder: (when: string, count: number, top: { id: string; title: string }[]) => {
     const lines = [
       `*Guild tomorrow, ${escapeSlack(when)}.* ${count === 0 ? 'Nothing on the board yet.' : `${count} on the board.`}`,
@@ -274,7 +274,7 @@ async function getUsername(admin: Admin, userId: string): Promise<string> {
 async function getTopic(admin: Admin, topicId: string) {
   const { data } = await admin
     .from("topics")
-    .select("id, user_id, title, is_anonymous")
+    .select("id, user_id, title, is_anonymous, category")
     .eq("id", topicId)
     .single();
   return data;
@@ -302,7 +302,7 @@ export async function notifyOnNewTopic(args: { topicId: string; actorId: string 
 
   // Slack goes out regardless of how many members have push turned on.
   const slack = postToSlack({
-    text: SLACK.newTopic(topic.is_anonymous ? "a guild member" : author, truncate(topic.title, 140), topic.id),
+    text: SLACK.newTopic(topic.is_anonymous ? "a guild member" : author, truncate(topic.title, 140), topic.id, topic.category),
   });
 
   // Broadcast to everyone with a subscription except the author.
@@ -316,8 +316,8 @@ export async function notifyOnNewTopic(args: { topicId: string; actorId: string 
     slack,
     userIds.length
       ? sendPushToUsers(userIds, {
-          title: pick(COPY.newTopic.titles),
-          body: COPY.newTopic.body(author, truncate(topic.title, 60)),
+          title: pick(copyFor(topic.category).newTopic.titles),
+          body: copyFor(topic.category).newTopic.body(author, truncate(topic.title, 60)),
           url,
           tag: `topic:${topic.id}`,
         })
@@ -334,8 +334,8 @@ export async function notifyOnVote(args: { topicId: string; actorId: string }) {
   const voter = await getUsername(admin, args.actorId);
 
   await sendPushToUser(topic.user_id, {
-    title: pick(COPY.vote.titles),
-    body: COPY.vote.body(voter, truncate(topic.title, 50)),
+    title: pick(copyFor(topic.category).vote.titles),
+    body: copyFor(topic.category).vote.body(voter, truncate(topic.title, 50)),
     url: `/board/${topic.id}`,
     tag: `vote:${topic.id}`,
   });
@@ -350,8 +350,8 @@ export async function notifyOnContribute(args: { topicId: string; actorId: strin
   const helper = await getUsername(admin, args.actorId);
 
   await sendPushToUser(topic.user_id, {
-    title: pick(COPY.contribute.titles),
-    body: COPY.contribute.body(helper, truncate(topic.title, 50)),
+    title: pick(copyFor(topic.category).contribute.titles),
+    body: copyFor(topic.category).contribute.body(helper, truncate(topic.title, 50)),
     url: `/board/${topic.id}`,
     tag: `contrib:${topic.id}`,
   });
@@ -444,22 +444,26 @@ export async function notifyOnTopicSelected(args: { topicId: string }) {
   });
 }
 
+/** Push to every subscriber. Returns how many devices it reached. */
 async function broadcast(payload: Parameters<typeof sendPushToUsers>[1], excludeUserId?: string) {
   const admin = createAdminClient();
   let q = admin.from("push_subscriptions").select("user_id");
   if (excludeUserId) q = q.neq("user_id", excludeUserId);
   const { data: subs } = await q;
   const userIds = Array.from(new Set((subs ?? []).map((s) => s.user_id)));
-  if (!userIds.length) return;
-  await sendPushToUsers(userIds, payload);
+  if (!userIds.length) return { sent: 0 };
+  const { sent } = await sendPushToUsers(userIds, payload);
+  return { sent };
 }
 
-export async function notifyOnCycleOpen(args: { label: string }) {
+/** The month's theme, when it has one, is the whole message. */
+export async function notifyOnCycleOpen(args: { label: string; theme: CycleTheme | null }) {
+  const { theme } = args;
   await Promise.all([
-    postToSlack({ text: SLACK.cycleOpen(args.label) }),
+    postToSlack({ text: SLACK.cycleOpen(args.label, theme) }),
     broadcast({
-      title: pick(COPY.cycleOpen.titles),
-      body: COPY.cycleOpen.body(args.label),
+      title: theme ? theme.title : pick(COPY.cycleOpen.titles),
+      body: theme ? `${args.label} is open. ${theme.open_line}` : COPY.cycleOpen.body(args.label),
       url: "/board",
       tag: `cycle-open:${args.label}`,
     }),
@@ -594,6 +598,36 @@ export async function notifyOnSystemTopics(args: {
       tag: `system-topics:${args.label}`,
     }),
   ]);
+}
+
+/**
+ * An admin's announcement, word for word: the copy is theirs (or a Gemini
+ * draft they edited), so nothing is added here. Returns what happened per
+ * channel, for the history row.
+ *
+ * The push link is made absolute. Subscriptions are owned by the service
+ * worker of the origin they were made on, which resolves a relative URL
+ * against itself, so after a domain move a relative link would open the old
+ * address.
+ */
+export async function notifyAnnouncement(args: {
+  id: string;
+  title: string;
+  body: string;
+  slackText: string;
+  url: string | null;
+  channels: AnnouncementChannel[];
+}): Promise<{ slackOk: boolean | null; pushSent: number | null }> {
+  const origin = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim().replace(/\/$/, "");
+  const url = !args.url ? `${origin}/board` : /^https?:\/\//.test(args.url) ? args.url : `${origin}${args.url.startsWith("/") ? "" : "/"}${args.url}`;
+
+  const [slackOk, push] = await Promise.all([
+    args.channels.includes("slack") ? postToSlack({ text: args.slackText }) : Promise.resolve(null),
+    args.channels.includes("push")
+      ? broadcast({ title: args.title, body: args.body, url, tag: `announce:${args.id}`, requireInteraction: true })
+      : Promise.resolve(null),
+  ]);
+  return { slackOk, pushSent: push ? push.sent : null };
 }
 
 /** "6 reads, 2 talks, 2 from the news" - omitting whatever came back empty. */

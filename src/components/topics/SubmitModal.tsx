@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { TITLE_MAX_LENGTH, DESCRIPTION_MAX_LENGTH } from '@/lib/constants'
 import { KINDS, composeDescription, type Kind } from '@/lib/kinds'
-import { PROBLEM_MONTH } from '@/lib/experiment'
+import { defaultKind } from '@/lib/themes'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { KindChips } from '@/components/topics/KindChips'
@@ -32,7 +32,7 @@ interface SubmitModalProps {
  */
 export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
   const reduce = useReducedMotion()
-  const [kindValue, setKindValue] = useState<Kind>(PROBLEM_MONTH ? 'problem' : 'learned')
+  const [kindValue, setKindValue] = useState<Kind>(defaultKind(cycle.theme))
   const kind = KINDS.find(k => k.value === kindValue) ?? KINDS[0]
 
   const [first, setFirst] = useState('')
@@ -96,7 +96,7 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
         onKeyDown={onKeyDown}
         className="p-5 space-y-6"
       >
-        <KindChips value={kindValue} onChange={setKindValue} />
+        <KindChips value={kindValue} onChange={setKindValue} featured={cycle.theme?.featured_kind} />
 
         <div>
           <AnimatePresence mode="wait" initial={false}>

@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useUnseenDigest } from '@/lib/bytes/useUnseenDigest'
 import { cn } from '@/lib/utils/cn'
-import { PROBLEM_MONTH, PROBLEM_COPY, HIDE_BYTES } from '@/lib/experiment'
+import { HIDE_BYTES } from '@/lib/experiment'
 
 interface NavLinksProps {
   role?: string
@@ -33,7 +33,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
           isBoard ? 'text-ink border-saffron' : 'text-ink-soft border-transparent hover:text-ink'
         )}
       >
-        {PROBLEM_MONTH ? PROBLEM_COPY.boardNav : 'Board'}
+        Board
       </Link>
       {!HIDE_BYTES && <Link
         href="/bytes"
@@ -110,7 +110,7 @@ export function MobileBottomNav({ role, username, isGuest }: NavLinksProps) {
           )}
         >
           <SquaresFour className="w-4.5 h-4.5" />
-          <span>{PROBLEM_MONTH ? PROBLEM_COPY.boardNav : 'Board'}</span>
+          <span>Board</span>
         </Link>
         {!HIDE_BYTES && (
           <Link

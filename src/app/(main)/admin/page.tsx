@@ -5,6 +5,8 @@ import { AdminControls } from '@/components/admin/AdminControls'
 import { CycleListCards } from '@/components/admin/CycleListCards'
 import { ByteGenerator } from '@/components/admin/ByteGenerator'
 import { SystemTopicsPanel } from '@/components/admin/SystemTopicsPanel'
+import { ThemePanel } from '@/components/admin/ThemePanel'
+import { AnnouncePanel } from '@/components/admin/AnnouncePanel'
 import { PageHeader, SectionHeader } from '@/components/ui/Section'
 import type { Cycle } from '@/types'
 
@@ -71,6 +73,8 @@ export default async function AdminPage() {
             activeCycle={activeCycle as Cycle | null}
             topics={activeCycleTopics as any[]}
           />
+          <ThemePanel key={activeCycle?.id} cycle={activeCycle as Cycle | null} />
+          <AnnouncePanel />
           <SystemTopicsPanel />
         </div>
 

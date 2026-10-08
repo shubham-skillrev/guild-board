@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/utils/cn'
 import type { Cycle, OutcomeTag } from '@/types'
+import type { CycleTheme } from '@/lib/themes'
+import { ThemeEditor, isThemeComplete } from '@/components/admin/ThemeEditor'
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -88,6 +90,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
   const [newCycleMonth, setNewCycleMonth] = useState(suggested.month)
   const [newCycleYear, setNewCycleYear] = useState(suggested.year)
   const [meetingDate, setMeetingDate] = useState(getSecondFriday(suggested.month, suggested.year))
+  const [newTheme, setNewTheme] = useState<CycleTheme | null>(null)
 
   const [activeMeetingDate, setActiveMeetingDate] = useState('')
 
@@ -155,6 +158,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
     doAction('create-cycle', () => {
       const label = `${MONTHS[newCycleMonth - 1]} ${newCycleYear}`
       const body: Record<string, any> = { label, month: newCycleMonth, year: newCycleYear }
+      if (newTheme) body.theme = newTheme
       // Send date string; API will convert to start-of-day UTC
       if (meetingDate) body.meeting_at = datetimeLocalToISO(meetingDate)
       return fetch('/api/admin/cycles', {
@@ -259,7 +263,19 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                 </p>
               )}
             </div>
-            <Button onClick={createCycle} disabled={isLoading('create-cycle')}>
+            {/* Picked here, not after: creating the cycle opens it and sends
+                the month-open message, which is the theme's first outing. */}
+            <div>
+              <label className="block text-[11px] font-medium text-cha uppercase tracking-wider mb-2">
+                Theme <span className="normal-case font-normal">(optional, sets the board copy and the month-open message)</span>
+              </label>
+              <ThemeEditor
+                monthLabel={`${MONTHS[newCycleMonth - 1]} ${newCycleYear}`}
+                value={newTheme}
+                onChange={setNewTheme}
+              />
+            </div>
+            <Button onClick={createCycle} disabled={isLoading('create-cycle') || !isThemeComplete(newTheme)}>
               {isLoading('create-cycle') ? 'Creating…' : `Create ${MONTHS[newCycleMonth - 1]} ${newCycleYear}`}
             </Button>
           </div>

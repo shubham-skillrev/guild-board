@@ -36,6 +36,11 @@ run, or the repo stops describing the database.
 | 022 | `022_drop_extractor_columns.sql` | drops the four retired extractor columns | **Destructive** — deletes 6 cached bodies |
 | 023 | `023_problem_month_unlimited_signals.sql` | drops the per-cycle vote and contribution caps for Problem Month | Yes — drops two triggers, keeps their functions |
 | 024 | `024_discussion_kinds.sql` | five discussion kinds (problem, learned, new tech, take, show & tell) allowed in `category` on topics and the idea bank | Yes — widens two CHECKs, old values stay valid |
+| 026 | `026_themes_announcements.sql` | `cycles.theme` (per-month theme, Oct 2026 seeded as Problem Month) and `announcements` (admin announcement history) | Yes — additive only |
+
+> **026 must be applied before the themes and announcements code ships.** The
+> cycle reads select `theme`, so without the column `/api/cycles` errors and the
+> board cannot load. It adds a column and a table and drops nothing.
 
 > **021 is required by what is on `main` right now.** The generator writes
 > `content_html` on every insert, so until this is applied **every digest

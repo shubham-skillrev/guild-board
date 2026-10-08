@@ -20,7 +20,8 @@ import { MeetingDate, CycleStatus } from '@/components/board/CycleMeta'
 import { QuotaStrip } from '@/components/board/QuotaStrip'
 import { PageHeader, SectionHeader, EmptyState, CardSkeleton } from '@/components/ui/Section'
 import { Button } from '@/components/ui/Button'
-import { PROBLEM_MONTH, PROBLEM_COPY, HIDE_BYTES } from '@/lib/experiment'
+import { FOCUS_FORMAT, HIDE_BYTES } from '@/lib/experiment'
+import { boardSubtitle, shareLabel } from '@/lib/themes'
 import type { Cycle, Topic } from '@/types'
 
 const MONTHS_SHORT = [
@@ -85,8 +86,8 @@ export default function BoardPage() {
         const data = await res.json().catch(() => ({}))
         toast(data.error ?? 'Vote failed', 'error')
       } else {
-        if (!hasVoted) toast(PROBLEM_MONTH ? 'Marked' : 'Vote committed ⚡', 'success')
-        else toast(PROBLEM_MONTH ? 'Unmarked' : 'Vote withdrawn', 'info')
+        if (!hasVoted) toast(FOCUS_FORMAT ? 'Marked' : 'Vote committed ⚡', 'success')
+        else toast(FOCUS_FORMAT ? 'Unmarked' : 'Vote withdrawn', 'info')
         refreshTokens()
       }
     } catch {
@@ -123,7 +124,7 @@ export default function BoardPage() {
   const displayTopics = isViewingActive ? topics : archiveTopics
   const displayPhase = isViewingActive ? phase : 'discussion'
   const isOpen = isViewingActive && phase === 'open'
-  const showRail = !PROBLEM_MONTH || !HIDE_BYTES
+  const showRail = !FOCUS_FORMAT || !HIDE_BYTES
 
   /* The empty state and the page header both want to offer the same action, so
      only one of them is allowed to at a time. */
@@ -150,10 +151,8 @@ export default function BoardPage() {
         <PageHeader
           title="The Board"
           subtitle={
-            // The theme belongs to this month only; past months just get their label.
-            PROBLEM_MONTH && isViewingActive
-              ? viewingCycle ? `${viewingCycle.label} · ${PROBLEM_COPY.boardSubtitle}` : PROBLEM_COPY.boardSubtitle
-              : viewingCycle ? viewingCycle.label : 'What shall we build next?'
+            // Each month shows its own theme, if it had one.
+            viewingCycle ? boardSubtitle(viewingCycle) : 'What shall we build next?'
           }
           action={
             <>
@@ -164,7 +163,7 @@ export default function BoardPage() {
                   prominent invitation. */}
               {!listIsEmpty && isOpen && !topic_submitted && (
                 <Button icon={Plus} onClick={() => setShowSubmit(true)}>
-                  {PROBLEM_MONTH ? PROBLEM_COPY.share : 'Pitch an idea'}
+                  {shareLabel(cycle?.theme)}
                 </Button>
               )}
             </>
@@ -173,9 +172,9 @@ export default function BoardPage() {
 
         {/* ─── What you have left ───
             A strip, not a row of hero tiles. See QuotaStrip for why. */}
-        {/* Problem Month hides the budget: signals are uncapped for the month
-            and a quota reads as a scoreboard. */}
-        {!PROBLEM_MONTH && isViewingActive && phase !== 'upcoming' && (
+        {/* The focus format hides the budget: signals are uncapped and a quota
+            reads as a scoreboard. */}
+        {!FOCUS_FORMAT && isViewingActive && phase !== 'upcoming' && (
           <motion.section {...section} className="mb-(--gap-section)" aria-label="What you have left this cycle">
             <QuotaStrip
               votesRemaining={isOpen ? votes_remaining : 0}
@@ -207,8 +206,8 @@ export default function BoardPage() {
               hint={
                 displayTopics.length > 0
                   ? `${displayTopics.length} ${displayTopics.length === 1
-                      ? PROBLEM_MONTH ? PROBLEM_COPY.noun : 'topic'
-                      : PROBLEM_MONTH ? PROBLEM_COPY.nounPlural : 'topics'}`
+                      ? 'discussion'
+                      : 'discussions'}`
                   : undefined
               }
             />
@@ -257,20 +256,16 @@ export default function BoardPage() {
             ) : displayTopics.length === 0 ? (
               <EmptyState
                 icon={Lightbulb}
-                title={PROBLEM_MONTH ? 'No problems yet' : 'Nothing pitched yet'}
+                title="Nothing here yet"
                 body={
-                  PROBLEM_MONTH
-                    ? isOpen
-                      ? 'Be the first. A flaky test, a slow build, a design call you are unsure about. Two lines is enough.'
-                      : 'This cycle came and went without a problem.'
-                    : isOpen
-                      ? 'Be the first. One good question is enough to start a cycle.'
-                      : 'This cycle came and went without a pitch.'
+                  isOpen
+                    ? `Be the first. ${viewingCycle?.theme?.open_line ?? 'One good question is enough to start a cycle.'}`
+                    : 'This cycle came and went without a post.'
                 }
                 action={
                   isOpen && !topic_submitted ? (
                     <Button icon={Plus} onClick={() => setShowSubmit(true)}>
-                      {PROBLEM_MONTH ? PROBLEM_COPY.share : 'Pitch an idea'}
+                      {shareLabel(cycle?.theme)}
                     </Button>
                   ) : undefined
                 }
@@ -294,11 +289,11 @@ export default function BoardPage() {
               Glanceable, never load-bearing. It sticks below the header on a
               pointer so it stays with you down a long topic list, and it is a
               plain stacked column on a phone. */}
-          {/* Problem Month hides the contributor ranking: it muddies what is
+          {/* The focus format hides the contributor ranking: it muddies what is
               being measured. Bytes has its own switch. */}
           {showRail && (
             <aside className="min-w-0 space-y-(--gap-section) lg:sticky lg:top-20">
-              {!PROBLEM_MONTH && <TopContributors topics={displayTopics as Topic[]} />}
+              {!FOCUS_FORMAT && <TopContributors topics={displayTopics as Topic[]} />}
               {!HIDE_BYTES && <BytesTeaser />}
             </aside>
           )}

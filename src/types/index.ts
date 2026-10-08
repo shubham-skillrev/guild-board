@@ -1,5 +1,7 @@
 // src/types/index.ts
 
+import type { CycleTheme } from '@/lib/themes'
+
 export type UserRole = 'user' | 'admin'
 
 export type CycleStatus = 'upcoming' | 'open' | 'frozen' | 'closed'
@@ -42,6 +44,8 @@ export interface Cycle {
   meeting_at: string | null
   spark_closes_at: string | null
   created_at: string
+  /** Null for a month with no theme (migration 026). */
+  theme: CycleTheme | null
 }
 
 export interface Topic {

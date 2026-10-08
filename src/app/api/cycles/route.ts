@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 
     const { data, error } = await supabase
       .from('cycles')
-      .select('id,label,month,year,status,opens_at,freezes_at,meeting_at,spark_closes_at,created_at')
+      .select('id,label,month,year,status,opens_at,freezes_at,meeting_at,spark_closes_at,created_at,theme')
       .order('year', { ascending: false })
       .order('month', { ascending: false })
       .limit(12)
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
   }
 
   // Return current active cycle: open > first upcoming > latest cycle
-  const selectColumns = 'id,label,month,year,status,opens_at,freezes_at,meeting_at,spark_closes_at,created_at'
+  const selectColumns = 'id,label,month,year,status,opens_at,freezes_at,meeting_at,spark_closes_at,created_at,theme'
 
   const { data: openCycle, error: openError } = await supabase
     .from('cycles')

@@ -12,7 +12,6 @@ import {
 } from '@/components/landing/Sections'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
-import { PROBLEM_MONTH } from '@/lib/experiment'
 import { createClient } from '@/lib/supabase/server'
 import { getGuildStatus, getLatestBytes } from '@/lib/landing/guildStatus'
 import { enterGuestMode } from '@/app/actions/guest'
@@ -142,7 +141,7 @@ export default async function LandingPage() {
 
         <WhatPeopleBring />
         <HowItWorks />
-        {PROBLEM_MONTH && <ThisMonth status={status} isAuthed={isAuthed} />}
+        {status.theme && <ThisMonth status={status} isAuthed={isAuthed} theme={status.theme} />}
         <BetweenSessions bytes={bytes} isAuthed={isAuthed} />
         <ClosingCta status={status} isAuthed={isAuthed} />
       </main>

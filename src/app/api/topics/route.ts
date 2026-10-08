@@ -11,7 +11,6 @@ import { NextResponse } from 'next/server'
 import { notifyOnNewTopic, notifyAfterResponse } from '@/lib/push/notify'
 import { serializeTopic } from '@/lib/utils/anonymity'
 import { isInteractionLocked } from '@/lib/utils/cycle'
-import { PROBLEM_MONTH } from '@/lib/experiment'
 import { ALL_CATEGORIES } from '@/lib/constants'
 import type { Cycle } from '@/types'
 import type { CategoryTag } from '@/types'
@@ -153,7 +152,7 @@ export async function POST(request: Request) {
 
   if (error) {
     if (error.message.includes('Topic limit reached')) {
-      return NextResponse.json({ error: PROBLEM_MONTH ? "You've already shared a problem this cycle" : 'You have already submitted a topic this cycle' }, { status: 409 })
+      return NextResponse.json({ error: "You've already shared something this cycle. One each, so everyone gets a turn." }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

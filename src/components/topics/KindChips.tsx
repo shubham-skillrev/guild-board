@@ -1,14 +1,13 @@
 'use client'
 
 import { KINDS, type Kind } from '@/lib/kinds'
-import { PROBLEM_MONTH } from '@/lib/experiment'
 import { cn } from '@/lib/utils/cn'
 
 /**
  * Pick what you are bringing. A radio group drawn as pills: the selected kind
- * is ink, the rest are hairline outlines. During Problem Month the Problem
- * chip carries a small "this month" mark, so the theme is suggested without
- * closing the other kinds.
+ * is ink, the rest are hairline outlines. The kind the month's theme features
+ * carries a small "this month" mark, so the theme is suggested without closing
+ * the other kinds.
  *
  * `onChange` omitted renders it read-only, which is how the landing page's
  * demo composer uses it.
@@ -16,10 +15,13 @@ import { cn } from '@/lib/utils/cn'
 export function KindChips({
   value,
   onChange,
+  featured,
   className,
 }: {
   value: Kind
   onChange?: (kind: Kind) => void
+  /** The theme's featured kind. Omitted (a month with no theme) marks none. */
+  featured?: Kind | null
   className?: string
 }) {
   const interactive = !!onChange
@@ -48,7 +50,7 @@ export function KindChips({
             )}
           >
             {k.label}
-            {PROBLEM_MONTH && k.value === 'problem' && (
+            {k.value === featured && (
               <span className={cn('font-mono text-[10px] tracking-wide', selected ? 'text-parchment/70' : 'text-saffron')}>
                 this month
               </span>

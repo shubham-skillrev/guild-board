@@ -8,6 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { notifyOnCycleOpen, notifyAfterResponse } from '@/lib/push/notify'
 import { NextResponse } from 'next/server'
+import { sanitizeTheme } from '@/lib/themes'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -17,10 +18,13 @@ export async function POST(request: Request) {
   const { data: userData } = await supabase.from('users').select('role').eq('id', user.id).single()
   if (userData?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  let body: { label?: string; month?: number; year?: number; meeting_at?: string }
+  let body: { label?: string; month?: number; year?: number; meeting_at?: string; theme?: unknown }
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }) }
 
   const { label, month, year, meeting_at } = body
+  // Picked in the create form, so the cycle-open message below can carry it.
+  // Anything malformed is dropped rather than refused: a theme is optional.
+  const theme = sanitizeTheme(body.theme)
   if (!label || !month || !year) {
     return NextResponse.json({ error: 'label, month, and year are required' }, { status: 400 })
   }
@@ -44,6 +48,7 @@ export async function POST(request: Request) {
 
   const insert: Record<string, unknown> = { label, month, year, status: 'open', opens_at: new Date().toISOString() }
   if (meeting_at) insert.meeting_at = meeting_at
+  if (theme) insert.theme = theme
 
   const { data, error } = await adminClient
     .from('cycles')
@@ -53,7 +58,7 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  notifyAfterResponse(notifyOnCycleOpen({ label: data.label }), "notifyOnCycleOpen")
+  notifyAfterResponse(notifyOnCycleOpen({ label: data.label, theme: sanitizeTheme(data.theme) }), "notifyOnCycleOpen")
 
   return NextResponse.json(data, { status: 201 })
 }

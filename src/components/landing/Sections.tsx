@@ -3,6 +3,7 @@ import { KINDS } from '@/lib/kinds'
 import { ShareCta } from '@/components/landing/ShareCta'
 import { ComposerDemo } from '@/components/landing/ComposerDemo'
 import type { GuildStatus, LandingByte } from '@/lib/landing/guildStatus'
+import type { CycleTheme } from '@/lib/themes'
 
 /*
  * The landing page below the hero, in reading order:
@@ -121,26 +122,39 @@ export function HowItWorks() {
 }
 
 /* ─── 4 · This month ─────────────────────────────────────────
-   The only section that changes when the theme does. */
+   The only section that changes with the month: it is the cycle's theme,
+   word for word. A month with no theme has no section (see page.tsx). */
 
-export function ThisMonth({ status, isAuthed }: { status: GuildStatus; isAuthed: boolean }) {
+export function ThisMonth({ status, isAuthed, theme }: { status: GuildStatus; isAuthed: boolean; theme: CycleTheme }) {
   const month = status.month ? status.month[0].toUpperCase() + status.month.slice(1) : 'This month'
   return (
     <Section labelledBy="month-title">
       <div className="rounded-(--radius-card) border border-border bg-paper px-6 py-10 md:px-12 md:py-14">
         <Eyebrow>This month · {month}</Eyebrow>
         <H2 id="month-title">
-          Bring a <Accent>problem</Accent>.
+          <AccentTitle title={theme.title} accent={theme.accent} />
         </H2>
         <p className="mt-5 max-w-[36rem] text-[17px] leading-[1.6] text-ink-soft">
-          One tech problem you’ve run into lately. A flaky test, a slow build, a design call you’re
-          unsure about. Say what you tried; that’s what starts the conversation.
+          {theme.blurb}
         </p>
         <div className="mt-8">
-          <ShareCta isAuthed={isAuthed} boardOpen={status.isOpen} label="Share a problem" />
+          <ShareCta isAuthed={isAuthed} boardOpen={status.isOpen} label={theme.cta} />
         </div>
       </div>
     </Section>
+  )
+}
+
+/** The title with its accent word (first match, any case) in the display italic. */
+function AccentTitle({ title, accent }: { title: string; accent?: string }) {
+  const at = accent ? title.toLowerCase().indexOf(accent.toLowerCase()) : -1
+  if (!accent || at < 0) return <>{title}</>
+  return (
+    <>
+      {title.slice(0, at)}
+      <Accent>{title.slice(at, at + accent.length)}</Accent>
+      {title.slice(at + accent.length)}
+    </>
   )
 }
 

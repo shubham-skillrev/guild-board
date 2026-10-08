@@ -19,7 +19,7 @@ import { useToast } from '@/hooks/useToast'
 import { useGuestGate } from '@/components/auth/GuestGate'
 import { SparkButton } from '@/components/voting/SparkButton'
 import { SignalRow } from '@/components/topics/SignalRow'
-import { PROBLEM_MONTH } from '@/lib/experiment'
+import { FOCUS_FORMAT } from '@/lib/experiment'
 import type { Topic, Comment } from '@/types'
 
 interface TopicDetail extends Topic {
@@ -72,7 +72,7 @@ export default function TopicDetailPage({
     try {
       const res = await fetch(`/api/topics/${id}`)
       if (!res.ok) {
-        setError(PROBLEM_MONTH ? 'Problem not found' : 'Topic not found')
+        setError('Post not found')
         return
       }
       const data = await res.json()
@@ -136,9 +136,9 @@ export default function TopicDetailPage({
       })
       if (res.ok) {
         if (!wasVoted) {
-          toast(PROBLEM_MONTH ? `Marked: ${reactionFor(topic.category).idle.toLowerCase()}` : 'Vote committed to the ledger ⚡', 'success')
+          toast(FOCUS_FORMAT ? `Marked: ${reactionFor(topic.category).idle.toLowerCase()}` : 'Vote committed to the ledger ⚡', 'success')
         } else {
-          toast(PROBLEM_MONTH ? 'Unmarked' : 'Vote withdrawn', 'info')
+          toast(FOCUS_FORMAT ? 'Unmarked' : 'Vote withdrawn', 'info')
         }
         fetchTopic() // background sync, no await
       } else {
@@ -237,7 +237,7 @@ export default function TopicDetailPage({
       if (res.ok) {
         setEditing(false)
         await fetchTopic()
-        toast(PROBLEM_MONTH ? 'Problem updated' : 'Topic updated', 'success')
+        toast('Post updated', 'success')
       } else {
         const data = await res.json().catch(() => ({}))
         toast(data.error ?? 'Edit failed. Try again.', 'error')
@@ -283,7 +283,7 @@ export default function TopicDetailPage({
   if (error || !topic) {
     return (
       <div className="px-5 md:px-10 py-24 w-full max-w-6xl mx-auto text-center">
-        <p className="text-ink-soft text-base mb-4">{error || (PROBLEM_MONTH ? 'Problem not found' : 'Topic not found')}</p>
+        <p className="text-ink-soft text-base mb-4">{error || 'Post not found'}</p>
         <Link href="/board" className="text-saffron text-sm hover:underline">← Back to board</Link>
       </div>
     )
@@ -304,7 +304,7 @@ export default function TopicDetailPage({
         <div className="flex-1 min-w-0">
           {/* Badges */}
           <div className="flex flex-wrap items-center gap-1.5 mb-3">
-            {(!PROBLEM_MONTH || kindOf(topic.category)) && <Badge tone={categoryTone}>{CATEGORY_LABELS[topic.category]}</Badge>}
+            {(!FOCUS_FORMAT || kindOf(topic.category)) && <Badge tone={categoryTone}>{CATEGORY_LABELS[topic.category]}</Badge>}
             {topic.status === 'carry_forward' && <Badge tone="indigo">Returning</Badge>}
             {topic.is_selected && <Badge tone="saffron">On the agenda</Badge>}
           </div>
@@ -346,10 +346,10 @@ export default function TopicDetailPage({
                 <h1 className="font-serif text-[2.25rem] md:text-[2.625rem] font-normal tracking-[-0.012em] text-ink leading-[1.1] text-balance">{topic.title}</h1>
                 {isOwner && phase === 'open' && (
                   <div className="flex items-center gap-1 shrink-0">
-                    <Button size="sm" variant="ghost" icon={PencilSimple} onClick={() => setEditing(true)} title={PROBLEM_MONTH ? 'Edit problem' : 'Edit topic'}>
+                    <Button size="sm" variant="ghost" icon={PencilSimple} onClick={() => setEditing(true)} title="Edit post">
                       <span className="hidden sm:inline">Edit</span>
                     </Button>
-                    <Button size="sm" variant="danger" icon={Trash} onClick={() => setConfirmDelete(true)} title={PROBLEM_MONTH ? 'Delete problem' : 'Delete topic'}>
+                    <Button size="sm" variant="danger" icon={Trash} onClick={() => setConfirmDelete(true)} title="Delete post">
                       <span className="hidden sm:inline">Delete</span>
                     </Button>
                   </div>
@@ -359,7 +359,7 @@ export default function TopicDetailPage({
               {/* Delete confirmation */}
               {confirmDelete && (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-4 px-(--pad-card) py-3 bg-vermillion/10 rounded-(--radius-card) text-footnote">
-                  <span className="text-vermillion sm:mr-2">{PROBLEM_MONTH ? 'Permanently delete this problem?' : 'Permanently delete this topic?'}</span>
+                  <span className="text-vermillion sm:mr-2">Permanently delete this post?</span>
                   <div className="flex items-center gap-1">
                     <Button
                       size="sm"
@@ -436,7 +436,7 @@ export default function TopicDetailPage({
                 </span>
               )}
               <span className="font-bold tabular-nums">{topic.vote_count}</span>
-              <span className="text-[12px]">{PROBLEM_MONTH
+              <span className="text-[12px]">{FOCUS_FORMAT
                   ? topic.user_has_voted ? reactionFor(topic.category).done : reactionFor(topic.category).idle
                   : topic.user_has_voted ? 'Upvoted' : 'Upvote'}</span>
             </button>
@@ -461,7 +461,7 @@ export default function TopicDetailPage({
                 </span>
               )}
               <span className="font-bold tabular-nums">{topic.contrib_count}</span>
-              <span className="text-[12px]">{PROBLEM_MONTH
+              <span className="text-[12px]">{FOCUS_FORMAT
                   ? topic.user_has_contribed ? reactionFor(topic.category).contribDone : reactionFor(topic.category).contrib
                   : topic.user_has_contribed ? "I'm in" : 'Join discussion'}</span>
             </button>
@@ -510,11 +510,11 @@ export default function TopicDetailPage({
             <div className="mt-4 bg-paper/50 border border-border rounded-(--radius-card) p-(--pad-card) space-y-2.5">
               <h3 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-2">Stats</h3>
               <div className="flex items-center justify-between text-[12px]">
-                <span className="text-cha">{PROBLEM_MONTH ? (kindOf(topic.category)?.value === 'problem' ? 'Hit this too' : 'Want to discuss') : 'Votes'}</span>
+                <span className="text-cha">{FOCUS_FORMAT ? (kindOf(topic.category)?.value === 'problem' ? 'Hit this too' : 'Want to discuss') : 'Votes'}</span>
                 <span className="text-ink font-medium tabular-nums">{topic.vote_count}</span>
               </div>
               <div className="flex items-center justify-between text-[12px]">
-                <span className="text-cha">{PROBLEM_MONTH ? (kindOf(topic.category)?.value === 'problem' ? 'Dealt with it' : 'Can add') : 'Contributors'}</span>
+                <span className="text-cha">{FOCUS_FORMAT ? (kindOf(topic.category)?.value === 'problem' ? 'Dealt with it' : 'Can add') : 'Contributors'}</span>
                 <span className="text-ink font-medium tabular-nums">{topic.contrib_count}</span>
               </div>
               <div className="flex items-center justify-between text-[12px]">
