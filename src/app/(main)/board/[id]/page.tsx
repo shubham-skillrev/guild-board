@@ -4,8 +4,7 @@ import { ArrowFatUp, ArrowLeft, Handshake, PencilSimple, Trash } from '@phosphor
 import { use, useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { Markdown } from '@/components/ui/Markdown'
 import { cn } from '@/lib/utils/cn'
 import { CATEGORY_LABELS, CATEGORY_TONE, DESCRIPTION_MAX_LENGTH } from '@/lib/constants'
 import { kindOf, reactionFor } from '@/lib/kinds'
@@ -17,6 +16,7 @@ import { AuthorMark } from '@/components/topics/AuthorMark'
 import { useAuth } from '@/hooks/useAuth'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useToast } from '@/hooks/useToast'
+import { useGuestGate } from '@/components/auth/GuestGate'
 import { SparkButton } from '@/components/voting/SparkButton'
 import { SignalRow } from '@/components/topics/SignalRow'
 import { PROBLEM_MONTH } from '@/lib/experiment'
@@ -39,6 +39,7 @@ export default function TopicDetailPage({
   const { user } = useAuth()
   const { cycle, phase } = useCurrentCycle()
   const toast = useToast()
+  const { blockGuest } = useGuestGate()
 
   const [topic, setTopic] = useState<TopicDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -112,6 +113,7 @@ export default function TopicDetailPage({
 
   const handleVote = async () => {
     if (!topic || !canVote || votePending) return
+    if (blockGuest()) return
     const wasVoted = topic.user_has_voted
     // Optimistic update
     setTopic(t => t ? {
@@ -168,6 +170,7 @@ export default function TopicDetailPage({
 
   const handleContrib = async () => {
     if (!topic || !canContrib || contribPending) return
+    if (blockGuest()) return
     const wasContribed = topic.user_has_contribed
     // Optimistic update
     setTopic(t => t ? {
@@ -303,7 +306,7 @@ export default function TopicDetailPage({
           <div className="flex flex-wrap items-center gap-1.5 mb-3">
             {(!PROBLEM_MONTH || kindOf(topic.category)) && <Badge tone={categoryTone}>{CATEGORY_LABELS[topic.category]}</Badge>}
             {topic.status === 'carry_forward' && <Badge tone="indigo">Returning</Badge>}
-            {topic.is_selected && <Badge tone="saffron">Selected</Badge>}
+            {topic.is_selected && <Badge tone="saffron">On the agenda</Badge>}
           </div>
 
           {/* Title + Edit/Delete */}
@@ -400,9 +403,7 @@ export default function TopicDetailPage({
 
               {/* Description - rendered as markdown */}
               <div className="prose-guild mb-5">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {topic.description}
-                </ReactMarkdown>
+                <Markdown>{topic.description}</Markdown>
               </div>
 
               {/* One-tap responses - usable even when the board is locked. */}

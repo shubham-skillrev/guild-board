@@ -6,8 +6,8 @@ import { cn } from '@/lib/utils/cn'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/hooks/useToast'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { useGuestGate } from '@/components/auth/GuestGate'
+import { Markdown } from '@/components/ui/Markdown'
 import type { Comment } from '@/types'
 
 interface CommentThreadProps {
@@ -46,6 +46,7 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
   const [loading, setLoading] = useState(false)
   const [newComment, setNewComment] = useState('')
   const toast = useToast()
+  const { blockGuest } = useGuestGate()
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -149,6 +150,7 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
 
   const handleSubmit = async () => {
     if (!newComment.trim() || submitting) return
+    if (blockGuest()) return
     setSubmitting(true)
     const body = newComment.trim()
     const toAsk = willAsk
@@ -175,7 +177,13 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
           if (done.length) toast(`Asked ${done.map(m => `@${m.username}`).join(' and ')} to weigh in`, 'success')
           setAsksVersion(v => v + 1)
         }
+      } else {
+        // The text stays in the box so nothing is lost; say why it did not go.
+        const data = await res.json().catch(() => ({}))
+        toast(data.error ?? 'Could not send. Try again.', 'error')
       }
+    } catch {
+      toast('Could not send, check your connection', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -432,6 +440,7 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
   const [reactionPending, setReactionPending] = useState(false)
   const editTextareaRef = useRef<HTMLTextAreaElement>(null)
   const toast = useToast()
+  const { blockGuest } = useGuestGate()
   const isOwner = currentUserId === comment.user_id
   const maxDepth = 3
 
@@ -444,6 +453,7 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
 
   // Like is the only reaction now; -1 is rejected server-side.
   const handleReaction = async (value: 1) => {
+    if (blockGuest()) return
     if (!currentUserId || reactionPending) return
     const prev = comment.user_reaction ?? null
 
@@ -524,9 +534,7 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
           </div>
         ) : (
           <div className="prose-guild mt-1">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {comment.body}
-            </ReactMarkdown>
+            <Markdown>{comment.body}</Markdown>
           </div>
         )}
 

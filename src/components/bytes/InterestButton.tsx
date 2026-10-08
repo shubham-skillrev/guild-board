@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { ArrowFatUp } from '@phosphor-icons/react/dist/ssr'
 import { cn } from '@/lib/utils/cn'
+import { useToast } from '@/hooks/useToast'
+import { useGuestGate } from '@/components/auth/GuestGate'
 
 /**
  * "Discuss this at the guild meet."
@@ -30,9 +32,12 @@ export function InterestButton({
   const [interested, setInterested] = useState(initialInterested)
   const [count, setCount] = useState(initialCount)
   const [busy, setBusy] = useState(false)
+  const toast = useToast()
+  const { blockGuest } = useGuestGate()
 
   const toggle = async () => {
     if (busy) return
+    if (blockGuest()) return
     setBusy(true)
 
     // Optimistic: the tap has to register instantly or the whole affordance
@@ -51,6 +56,7 @@ export function InterestButton({
     } catch {
       setInterested(was)
       setCount(c => Math.max(0, c + (was ? 1 : -1)))
+      toast('Could not save that. Try again.', 'error')
     } finally {
       setBusy(false)
     }

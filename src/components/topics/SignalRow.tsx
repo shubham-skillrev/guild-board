@@ -7,6 +7,8 @@ import type { Icon as PhosphorIcon } from '@phosphor-icons/react'
 import { SIGNAL_KINDS, SIGNAL_LABELS, type SignalKind } from '@/lib/constants'
 import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/utils/cn'
+import { useToast } from '@/hooks/useToast'
+import { useGuestGate } from '@/components/auth/GuestGate'
 
 /**
  * Duotone, so each glyph carries two tones of its own hue rather than needing a
@@ -45,6 +47,8 @@ export function SignalRow({ topicId, compact = false, initialCounts, initialMine
   const [mine, setMine] = useState<Set<SignalKind>>(new Set((initialMine ?? []) as SignalKind[]))
   const [pending, setPending] = useState<SignalKind | null>(null)
   const [loaded, setLoaded] = useState(hasInitial)
+  const toast = useToast()
+  const { blockGuest } = useGuestGate()
 
   useEffect(() => {
     if (hasInitial) return
@@ -63,6 +67,7 @@ export function SignalRow({ topicId, compact = false, initialCounts, initialMine
 
   const toggle = async (signal: SignalKind) => {
     if (pending) return
+    if (blockGuest()) return
     setPending(signal)
 
     // Optimistic - a one-tap affordance must feel instant.
@@ -89,6 +94,7 @@ export function SignalRow({ topicId, compact = false, initialCounts, initialMine
         return next
       })
       setCounts(prev => ({ ...prev, [signal]: Math.max((prev[signal] ?? 0) + (wasActive ? 1 : -1), 0) }))
+      toast('Could not save that reaction. Try again.', 'error')
     } finally {
       setPending(null)
     }

@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Wordmark } from "@/components/ui/Wordmark";
 import { GuestBanner } from "@/components/layout/GuestBanner";
 import { isGuestSession } from "@/lib/supabase/viewer";
+import { GuestGateProvider } from "@/components/auth/GuestGate";
 
 async function getUser() {
   try {
@@ -38,7 +39,7 @@ export default async function MainLayout({
   const isGuest = !profile && (await isGuestSession());
 
   return (
-    <>
+    <GuestGateProvider isGuest={isGuest}>
       <div className="min-h-screen bg-parchment flex flex-col overflow-x-hidden">
         <Suspense fallback={null}>
           <UsernameSetupModal />
@@ -110,6 +111,6 @@ export default async function MainLayout({
         username={profile?.username}
         isGuest={isGuest}
       />
-    </>
+    </GuestGateProvider>
   );
 }

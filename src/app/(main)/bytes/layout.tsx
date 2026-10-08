@@ -1,5 +1,12 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { HIDE_BYTES } from '@/lib/experiment'
+
+// The template repeats the root one: a plain string here would drop it for
+// the [id] page underneath.
+export const metadata: Metadata = {
+  title: { default: 'Bytes', template: '%s \u00b7 GuildBoard' },
+}
 
 /**
  * The switch for hiding Bytes without deleting it. The crons keep publishing

@@ -38,7 +38,12 @@ const displayFont = Instrument_Serif({
 const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('gb-theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d)}catch(e){}})()`;
 
 export const metadata: Metadata = {
-  title: "GuildBoard by SkillRev \u00b7 Where SkillRev talks tech",
+  // Pages set their own short title; the template keeps the product name on
+  // every tab. The landing page has none, so it gets the full line.
+  title: {
+    default: "GuildBoard by SkillRev \u00b7 Where SkillRev talks tech",
+    template: "%s \u00b7 GuildBoard",
+  },
   description:
     "SkillRev's monthly engineering guild. New tech, old tech, something you learned, a problem you're stuck on. Put it on the board, then talk it through.",
   applicationName: "GuildBoard",

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { SYSTEM_USERNAME } from '@/lib/system/identity'
 import { getViewer } from '@/lib/supabase/viewer'
@@ -6,6 +7,8 @@ import { Lightbulb, Users, CheckCircle } from '@phosphor-icons/react/dist/ssr'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { SparkButton } from '@/components/voting/SparkButton'
 import { StatStrip, StatChip } from '@/components/ui/Section'
+
+export const metadata: Metadata = { title: 'Leaderboard' }
 
 interface LeaderboardEntry {
   id: string
@@ -203,9 +206,11 @@ export default async function LeaderboardPage() {
       </div>
 
       {/* Cohort stats - what the guild did together, with nobody ranked.
-          Same strip the board uses for your quotas. */}
+          Same strip the board uses for your quotas. These are for one month
+          while the standings below are all-time, so the strip names its month. */}
       {stats && (
-        <StatStrip className="mb-8">
+        <StatStrip className="mb-8" aria-label={`${stats.label} so far`}>
+          <span className="px-2 text-[12px] font-medium text-ink-soft">{stats.label}</span>
           {[
             { label: 'ideas pitched', value: stats.ideas, icon: Lightbulb },
             { label: 'people voted', value: stats.voters, icon: Users },

@@ -8,6 +8,7 @@ import { useTopics } from '@/hooks/useTopics'
 import { useUserTokens } from '@/hooks/useUserTokens'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
+import { useGuestGate } from '@/components/auth/GuestGate'
 import { TopicList } from '@/components/topics/TopicList'
 import { SubmitModal } from '@/components/topics/SubmitModal'
 import { ShareIntent } from '@/components/topics/ShareIntent'
@@ -34,6 +35,7 @@ export default function BoardPage() {
   const { topics, isLoading: topicsLoading, mutate, optimisticVote, optimisticContrib } = useTopics(cycle?.id)
   const { votes_remaining, contribs_remaining, topic_submitted, isLoading: tokensLoading, refresh: refreshTokens } = useUserTokens(cycle?.id)
   const toast = useToast()
+  const { blockGuest } = useGuestGate()
 
   const [allCycles, setAllCycles] = useState<Cycle[]>([])
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null)
@@ -70,6 +72,7 @@ export default function BoardPage() {
   const viewingCycle = allCycles.find(c => c.id === viewingCycleId) ?? cycle
 
   const handleVote = useCallback(async (topicId: string, cycleId: string, hasVoted: boolean) => {
+    if (blockGuest()) return
     optimisticVote(topicId, hasVoted ? -1 : 1)
     try {
       const res = await fetch('/api/votes', {
@@ -90,9 +93,10 @@ export default function BoardPage() {
       optimisticVote(topicId, hasVoted ? 1 : -1)
       toast('Vote failed, check your connection', 'error')
     }
-  }, [optimisticVote, refreshTokens, toast])
+  }, [optimisticVote, refreshTokens, toast, blockGuest])
 
   const handleContrib = useCallback(async (topicId: string, cycleId: string, hasContribed: boolean) => {
+    if (blockGuest()) return
     optimisticContrib(topicId, hasContribed ? -1 : 1)
     try {
       const res = await fetch('/api/contributions', {
@@ -113,7 +117,7 @@ export default function BoardPage() {
       optimisticContrib(topicId, hasContribed ? 1 : -1)
       toast('Failed to update, check your connection', 'error')
     }
-  }, [optimisticContrib, refreshTokens, toast])
+  }, [optimisticContrib, refreshTokens, toast, blockGuest])
 
   const isLoading = authLoading || cycleLoading
   const displayTopics = isViewingActive ? topics : archiveTopics
@@ -146,7 +150,8 @@ export default function BoardPage() {
         <PageHeader
           title="The Board"
           subtitle={
-            PROBLEM_MONTH
+            // The theme belongs to this month only; past months just get their label.
+            PROBLEM_MONTH && isViewingActive
               ? viewingCycle ? `${viewingCycle.label} · ${PROBLEM_COPY.boardSubtitle}` : PROBLEM_COPY.boardSubtitle
               : viewingCycle ? viewingCycle.label : 'What shall we build next?'
           }

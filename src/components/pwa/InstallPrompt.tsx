@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useOverlaySlot, OVERLAY_PRIORITY } from "@/components/ui/OverlaySlot";
 import { Portal } from "@/components/ui/Portal";
 import { track } from "@vercel/analytics";
@@ -49,7 +50,13 @@ function isStandaloneMode() {
   );
 }
 
+/* Not on the landing page or sign-in. A first visit is for reading the pitch,
+   and the card sat over its stat strip; asking to install an app nobody has
+   tried yet is also the wrong order. It shows once they are inside. */
+const QUIET_PATHS = new Set(["/", "/login"]);
+
 export function InstallPrompt() {
+  const pathname = usePathname();
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
   const [platform, setPlatform] = useState<Platform>("other");
   const [standalone, setStandalone] = useState(false);
@@ -111,7 +118,7 @@ export function InstallPrompt() {
   const hasSlot = useOverlaySlot(
     "installPrompt",
     OVERLAY_PRIORITY.installPrompt,
-    !standalone && visible,
+    !standalone && visible && !QUIET_PATHS.has(pathname),
   );
   if (!hasSlot) return null;
 

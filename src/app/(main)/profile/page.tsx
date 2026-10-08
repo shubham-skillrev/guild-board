@@ -1,9 +1,12 @@
+import type { Metadata } from 'next'
 import { PencilLine } from '@phosphor-icons/react/dist/ssr'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { UserAvatar } from '@/components/ui/UserAvatar'
+
+export const metadata: Metadata = { title: 'Your profile' }
 
 async function getProfile() {
   const supabase = await createClient()

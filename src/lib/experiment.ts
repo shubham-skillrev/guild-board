@@ -29,10 +29,22 @@ export const PROBLEM_COPY = {
 } as const
 
 /**
- * The form folds "What have you tried" into the description as bold-labelled
- * sections. A card shows one line of it, where `**What I've tried**` would read
- * as literal asterisks, so the labels become inline prefixes instead.
+ * A card shows a line or two of the description as plain text, where markdown
+ * would read as literal `##` and asterisks. The form folds "What have you
+ * tried" into the description as bold-labelled sections; those labels become
+ * inline prefixes. Everything else is stripped down to its text.
  */
 export function problemBlurb(description: string): string {
-  return description.replace(/\*\*(.+?)\*\*\s*\n/g, '$1: ')
+  return description
+    .replace(/\*\*(.+?)\*\*\s*\n/g, '$1: ')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/^\s{0,3}(#{1,6}|>+|[-*+]|\d+[.)])\s+/gm, '')
+    .replace(/^\s*([-*_]\s*){3,}$/gm, '')
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/(\*\*|__)(.+?)\1/g, '$2')
+    .replace(/(^|[^\w*])[*_]([^*_\n]+)[*_](?=[^\w*]|$)/g, '$1$2')
+    .replace(/~~(.+?)~~/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
 }

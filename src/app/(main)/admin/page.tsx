@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { AdminControls } from '@/components/admin/AdminControls'
@@ -6,6 +7,8 @@ import { ByteGenerator } from '@/components/admin/ByteGenerator'
 import { SystemTopicsPanel } from '@/components/admin/SystemTopicsPanel'
 import { PageHeader, SectionHeader } from '@/components/ui/Section'
 import type { Cycle } from '@/types'
+
+export const metadata: Metadata = { title: 'Admin' }
 
 async function getAdminData() {
   const supabase = await createClient()

@@ -142,14 +142,22 @@ export default function BytesPage() {
             >
               <SectionHeader
                 id="bytes-week"
+                // "Also" and "more" only read right under the Top section; with
+                // nothing upvoted yet this list is the whole digest.
                 title={
                   digest?.kind === "daily"
                     ? "In this drop"
                     : digest?.kind === "weekly"
                       ? "This week"
-                      : "Also in this digest"
+                      : shownTop.length > 0
+                        ? "Also in this digest"
+                        : "In this digest"
                 }
-                hint={`${shownBytes.length} more`}
+                hint={
+                  shownTop.length > 0
+                    ? `${shownBytes.length} more`
+                    : `${shownBytes.length} ${shownBytes.length === 1 ? "story" : "stories"}`
+                }
               />
               <div className="rounded-(--radius-card) border border-border bg-paper/40 divide-y divide-border overflow-hidden">
                 {shownBytes.map((b) => (
