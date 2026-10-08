@@ -31,16 +31,16 @@ export function escapeSlack(s: string): string {
 }
 
 /**
- * An absolute link back into the app. Slack cannot follow a relative path.
- *
- * SLACK_LINK_BASE_URL wins when set: a dev server posting to the real channel
- * would otherwise send http://localhost links that open for nobody.
+ * The address every outgoing link uses. Fixed, not taken from the environment:
+ * a message posted from a dev server or a preview deployment still lands in
+ * the real channel and on real phones, where a localhost or *.vercel.app link
+ * opens for nobody.
  */
+export const PUBLIC_APP_URL = "https://guildboard.skillrev.in";
+
+/** An absolute link back into the app. Slack cannot follow a relative path. */
 export function appLink(path: string, label: string): string {
-  const origin = (process.env.SLACK_LINK_BASE_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "")
-    .trim()
-    .replace(/\/$/, "");
-  return `<${origin}${path}|${escapeSlack(label)}>`;
+  return `<${PUBLIC_APP_URL}${path}|${escapeSlack(label)}>`;
 }
 
 /** A link to anywhere, for Slack mrkdwn. */

@@ -5,7 +5,7 @@ import { sendPushToUser, sendPushToUsers } from "@/lib/push/send";
 import { HIDE_BYTES } from "@/lib/experiment";
 import type { CycleTheme } from "@/lib/themes";
 import type { AnnouncementChannel } from "@/lib/announce";
-import { postToSlack, escapeSlack, appLink, extLink } from "@/lib/slack/send";
+import { postToSlack, escapeSlack, appLink, extLink, PUBLIC_APP_URL } from "@/lib/slack/send";
 
 /**
  * Fire a notification without blocking the response.
@@ -605,10 +605,10 @@ export async function notifyOnSystemTopics(args: {
  * draft they edited), so nothing is added here. Returns what happened per
  * channel, for the history row.
  *
- * The push link is made absolute. Subscriptions are owned by the service
- * worker of the origin they were made on, which resolves a relative URL
- * against itself, so after a domain move a relative link would open the old
- * address.
+ * The push link is made absolute, on the public address. Subscriptions are
+ * owned by the service worker of the origin they were made on, which resolves
+ * a relative URL against itself, so after a domain move a relative link would
+ * open the old address.
  */
 export async function notifyAnnouncement(args: {
   id: string;
@@ -618,7 +618,7 @@ export async function notifyAnnouncement(args: {
   url: string | null;
   channels: AnnouncementChannel[];
 }): Promise<{ slackOk: boolean | null; pushSent: number | null }> {
-  const origin = (process.env.NEXT_PUBLIC_APP_URL ?? "").trim().replace(/\/$/, "");
+  const origin = PUBLIC_APP_URL;
   const url = !args.url ? `${origin}/board` : /^https?:\/\//.test(args.url) ? args.url : `${origin}${args.url.startsWith("/") ? "" : "/"}${args.url}`;
 
   const [slackOk, push] = await Promise.all([
