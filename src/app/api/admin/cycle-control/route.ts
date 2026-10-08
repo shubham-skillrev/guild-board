@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notifyOnCycleOpen, notifyOnCycleEnded, notifyAfterResponse } from '@/lib/push/notify'
 import { NextResponse } from 'next/server'
 import { sanitizeTheme } from '@/lib/themes'
+import { closeCycle } from '@/lib/cycles/lifecycle'
 
 export async function PATCH(request: Request) {
   const supabase = await createClient()
@@ -61,31 +62,43 @@ export async function PATCH(request: Request) {
     }
   }
 
-  const updates: Record<string, unknown> = { status }
-
-  // Set timestamps automatically based on status transition
-  if (status === 'open') updates.opens_at = new Date().toISOString()
-  if (status === 'frozen') updates.freezes_at = new Date().toISOString()
-  if (status === 'closed') {
-    const sparkClosesAt = new Date()
-    sparkClosesAt.setHours(sparkClosesAt.getHours() + 48)
-    updates.spark_closes_at = sparkClosesAt.toISOString()
+  // Reopening an old month next to a newer one would leave two open boards,
+  // and every reader picks the newest, so the reopened one would be invisible.
+  if (status === 'open') {
+    const { data: newer } = await adminClient
+      .from('cycles')
+      .select('id')
+      .neq('id', cycle_id)
+      .or(`year.gt.${cycle.year},and(year.eq.${cycle.year},month.gt.${cycle.month})`)
+      .limit(1)
+    if (newer?.length) {
+      return NextResponse.json({ error: 'A later month already exists. Reopen only the latest cycle.' }, { status: 400 })
+    }
   }
 
-  const { data, error } = await adminClient
-    .from('cycles')
-    .update(updates)
-    .eq('id', cycle_id)
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  let data
+  if (status === 'closed') {
+    data = await closeCycle(adminClient, cycle_id)
+  } else {
+    const updates: Record<string, unknown> = { status }
+    if (status === 'open') updates.opens_at = new Date().toISOString()
+    if (status === 'frozen') updates.freezes_at = new Date().toISOString()
+    const { data: row, error } = await adminClient
+      .from('cycles')
+      .update(updates)
+      .eq('id', cycle_id)
+      .select()
+      .single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    data = row
+  }
 
   // Fire notifications on meaningful transitions only.
   if (cycle.status !== status) {
     if (status === 'open') {
       notifyAfterResponse(notifyOnCycleOpen({ label: data.label, theme: sanitizeTheme(data.theme) }), "notifyOnCycleOpen")
-    } else if (status === 'frozen') {
+    } else if (status === 'frozen' || status === 'closed') {
+      // Closing is what starts the 48h spark window the message promises.
       notifyAfterResponse(notifyOnCycleEnded({ label: data.label }), "notifyOnCycleEnded")
     }
   }

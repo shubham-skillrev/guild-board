@@ -2,6 +2,7 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { mediumLabel } from '@/lib/bytes/labels'
 import { sanitizeTheme, type CycleTheme } from '@/lib/themes'
+import { defaultMeetingAt } from '@/lib/cycles/dates'
 
 /**
  * What the public landing page is allowed to know about the guild.
@@ -31,12 +32,6 @@ const EMPTY: GuildStatus = { month: null, nextSession: null, meetingAt: null, is
 // The guild meets in India. Server time is UTC, so format explicitly rather
 // than let the deployment region pick the day.
 const TZ = 'Asia/Kolkata'
-
-function secondFriday(year: number, month: number): Date {
-  const first = new Date(Date.UTC(year, month - 1, 1))
-  const offset = (5 - first.getUTCDay() + 7) % 7
-  return new Date(Date.UTC(year, month - 1, 1 + offset + 7))
-}
 
 /** "Fri 9 Oct". */
 function formatDate(d: Date): string {
@@ -91,7 +86,7 @@ export async function getGuildStatus(): Promise<GuildStatus> {
     } else if (!hasMeeting) {
       // No date set yet: the guild's default is the second Friday. Show the
       // day only, since the time is a guess.
-      nextSession = { date: formatDate(secondFriday(cycle.year, cycle.month)), time: null }
+      nextSession = { date: formatDate(defaultMeetingAt(cycle.year, cycle.month)), time: null }
     }
 
     let problemCount = 0

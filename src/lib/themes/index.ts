@@ -12,6 +12,9 @@ import { KINDS, type Kind } from '@/lib/kinds'
  * Free of server-only imports: the board and the admin form read it too.
  */
 export interface CycleTheme {
+  /** Catalog slug (src/lib/themes/catalog.ts), so autopilot never repeats one.
+      Absent on a theme written by hand or by Gemini. */
+  id?: string
   /** Short name for the admin list, e.g. "Problem Month". */
   name: string
   /** Landing headline, e.g. "Bring a problem." */
@@ -67,7 +70,9 @@ export function sanitizeTheme(raw: unknown): CycleTheme | null {
   if (!kind) return null
 
   const accent = text('accent')
+  const id = typeof t.id === 'string' && /^[a-z0-9-]{1,48}$/.test(t.id) ? t.id : null
   return {
+    ...(id ? { id } : {}),
     ...theme,
     featured_kind: kind,
     ...(accent && theme.title.toLowerCase().includes(accent.toLowerCase()) ? { accent } : {}),

@@ -91,25 +91,27 @@ svg onload, `javascript:` href, form, base, meta refresh, nested-tag smuggling)
 were checked against it, and eight live feeds survive filtering with 77–100% of
 their markup intact.
 
-## Bytes crons
+## Crons
 
-`vercel.json` schedules two jobs. They are independent and must not gate each
-other, which is why the every-other-day guard below only looks at `daily`
-digests.
+`vercel.json` schedules three daily jobs.
 
-| Path | Schedule | Builds |
+| Path | Schedule (UTC) | Does |
 |---|---|---|
-| `/api/cron/bytes` | `0 6 */2 * *` | 6 items from a 3-day window, only stories that have not run before |
-| `/api/cron/bytes/monthly` | `0 7 1 * *` | 10 items from the month that just ended, re-ranked with the guild's own upvotes, repeats allowed |
+| `/api/cron/autopilot` | `30 3 * * *` (~09:00 IST) | Runs the month: closes the cycle the day after its meeting, opens next month (2nd Friday 11:00 IST, a theme from `src/lib/themes/catalog.ts`, Slack + push), and publishes Bytes: 10 stories ~15 days before the meeting and 10 more ~3 days before |
+| `/api/cron/system-topics` | `0 4 * * *` | GuildBoard's suggested topics for a newly opened month |
+| `/api/cron/meeting-reminder` | `30 5 * * *` | "Guild tomorrow" on Slack and push |
 
-Vercel's Hobby plan permits two cron jobs, so this is exactly at the limit; a
-third needs Pro.
+Every autopilot step decides from stored state (cycle status, existing
+digests), so a late, skipped or repeated run is safe. `?dry=1` returns what it
+would do today without writing or notifying. `AUTOPILOT_DISABLED=1` turns it
+off. The every-other-day and 1st-of-month Bytes jobs it replaced are gone; the
+admin page's "Fetch more now" and "Rebuild top of the month" still work by hand.
 
-Two env vars gate both, set in the Vercel dashboard:
+Two env vars matter, set in the Vercel dashboard:
 
 | Var | Required | Effect if missing |
 |---|---|---|
-| `CRON_SECRET` | **Yes** | Both routes refuse to run and return 500 on every fire. |
+| `CRON_SECRET` | **Yes** | Every cron refuses to run and returns 500 on every fire. |
 | `GEMINI_API_KEY` | No | Gemini curates the pool and writes summaries. Without it digests are still built from the real feeds, uncurated, with blank summaries to fill in by hand. |
 
 > **This is the failure that stopped the digest.** Between 2026-08-24 and
@@ -128,19 +130,14 @@ Test it without waiting for the schedule:
 
 ```sh
 curl -i -H "Authorization: Bearer $CRON_SECRET" \
-  https://your-app.vercel.app/api/cron/bytes
+  "https://guildboard.skillrev.in/api/cron/autopilot?dry=1"
 ```
 
 Expected responses:
 
-- `200 {"published":true,...}` on a successful run
-- `200 {"skipped":true,"reason":"duplicate_period"}` if this period already ran,
-  which is the normal no-op for a repeat firing
-- `200 {"skipped":true,"reason":"too_soon"}` if the last daily drop was under
-  36 hours ago
+- `200 {"steps":[...]}` listing what ran (or, with `?dry=1`, would run)
+- `200 {"steps":"nothing to do today"}` on most days
+- `200 {"skipped":true,"reason":"disabled"}` when `AUTOPILOT_DISABLED=1`
 - `404` if the secret is wrong or absent
-- `500 {"error":"Not configured"}` if `CRON_SECRET` is unset — check this first
+- `500 {"error":"Not configured"}` if `CRON_SECRET` is unset; check this first
   when the page has gone stale
-
-The monthly job answers the same way at `/api/cron/bytes/monthly`. It can never
-return `all_seen`: it runs with repeats allowed on purpose.

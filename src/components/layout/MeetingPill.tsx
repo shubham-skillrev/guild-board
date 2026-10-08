@@ -4,15 +4,9 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useOverlaySlot, OVERLAY_PRIORITY } from '@/components/ui/OverlaySlot'
 import type { Cycle } from '@/types'
+import { defaultMeetingAt } from '@/lib/cycles/dates'
 
 /* ── Helpers ── */
-
-function getSecondFriday(year: number, month: number): Date {
-  const firstDay = new Date(year, month - 1, 1)
-  const dow = firstDay.getDay()
-  const dayOfMonth = 1 + ((5 - dow + 7) % 7) + 7
-  return new Date(year, month - 1, dayOfMonth, 5, 30) // default 11 AM IST = 05:30 UTC
-}
 
 function getMeetingDate(cycle: Cycle | null | undefined): Date | null {
   if (!cycle) return null
@@ -20,7 +14,7 @@ function getMeetingDate(cycle: Cycle | null | undefined): Date | null {
     const d = new Date(cycle.meeting_at)
     if (!Number.isNaN(d.getTime())) return d
   }
-  return getSecondFriday(cycle.year, cycle.month)
+  return defaultMeetingAt(cycle.year, cycle.month)
 }
 
 /* ── Countdown logic ── */

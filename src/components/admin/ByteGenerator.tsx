@@ -107,7 +107,7 @@ export function ByteGenerator() {
     <section className="rounded-(--radius-card) border border-border bg-paper/40 p-(--pad-card)">
       <SectionHeader
         title="Bytes"
-        hint="fetched every other morning, plus a top-of-month look-back on the 1st"
+        hint="10 stories ~15 days before each meeting, 10 more ~3 days before"
         href="/bytes"
         hrefLabel="View"
       />
@@ -150,8 +150,8 @@ export function ByteGenerator() {
         <p className="type-body text-cha">Loading…</p>
       ) : !digest ? (
         <p className="type-body text-cha">
-          No digest yet. The scheduled job creates one every other morning, and a
-          top-of-month look-back lands on the 1st. Or fetch now.
+          No digest yet. Autopilot publishes one about 15 days before the meeting
+          and another about 3 days before. Or fetch now.
         </p>
       ) : (
         <>

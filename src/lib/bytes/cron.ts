@@ -29,7 +29,7 @@ function secretMatches(provided: string, expected: string): boolean {
 export function rejectIfNotCron(request: Request): NextResponse | null {
   const secret = process.env.CRON_SECRET
   if (!secret) {
-    console.error('cron/bytes: CRON_SECRET is not set, refusing to run')
+    console.error('cron: CRON_SECRET is not set, refusing to run')
     return NextResponse.json({ error: 'Not configured' }, { status: 500 })
   }
 

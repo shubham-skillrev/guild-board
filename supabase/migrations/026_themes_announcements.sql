@@ -22,6 +22,7 @@ ALTER TABLE public.cycles
 -- so applying this changes nothing on screen.
 UPDATE public.cycles
 SET theme = jsonb_build_object(
+  'id', 'problem-month',
   'name', 'Problem Month',
   'title', 'Bring a problem.',
   'accent', 'problem',

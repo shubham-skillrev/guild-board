@@ -1,0 +1,275 @@
+import type { Kind } from '@/lib/kinds'
+import type { CycleTheme } from '@/lib/themes'
+
+/**
+ * Every theme autopilot can open a month with: six years of months, spread
+ * across the five kinds, so a theme does not come round again for a long time.
+ * The admin can still change a month's theme, or write one, from the admin page.
+ *
+ * Copy rules, same as every other line a member reads: dev-native, a little
+ * funny, never cutesy, no em dashes. `accent` must be a word of `title`.
+ * Ids are permanent: they are how a used theme is recognised in old cycles.
+ */
+
+type Entry = [id: string, kind: Kind, name: string, title: string, accent: string, subtitle: string, blurb: string, cta: string, open_line: string]
+
+const ENTRIES: Entry[] = [
+  /* ─── Problem ─── */
+  ['problem-month', 'problem', 'Problem Month', 'Bring a problem.', 'problem', "This month's theme: bring a problem",
+    'One tech problem you’ve run into lately. A flaky test, a slow build, a design call you’re unsure about. Say what you tried; that’s what starts the conversation.',
+    'Share a problem', "Share one tech problem you've hit lately. Two lines is enough."],
+  ['slow-things', 'problem', 'Slow Month', 'Bring the slowest thing you deal with.', 'slowest', "This month's theme: what's slow",
+    'A 25 minute build, a query that takes a coffee break, a deploy that needs a ritual. Name the slow thing and how slow. Someone in the room has probably made it faster.',
+    "Share what's slow", "What's the slowest thing in your week? Builds, queries, reviews, all fair game."],
+  ['flaky-things', 'problem', 'Flaky Month', 'Bring something flaky.', 'flaky', "This month's theme: things that only fail sometimes",
+    'A test that passes on retry, a job that fails on Tuesdays, a bug nobody can reproduce on demand. Describe the flake and what you suspect. Intermittent is where the good stories live.',
+    'Share a flake', 'Got a test that fails one run in ten? Bring it. Two lines is enough.'],
+  ['stuck-right-now', 'problem', 'Stuck Month', "Bring what you're stuck on.", 'stuck', "This month's theme: what you're stuck on right now",
+    "Not a war story, a live one. The bug you're halfway through, the design you can't settle, the migration you keep postponing. Say where you are and what you've tried. Fresh eyes are the point.",
+    "Share where you're stuck", "What are you stuck on this week? Post it and let the guild take a look."],
+  ['scary-code', 'problem', 'Legacy Month', 'Bring the code everyone is scared of.', 'scared', "This month's theme: the code nobody wants to touch",
+    'The module with no tests and one author who left. The cron job that quietly holds up billing. What is it, why is it scary, and what would it take to fix it?',
+    'Share the scary code', 'Every codebase has a file nobody opens. Tell us about yours.'],
+  ['onboarding-pain', 'problem', 'Onboarding Month', 'Bring the thing new joiners trip on.', 'trip', "This month's theme: what slows down new joiners",
+    'The setup step that takes a day, the tribal knowledge nobody wrote down, the service you have to ask someone to explain. Name it so the next person does not have to.',
+    'Share a stumbling block', 'What tripped you up in your first month here? Or still does? Two lines is enough.'],
+  ['prod-incidents', 'problem', 'Incident Month', 'Bring an outage.', 'outage', "This month's theme: things that broke in production",
+    'An outage, a near miss, a 2am page. What broke, how you found out, and what changed after. Blameless, specific, and a little embarrassing is perfect.',
+    'Share an incident', "Tell us about something that broke in prod. What happened, and what you changed."],
+  ['toil', 'problem', 'Toil Month', "Bring the chore you'd automate first.", 'chore', "This month's theme: repetitive work worth killing",
+    'The weekly report you build by hand, the release checklist with 14 steps, the copy and paste you do every sprint. Describe the toil and how often. Someone may already have a script.',
+    'Share your toil', 'What do you do by hand every week that a script should do? Post it.'],
+  ['unsolved-mysteries', 'problem', 'Mystery Month', 'Bring a bug you never solved.', 'never', "This month's theme: unsolved mysteries",
+    'The crash that stopped on its own, the memory leak that vanished after a restart, the ticket closed as cannot reproduce. Lay out the clues. The room loves a whodunit.',
+    'Share a mystery', 'Got a bug that went away without explanation? Bring the clues.'],
+  ['scaling-pains', 'problem', 'Scale Month', 'Bring something that broke at scale.', 'scale', "This month's theme: works on ten, breaks on ten thousand",
+    'The query that was fine in staging and on fire in prod, the queue that backed up on launch day, the cache that made it worse. What hit the limit, and how did you find out?',
+    'Share a scaling pain', "What worked fine until it suddenly didn't? Share the scale problem."],
+  ['dependency-hell', 'problem', 'Dependency Month', 'Bring a dependency that bit you.', 'bit', "This month's theme: dependencies behaving badly",
+    'A minor version that broke the build, a library abandoned mid-project, a transitive package nobody chose. What bit you, and what did you do about it?',
+    'Share a dependency story', 'Which package ruined your week? Version numbers welcome.'],
+  ['review-friction', 'problem', 'Review Month', 'Bring a code review that went sideways.', 'sideways', "This month's theme: code review friction",
+    'PRs that sit for days, forty comments on naming, the approve without reading. What makes review slow or painful for you, and what have you tried?',
+    'Share a review pain', 'What makes code review painful where you are? Two lines is enough.'],
+  ['bad-data', 'problem', 'Data Month', 'Bring a data problem.', 'data', "This month's theme: data that doesn't behave",
+    "Duplicates that shouldn't exist, timestamps off by five and a half hours, a migration that half ran. What's wrong with the data, and how did it get that way?",
+    'Share a data problem', 'Got data that is wrong in a creative way? Bring it.'],
+  ['missing-tools', 'problem', 'Missing Tool Month', 'Bring the tool you wish existed.', 'wish', "This month's theme: tools we wish we had",
+    'The dashboard nobody built, the CLI that would save an hour a day, the alert that should exist. Describe the gap and what it costs you. Someone might build it.',
+    'Share a missing tool', 'What tool do you keep wishing existed? Describe the gap.'],
+
+  /* ─── Learned ─── */
+  ['til', 'learned', 'TIL Month', 'Bring one thing you learned.', 'learned', "This month's theme: today I learned",
+    "A flag you didn't know about, a language quirk, a shortcut that saves a minute a day. Small is fine. Small and surprising is better.",
+    'Share a TIL', "What's one thing you learned recently? A flag, a quirk, a trick. Two lines is enough."],
+  ['hard-lessons', 'learned', 'Hard Lessons Month', 'Bring a hard lesson.', 'lesson', "This month's theme: lessons learned the hard way",
+    'Learned by breaking production, losing data, or spending three days on a single character. Tell us what happened and what you do differently now.',
+    'Share a lesson', 'What did you learn the hard way? The scar is the story.'],
+  ['changed-my-mind', 'learned', 'Changed My Mind Month', 'Bring something you changed your mind about.', 'mind', "This month's theme: opinions you've reversed",
+    "Used to hate TypeScript, now can't live without it. Swore by microservices, now don't. What did you believe, what changed it, and what do you think now?",
+    'Share a reversal', 'What tech opinion have you flipped on? Tell us what changed your mind.'],
+  ['debugging-tricks', 'learned', 'Debugging Month', 'Bring your best debugging trick.', 'debugging', "This month's theme: how you find bugs",
+    'Git bisect, printf with style, a profiler nobody opens, explaining it to a rubber duck. Share a technique that found a bug faster than you expected.',
+    'Share a trick', 'How do you actually find bugs? Share one technique that works for you.'],
+  ['worth-reading', 'learned', 'Reading Month', 'Bring something worth reading.', 'reading', "This month's theme: articles, books and papers that taught you something",
+    'A blog post that finally explained a concept, a book chapter you keep going back to, an RFC that was surprisingly readable. What is it, and what did you take from it?',
+    'Share a read', 'Read anything good lately? Share it and the one idea that stuck.'],
+  ['stolen-postmortems', 'learned', 'Postmortem Month', 'Bring a postmortem worth stealing from.', 'postmortem', "This month's theme: lessons from other people's outages",
+    "A public postmortem from a big company, or one of ours. What failed, what fixed it, and the lesson that applies to us. Learning from someone else's 3am is cheaper.",
+    'Share a postmortem', 'Read a good postmortem lately? Bring the lesson we can steal.'],
+  ['under-the-hood', 'learned', 'Under the Hood Month', 'Bring how something actually works.', 'works', "This month's theme: how it works under the hood",
+    'How a database picks an index, what the event loop is really doing, why your container takes ages to start. Explain one mechanism you finally understood.',
+    'Share how it works', 'What did you finally understand about how something works? Explain it in two lines.'],
+  ['performance-wins', 'learned', 'Performance Month', 'Bring something you made faster.', 'faster', "This month's theme: performance wins",
+    'A query from seconds to milliseconds, a bundle cut in half, a build that no longer leaves time for coffee. What was slow, what you changed, and the numbers.',
+    'Share a speedup', 'Made something faster lately? Bring the before and after numbers.'],
+  ['fundamentals', 'learned', 'Basics Month', 'Bring a basic you relearned.', 'basic', "This month's theme: fundamentals worth revisiting",
+    'HTTP caching, SQL joins, how DNS resolves, what a hash actually guarantees. Pick a fundamental you thought you knew and share what you had wrong.',
+    'Share a fundamental', 'Which basic did you get wrong for years? Share the correction.'],
+  ['craft-lessons', 'learned', 'Craft Month', 'Bring a lesson about the job.', 'job', "This month's theme: lessons about the craft, not the code",
+    'Estimating, saying no, writing a design doc people read, getting unstuck. What have you learned about doing the job well that no framework taught you?',
+    'Share a lesson', 'What have you learned about doing the job, not just writing the code?'],
+  ['security-lessons', 'learned', 'Security Month', 'Bring a security lesson.', 'security', "This month's theme: security lessons",
+    'A secret committed to git, an injection caught in review, an auth bug that almost shipped. What happened, and what is the takeaway for the rest of us?',
+    'Share a security lesson', 'Caught or caused a security bug? Share the lesson, minus the secrets.'],
+  ['testing-lessons', 'learned', 'Testing Month', 'Bring a testing lesson.', 'testing', "This month's theme: what testing taught you",
+    'The test that caught a real bug, the suite nobody trusts, the mocks that lied. What have you learned about tests that actually help?',
+    'Share a testing lesson', "What's one thing you've learned about tests that help? Two lines is enough."],
+  ['git-stories', 'learned', 'Git Month', 'Bring a git trick or a git disaster.', 'git', "This month's theme: version control, the good and the bad",
+    'Interactive rebase wizardry, a force push you regret, the reflog that saved your week. Share something you learned about git, ideally the hard way.',
+    'Share a git story', 'Git trick or git disaster? Either works. Share one.'],
+  ['ai-at-work', 'learned', 'AI at Work Month', 'Bring how you actually use AI.', 'actually', "This month's theme: AI in your real workflow",
+    'Not the hype, the habits. Which prompts work, where it saves time, where it confidently made something up. Share one way AI changed how you work, for better or worse.',
+    'Share your AI workflow', 'How do you actually use AI at work? One real example is enough.'],
+  ['best-advice', 'learned', 'Mentor Month', 'Bring the best advice you got.', 'advice', "This month's theme: advice that stuck",
+    "A review comment that changed how you write code, a senior's one-liner you still repeat, a question that unblocked you. Pass on one piece of advice worth keeping.",
+    'Share some advice', "What's the best engineering advice you've been given? Pass it on."],
+
+  /* ─── New tech ─── */
+  ['new-tech', 'new_tech', 'New Tech Month', 'Bring something new you tried.', 'new', "This month's theme: new tech, tried for real",
+    'A tool, framework or service you actually used, not just read about. What is it, what surprised you, and would you use it again?',
+    'Share some new tech', 'Tried a new tool or framework lately? Tell us what it was really like.'],
+  ['tool-switch', 'new_tech', 'Tool Swap Month', 'Bring a tool you switched to.', 'switched', "This month's theme: tools you switched to and why",
+    'Vim to VS Code and back again, Postman to Bruno, npm to pnpm. What did you switch from and to, and was it worth the migration?',
+    'Share a switch', 'Switched tools recently? Share what from, what to, and whether it was worth it.'],
+  ['terminal-tools', 'new_tech', 'Terminal Month', 'Bring your favourite command line tool.', 'favourite', "This month's theme: terminal tools worth installing",
+    "ripgrep, fzf, jq, httpie, or something obscure you can't live without. Share one CLI tool, what it replaced, and the alias that makes it sing.",
+    'Share a CLI tool', 'Which terminal tool would you install on day one? Share it.'],
+  ['dev-setup', 'new_tech', 'Setup Month', 'Bring one part of your setup.', 'setup', "This month's theme: editors, extensions and dotfiles",
+    "An extension that changed how you code, a keybinding you'd defend, a dotfile trick. Share one piece of your setup and why it earns its place.",
+    'Share your setup', "Show us one piece of your dev setup that you'd recommend."],
+  ['language-tourist', 'new_tech', 'Language Month', 'Bring a language you dabbled in.', 'language', "This month's theme: languages outside your day job",
+    'Rust on a weekend, Elixir for a side project, Go for a CLI. What did you try, what clicked, and what idea would you bring back to our stack?',
+    'Share a language', 'Played with a language outside work? What idea would you bring back?'],
+  ['databases', 'new_tech', 'Database Month', 'Bring a database worth knowing.', 'database', "This month's theme: databases and data stores",
+    'A Postgres feature nobody uses, SQLite in production, a vector store, a time series database. What did you try, and where does it fit?',
+    'Share a database', 'Tried a database, or a lesser-known Postgres feature? Share it.'],
+  ['infra-tools', 'new_tech', 'Infra Month', "Bring an infra tool you'd recommend.", 'infra', "This month's theme: infrastructure and cloud tools",
+    'A deploy tool, an infrastructure as code trick, a managed service that saved a week. What is it, what it replaced, and the catch you only found later.',
+    'Share an infra tool', 'What infra or cloud tool made your life easier? Share it, catch included.'],
+  ['observability', 'new_tech', 'Observability Month', 'Bring how you see what prod is doing.', 'see', "This month's theme: logs, metrics, traces and dashboards",
+    'A tracing setup, a dashboard that actually gets looked at, a log query that finds bugs. Share one way you get visibility into running systems.',
+    'Share your visibility trick', 'How do you find out what prod is doing? Share one tool or dashboard.'],
+  ['ai-tools', 'new_tech', 'AI Tools Month', 'Bring an AI tool worth trying.', 'worth', "This month's theme: AI tools, tested",
+    'A coding assistant, an agent, a model you ran locally, a workflow built on an API. What did you try, what worked, and where did it fall over?',
+    'Share an AI tool', 'Tried an AI tool for real? Share what worked and where it fell over.'],
+  ['frontend-finds', 'new_tech', 'Frontend Month', 'Bring something new on the frontend.', 'frontend', "This month's theme: frontend tools and techniques",
+    'A framework feature, a CSS trick that replaced a pile of JavaScript, a build tool that cut minutes. What is it, and what changed for you?',
+    'Share a frontend find', 'Found something good on the frontend lately? Share it.'],
+  ['releases', 'new_tech', 'Release Month', 'Bring a release that matters to us.', 'release', "This month's theme: releases worth knowing about",
+    'A language version, framework update or platform change that affects how we build. What shipped, why it matters, and should we upgrade?',
+    'Share a release', 'Which recent release should the team know about? Share it and why.'],
+  ['open-source-gems', 'new_tech', 'Open Source Month', 'Bring an open source gem.', 'gem', "This month's theme: open source projects worth a star",
+    'A small library that does one thing well, a project with great docs, a repo worth reading for its code alone. Share it and what it is good for.',
+    'Share a repo', 'Found an open source project worth a star? Share it.'],
+  ['automation-tools', 'new_tech', 'Automation Month', 'Bring a tool that does the boring part.', 'boring', "This month's theme: automation tools",
+    'CI tricks, bots, scheduled jobs, no-code glue that actually held up. Share a tool that automates something tedious and how you set it up.',
+    'Share an automation', 'What tool automates the boring part of your job? Share it.'],
+  ['apis', 'new_tech', 'API Month', 'Bring an API you enjoyed using.', 'enjoyed', "This month's theme: APIs, good and bad",
+    'An API with great docs, an SDK that felt right, or one so bad it taught you what not to do. What made it good, or awful?',
+    'Share an API', 'Used an API that was a joy, or a nightmare? Share which and why.'],
+  ['local-first', 'new_tech', 'Local Month', 'Bring something that runs on your machine.', 'machine', "This month's theme: local tools, local models, local first",
+    'A model running on your laptop, a dev environment in containers, an offline-first app. What did you run locally, and what did you learn?',
+    'Share a local setup', 'Running something interesting locally? Models, containers, anything. Share it.'],
+
+  /* ─── Take ─── */
+  ['hot-takes', 'take', 'Hot Take Month', 'Bring a controversial take.', 'take', "This month's theme: tech opinions you'll defend",
+    'Microservices were a mistake. ORMs hide too much. Tabs win. Give us your most contrarian belief about building software, and why. We will debate the ones with traction.',
+    'Share a take', "What's your most contrarian tech opinion? Bring it, and be ready to defend it."],
+  ['overrated', 'take', 'Overrated Month', 'Bring something overrated.', 'overrated', "This month's theme: overrated tech",
+    'The framework everyone loves, the practice everyone preaches, the tool on every job post. What is overrated, and what would you use instead?',
+    "Share what's overrated", "What tech is overrated? Name it and say what you'd use instead."],
+  ['underrated', 'take', 'Underrated Month', 'Bring something underrated.', 'underrated', "This month's theme: underrated tech",
+    'The boring tool that never breaks, the feature nobody uses, the old technique that still wins. What deserves more love?',
+    "Share what's underrated", 'What tech deserves more love than it gets? Make the case.'],
+  ['delete-it', 'take', 'Delete Month', 'Bring something we should delete.', 'delete', "This month's theme: things we should stop doing or delete",
+    'A dead feature, a meeting, a process step, a service nobody calls. What should go, and what breaks if it does? The best code is no code.',
+    'Share what to delete', 'What should we delete? Code, process, meetings, all fair game.'],
+  ['build-vs-buy', 'take', 'Build vs Buy Month', 'Bring a build versus buy call.', 'buy', "This month's theme: build it or buy it",
+    'Auth, search, payments, a CMS. Something you built that you should have bought, or the other way round. Make the case either way.',
+    'Share a build vs buy', 'Built something you should have bought, or the reverse? Make the case.'],
+  ['predictions', 'take', 'Prediction Month', 'Bring a prediction for the next five years.', 'prediction', "This month's theme: where tech is going",
+    'What will be normal in five years that sounds odd today? What will be gone? Make one specific prediction and give your reasoning. We will check back.',
+    'Share a prediction', "Make one specific prediction about tech in five years. We'll check back."],
+  ['ai-debate', 'take', 'AI Debate Month', 'Bring your honest take on AI.', 'honest', "This month's theme: the AI debate",
+    'Will it replace juniors, is it making us worse at coding, which jobs change first? Skip the hype and the doom. Give one honest, specific opinion.',
+    'Share an AI take', "What's your honest take on AI in engineering? One specific opinion."],
+  ['broken-rules', 'take', 'Rule Breaking Month', "Bring a best practice you'd break.", 'break', "This month's theme: best practices that aren't always best",
+    'DRY, 100 percent coverage, tiny functions, never deploy on a Friday. Which rule do you break on purpose, and when is that the right call?',
+    'Share a broken rule', 'Which best practice do you ignore on purpose? Tell us when and why.'],
+  ['architecture', 'take', 'Architecture Month', 'Bring an architecture opinion.', 'architecture', "This month's theme: how systems should be shaped",
+    'Monolith or services, events or calls, one database or many. Pick an architecture choice you have strong feelings about and argue it.',
+    'Share an opinion', 'Got strong feelings about system architecture? Pick one and argue it.'],
+  ['how-we-work', 'take', 'Process Month', 'Bring a take on how we work.', 'work', "This month's theme: process, agile and how teams work",
+    'Standups, estimates, sprints, tickets. What part of how software teams work would you change, keep, or scrap entirely?',
+    'Share a process take', 'What would you change about how engineering teams work? One opinion.'],
+  ['language-wars', 'take', 'Language Wars Month', 'Bring a language opinion.', 'language', "This month's theme: language and framework wars",
+    "Static versus dynamic, the framework you'd never use again, the language that's secretly great. Pick a side and bring your best argument.",
+    'Pick a side', 'Pick a side in a language or framework war, and bring your best argument.'],
+  ['speed-vs-quality', 'take', 'Speed vs Quality Month', 'Bring a speed versus quality call.', 'quality', "This month's theme: shipping fast versus building right",
+    'When is the hacky way the right answer, and when does it cost you a month later? Bring a real example where you got the tradeoff right, or wrong.',
+    'Share a tradeoff', 'When did you trade quality for speed, and was it worth it? Share it.'],
+  ['testing-debate', 'take', 'Testing Debate Month', 'Bring a testing opinion.', 'testing', "This month's theme: how much testing is enough",
+    'TDD, end to end versus unit, coverage targets, testing in production. Where do you stand, and what experience got you there?',
+    'Share a testing take', 'Where do you stand on testing? Bring the experience behind it.'],
+  ['working-together', 'take', 'Collaboration Month', 'Bring a take on working together.', 'together', "This month's theme: collaboration, docs and communication",
+    'Docs nobody reads, async versus meetings, pairing, Slack etiquette. What makes engineers work well together, and what gets in the way?',
+    'Share a take', 'What helps or hurts engineers working together? Share one opinion.'],
+
+  /* ─── Show & tell ─── */
+  ['show-and-tell', 'show_tell', 'Show & Tell Month', 'Show something you built.', 'built', "This month's theme: show something you built",
+    "A side project, a work feature you're proud of, a script, a game. Finished or half done. Share what it is and the one part worth looking at.",
+    'Show your build', 'Built something lately? Work or weekend, finished or not. Show it.'],
+  ['load-bearing-hacks', 'show_tell', 'Hack Month', 'Show a load-bearing hack.', 'hack', "This month's theme: your ugliest useful script",
+    'A cobbled-together bash script, a sketchy alias, a tiny tool that saves five minutes a day. No clean code required. Show us the duct tape holding your workflow together.',
+    'Show your hack', 'Show off the unpolished scripts and aliases that keep your workflow running.'],
+  ['side-projects', 'show_tell', 'Side Project Month', 'Show your side project.', 'side', "This month's theme: side projects",
+    'The app you build on weekends, the thing you abandoned at 80 percent, the domain you bought and never used. Show it, say why you started, and what you learned.',
+    'Show a side project', 'Got a side project, alive or abandoned? Show it and what you learned.'],
+  ['internal-tools', 'show_tell', 'Dashboard Month', "Show a dashboard you're proud of.", 'dashboard', "This month's theme: dashboards and internal tools",
+    "The internal tool your team can't live without, a dashboard that answers questions before they're asked, an admin page that saves hours. Show it off.",
+    'Show a tool', 'Built an internal tool or dashboard people actually use? Show it.'],
+  ['demo-day', 'show_tell', 'Demo Month', 'Show a live demo.', 'demo', "This month's theme: demo day",
+    "Five minutes, one screen, something working. A feature, a prototype, a proof of concept. Post what you'll demo so we can plan the hour around it.",
+    'Offer a demo', 'Got something you can demo in five minutes? Post it and claim a slot.'],
+  ['ai-builds', 'show_tell', 'AI Build Month', 'Show something you built with AI.', 'AI', "This month's theme: things built with AI",
+    'An agent, a bot, a script written mostly by a model, an app built on an LLM API. Show what you made, and where the AI helped or got in the way.',
+    'Show an AI build', "Built something with AI? Show it, and where the AI helped or didn't."],
+  ['bots', 'show_tell', 'Bot Month', 'Show a bot that does your job.', 'bot', "This month's theme: bots and automations you built",
+    "A Slack bot, a GitHub Action, a cron job that does a human's work. Show what it automates and how many hours it has saved.",
+    'Show your bot', 'Built a bot or automation that does real work? Show it.'],
+  ['before-after', 'show_tell', 'Before & After Month', 'Show a before and after.', 'after', "This month's theme: refactors and redesigns",
+    'Code before and after a refactor, a UI before and after a redesign, a pipeline before and after a cleanup. Show both, and what changed.',
+    'Show a before & after', 'Got a good before and after? Code, UI or pipeline. Show both.'],
+  ['tiny-tools', 'show_tell', 'Tiny Tools Month', 'Show a tiny tool.', 'tiny', "This month's theme: tiny tools that punch above their weight",
+    'A script, a browser extension, a one-file CLI. Under 100 lines and genuinely useful. Show it and the problem it kills.',
+    'Show a tiny tool', 'Got a tiny tool, under 100 lines, that you use all the time? Show it.'],
+  ['explainers', 'show_tell', 'Visual Month', 'Show something that explains itself.', 'explains', "This month's theme: diagrams, visualisations and explainers",
+    'An architecture diagram people understand, a visualisation of messy data, an explainer that made a concept click. Show it, and what it explains.',
+    'Show a visual', 'Made a diagram or visualisation that explains something well? Show it.'],
+  ['play', 'show_tell', 'Play Month', 'Show something you built for fun.', 'fun', "This month's theme: games, toys and fun builds",
+    'A browser game, a multiplayer quiz, a generative art toy, something completely ridiculous. No business value required. Show what you made and how.',
+    'Show your toy', 'Built a game or toy just for fun? This is the month. Show it.'],
+  ['setup-tour', 'show_tell', 'Desk Tour Month', 'Show your dev environment.', 'environment', "This month's theme: a tour of how you work",
+    'Your terminal, editor, window layout, the shortcuts you hit a hundred times a day. Show the setup and the one trick everyone should steal.',
+    'Show your setup', 'Give us a quick tour of your dev environment. What should we steal?'],
+  ['contributions', 'show_tell', 'Contribution Month', 'Show an open source contribution.', 'contribution', "This month's theme: contributing to open source",
+    'A merged PR, a bug report that got fixed, a library you maintain. Show what you contributed and what the process taught you.',
+    'Show a contribution', 'Contributed to open source? Show the PR and what you learned.'],
+  ['quietly-proud', 'show_tell', 'Proud Month', "Show work you're proud of.", 'proud', "This month's theme: work you're quietly proud of",
+    'The feature nobody noticed because it just worked, a migration with zero downtime, a fix that took a week to find. Show it, and why it mattered.',
+    'Show your work', "What work are you quietly proud of? Show it, even if nobody else noticed."],
+]
+
+export const THEME_CATALOG: (CycleTheme & { id: string })[] = ENTRIES.map(
+  ([id, featured_kind, name, title, accent, subtitle, blurb, cta, open_line]) => ({
+    id, name, title, accent, subtitle, blurb, cta, featured_kind, open_line,
+  }),
+)
+
+/**
+ * The theme for the next month. `history` is the themes months have used,
+ * newest first (hand-written ones have no id and are ignored).
+ *
+ * A theme never used before wins, picked at random, preferring a different
+ * kind from last month so two problem months do not run back to back. Once
+ * all of them have been used, the one used longest ago comes back.
+ */
+export function pickNextTheme(
+  history: { id?: string; featured_kind?: Kind }[],
+  random: () => number = Math.random,
+): CycleTheme & { id: string } {
+  const used = new Set(history.map(h => h.id).filter(Boolean))
+  const fresh = THEME_CATALOG.filter(t => !used.has(t.id))
+
+  if (fresh.length) {
+    const lastKind = history[0]?.featured_kind
+    const varied = fresh.filter(t => t.featured_kind !== lastKind)
+    const pool = varied.length ? varied : fresh
+    return { ...pool[Math.floor(random() * pool.length)] }
+  }
+
+  // Everything has run. Least recently used: the one furthest back in history.
+  const lastUse = (id: string) => history.findIndex(h => h.id === id)
+  return { ...THEME_CATALOG.reduce((a, b) => (lastUse(b.id) > lastUse(a.id) ? b : a)) }
+}

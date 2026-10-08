@@ -10,22 +10,16 @@ import { cn } from '@/lib/utils/cn'
 import type { Cycle, OutcomeTag } from '@/types'
 import type { CycleTheme } from '@/lib/themes'
 import { ThemeEditor, isThemeComplete } from '@/components/admin/ThemeEditor'
+import { defaultMeetingAt } from '@/lib/cycles/dates'
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-/** Returns the 2nd Friday of a given month/year as a datetime-local string at 11:00 AM IST (05:30 UTC) */
+/** The default meeting (2nd Friday, 11:00 IST) as a datetime-local value. */
 function getSecondFriday(month: number, year: number): string {
-  const d = new Date(year, month - 1, 1)
-  const dayOfWeek = d.getDay() // 0=Sun, 5=Fri
-  const daysToFriday = (5 - dayOfWeek + 7) % 7
-  d.setDate(1 + daysToFriday + 7) // 2nd Friday
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}T11:00` // 11 AM IST default
+  return isoToDatetimeLocal(defaultMeetingAt(year, month).toISOString())
 }
 
 /** Convert datetime-local value to ISO string in IST (UTC+5:30) */
@@ -130,6 +124,20 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
         body: JSON.stringify({ cycle_id: cycleId, meeting_at: activeMeetingDate ? datetimeLocalToISO(activeMeetingDate) : null }),
       })
     )
+
+  const setCycleStatus = (cycleId: string, status: 'open' | 'closed') => {
+    const ask = status === 'closed'
+      ? 'Close this cycle? The board locks, sparks stay open for 48 hours, and everyone gets a push. Autopilot opens next month the next morning.'
+      : 'Reopen this cycle? Everyone gets the month-open message again.'
+    if (!confirm(ask)) return
+    return doAction(`status-${cycleId}`, () =>
+      fetch('/api/admin/cycle-control', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cycle_id: cycleId, status }),
+      })
+    )
+  }
 
   const deleteCycle = (cycleId: string) =>
     doAction(`delete-${cycleId}`, () =>
@@ -306,10 +314,24 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
               </Button>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge tone={activeCycle.status === 'open' ? 'matcha' : 'neutral'}>
+                {activeCycle.status === 'open' ? 'Open' : activeCycle.status === 'closed' ? 'Closed' : activeCycle.status}
+              </Badge>
+              {activeCycle.status === 'open' && (
+                <Button variant="secondary" onClick={() => setCycleStatus(activeCycle.id, 'closed')} disabled={anyLoading}>
+                  {isLoading(`status-${activeCycle.id}`) ? 'Closing…' : 'Close cycle'}
+                </Button>
+              )}
+              {/* Only the latest cycle can reopen (the route also limits it to
+                  this month or last), so two boards are never open at once. */}
+              {activeCycle.status !== 'open' && activeCycle.id === cycles[0]?.id && (
+                <Button variant="secondary" onClick={() => setCycleStatus(activeCycle.id, 'open')} disabled={anyLoading}>
+                  {isLoading(`status-${activeCycle.id}`) ? 'Reopening…' : 'Reopen cycle'}
+                </Button>
+              )}
               <Button
                 variant="danger"
-                className="-ml-3"
                 onClick={() => deleteCycle(activeCycle.id)}
                 disabled={anyLoading}
               >

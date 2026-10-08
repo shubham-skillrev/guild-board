@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notifyOnCycleOpen, notifyAfterResponse } from '@/lib/push/notify'
 import { NextResponse } from 'next/server'
 import { sanitizeTheme } from '@/lib/themes'
+import { createCycle } from '@/lib/cycles/lifecycle'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -32,31 +33,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'month must be 1–12' }, { status: 400 })
   }
 
-  const adminClient = createAdminClient()
-
-  // Check for duplicate cycle in same month/year
-  const { data: existing } = await adminClient
-    .from('cycles')
-    .select('id')
-    .eq('month', month)
-    .eq('year', year)
-    .single()
-
-  if (existing) {
-    return NextResponse.json({ error: `A cycle for ${label} already exists` }, { status: 409 })
-  }
-
-  const insert: Record<string, unknown> = { label, month, year, status: 'open', opens_at: new Date().toISOString() }
-  if (meeting_at) insert.meeting_at = meeting_at
-  if (theme) insert.theme = theme
-
-  const { data, error } = await adminClient
-    .from('cycles')
-    .insert(insert)
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const result = await createCycle(createAdminClient(), { year, month, label, meetingAt: meeting_at, theme })
+  if (!result.ok) return NextResponse.json({ error: result.message }, { status: 409 })
+  const data = result.cycle
 
   notifyAfterResponse(notifyOnCycleOpen({ label: data.label, theme: sanitizeTheme(data.theme) }), "notifyOnCycleOpen")
 
