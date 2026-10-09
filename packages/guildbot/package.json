@@ -1,0 +1,13 @@
+{
+  "name": "@guildboard/guildbot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GuildBot: the board's resident bot. Persona, lines, guard and (later) chat. No app or database code; the host app injects everything it needs.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\""
+  }
+}
