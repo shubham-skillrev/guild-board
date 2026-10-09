@@ -11,6 +11,7 @@ import { Wordmark } from "@/components/ui/Wordmark";
 import { GuestBanner } from "@/components/layout/GuestBanner";
 import { isGuestSession } from "@/lib/supabase/viewer";
 import { GuestGateProvider } from "@/components/auth/GuestGate";
+import { GuildBotChat } from "@/components/guildbot/GuildBotChat";
 
 async function getUser() {
   try {
@@ -104,6 +105,9 @@ export default async function MainLayout({
         {/* ─── Footer ─── */}
         <SiteFooter className="hidden md:block" />
       </div>
+
+      {/* GuildBot chat: on the board, topic and Bytes pages only. */}
+      <GuildBotChat signedIn={!!profile} />
 
       {/* Mobile bottom nav stays outside scrolling container for stable viewport pinning */}
       <MobileBottomNav
