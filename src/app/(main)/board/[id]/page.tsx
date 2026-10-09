@@ -1,7 +1,7 @@
 'use client'
 
 import { ArrowFatUp, ArrowLeft, PencilSimple, Trash } from '@phosphor-icons/react/dist/ssr'
-import { use, useState, useEffect, useCallback } from 'react'
+import { use, useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Markdown } from '@/components/ui/Markdown'
@@ -21,6 +21,8 @@ import { SignalRow } from '@/components/topics/SignalRow'
 import { PollCard } from '@/components/topics/PollCard'
 import { PollEditor, pollPayload, type PollDraft } from '@/components/topics/PollEditor'
 import { FOCUS_FORMAT } from '@/lib/experiment'
+import { useLiveChannel } from '@/hooks/useLiveChannel'
+import { topicChannel, type LiveUpdate } from '@/lib/realtime/channels'
 import type { Topic, Comment, TopicPoll } from '@/types'
 
 interface TopicDetail extends Topic {
@@ -85,6 +87,38 @@ export default function TopicDetailPage({
   }, [id])
 
   useEffect(() => { fetchTopic() }, [fetchTopic])
+
+  /* Live updates on topic:{id}. Counts are patched in place; the thread is
+     told to refetch; a poll or edit change refetches the topic, since poll
+     results and ownership are per-viewer. Never while you are editing: the
+     refetch would overwrite your draft. */
+  const [liveSignals, setLiveSignals] = useState<Record<string, number> | undefined>(undefined)
+  const [commentsVersion, setCommentsVersion] = useState(0)
+  const editingRef = useRef(false)
+  useEffect(() => { editingRef.current = editing }, [editing])
+  const refetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (refetchTimer.current) clearTimeout(refetchTimer.current) }, [])
+
+  const onLive = useCallback((u: LiveUpdate) => {
+    const c = u.counts
+    if (c) {
+      setTopic(t => t ? {
+        ...t,
+        vote_count: c.vote_count,
+        comment_count: c.comment_count,
+        score: c.score,
+        poll: t.poll && c.poll_total !== null ? { ...t.poll, total_votes: c.poll_total } : t.poll,
+      } : t)
+      setLiveSignals(c.signal_counts)
+    }
+    if (u.changed.includes('comments')) setCommentsVersion(v => v + 1)
+    if ((u.changed.includes('poll') || u.changed.includes('topics')) && !editingRef.current) {
+      if (refetchTimer.current) clearTimeout(refetchTimer.current)
+      refetchTimer.current = setTimeout(fetchTopic, 300)
+    }
+  }, [fetchTopic])
+
+  const { present } = useLiveChannel(topicChannel(id), onLive, { presence: true })
 
   // Check spark window status
   useEffect(() => {
@@ -381,7 +415,7 @@ export default function TopicDetailPage({
 
               {/* One-tap responses - usable even when the board is locked. */}
               <div className="mb-8">
-                <SignalRow topicId={topic.id} />
+                <SignalRow topicId={topic.id} liveCounts={liveSignals} />
               </div>
             </>
           )}
@@ -434,6 +468,13 @@ export default function TopicDetailPage({
               {topic.comment_count > 0 && (
                 <span className="text-[13px] font-normal text-cha tabular-nums">{topic.comment_count}</span>
               )}
+              {/* Anonymous count of open tabs: never who, only how many. */}
+              {present > 1 && (
+                <span className="ml-auto inline-flex items-center gap-1.5 text-[12px] font-normal text-cha">
+                  <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-matcha" />
+                  {present} here now
+                </span>
+              )}
             </h2>
             <CommentThread
               topicId={topic.id}
@@ -442,6 +483,7 @@ export default function TopicDetailPage({
               onClose={() => {}}
               inline
               isGhostOp={topic.is_anonymous && topic.is_owner === true}
+              refreshKey={commentsVersion}
             />
           </div>
         </div>

@@ -9,6 +9,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getViewer } from '@/lib/supabase/viewer'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
 import { notifyOnNewTopic, notifyAfterResponse } from '@/lib/push/notify'
 import { serializeTopic, withoutAuthor, MEMBER_TOPIC_FIELDS } from '@/lib/utils/anonymity'
@@ -182,6 +183,7 @@ export async function POST(request: Request) {
   }
 
   notifyAfterResponse(notifyOnNewTopic({ topicId: data.id, actorId: user.id }), "notifyOnNewTopic")
+  broadcastTopicChange(data.id, ['topics'])
 
   return NextResponse.json({ ...data, is_owner: true }, { status: 201 })
 }
@@ -241,6 +243,7 @@ export async function PATCH(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  broadcastTopicChange(id, ['topics', 'poll'])
   return NextResponse.json({ ...withoutAuthor(data), is_owner: true })
 }
 
@@ -298,6 +301,7 @@ export async function DELETE(request: Request) {
   // Non-fatal: the topic is already gone, and a stuck flag is recoverable.
   if (releaseErr) console.warn('topics: could not release banked idea', releaseErr)
 
+  broadcastTopicChange(id, ['topics'])
   return NextResponse.json({ success: true })
 }
 

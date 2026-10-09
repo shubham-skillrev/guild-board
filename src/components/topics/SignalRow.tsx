@@ -34,6 +34,8 @@ interface SignalRowProps {
    */
   initialCounts?: Record<string, number>
   initialMine?: string[]
+  /** Fresh tallies from a live broadcast. Applied whenever a new object arrives. */
+  liveCounts?: Record<string, number>
 }
 
 /**
@@ -41,7 +43,7 @@ interface SignalRowProps {
  * stays usable when voting and commenting are locked, which is most of the
  * month. There is no negative signal by design.
  */
-export function SignalRow({ topicId, compact = false, initialCounts, initialMine }: SignalRowProps) {
+export function SignalRow({ topicId, compact = false, initialCounts, initialMine, liveCounts }: SignalRowProps) {
   const hasInitial = initialCounts !== undefined
   const [counts, setCounts] = useState<Record<string, number>>(initialCounts ?? {})
   const [mine, setMine] = useState<Set<SignalKind>>(new Set((initialMine ?? []) as SignalKind[]))
@@ -49,6 +51,14 @@ export function SignalRow({ topicId, compact = false, initialCounts, initialMine
   const [loaded, setLoaded] = useState(hasInitial)
   const toast = useToast()
   const { blockGuest } = useGuestGate()
+
+  // Live tallies replace ours when they change, except mid-tap, when the
+  // optimistic count is about to be confirmed by the next broadcast anyway.
+  const [seenLive, setSeenLive] = useState(liveCounts)
+  if (liveCounts !== seenLive) {
+    setSeenLive(liveCounts)
+    if (liveCounts && !pending) setCounts(liveCounts)
+  }
 
   useEffect(() => {
     if (hasInitial) return

@@ -40,6 +40,7 @@ run, or the repo stops describing the database.
 | 027 | `027_three_posts_per_cycle.sql` | raises the per-person post cap from 1 to 3 per cycle | Yes — replaces one function body |
 | 028 | `028_anonymity_hardening.sql` | column-level grants hiding `topics.user_id`, `comments.user_id`, `idea_bank.user_id`/`promoted_by`, `topic_asks.asker_id`, `users.real_name`/`email`; members may only update their username and insert topics with the six form fields; `comments.is_anonymous`; `my_topic_count()`; drops `topics` from realtime | **Ship together with the code** — see below |
 | 029 | `029_retire_contributions_add_polls.sql` | score from votes only (backfills every topic's `score`); members can no longer write `contributions`; `topic_polls`, `poll_options`, `poll_votes` with cached counts, hidden per-option counts and no member access to who voted | **Ship together with the code**, after 028 |
+| 030 | `030_live_channels.sql` | RLS on `realtime.messages`: anyone may listen on `board:*` / `topic:*` private broadcast channels and join presence on `topic:*`; only the service role may send | Yes — the pages poll every 15s until it is applied |
 
 > **028 and its code ship in the same deploy.** Apply 028 right after the code
 > goes live; never before. The old code reads `topics.user_id` and
@@ -58,6 +59,12 @@ run, or the repo stops describing the database.
 > one ("Could not save the poll"), but everything else works. The old code
 > keeps working with 029 applied. Topic order changes once, because scores are
 > recomputed from votes alone.
+
+> **030 can go in any time after the realtime code.** Until it is applied the
+> private channels refuse to join and the board and topic pages poll every 15s,
+> exactly as before. It only adds policies. It cannot be tested on plain
+> Postgres (the `realtime` schema is Supabase's), so after applying it, open a
+> topic in two browsers and check that a vote shows up in the other one.
 
 > **027 goes out with the three-posts change.** The board offers a second and
 > third post as soon as the code ships; until 027 is applied the old trigger

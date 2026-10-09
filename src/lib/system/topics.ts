@@ -4,6 +4,7 @@ import { KINDS, composeDescription, type Kind } from '@/lib/kinds'
 import { TITLE_MAX_LENGTH, DESCRIPTION_MAX_LENGTH } from '@/lib/constants'
 import { SYSTEM_USERNAME, SYSTEM_DISPLAY_NAME } from '@/lib/system/identity'
 import { notifyOnSystemTopics } from '@/lib/push/notify'
+import { broadcastBoardChange } from '@/lib/realtime/broadcast'
 
 /**
  * GuildBot as an author.
@@ -141,6 +142,7 @@ export async function publishSystemTopics(
 ) {
   const posted = await postSystemTopics(cycle.id, drafts)
   if (posted.length) {
+    broadcastBoardChange(cycle.id)
     const byTitle = new Map(drafts.map(d => [d.title.trim().slice(0, TITLE_MAX_LENGTH).toLowerCase(), d]))
     await notifyOnSystemTopics({
       label: cycle.label,

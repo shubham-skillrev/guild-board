@@ -15,6 +15,10 @@ import type { Topic } from '@/types'
 
 import type { CyclePhase } from '@/hooks/useCurrentCycle'
 
+// Stable empties: SignalRow treats a new liveCounts object as a fresh tally.
+const NO_COUNTS: Record<string, number> = {}
+const NO_SIGNALS: string[] = []
+
 interface TopicCardProps {
   topic: Topic & { user_has_voted?: boolean }
   rank: number
@@ -43,12 +47,8 @@ export function TopicCard({
   const canVote = phase === 'open' && !isOwner
   const categoryTone = CATEGORY_TONE[topic.category] ?? 'saffron'
   const commentCount = (topic as Topic & { comment_count?: number }).comment_count ?? 0
-  const withSignals = topic as Topic & {
-    signal_counts?: Record<string, number>
-    my_signals?: string[]
-  }
-  const signalCounts = withSignals.signal_counts ?? {}
-  const mySignals = withSignals.my_signals ?? []
+  const signalCounts = topic.signal_counts ?? NO_COUNTS
+  const mySignals = topic.my_signals ?? NO_SIGNALS
   /* Truncation is CSS's job, not a character count's. A fixed 52-char slice cut
      mid-word well short of the card's actual width and then CSS clipped what
      was left, so a title lost two words it had room for. `truncate` ellipsizes
@@ -156,7 +156,7 @@ export function TopicCard({
           </button>
         )}
 
-        <SignalRow topicId={topic.id} compact initialCounts={signalCounts} initialMine={mySignals} />
+        <SignalRow topicId={topic.id} compact initialCounts={signalCounts} initialMine={mySignals} liveCounts={signalCounts} />
 
         <span className="ml-auto shrink-0 pl-2 text-[13px] text-cha tabular-nums">
           {commentCount === 0 ? 'Discuss' : `${commentCount} ${commentCount === 1 ? 'reply' : 'replies'}`}

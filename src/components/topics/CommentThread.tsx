@@ -18,6 +18,8 @@ interface CommentThreadProps {
   inline?: boolean
   /** The viewer wrote this topic as a ghost: they always reply as that ghost. */
   isGhostOp?: boolean
+  /** Bumped by the page when a live update says the thread changed. */
+  refreshKey?: number
 }
 
 interface Member { id: string; username: string }
@@ -43,7 +45,7 @@ function sortComments(list: Comment[], by: SortKey): Comment[] {
   return sorted.map(c => c.replies?.length ? { ...c, replies: sortComments(c.replies, by) } : c)
 }
 
-export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline, isGhostOp = false }: CommentThreadProps) {
+export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline, isGhostOp = false, refreshKey = 0 }: CommentThreadProps) {
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(false)
   const [newComment, setNewComment] = useState('')
@@ -142,19 +144,25 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline,
     setAsksVersion(v => v + 1)
   }
 
-  const fetchComments = useCallback(async () => {
-    setLoading(true)
+  // `quiet` refreshes in place, for live updates: no loading state, so the
+  // thread does not blink while someone else is typing a reply.
+  const fetchComments = useCallback(async (quiet = false) => {
+    if (!quiet) setLoading(true)
     try {
       const res = await fetch(`/api/comments?topic_id=${topicId}`)
       if (res.ok) setComments(await res.json())
     } finally {
-      setLoading(false)
+      if (!quiet) setLoading(false)
     }
   }, [topicId])
 
   useEffect(() => {
     if (isOpen) fetchComments()
   }, [isOpen, fetchComments])
+
+  useEffect(() => {
+    if (isOpen && refreshKey > 0) fetchComments(true)
+  }, [refreshKey, isOpen, fetchComments])
 
   const handleSubmit = async () => {
     if (!newComment.trim() || submitting) return

@@ -7,6 +7,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { withoutAuthor } from '@/lib/utils/anonymity'
+import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
 import { OUTCOME_NOTE_MAX_LENGTH } from '@/lib/constants'
 import type { OutcomeTag } from '@/types'
@@ -45,5 +46,6 @@ export async function PATCH(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   // Admins are not exempt from ghost anonymity: never send the author id.
+  broadcastTopicChange(topic_id, ['topics'])
   return NextResponse.json(withoutAuthor(data))
 }

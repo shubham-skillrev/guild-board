@@ -11,6 +11,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { notifyOnLike, notifyAfterResponse } from '@/lib/push/notify'
+import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
   // Verify comment exists and is not deleted
   const { data: comment } = await supabase
     .from('comments')
-    .select('id')
+    .select('id, topic_id')
     .eq('id', comment_id)
     .eq('is_deleted', false)
     .single()
@@ -48,6 +49,7 @@ export async function POST(request: Request) {
     if (existing.reaction === reaction) {
       // Same reaction - toggle off
       await supabase.from('comment_reactions').delete().eq('id', existing.id)
+      broadcastTopicChange(comment.topic_id, ['comments'])
       return NextResponse.json({ reaction: null })
     } else {
       // Opposite reaction - flip
@@ -55,6 +57,7 @@ export async function POST(request: Request) {
         .from('comment_reactions')
         .update({ reaction })
         .eq('id', existing.id)
+      broadcastTopicChange(comment.topic_id, ['comments'])
       return NextResponse.json({ reaction })
     }
   }
@@ -70,5 +73,6 @@ export async function POST(request: Request) {
     notifyAfterResponse(notifyOnLike({ commentId: comment_id, actorId: user.id }), "notifyOnLike")
   }
 
+  broadcastTopicChange(comment.topic_id, ['comments'])
   return NextResponse.json({ reaction }, { status: 201 })
 }

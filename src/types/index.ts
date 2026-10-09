@@ -84,6 +84,9 @@ export interface Topic {
   can_spark_author?: boolean
   /** The topic's poll, if it has one. */
   poll?: TopicPoll | null
+  /** Board list only: signal tallies and the viewer's own signals. */
+  signal_counts?: Record<string, number>
+  my_signals?: string[]
 }
 
 /**
