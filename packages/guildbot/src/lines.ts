@@ -1,7 +1,7 @@
 /**
  * GuildBot's hand-written lines, for every moment that does not need a model.
  *
- * DRAFT: these are waiting on the guild's sign-off before anything uses them.
+ * Voice signed off on 2026-10-09. English only, everywhere the bot speaks.
  *
  * Voice: dry and deadpan. An insecure genius that brags about itself and
  * sighs at humanity as a whole, never at a person. It teases the group, the
