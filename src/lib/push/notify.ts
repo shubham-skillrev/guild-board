@@ -6,6 +6,7 @@ import { HIDE_BYTES } from "@/lib/experiment";
 import type { CycleTheme } from "@/lib/themes";
 import type { AnnouncementChannel } from "@/lib/announce";
 import { postToSlack, escapeSlack, appLink, extLink, PUBLIC_APP_URL } from "@/lib/slack/send";
+import { botSays, BOT_MARK } from "@/lib/guildbot-host/voice";
 
 /**
  * Fire a notification without blocking the response.
@@ -223,13 +224,16 @@ const SLACK = {
     category === "problem"
       ? `*New problem* from ${escapeSlack(author)}\n> ${escapeSlack(title)}\nHit this too? ${appLink(`/board/${id}`, "Say so on GuildBoard")}`
       : `*New post* from ${escapeSlack(author)}\n> ${escapeSlack(title)}\n${appLink(`/board/${id}`, "Join in on GuildBoard")}`,
-  cycleOpen: (label: string, theme: CycleTheme | null) =>
-    theme
+  cycleOpen: (label: string, theme: CycleTheme | null, bot: string | null) =>
+    (theme
       ? `*${escapeSlack(label)} is open. ${escapeSlack(theme.title)}*\n${escapeSlack(theme.open_line)} ${appLink("/board?share=1", theme.cta)}`
-      : `*${escapeSlack(label)} is open.* Up to three posts each, two lines is enough. ${appLink("/board?share=1", "Share something")}`,
-  meetingReminder: (when: string, count: number, top: { id: string; title: string }[]) => {
+      : `*${escapeSlack(label)} is open.* Up to three posts each, two lines is enough. ${appLink("/board?share=1", "Share something")}`) +
+    (bot ? `\n${BOT_MARK} _GuildBot: ${escapeSlack(bot)}_` : ""),
+  meetingReminder: (when: string, count: number, top: { id: string; title: string }[], bot: string | null) => {
     const lines = [
-      `*Guild tomorrow, ${escapeSlack(when)}.* ${count === 0 ? 'Nothing on the board yet.' : `${count} on the board.`}`,
+      bot
+        ? `*${BOT_MARK} ${escapeSlack(bot)}*`
+        : `*Guild tomorrow, ${escapeSlack(when)}.* ${count === 0 ? 'Nothing on the board yet.' : `${count} on the board.`}`,
     ];
     if (top.length) {
       lines.push("Most wanted so far:");
@@ -260,7 +264,7 @@ type Admin = ReturnType<typeof createAdminClient>;
 
 async function getUsername(admin: Admin, userId: string): Promise<string> {
   const { data } = await admin.from("users").select("username").eq("id", userId).single();
-  return data?.username ?? "Koi";
+  return data?.username ?? "Someone";
 }
 
 async function getTopic(admin: Admin, topicId: string) {
@@ -289,7 +293,7 @@ export async function notifyOnNewTopic(args: { topicId: string; actorId: string 
   const topic = await getTopic(admin, args.topicId);
   if (!topic) return;
 
-  const author = topic.is_anonymous ? "Kisi guild member" : await getUsername(admin, args.actorId);
+  const author = topic.is_anonymous ? "A guild member" : await getUsername(admin, args.actorId);
   const url = `/board/${topic.id}`;
 
   // Slack goes out regardless of how many members have push turned on.
@@ -308,7 +312,8 @@ export async function notifyOnNewTopic(args: { topicId: string; actorId: string 
     slack,
     userIds.length
       ? sendPushToUsers(userIds, {
-          title: pick(copyFor(topic.category).newTopic.titles),
+          // Problem posts keep their own serious copy: the bot does not joke there.
+          title: (topic.category !== "problem" && botSays("push.new_topic", topic.id, "push")) || pick(copyFor(topic.category).newTopic.titles),
           body: copyFor(topic.category).newTopic.body(author, truncate(topic.title, 60)),
           url,
           tag: `topic:${topic.id}`,
@@ -326,7 +331,7 @@ export async function notifyOnVote(args: { topicId: string; actorId: string }) {
   const voter = await getUsername(admin, args.actorId);
 
   await sendPushToUser(topic.user_id, {
-    title: pick(copyFor(topic.category).vote.titles),
+    title: (topic.category !== "problem" && botSays("push.vote", topic.id, "push")) || pick(copyFor(topic.category).vote.titles),
     body: copyFor(topic.category).vote.body(voter, truncate(topic.title, 50)),
     url: `/board/${topic.id}`,
     tag: `vote:${topic.id}`,
@@ -439,11 +444,18 @@ async function broadcast(payload: Parameters<typeof sendPushToUsers>[1], exclude
 /** The month's theme, when it has one, is the whole message. */
 export async function notifyOnCycleOpen(args: { label: string; theme: CycleTheme | null }) {
   const { theme } = args;
+  // The push names the month and theme; the Slack line is the one that
+  // does not, since the Slack header already says both.
+  const picked = theme ? botSays("cycle.open", args.label, "push", { month: args.label, theme: theme.title }) : null;
+  // The push must say which month opened; prefix it when the line does not.
+  const named = picked && !picked.includes(args.label) ? `${args.label} is open. ${picked}` : picked;
+  const pushLine = named && named.length <= 160 ? named : null;
+  const slackLine = botSays("cycle.open", `${args.label}:slack`, "slack");
   await Promise.all([
-    postToSlack({ text: SLACK.cycleOpen(args.label, theme) }),
+    postToSlack({ text: SLACK.cycleOpen(args.label, theme, slackLine) }),
     broadcast({
       title: theme ? theme.title : pick(COPY.cycleOpen.titles),
-      body: theme ? `${args.label} is open. ${theme.open_line}` : COPY.cycleOpen.body(args.label),
+      body: pushLine ?? (theme ? `${args.label} is open. ${theme.open_line}` : COPY.cycleOpen.body(args.label)),
       url: "/board",
       tag: `cycle-open:${args.label}`,
     }),
@@ -453,11 +465,29 @@ export async function notifyOnCycleOpen(args: { label: string; theme: CycleTheme
 export async function notifyOnCycleEnded(args: { label: string }) {
   await broadcast({
     title: pick(COPY.cycleEnded.titles),
-    body: COPY.cycleEnded.body(args.label),
+    body: (await wrapLine(args.label)) ?? COPY.cycleEnded.body(args.label),
     url: "/leaderboard",
     tag: `cycle-end:${args.label}`,
     requireInteraction: true,
   });
+}
+
+/** GuildBot's wrap-up for a finished cycle, with its real counts. Null falls back to plain copy. */
+async function wrapLine(label: string): Promise<string | null> {
+  const admin = createAdminClient();
+  const { data: cycle } = await admin
+    .from("cycles").select("id").eq("label", label)
+    .order("year", { ascending: false }).order("month", { ascending: false })
+    .limit(1).maybeSingle();
+  if (!cycle) return null;
+  const { data: topics } = await admin
+    .from("topics").select("comment_count").eq("cycle_id", cycle.id).eq("is_deleted", false);
+  const count = topics?.length ?? 0;
+  if (count === 0) return null;
+  const comments = (topics ?? []).reduce((sum, t) => sum + (t.comment_count ?? 0), 0);
+  // Only the line that mentions sparks fits here: this push is how people
+  // learn the spark window opened.
+  return botSays("cycle.wrap", label, "push", { month: label, count, comments });
 }
 
 /**
@@ -521,9 +551,13 @@ export async function notifyMeetingReminder(args: {
       .limit(3),
   ]);
   const n = count ?? 0;
+  // An empty board keeps the plain reminder: the bot's line assumes topics exist.
+  const bot = n > 0
+    ? botSays("meeting.reminder", args.cycleId, "slack", { time: args.when, count: n, ...(top?.[0] ? { top: truncate(top[0].title, 60) } : {}) })
+    : null;
 
   await Promise.all([
-    postToSlack({ text: SLACK.meetingReminder(args.when, n, top ?? []) }),
+    postToSlack({ text: SLACK.meetingReminder(args.when, n, top ?? [], bot) }),
     broadcast({
       title: `Guild tomorrow, ${args.when}`,
       body:

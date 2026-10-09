@@ -16,6 +16,8 @@ import { MeetingPill } from '@/components/layout/MeetingPill'
 import { OutcomesRecap } from '@/components/board/OutcomesRecap'
 import { BytesTeaser } from '@/components/board/BytesTeaser'
 import { TopContributors } from '@/components/board/TopContributors'
+import { GuildBotMood } from '@/components/board/GuildBotMood'
+import { botSays } from '@/lib/guildbot-host/voice'
 import { MeetingDate, CycleStatus } from '@/components/board/CycleMeta'
 import { QuotaStrip } from '@/components/board/QuotaStrip'
 import { ThemeBanner } from '@/components/board/ThemeBanner'
@@ -151,6 +153,9 @@ export default function BoardPage() {
           {/* Each month shows its own theme, so an archived month keeps the
               one it ran with. */}
           {viewingCycle?.theme && <ThemeBanner theme={viewingCycle.theme} />}
+          {isViewingActive && isOpen && viewingCycle && topics.length > 0 && (
+            <div><GuildBotMood cycle={viewingCycle} topics={topics as Topic[]} /></div>
+          )}
         </PageHeader>
 
         {/* ─── What you have left ───
@@ -241,7 +246,8 @@ export default function BoardPage() {
                 title="Nothing here yet"
                 body={
                   isOpen
-                    ? `Be the first. ${viewingCycle?.theme?.open_line ?? 'One good question is enough to start a cycle.'}`
+                    ? botSays('ui.empty_board', viewingCycle?.id ?? 'board', 'ui')
+                      ?? `Be the first. ${viewingCycle?.theme?.open_line ?? 'One good question is enough to start a cycle.'}`
                     : 'This cycle came and went without a post.'
                 }
                 action={
