@@ -18,10 +18,11 @@ import { BytesTeaser } from '@/components/board/BytesTeaser'
 import { TopContributors } from '@/components/board/TopContributors'
 import { MeetingDate, CycleStatus } from '@/components/board/CycleMeta'
 import { QuotaStrip } from '@/components/board/QuotaStrip'
+import { ThemeBanner } from '@/components/board/ThemeBanner'
 import { PageHeader, SectionHeader, EmptyState, CardSkeleton } from '@/components/ui/Section'
 import { Button } from '@/components/ui/Button'
 import { FOCUS_FORMAT, HIDE_BYTES } from '@/lib/experiment'
-import { boardSubtitle, shareLabel } from '@/lib/themes'
+import { shareLabel } from '@/lib/themes'
 import type { Cycle, Topic } from '@/types'
 
 const MONTHS_SHORT = [
@@ -151,8 +152,8 @@ export default function BoardPage() {
         <PageHeader
           title="The Board"
           subtitle={
-            // Each month shows its own theme, if it had one.
-            viewingCycle ? boardSubtitle(viewingCycle) : 'What shall we build next?'
+            // The theme, if the month had one, sits under it as a pill.
+            viewingCycle ? viewingCycle.label : 'What shall we build next?'
           }
           action={
             <>
@@ -168,7 +169,11 @@ export default function BoardPage() {
               )}
             </>
           }
-        />
+        >
+          {/* Each month shows its own theme, so an archived month keeps the
+              one it ran with. */}
+          {viewingCycle?.theme && <ThemeBanner theme={viewingCycle.theme} />}
+        </PageHeader>
 
         {/* ─── What you have left ───
             A strip, not a row of hero tiles. See QuotaStrip for why. */}

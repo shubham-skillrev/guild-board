@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { KINDS } from '@/lib/kinds'
 import { ShareCta } from '@/components/landing/ShareCta'
 import { ComposerDemo } from '@/components/landing/ComposerDemo'
+import { AccentTitle } from '@/components/ui/AccentTitle'
 import type { GuildStatus, LandingByte } from '@/lib/landing/guildStatus'
 import type { CycleTheme } from '@/lib/themes'
 
@@ -142,19 +143,6 @@ export function ThisMonth({ status, isAuthed, theme }: { status: GuildStatus; is
         </div>
       </div>
     </Section>
-  )
-}
-
-/** The title with its accent word (first match, any case) in the display italic. */
-function AccentTitle({ title, accent }: { title: string; accent?: string }) {
-  const at = accent ? title.toLowerCase().indexOf(accent.toLowerCase()) : -1
-  if (!accent || at < 0) return <>{title}</>
-  return (
-    <>
-      {title.slice(0, at)}
-      <Accent>{title.slice(at, at + accent.length)}</Accent>
-      {title.slice(at + accent.length)}
-    </>
   )
 }
 

@@ -17,16 +17,20 @@ export function PageHeader({
   title,
   subtitle,
   action,
+  children,
 }: {
   title: string
   subtitle?: string
   action?: React.ReactNode
+  /** Under the subtitle, in the title column. */
+  children?: React.ReactNode
 }) {
   return (
     <header className="mb-7 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
       <div className="min-w-0">
         <h1 className="text-title-1 text-label">{title}</h1>
         {subtitle && <p className="text-callout text-label-2 mt-1.5 max-w-prose">{subtitle}</p>}
+        {children}
       </div>
       {action && <div className="flex items-center gap-2 shrink-0 flex-wrap">{action}</div>}
     </header>

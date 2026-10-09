@@ -88,8 +88,3 @@ export function shareLabel(theme: CycleTheme | null | undefined): string {
 export function defaultKind(theme: CycleTheme | null | undefined): Kind {
   return theme?.featured_kind ?? 'learned'
 }
-
-/** "October 2026 · This month's theme: bring a problem", or just the label. */
-export function boardSubtitle(cycle: { label: string; theme?: CycleTheme | null }): string {
-  return cycle.theme ? `${cycle.label} · ${cycle.theme.subtitle}` : cycle.label
-}
