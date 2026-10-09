@@ -8,6 +8,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
 import { loadPolls } from '@/lib/polls'
 import { isVotingAllowed } from '@/lib/utils/cycle'
@@ -35,6 +36,7 @@ async function openPoll(admin: Admin, pollId: string) {
 }
 
 async function respond(admin: Admin, topicId: string, userId: string) {
+  broadcastTopicChange(topicId, ['poll'])
   const polls = await loadPolls(admin, [topicId], userId, true)
   return NextResponse.json(polls.get(topicId) ?? null)
 }

@@ -5,6 +5,7 @@
 // RLS: server client
 
 import { createClient } from '@/lib/supabase/server'
+import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
 import { notifyOnVote, notifyAfterResponse } from '@/lib/push/notify'
 
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
   }
 
   notifyAfterResponse(notifyOnVote({ topicId: topic_id, actorId: user.id }), "notifyOnVote")
+  broadcastTopicChange(topic_id, ['counts'])
 
   return NextResponse.json(data, { status: 201 })
 }
@@ -78,5 +80,6 @@ export async function DELETE(request: Request) {
     .eq('user_id', user.id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  broadcastTopicChange(topic_id, ['counts'])
   return NextResponse.json({ success: true })
 }

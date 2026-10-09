@@ -9,6 +9,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getViewer } from '@/lib/supabase/viewer'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
 import { notifyOnExplainMore, notifyAfterResponse } from '@/lib/push/notify'
 import { SIGNAL_KINDS, type SignalKind } from '@/lib/constants'
@@ -76,6 +77,7 @@ export async function POST(request: Request) {
       .eq('signal', signal)
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    broadcastTopicChange(topic_id, ['counts'])
     return NextResponse.json({ active: false })
   }
 
@@ -107,5 +109,6 @@ export async function POST(request: Request) {
     }
   }
 
+  broadcastTopicChange(topic_id, ['counts'])
   return NextResponse.json({ active: true })
 }

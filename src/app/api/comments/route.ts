@@ -10,6 +10,7 @@ import { getViewer } from '@/lib/supabase/viewer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { notifyOnComment, notifyAfterResponse } from '@/lib/push/notify'
 import { commentIsGhost, ghostHandle, serializeComment, withoutAuthor } from '@/lib/utils/anonymity'
+import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
 
 const COMMENT_MAX_LENGTH = 2000
@@ -157,6 +158,7 @@ export async function POST(request: Request) {
     actorLabel: isGhost ? ghostHandle(user.id, topic_id) : undefined,
     body: commentBody.trim(),
   }), "notifyOnComment")
+  broadcastTopicChange(topic_id, ['counts', 'comments'])
 
   return NextResponse.json({
     ...serializeComment(data, topic, { id: user.id, isAdmin: false }),
@@ -191,6 +193,7 @@ export async function PATCH(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!data) return NextResponse.json({ error: 'Comment not found or not yours' }, { status: 404 })
 
+  broadcastTopicChange(data.topic_id, ['comments'])
   return NextResponse.json({ ...withoutAuthor(data), is_owner: true })
 }
 
@@ -215,10 +218,11 @@ export async function DELETE(request: Request) {
     .eq('id', id)
   if (!(await isAdmin(admin, user.id))) query = query.eq('user_id', user.id)
 
-  const { data, error } = await query.select('id').maybeSingle()
+  const { data, error } = await query.select('id, topic_id').maybeSingle()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!data) return NextResponse.json({ error: 'Comment not found or not yours' }, { status: 404 })
 
+  broadcastTopicChange(data.topic_id, ['counts', 'comments'])
   return NextResponse.json({ success: true })
 }

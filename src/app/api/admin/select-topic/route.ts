@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/server'
 import { withoutAuthor } from '@/lib/utils/anonymity'
 import { MAX_SELECTED_TOPICS } from '@/lib/constants'
 import { notifyOnTopicSelected, notifyAfterResponse } from '@/lib/push/notify'
+import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
 
 export async function PATCH(request: Request) {
@@ -76,5 +77,6 @@ export async function PATCH(request: Request) {
   }
 
   // Admins are not exempt from ghost anonymity: never send the author id.
+  broadcastTopicChange(topic_id, ['topics'])
   return NextResponse.json(withoutAuthor(data))
 }

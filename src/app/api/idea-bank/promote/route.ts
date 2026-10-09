@@ -11,6 +11,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
 import { MEMBER_TOPIC_FIELDS } from '@/lib/utils/anonymity'
 import { notifyOnNewTopic, notifyOnIdeaTaken, notifyAfterResponse } from '@/lib/push/notify'
@@ -139,6 +140,7 @@ export async function POST(request: Request) {
     notifyOnNewTopic({ topicId: topic.id, actorId: user.id }),
     'notifyOnNewTopic',
   )
+  broadcastTopicChange(topic.id, ['topics'])
 
   // Tell the originator their idea got picked up - the payoff for banking
   // something you were never going to pitch yourself.
