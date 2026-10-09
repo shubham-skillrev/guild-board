@@ -54,3 +54,16 @@ test('mood and drought tiers', () => {
   assert.equal(s(4, 4), 'drought.meltdown')
   assert.equal(s(9, 12, 1), null)
 })
+
+test('one language everywhere: British spelling and GuildBoard words in every hand-written line', () => {
+  const american = /\b(favorite|color|behavior|humor|optimiz|summariz|organiz|analyz|realiz|apologiz|recogniz|center)\w*/i
+  const all = [
+    ...Object.values(LINES).flat(),
+    ...EXAMPLES.map(e => e.comment),
+    ...REPLY_EXAMPLES.map(r => r.reply),
+  ]
+  for (const text of all) {
+    assert.ok(!american.test(text), `American spelling: ${text}`)
+    assert.ok(!/\bbytes\b/.test(text), `"Bytes" takes a capital B: ${text}`)
+  }
+})

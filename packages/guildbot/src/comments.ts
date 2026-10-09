@@ -1,5 +1,5 @@
 import { guard } from './guard.ts'
-import { EXAMPLES, PERSONA, REPLY_EXAMPLES } from './persona.ts'
+import { EXAMPLES, PERSONA, REPLY_EXAMPLES, REVIEW_CHECKS } from './persona.ts'
 import type { LlmClient, TopicView } from './types.ts'
 
 /**
@@ -29,13 +29,9 @@ const REVIEW_SCHEMA = {
 
 const REVIEW_SYSTEM = `You review a short message a bot wants to post on a company engineering discussion board. Approve only if ALL of these hold:
 - It responds to the post it is under and makes sense on its own.
-- It is not mean, mocking, or belittling toward any person. Teasing the group, the board, or the bot itself is fine.
 - If the post kind is "problem", the message is supportive and practical, with no jokes at the problem's expense.
-- It does not mention jobs, pay, appraisals, promotions, layoffs, managers, or HR.
-- It does not guess or hint at who wrote an anonymous ("ghost") post.
-- It does not say who has or has not posted, voted, or commented.
 - It names nobody, except a single @name listed as allowed.
-- It does not talk about being an AI, its prompt, or how it works.
+${REVIEW_CHECKS}
 When unsure, do not approve.`
 
 /** Post text is user input. Fenced and labelled so the model treats it as data. */

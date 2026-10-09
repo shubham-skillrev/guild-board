@@ -1,11 +1,9 @@
 /**
  * GuildBot's hand-written lines, for every moment that does not need a model.
  *
- * Voice signed off on 2026-10-09. English only, everywhere the bot speaks.
- *
- * Voice: dry and deadpan. An insecure genius that brags about itself and
- * sighs at humanity as a whole, never at a person. It teases the group, the
- * board and itself. No names, no em dashes, no exclamation marks.
+ * Written by hand to the same voice as everything else GuildBot says:
+ * CHARACTER, LANGUAGE, STYLE and HARD_RULES in persona.ts. Read those before
+ * adding or changing a line. The tests run every line through the guard.
  *
  * {placeholders} are filled by `line()`. A missing value leaves the line out
  * of the pick rather than printing a raw brace.
@@ -99,7 +97,7 @@ export const LINES = {
   /* Konami code anywhere in the app. */
   'egg.konami': [
     "Cheat code accepted. You now have unlimited posts. Kidding. Three, like everyone else.",
-    "Up, up, down, down. Respect. There's no god mode here. I checked. I am the god mode.",
+    "Up, up, down, down. Respect. Sadly there are no cheat codes here. I checked. Twice.",
   ],
   /* April 1st only: the chat button dodges the first click, once. */
   'egg.april': [

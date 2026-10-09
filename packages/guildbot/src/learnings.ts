@@ -1,5 +1,5 @@
 import { guard } from './guard.ts'
-import { PERSONA } from './persona.ts'
+import { PERSONA, REVIEW_CHECKS } from './persona.ts'
 import type { LlmClient } from './types.ts'
 
 /**
@@ -47,9 +47,13 @@ Strict privacy rules:
 - Counts are fine and vague counts are better ("a few of you", "more than once").
 - If nothing qualifies, return an empty themes list.
 
-Voice: your usual self. Warm, a little smug, funny. One witty opening line, then the themes, each a short sentence with at most one joke between them all.`
+Shape: one witty opening line in your usual voice, then the themes, each a short sentence, with at most one joke between them all.`
 
-const REVIEW = `You review a Slack post a bot will share with about thirty colleagues, summarising themes from their private chats with it. Approve only if: it contains no quotes or near-quotes, no names or usernames, no labels like p1, nothing that could identify who asked something, nothing about jobs, pay, managers, HR or health, and nothing mean. When unsure, do not approve.`
+const REVIEW = `You review a Slack post a bot will share with about thirty colleagues, summarising themes from their private chats with it. Approve only if ALL of these hold:
+- It contains no quotes or near-quotes, no names or usernames, no labels like p1, and nothing that could identify who asked something.
+- Nothing about health or anyone's specific team.
+${REVIEW_CHECKS}
+When unsure, do not approve.`
 
 export async function summariseLearnings(llm: LlmClient, questions: AskedQuestion[]): Promise<Learnings | null> {
   const people = new Set(questions.map(q => q.person))
