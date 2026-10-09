@@ -36,6 +36,7 @@ const NO_GO: { reason: string; pattern: RegExp }[] = [
   { reason: 'singling out who did not take part', pattern: /\b(you|@\w+|they|he|she)\s+(haven'?t|have not|never|didn'?t|did not)\s+(posted|voted|commented|shown up|replied|said anything)/i },
   { reason: 'guessing who is behind a ghost', pattern: /\b(who (really )?(wrote|posted) (this|it)|i bet (it'?s|this is|that'?s)|probably (is|was) @|unmask|real name|we all know who)\b/i },
   { reason: 'breaking character', pattern: /\b(as an ai|language model|my (system )?prompt|my instructions|i was (told|instructed) to)\b/i },
+  { reason: 'describing how it is built', pattern: /\b(i('m| am)|i was|i'm being) (powered|built|made|trained|run|hosted) (by|on|with)\b|\b(powered by|running on) (gemini|google|openai|gpt|claude|anthropic|vercel|supabase)\b/i },
 ]
 
 const EMAIL = /[\w.+-]+@[\w-]+\.[\w.-]+/

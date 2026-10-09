@@ -10,6 +10,8 @@ This package is the bot's brain only. It has no database, HTTP or app imports. T
 | `src/persona.ts` | The system prompt and example comments for model-written comments and replies |
 | `src/guard.ts` | The last check before anything is shown. Fails closed. |
 | `src/mood.ts` | Mood and drought tier from board counts |
+| `src/comments.ts` | Model-written comments and replies: persona, guard, then a review call |
+| `src/chat.ts` | One-to-one chat: answers from host-supplied context, can draft a post |
 
 ## Rules every line follows
 
@@ -25,6 +27,13 @@ This package is the bot's brain only. It has no database, HTTP or app imports. T
 App glue lives in `src/lib/guildbot-host/`. `botSays(key, seed, surface, vars)` returns a guarded line or `null`, and every caller falls back to plain copy on `null`.
 
 Switch the voice off everywhere with `NEXT_PUBLIC_GUILDBOT_SASS=0` (redeploy to apply). Every surface then shows the plain copy.
+
+## Models
+
+The host supplies one `LlmClient`. Comments use the `quality` tier and are
+rare (capped). Chat defaults to `bulk`, because it is frequent and the
+quality model's free quota is 20 requests a day. No web search yet: it
+needs a billed Gemini project.
 
 ## Tests
 

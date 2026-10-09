@@ -3,7 +3,8 @@
 // PURPOSE: Once per cycle, GuildBot suggests a few topics nobody has brought
 //          yet (recent tech and AI releases), posted to the board as its own.
 //          Every day, it also runs GuildBot's daily check (drought messages,
-//          its own ignored topics) from src/lib/guildbot-host/reactions.ts.
+//          its own ignored topics) from src/lib/guildbot-host/reactions.ts,
+//          and deletes chat history older than 30 days.
 // DB TABLES: cycles, topics, bytes, users
 // RLS: service-role client (no user context exists here)
 
@@ -35,6 +36,13 @@ export async function GET(request: Request) {
   if (rejected) return rejected
 
   const admin = createAdminClient()
+  const dry = new URL(request.url).searchParams.get('dry') === '1'
+
+  // Chat history is kept 30 days (migration 032), open cycle or not.
+  if (!dry) {
+    await admin.from('guildbot_messages').delete().lt('created_at', new Date(Date.now() - 30 * 86_400_000).toISOString())
+  }
+
   const { data: cycle } = await admin
     .from('cycles')
     .select('id, label, month, year, theme, opens_at, created_at, meeting_at')
@@ -45,7 +53,6 @@ export async function GET(request: Request) {
     .maybeSingle()
   if (!cycle) return NextResponse.json({ skipped: true, reason: 'no_open_cycle' })
 
-  const dry = new URL(request.url).searchParams.get('dry') === '1'
   const topics = await postTopics(admin, cycle, dry)
   // After posting, so a drought count on opening day includes the bot's own topics.
   const guildbot = await runDaily(cycle, { dry })
