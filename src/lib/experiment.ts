@@ -2,7 +2,7 @@
  * The board's format: how participation works, the same every month.
  *
  * Problem Month (Oct 2026) introduced it: uncapped "me too" and "I can help"
- * reactions, no rank or quota strip, the leaders rail off, one post each. It
+ * reactions, no rank or quota strip, the leaders rail off. It
  * stuck, so it now applies to every month. What a month is *about* is its
  * theme, stored per cycle (src/lib/themes, migration 026), and themes change
  * copy only, never these mechanics.

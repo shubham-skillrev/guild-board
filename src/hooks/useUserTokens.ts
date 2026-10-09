@@ -15,7 +15,7 @@ export function useUserTokens(cycleId: string | null | undefined) {
     votes_remaining: TOKEN_LIMITS.VOTES_PER_CYCLE,
     contribs_remaining: TOKEN_LIMITS.CONTRIBS_PER_CYCLE,
     spark_given: false,
-    topic_submitted: false,
+    topics_remaining: TOKEN_LIMITS.TOPICS_PER_CYCLE,
     isLoading: true,
   })
 
@@ -33,7 +33,9 @@ export function useUserTokens(cycleId: string | null | undefined) {
         supabase.from('votes').select('id').eq('user_id', user.id).eq('cycle_id', cycleId).limit(TOKEN_LIMITS.VOTES_PER_CYCLE),
         supabase.from('contributions').select('id').eq('user_id', user.id).eq('cycle_id', cycleId).limit(TOKEN_LIMITS.CONTRIBS_PER_CYCLE),
         supabase.from('sparks').select('id').eq('from_user_id', user.id).eq('cycle_id', cycleId).limit(1),
-        supabase.from('topics').select('id').eq('user_id', user.id).eq('cycle_id', cycleId).eq('is_deleted', false).limit(1),
+        supabase.from('topics').select('id').eq('user_id', user.id)
+          // Carried-forward posts are not counted, same as the trigger (migration 027).
+          .eq('cycle_id', cycleId).eq('is_deleted', false).eq('is_carry_forward', false).limit(TOKEN_LIMITS.TOPICS_PER_CYCLE),
       ])
 
     const voteCount = votes?.length ?? 0
@@ -46,7 +48,7 @@ export function useUserTokens(cycleId: string | null | undefined) {
       votes_remaining: FOCUS_FORMAT ? Infinity : TOKEN_LIMITS.VOTES_PER_CYCLE - (voteCount ?? 0),
       contribs_remaining: FOCUS_FORMAT ? Infinity : TOKEN_LIMITS.CONTRIBS_PER_CYCLE - (contribCount ?? 0),
       spark_given: (sparkCount ?? 0) > 0,
-      topic_submitted: (topicCount ?? 0) > 0,
+      topics_remaining: Math.max(0, TOKEN_LIMITS.TOPICS_PER_CYCLE - topicCount),
       isLoading: false,
     })
   }, [cycleId])

@@ -16,17 +16,17 @@
  * until it runs out, and then it is the only warm thing in the row.
  */
 
-import { ArrowFatUp, Handshake, CheckCircle } from '@phosphor-icons/react/dist/ssr'
+import { ArrowFatUp, Handshake, Lightbulb } from '@phosphor-icons/react/dist/ssr'
 import { StatStrip, StatChip } from '@/components/ui/Section'
 
 export function QuotaStrip({
   votesRemaining,
   contribsRemaining,
-  topicSubmitted,
+  topicsRemaining,
 }: {
   votesRemaining: number
   contribsRemaining: number
-  topicSubmitted: boolean
+  topicsRemaining: number
 }) {
   return (
     <StatStrip>
@@ -44,9 +44,12 @@ export function QuotaStrip({
         tone={contribsRemaining > 0 ? 'default' : 'spent'}
       />
 
-      {/* Only stated once it is true. "0 ideas pitched" as a standing headline
-          reports a failure at a moment when nothing has gone wrong yet. */}
-      {topicSubmitted && <StatChip icon={CheckCircle} label="Idea pitched" tone="done" />}
+      <StatChip
+        icon={Lightbulb}
+        value={topicsRemaining}
+        label={`${topicsRemaining === 1 ? 'post' : 'posts'} left`}
+        tone={topicsRemaining > 0 ? 'default' : 'spent'}
+      />
     </StatStrip>
   )
 }

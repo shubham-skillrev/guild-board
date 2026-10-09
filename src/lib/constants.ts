@@ -2,7 +2,7 @@ export const TOKEN_LIMITS = {
   VOTES_PER_CYCLE: 3,
   CONTRIBS_PER_CYCLE: 2,
   SPARKS_PER_CYCLE: 1,
-  TOPICS_PER_CYCLE: 1,
+  TOPICS_PER_CYCLE: 3,
 } as const
 
 export const CATEGORY_LABELS: Record<string, string> = {

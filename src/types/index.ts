@@ -150,7 +150,7 @@ export interface UserTokens {
   votes_remaining: number       // Max 3 per cycle
   contribs_remaining: number    // Max 2 per cycle
   spark_given: boolean          // True if user gave spark this cycle
-  topic_submitted: boolean      // True if user submitted a topic this cycle
+  topics_remaining: number      // Max 3 per cycle
 }
 
 export interface TopicScore {

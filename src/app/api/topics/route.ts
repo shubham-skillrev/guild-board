@@ -136,7 +136,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'The meeting has started. Submissions reopen next cycle.' }, { status: 409 })
   }
 
-  // DB trigger enforces 1 topic per user per cycle - insert will fail if limit exceeded
+  // DB trigger enforces 3 topics per user per cycle - insert will fail if limit exceeded
   const { data, error } = await supabase
     .from('topics')
     .insert({
@@ -152,7 +152,7 @@ export async function POST(request: Request) {
 
   if (error) {
     if (error.message.includes('Topic limit reached')) {
-      return NextResponse.json({ error: "You've already shared something this cycle. One each, so everyone gets a turn." }, { status: 409 })
+      return NextResponse.json({ error: "You've shared three things this cycle. That's the limit, so everyone gets a turn." }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

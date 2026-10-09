@@ -35,7 +35,7 @@ export default function BoardPage() {
   const { user, isLoading: authLoading } = useAuth()
   const { cycle, phase, isLoading: cycleLoading } = useCurrentCycle()
   const { topics, isLoading: topicsLoading, mutate, optimisticVote, optimisticContrib } = useTopics(cycle?.id)
-  const { votes_remaining, contribs_remaining, topic_submitted, isLoading: tokensLoading, refresh: refreshTokens } = useUserTokens(cycle?.id)
+  const { votes_remaining, contribs_remaining, topics_remaining, isLoading: tokensLoading, refresh: refreshTokens } = useUserTokens(cycle?.id)
   const toast = useToast()
   const { blockGuest } = useGuestGate()
 
@@ -126,6 +126,8 @@ export default function BoardPage() {
   const displayPhase = isViewingActive ? phase : 'discussion'
   const isOpen = isViewingActive && phase === 'open'
   const showRail = !FOCUS_FORMAT || !HIDE_BYTES
+  // Up to TOPICS_PER_CYCLE posts each; the share action goes once they are used.
+  const canShare = topics_remaining > 0
 
   /* The empty state and the page header both want to offer the same action, so
      only one of them is allowed to at a time. */
@@ -162,7 +164,7 @@ export default function BoardPage() {
               {/* One action, only while the board is open. When the list is
                   empty the empty state carries it instead, being the more
                   prominent invitation. */}
-              {!listIsEmpty && isOpen && !topic_submitted && (
+              {!listIsEmpty && isOpen && canShare && (
                 <Button icon={Plus} onClick={() => setShowSubmit(true)}>
                   {shareLabel(cycle?.theme)}
                 </Button>
@@ -184,7 +186,7 @@ export default function BoardPage() {
             <QuotaStrip
               votesRemaining={isOpen ? votes_remaining : 0}
               contribsRemaining={isOpen ? contribs_remaining : 0}
-              topicSubmitted={topic_submitted}
+              topicsRemaining={isOpen ? topics_remaining : 0}
             />
           </motion.section>
         )}
@@ -268,7 +270,7 @@ export default function BoardPage() {
                     : 'This cycle came and went without a post.'
                 }
                 action={
-                  isOpen && !topic_submitted ? (
+                  isOpen && canShare ? (
                     <Button icon={Plus} onClick={() => setShowSubmit(true)}>
                       {shareLabel(cycle?.theme)}
                     </Button>
@@ -316,7 +318,7 @@ export default function BoardPage() {
       <Suspense fallback={null}>
         <ShareIntent
           cycle={cycle}
-          canShare={!showSubmit && isOpen && !tokensLoading && !topic_submitted}
+          canShare={!showSubmit && isOpen && !tokensLoading && canShare}
           onSubmitted={() => { mutate(); refreshTokens() }}
         />
       </Suspense>

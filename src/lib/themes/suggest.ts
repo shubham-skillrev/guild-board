@@ -33,7 +33,7 @@ const SCHEMA = {
   required: ['themes'],
 }
 
-const SYSTEM = `You pick the monthly theme for SkillRev's engineering guild: about thirty software engineers who meet for an hour each month to talk tech. Members post one thing each to a shared board before the meeting, and the meeting is built from what people relate to most.
+const SYSTEM = `You pick the monthly theme for SkillRev's engineering guild: about thirty software engineers who meet for an hour each month to talk tech. Members post up to three things each to a shared board before the meeting, and the meeting is built from what people relate to most.
 
 A theme is a prompt for what to bring that month. It should lower the bar to posting (anyone can answer it in two lines), lead to a good conversation, and differ from recent months. Each theme features one post kind: ${KINDS.map(k => `${k.value} (${k.label})`).join(', ')}.
 

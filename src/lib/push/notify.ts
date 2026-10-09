@@ -124,7 +124,7 @@ const BASE_COPY = {
       "Fresh cycle, clean slate",
     ],
     body: (label: string) =>
-      `${label} is open. One post each, and two lines is enough.`,
+      `${label} is open. Up to three posts each, and two lines is enough.`,
   },
   cycleEnded: {
     titles: [
@@ -241,7 +241,7 @@ const SLACK = {
   cycleOpen: (label: string, theme: CycleTheme | null) =>
     theme
       ? `*${escapeSlack(label)} is open. ${escapeSlack(theme.title)}*\n${escapeSlack(theme.open_line)} ${appLink("/board?share=1", theme.cta)}`
-      : `*${escapeSlack(label)} is open.* One post each, two lines is enough. ${appLink("/board?share=1", "Share something")}`,
+      : `*${escapeSlack(label)} is open.* Up to three posts each, two lines is enough. ${appLink("/board?share=1", "Share something")}`,
   meetingReminder: (when: string, count: number, top: { id: string; title: string }[]) => {
     const lines = [
       `*Guild tomorrow, ${escapeSlack(when)}.* ${count === 0 ? 'Nothing on the board yet.' : `${count} on the board.`}`,

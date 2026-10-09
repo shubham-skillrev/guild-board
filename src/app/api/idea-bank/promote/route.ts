@@ -105,7 +105,7 @@ export async function POST(request: Request) {
   if (topicErr) {
     if (topicErr.message.includes('Topic limit reached')) {
       return NextResponse.json(
-        { error: 'You already have a topic on the board this cycle. Your idea stays banked.' },
+        { error: 'You already have three topics on the board this cycle. Your idea stays banked.' },
         { status: 409 },
       )
     }

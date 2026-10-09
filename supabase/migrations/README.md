@@ -37,6 +37,11 @@ run, or the repo stops describing the database.
 | 023 | `023_problem_month_unlimited_signals.sql` | drops the per-cycle vote and contribution caps for Problem Month | Yes — drops two triggers, keeps their functions |
 | 024 | `024_discussion_kinds.sql` | five discussion kinds (problem, learned, new tech, take, show & tell) allowed in `category` on topics and the idea bank | Yes — widens two CHECKs, old values stay valid |
 | 026 | `026_themes_announcements.sql` | `cycles.theme` (per-month theme, Oct 2026 seeded as Problem Month) and `announcements` (admin announcement history) | Yes — additive only |
+| 027 | `027_three_posts_per_cycle.sql` | raises the per-person post cap from 1 to 3 per cycle | Yes — replaces one function body |
+
+> **027 goes out with the three-posts change.** The board offers a second and
+> third post as soon as the code ships; until 027 is applied the old trigger
+> rejects them with "You've shared three things this cycle" after just one.
 
 > **026 must be applied before the themes and announcements code ships.** The
 > cycle reads select `theme`, so without the column `/api/cycles` errors and the
