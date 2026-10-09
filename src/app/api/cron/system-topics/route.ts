@@ -4,7 +4,8 @@
 //          yet (recent tech and AI releases), posted to the board as its own.
 //          Every day, it also runs GuildBot's daily check (drought messages,
 //          its own ignored topics) from src/lib/guildbot-host/reactions.ts,
-//          and deletes chat history older than 30 days.
+//          on meeting day what it learned from chats (then deletes them all),
+//          and a backstop delete of any chat older than 35 days.
 // DB TABLES: cycles, topics, bytes, users
 // RLS: service-role client (no user context exists here)
 
@@ -15,7 +16,7 @@ import { CURATED } from '@/lib/system/curated'
 import { countSystemTopics, publishSystemTopics } from '@/lib/system/topics'
 import { suggestSystemTopics } from '@/lib/system/suggest'
 import { sanitizeTheme } from '@/lib/themes'
-import { introduceOnce, runDaily } from '@/lib/guildbot-host/reactions'
+import { introduceOnce, runDaily, shareLearningsOnce } from '@/lib/guildbot-host/reactions'
 
 /* Runs daily, acts once: the first run that finds an open cycle with no
    system posts fills it, and every later run that cycle is a no-op. Cycles
@@ -38,9 +39,10 @@ export async function GET(request: Request) {
   const admin = createAdminClient()
   const dry = new URL(request.url).searchParams.get('dry') === '1'
 
-  // Chat history is kept 30 days (migration 032), open cycle or not.
+  // Chats are wiped on meeting day (shareLearningsOnce). This is the backstop
+  // for a month with no meeting: nothing is ever kept past 35 days.
   if (!dry) {
-    await admin.from('guildbot_messages').delete().lt('created_at', new Date(Date.now() - 30 * 86_400_000).toISOString())
+    await admin.from('guildbot_messages').delete().lt('created_at', new Date(Date.now() - 35 * 86_400_000).toISOString())
   }
 
   const { data: cycle } = await admin
@@ -59,7 +61,9 @@ export async function GET(request: Request) {
   // posted" is true, and before the daily nags, so it is the first thing said.
   const intro = await introduceOnce(cycle, { dry })
   const guildbot = await runDaily(cycle, { dry })
-  return NextResponse.json({ ...topics, intro, guildbot })
+  // Meeting morning (09:30 IST, before the 11:00 session): what it learned, then forget.
+  const learned = await shareLearningsOnce(cycle, { dry })
+  return NextResponse.json({ ...topics, intro, guildbot, learned })
 }
 
 async function postTopics(

@@ -42,7 +42,7 @@ run, or the repo stops describing the database.
 | 029 | `029_retire_contributions_add_polls.sql` | score from votes only (backfills every topic's `score`); members can no longer write `contributions`; `topic_polls`, `poll_options`, `poll_votes` with cached counts, hidden per-option counts and no member access to who voted | **Ship together with the code**, after 028 |
 | 030 | `030_live_channels.sql` | RLS on `realtime.messages`: anyone may listen on `board:*` / `topic:*` private broadcast channels and join presence on `topic:*`; only the service role may send | Yes — the pages poll every 15s until it is applied |
 | 031 | `031_guildbot_events.sql` | `guildbot_events` (what GuildBot said on its own, for idempotency and daily caps; service role only) and `users.roast_me` (opt-in to being teased by name, readable by members, written via the API) | **Ship together with the code** |
-| 032 | `032_guildbot_chat.sql` | `guildbot_messages`: one private chat thread per member, API-only (no member grants), purged after 30 days by the daily GuildBot cron | **Ship together with the chat code** |
+| 032 | `032_guildbot_chat.sql` | `guildbot_messages`: one private chat thread per member, API-only (no member grants), wiped on meeting day after GuildBot shares anonymous themes (35-day backstop delete) | **Ship together with the chat code** |
 
 > **028 and its code ship in the same deploy.** Apply 028 right after the code
 > goes live; never before. The old code reads `topics.user_id` and
@@ -136,7 +136,7 @@ their markup intact.
 | Path | Schedule (UTC) | Does |
 |---|---|---|
 | `/api/cron/autopilot` | `30 3 * * *` (~09:00 IST) | Runs the month: closes the cycle the day after its meeting, opens next month (2nd Friday 11:00 IST, a theme from `src/lib/themes/catalog.ts`, Slack + push), and publishes Bytes: 10 stories ~15 days before the meeting and 10 more ~3 days before |
-| `/api/cron/system-topics` | `0 4 * * *` | GuildBot's suggested topics for a newly opened month; every day, its drought messages and "nobody voted for my topics" line (once per cycle each, via `guildbot_events`), and deleting chat history older than 30 days |
+| `/api/cron/system-topics` | `0 4 * * *` | GuildBot's suggested topics for a newly opened month; its one-time intro; every day, its drought messages and "nobody voted for my topics" line (once per cycle each, via `guildbot_events`); on meeting day, what it learned from the month's chats (anonymous themes), then every chat is deleted; a 35-day backstop delete |
 | `/api/cron/meeting-reminder` | `30 5 * * *` | "Guild tomorrow" on Slack and push; on Fridays outside meeting week, GuildBot's weekly report in Slack. `?dry=1&now=2026-10-16T05:30:00Z` previews the report for any date |
 
 Every autopilot step decides from stored state (cycle status, existing

@@ -7,7 +7,10 @@
 -- service role, always filtered to the signed-in member: no member, admins
 -- included, can read anyone else's chat through the app.
 --
--- Kept 30 days. The daily GuildBot cron deletes older rows.
+-- Not kept: on meeting day GuildBot shares anonymous themes from the month's
+-- questions in Slack (never who asked what) and then deletes every row. The
+-- daily GuildBot cron also deletes anything older than 35 days, as a backstop
+-- for a month without a meeting.
 -- `draft` holds a topic the bot drafted (shown as a card the member can post);
 -- `cites` holds the topics and Bytes the reply linked to.
 

@@ -3,7 +3,7 @@ import type { createAdminClient } from '@/lib/supabase/admin'
 
 type Admin = ReturnType<typeof createAdminClient>
 
-export type EventKind = 'comment' | 'reply' | 'milestone' | 'first_post' | 'drought' | 'ignored' | 'digest' | 'intro'
+export type EventKind = 'comment' | 'reply' | 'milestone' | 'first_post' | 'drought' | 'ignored' | 'digest' | 'intro' | 'learned'
 
 /** Comments the bot makes on its own initiative, which share one daily cap. */
 export const UNPROMPTED: EventKind[] = ['comment', 'milestone', 'first_post']

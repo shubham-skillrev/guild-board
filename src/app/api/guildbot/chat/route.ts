@@ -22,7 +22,8 @@ import { parsePollInput } from '@/lib/polls'
 export const maxDuration = 120
 
 const MESSAGE_MAX = 1500
-const DAILY_LIMIT = 30
+/** Asks per member per rolling week. Keeps the chat a tool, not a hangout. */
+const WEEKLY_LIMIT = 15
 const HISTORY_SHOWN = 40
 /** Same split as the share form: two answers and their headings share the description. */
 const SECTION_MAX = Math.floor((DESCRIPTION_MAX_LENGTH - 60) / 2)
@@ -70,15 +71,15 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
-  const since = new Date(Date.now() - 86_400_000).toISOString()
-  const { count: today } = await admin
+  const since = new Date(Date.now() - 7 * 86_400_000).toISOString()
+  const { count: thisWeek } = await admin
     .from('guildbot_messages')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
     .eq('role', 'user')
     .gte('created_at', since)
-  if ((today ?? 0) >= DAILY_LIMIT) {
-    const reply = botSays('chat.limit', user.id, 'chat', { limit: DAILY_LIMIT }) ?? `That's ${DAILY_LIMIT} messages today. Back tomorrow.`
+  if ((thisWeek ?? 0) >= WEEKLY_LIMIT) {
+    const reply = botSays('chat.limit', user.id, 'chat', { limit: WEEKLY_LIMIT }) ?? `That's ${WEEKLY_LIMIT} asks this week. Back next week.`
     return NextResponse.json({ reply, draft: null, cites: [], limited: true })
   }
 

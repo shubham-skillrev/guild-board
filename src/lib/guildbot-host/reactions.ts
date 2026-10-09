@@ -1,6 +1,6 @@
 import 'server-only'
 import { after } from 'next/server'
-import { droughtTier, guard, line, writeComment, writeReply, type BoardStats, type TopicView } from '@guildboard/guildbot'
+import { droughtTier, guard, line, summariseLearnings, writeComment, writeReply, type BoardStats, type TopicView } from '@guildboard/guildbot'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ensureSystemUser } from '@/lib/system/topics'
 import { commentIsGhost, ghostHandle } from '@/lib/utils/anonymity'
@@ -291,4 +291,56 @@ export async function introduceOnce(
   if (!(await claim(admin, { cycleId: cycle.id, kind: 'intro', key: 'intro' }))) return { sent: false, reason: 'already_introduced' }
   await notifyGuildBotIntro({ slack, push })
   return { sent: true, text: slack }
+}
+
+/** The calendar date in India, as YYYY-MM-DD. */
+function istDate(d: Date): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(d)
+}
+
+/**
+ * Meeting day: share what GuildBot learned from the month's chats, then
+ * delete every chat. Anonymous themes only, each raised by at least two
+ * people (see summariseLearnings); if nobody asked anything, a taunt; if
+ * nothing can be shared safely, it says so. Once per cycle.
+ */
+export async function shareLearningsOnce(
+  cycle: { id: string; meeting_at: string | null },
+  { dry = false, now = new Date() }: { dry?: boolean; now?: Date } = {},
+): Promise<{ sent: boolean; text?: string; reason?: string }> {
+  if (!SASS) return { sent: false, reason: 'voice_off' }
+  if (!cycle.meeting_at || istDate(new Date(cycle.meeting_at)) !== istDate(now)) return { sent: false, reason: 'not_meeting_day' }
+
+  const admin = createAdminClient()
+  const { data: rows } = await admin
+    .from('guildbot_messages')
+    .select('user_id, body')
+    .eq('role', 'user')
+    .lte('created_at', now.toISOString())
+    .limit(2000)
+
+  // Throwaway labels for this one call: p1, p2... in shuffled order, so even
+  // the order of labels says nothing about who asked first.
+  const people = [...new Set((rows ?? []).map(r => r.user_id))].sort(() => Math.random() - 0.5)
+  const label = new Map(people.map((id, i) => [id, `p${i + 1}`]))
+  const questions = (rows ?? []).map(r => ({ person: label.get(r.user_id)!, text: r.body }))
+
+  let text: string
+  if (questions.length === 0) {
+    const taunt = botSays('learned.none', cycle.id, 'slack')
+    if (!taunt) return { sent: false, reason: 'no_line' }
+    text = `*${BOT_MARK} What I learned this month*\n${escapeSlack(taunt)}`
+  } else {
+    const learned = await summariseLearnings(llm, questions)
+    text = learned
+      ? [`*${BOT_MARK} What I learned this month*`, escapeSlack(learned.line), ...learned.themes.map(t => `• ${escapeSlack(t)}`), '_Every chat from this month is now deleted._'].join('\n')
+      : `*${BOT_MARK} What I learned this month*\nNot enough overlap in this month's questions to share anything without giving someone away, so I won't. _Every chat from this month is now deleted._`
+  }
+
+  if (dry) return { sent: false, reason: 'dry_run', text }
+  if (!(await claim(admin, { cycleId: cycle.id, kind: 'learned', key: 'learned' }))) return { sent: false, reason: 'already_shared' }
+  await postToSlack({ text })
+  // Forget everything, as promised in the chat panel and the intro.
+  await admin.from('guildbot_messages').delete().lte('created_at', now.toISOString())
+  return { sent: true, text }
 }

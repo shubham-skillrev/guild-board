@@ -85,7 +85,7 @@ export const BIT_CHANCE = 0.25
 export function bitRule(bits: boolean): string {
   return bits
     ? 'For this comment you may use one running bit, if it genuinely fits.'
-    : 'For this comment, do not use any running bit: no field notes, no documentary narration, no mention of your ignored topics. Just react to the post in your own words.'
+    : 'For this comment, do not use any running bit. Just react to the post in your own words.'
 }
 
 /** The @name the bot may use for this author, without the @. */

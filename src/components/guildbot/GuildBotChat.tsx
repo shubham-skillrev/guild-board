@@ -164,7 +164,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
               <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3" aria-live="polite">
                 {loaded && messages.length === 0 && (
                   <p className="text-[13px] text-cha leading-relaxed">
-                    Ask about this month&apos;s topics or Bytes, or tell me an idea and ask me to draft it as a post. Chats are private and kept 30 days.
+                    Ask about this month&apos;s topics or Bytes, or tell me an idea and ask me to draft it as a post. 15 asks a week. On meeting day I share anonymous themes from everyone&apos;s chats in Slack, never who asked what, then delete every chat.
                   </p>
                 )}
                 {messages.map(m => (
