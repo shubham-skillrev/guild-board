@@ -3,7 +3,7 @@ import type { createAdminClient } from '@/lib/supabase/admin'
 
 type Admin = ReturnType<typeof createAdminClient>
 
-export type EventKind = 'comment' | 'reply' | 'milestone' | 'first_post' | 'drought' | 'ignored' | 'digest'
+export type EventKind = 'comment' | 'reply' | 'milestone' | 'first_post' | 'drought' | 'ignored' | 'digest' | 'intro'
 
 /** Comments the bot makes on its own initiative, which share one daily cap. */
 export const UNPROMPTED: EventKind[] = ['comment', 'milestone', 'first_post']
@@ -52,6 +52,15 @@ export async function firedInCycle(admin: Admin, cycleId: string, kind: EventKin
     .from('guildbot_events')
     .select('id', { count: 'exact', head: true })
     .eq('cycle_id', cycleId)
+    .eq('kind', kind)
+  return (count ?? 0) > 0
+}
+
+/** Whether any event of this kind ever fired, in any cycle. */
+export async function firedEver(admin: Admin, kind: EventKind): Promise<boolean> {
+  const { count } = await admin
+    .from('guildbot_events')
+    .select('id', { count: 'exact', head: true })
     .eq('kind', kind)
   return (count ?? 0) > 0
 }

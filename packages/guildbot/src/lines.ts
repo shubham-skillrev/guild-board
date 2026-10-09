@@ -89,7 +89,7 @@ export const LINES = {
   'ui.error': ["Something broke. Not me. Probably not me. Try again."],
   'ui.quota_out': ["Three posts this cycle. That's the cap. Even I'm impressed."],
 
-  /* ── Easter eggs (drafted 2026-10-09, pending sign-off) ── */
+  /* ── Easter eggs (signed off 2026-10-09) ── */
   /* Konami code anywhere in the app. */
   'egg.konami': [
     "Cheat code accepted. You now have unlimited posts. Kidding. Three, like everyone else.",
@@ -99,6 +99,15 @@ export const LINES = {
   'egg.april': [
     "Missed. It's April 1st, I'm allowed one. Click again, I'll behave.",
     "Nice try. I moved. Once a year. Go again.",
+  ],
+
+  /* ── Introduction: once ever, the first morning GuildBot runs on an open
+        cycle after launch (drafted 2026-10-09, pending sign-off) ── */
+  'intro.slack': [
+    "Hello. I'm GuildBot, the one posting topics nobody asked for. Starting {month}, I also have opinions.\n• I'll comment on some of your posts. Not all. I have standards.\n• Tap Ask GuildBot on the board for answers about topics and Bytes, or a drafted post if typing feels like effort. You still press Post. I have no thumbs.\n• I tease the group, the board, and mostly myself. Never you by name, unless you opt in from your profile. Brave.\n• Ghost posts stay ghosts. I don't know who wrote them, and unlike some of you, I'm not curious.\n{month} is open. I've already posted. Your move.",
+  ],
+  'intro.push': [
+    "The board has a resident bot now. It comments, it judges, it drafts your posts. Tap Ask GuildBot. It's been waiting.",
   ],
 
   /* ── Push titles ── */

@@ -5,10 +5,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { ensureSystemUser } from '@/lib/system/topics'
 import { commentIsGhost, ghostHandle } from '@/lib/utils/anonymity'
 import { publishBotTyping, publishTopicChange } from '@/lib/realtime/broadcast'
-import { notifyOnComment } from '@/lib/push/notify'
+import { notifyOnComment, notifyGuildBotIntro } from '@/lib/push/notify'
 import { postToSlack, escapeSlack, appLink } from '@/lib/slack/send'
 import { llm } from './llm'
-import { claim, countRecent, firedInCycle, spokeOn, UNPROMPTED } from './events'
+import { claim, countRecent, firedEver, firedInCycle, spokeOn, UNPROMPTED } from './events'
 import { SASS, BOT_MARK, botSays } from './voice'
 
 /**
@@ -265,4 +265,27 @@ export async function runDaily(
   }
 
   return { sent }
+}
+
+/**
+ * GuildBot says hello: once ever, the first time the daily cron runs on an
+ * open cycle after launch, right after that month's suggested topics go up.
+ * Recorded before sending, so a second run can never repeat it.
+ */
+export async function introduceOnce(
+  cycle: { id: string; label: string },
+  { dry = false }: { dry?: boolean } = {},
+): Promise<{ sent: boolean; text?: string; reason?: string }> {
+  if (!SASS) return { sent: false, reason: 'voice_off' }
+  const admin = createAdminClient()
+  if (await firedEver(admin, 'intro')) return { sent: false, reason: 'already_introduced' }
+
+  const slack = botSays('intro.slack', 'intro', 'slack', { month: cycle.label })
+  const push = botSays('intro.push', 'intro', 'push')
+  if (!slack || !push) return { sent: false, reason: 'no_line' }
+  if (dry) return { sent: false, reason: 'dry_run', text: slack }
+
+  if (!(await claim(admin, { cycleId: cycle.id, kind: 'intro', key: 'intro' }))) return { sent: false, reason: 'already_introduced' }
+  await notifyGuildBotIntro({ slack, push })
+  return { sent: true, text: slack }
 }

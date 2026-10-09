@@ -15,7 +15,7 @@ import { CURATED } from '@/lib/system/curated'
 import { countSystemTopics, publishSystemTopics } from '@/lib/system/topics'
 import { suggestSystemTopics } from '@/lib/system/suggest'
 import { sanitizeTheme } from '@/lib/themes'
-import { runDaily } from '@/lib/guildbot-host/reactions'
+import { introduceOnce, runDaily } from '@/lib/guildbot-host/reactions'
 
 /* Runs daily, acts once: the first run that finds an open cycle with no
    system posts fills it, and every later run that cycle is a no-op. Cycles
@@ -55,8 +55,11 @@ export async function GET(request: Request) {
 
   const topics = await postTopics(admin, cycle, dry)
   // After posting, so a drought count on opening day includes the bot's own topics.
+  // The one-time introduction goes after the topics, so "I've already
+  // posted" is true, and before the daily nags, so it is the first thing said.
+  const intro = await introduceOnce(cycle, { dry })
   const guildbot = await runDaily(cycle, { dry })
-  return NextResponse.json({ ...topics, guildbot })
+  return NextResponse.json({ ...topics, intro, guildbot })
 }
 
 async function postTopics(
