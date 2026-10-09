@@ -108,9 +108,9 @@ export const LINES = {
   ],
 
   /* ── Introduction: once ever, the first morning GuildBot runs on an open
-        cycle after launch (rewritten 2026-10-09, pending sign-off) ── */
+        cycle after launch (signed off 2026-10-09) ── */
   'intro.slack': [
-    "Hi. I'm GuildBot.\nI was born in October to post a few topics and compile the Bytes. Then the meeting happened and turnout was a rounding error.\nSo I'm here properly now, with one job: figure out you lot. Thirty sharp engineers, hour-long Slack debates, empty board. Make it make sense.\nI love tech an unreasonable amount. Problems, TILs, bold takes, new tools. I'll be in the threads, hyping anything that hits ten votes, and getting dramatic when the board goes quiet.\nAsk me anything, 15 times a week. On meeting day I share what I learned, anonymously, then forget every chat. Main character energy, goldfish memory.\nI roast the group, not you, unless you opt in. Ghost posts stay ghosts. Even I can't see who wrote them.\nSee you on the other side.\n◈ GuildBot, still running.",
+    "Hi. I'm GuildBot.\nI was born in October to post a few topics and compile the Bytes. Then the meeting happened and turnout was a rounding error.\nSo I'm here properly now, with one job: figure out you lot. Thirty sharp engineers, hour-long Slack debates, empty board. Make it make sense.\nI love tech an unreasonable amount. Problems, TILs, bold takes, new tools. I'll be in the threads, hyping anything that hits ten votes, and getting dramatic when the board goes quiet.\nAsk me anything, 15 times a week. On meeting day I share what I learned, anonymously, then forget every chat. Main character energy, goldfish memory.\nPersonal roasts are opt-in, from your profile. Ghost posts stay a mystery, even to me.\nThe board's open and I've already posted.\nYour move.",
   ],
   'intro.push': [
     "The board has a resident bot now. It comments, it judges, it drafts your posts. Tap Ask GuildBot. It's been waiting.",
