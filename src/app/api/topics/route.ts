@@ -11,6 +11,7 @@ import { getViewer } from '@/lib/supabase/viewer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
+import { botSays } from '@/lib/guildbot-host/voice'
 import { notifyOnNewTopic, notifyAfterResponse } from '@/lib/push/notify'
 import { serializeTopic, withoutAuthor, MEMBER_TOPIC_FIELDS } from '@/lib/utils/anonymity'
 import { isInteractionLocked, isVotingAllowed } from '@/lib/utils/cycle'
@@ -168,7 +169,9 @@ export async function POST(request: Request) {
 
   if (error) {
     if (error.message.includes('Topic limit reached')) {
-      return NextResponse.json({ error: "You've shared three things this cycle. That's the limit, so everyone gets a turn." }, { status: 409 })
+      return NextResponse.json({
+        error: botSays('ui.quota_out', cycle.id, 'ui') ?? "You've shared three things this cycle. That's the limit, so everyone gets a turn.",
+      }, { status: 409 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
