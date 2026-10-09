@@ -39,6 +39,7 @@ run, or the repo stops describing the database.
 | 026 | `026_themes_announcements.sql` | `cycles.theme` (per-month theme, Oct 2026 seeded as Problem Month) and `announcements` (admin announcement history) | Yes — additive only |
 | 027 | `027_three_posts_per_cycle.sql` | raises the per-person post cap from 1 to 3 per cycle | Yes — replaces one function body |
 | 028 | `028_anonymity_hardening.sql` | column-level grants hiding `topics.user_id`, `comments.user_id`, `idea_bank.user_id`/`promoted_by`, `topic_asks.asker_id`, `users.real_name`/`email`; members may only update their username and insert topics with the six form fields; `comments.is_anonymous`; `my_topic_count()`; drops `topics` from realtime | **Ship together with the code** — see below |
+| 029 | `029_retire_contributions_add_polls.sql` | score from votes only (backfills every topic's `score`); members can no longer write `contributions`; `topic_polls`, `poll_options`, `poll_votes` with cached counts, hidden per-option counts and no member access to who voted | **Ship together with the code**, after 028 |
 
 > **028 and its code ship in the same deploy.** Apply 028 right after the code
 > goes live; never before. The old code reads `topics.user_id` and
@@ -51,6 +52,12 @@ run, or the repo stops describing the database.
 > After 028, a column added to `topics`, `comments`, `idea_bank`, `topic_asks`
 > or `users` is invisible to members until granted:
 > `GRANT SELECT (new_col) ON public.<table> TO authenticated;`
+
+> **029 ships with the polls code, after 028.** Apply it right after that
+> deploy. Before 029 the new code shows no polls and rejects a post that has
+> one ("Could not save the poll"), but everything else works. The old code
+> keeps working with 029 applied. Topic order changes once, because scores are
+> recomputed from votes alone.
 
 > **027 goes out with the three-posts change.** The board offers a second and
 > third post as soon as the code ships; until 027 is applied the old trigger

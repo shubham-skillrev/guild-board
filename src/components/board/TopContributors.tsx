@@ -33,7 +33,7 @@ function rank(topics: Topic[]): Contributor[] {
 
     const entry = by.get(username) ?? { username, topics: 0, score: 0 }
     entry.topics += 1
-    entry.score += t.vote_count + t.contrib_count * 2
+    entry.score += t.vote_count
     by.set(username, entry)
   }
 

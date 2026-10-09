@@ -8,6 +8,7 @@ import { defaultKind } from '@/lib/themes'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { KindChips } from '@/components/topics/KindChips'
+import { PollEditor, pollPayload, type PollDraft } from '@/components/topics/PollEditor'
 import { cn } from '@/lib/utils/cn'
 import type { Cycle } from '@/types'
 
@@ -40,10 +41,13 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
   const [context, setContext] = useState('')
   const [showContext, setShowContext] = useState(false)
   const [isAnonymous, setIsAnonymous] = useState(false)
+  const [poll, setPoll] = useState<PollDraft | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const ready = !!first.trim() && !!second.trim() && !loading
+  // An opened poll must be complete: a question and two answers.
+  const pollReady = poll === null || pollPayload(poll) !== null
+  const ready = !!first.trim() && !!second.trim() && pollReady && !loading
 
   const submit = async () => {
     if (!ready) return
@@ -58,6 +62,7 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
           description: composeDescription(kind, second, context),
           category: kind.value,
           is_anonymous: isAnonymous,
+          poll: poll ? pollPayload(poll) : null,
         }),
       })
       const data = await res.json()
@@ -158,6 +163,8 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
             </button>
           )}
         </div>
+
+        <PollEditor value={poll} onChange={setPoll} fieldClassName={field} />
 
         {/* Anonymity: one switch. Off by default, and the hint says why. */}
         <label className="flex items-start gap-3 cursor-pointer select-none">

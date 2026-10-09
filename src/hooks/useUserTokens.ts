@@ -13,7 +13,6 @@ interface UserTokensState extends UserTokens {
 export function useUserTokens(cycleId: string | null | undefined) {
   const [state, setState] = useState<UserTokensState>({
     votes_remaining: TOKEN_LIMITS.VOTES_PER_CYCLE,
-    contribs_remaining: TOKEN_LIMITS.CONTRIBS_PER_CYCLE,
     spark_given: false,
     topics_remaining: TOKEN_LIMITS.TOPICS_PER_CYCLE,
     isLoading: true,
@@ -28,10 +27,9 @@ export function useUserTokens(cycleId: string | null | undefined) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setState(s => ({ ...s, isLoading: false })); return }
 
-    const [{ data: votes }, { data: contribs }, { data: sparks }, { data: topicCountRaw }] =
+    const [{ data: votes }, { data: sparks }, { data: topicCountRaw }] =
       await Promise.all([
         supabase.from('votes').select('id').eq('user_id', user.id).eq('cycle_id', cycleId).limit(TOKEN_LIMITS.VOTES_PER_CYCLE),
-        supabase.from('contributions').select('id').eq('user_id', user.id).eq('cycle_id', cycleId).limit(TOKEN_LIMITS.CONTRIBS_PER_CYCLE),
         supabase.from('sparks').select('id').eq('from_user_id', user.id).eq('cycle_id', cycleId).limit(1),
         // topics.user_id is hidden from members (028), so the count comes from
         // an RPC that applies the same rule as the trigger (migration 027).
@@ -39,14 +37,12 @@ export function useUserTokens(cycleId: string | null | undefined) {
       ])
 
     const voteCount = votes?.length ?? 0
-    const contribCount = contribs?.length ?? 0
     const sparkCount = sparks?.length ?? 0
     const topicCount = typeof topicCountRaw === 'number' ? topicCountRaw : 0
 
     setState({
-      // Problem Month drops both caps (migration 023), so nothing runs out.
+      // Problem Month drops the vote cap (migration 023), so nothing runs out.
       votes_remaining: FOCUS_FORMAT ? Infinity : TOKEN_LIMITS.VOTES_PER_CYCLE - (voteCount ?? 0),
-      contribs_remaining: FOCUS_FORMAT ? Infinity : TOKEN_LIMITS.CONTRIBS_PER_CYCLE - (contribCount ?? 0),
       spark_given: (sparkCount ?? 0) > 0,
       topics_remaining: Math.max(0, TOKEN_LIMITS.TOPICS_PER_CYCLE - topicCount),
       isLoading: false,

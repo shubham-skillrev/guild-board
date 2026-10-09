@@ -5,14 +5,12 @@ import type { Topic } from '@/types'
 import type { CyclePhase } from '@/hooks/useCurrentCycle'
 
 interface TopicListProps {
-  topics: (Topic & { user_has_voted?: boolean; user_has_contribed?: boolean })[]
+  topics: (Topic & { user_has_voted?: boolean })[]
   phase: CyclePhase
   cycleId: string
   currentUserId: string | undefined
   votesRemaining: number
-  contribsRemaining: number
   onVote: (topicId: string, cycleId: string, hasVoted: boolean) => Promise<void>
-  onContrib: (topicId: string, cycleId: string, hasContribed: boolean) => Promise<void>
 }
 
 /**

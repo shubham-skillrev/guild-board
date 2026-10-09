@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowFatUp, ArrowLeft, Handshake, PencilSimple, Trash } from '@phosphor-icons/react/dist/ssr'
+import { ArrowFatUp, ArrowLeft, PencilSimple, Trash } from '@phosphor-icons/react/dist/ssr'
 import { use, useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -8,7 +8,6 @@ import { Markdown } from '@/components/ui/Markdown'
 import { cn } from '@/lib/utils/cn'
 import { CATEGORY_LABELS, CATEGORY_TONE, DESCRIPTION_MAX_LENGTH } from '@/lib/constants'
 import { kindOf, reactionFor } from '@/lib/kinds'
-import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { CommentThread } from '@/components/topics/CommentThread'
@@ -19,13 +18,13 @@ import { useToast } from '@/hooks/useToast'
 import { useGuestGate } from '@/components/auth/GuestGate'
 import { SparkButton } from '@/components/voting/SparkButton'
 import { SignalRow } from '@/components/topics/SignalRow'
+import { PollCard } from '@/components/topics/PollCard'
+import { PollEditor, pollPayload, type PollDraft } from '@/components/topics/PollEditor'
 import { FOCUS_FORMAT } from '@/lib/experiment'
-import type { Topic, Comment } from '@/types'
+import type { Topic, Comment, TopicPoll } from '@/types'
 
 interface TopicDetail extends Topic {
   user_has_voted: boolean
-  user_has_contribed: boolean
-  contributors: { user_id: string; username: string }[]
 }
 
 
@@ -49,6 +48,7 @@ export default function TopicDetailPage({
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState('')
   const [editDesc, setEditDesc] = useState('')
+  const [editPoll, setEditPoll] = useState<PollDraft | null>(null)
   const [saving, setSaving] = useState(false)
 
   // Delete state
@@ -56,11 +56,9 @@ export default function TopicDetailPage({
   const [deletePending, setDeletePending] = useState(false)
   const [deleteError, setDeleteError] = useState('')
 
-  // Vote/contrib state
+  // Vote state
   const [votePending, setVotePending] = useState(false)
-  const [contribPending, setContribPending] = useState(false)
   const [votePop, setVotePop] = useState(false)
-  const [contribPop, setContribPop] = useState(false)
 
   // Spark window state
   const [sparkWindow, setSparkWindow] = useState<{
@@ -109,7 +107,6 @@ export default function TopicDetailPage({
   // Server-computed: user_id is absent on ghost topics (see lib/utils/anonymity).
   const isOwner = topic?.is_owner ?? user?.id === topic?.user_id
   const canVote = phase === 'open' && !isOwner
-  const canContrib = phase === 'open' && !isOwner
 
   const handleVote = async () => {
     if (!topic || !canVote || votePending) return
@@ -168,71 +165,32 @@ export default function TopicDetailPage({
     }
   }
 
-  const handleContrib = async () => {
-    if (!topic || !canContrib || contribPending) return
-    if (blockGuest()) return
-    const wasContribed = topic.user_has_contribed
-    // Optimistic update
-    setTopic(t => t ? {
-      ...t,
-      user_has_contribed: !wasContribed,
-      contrib_count: t.contrib_count + (wasContribed ? -1 : 1),
-    } : t)
-    setContribPop(true)
-    setTimeout(() => setContribPop(false), 400)
-    setContribPending(true)
-    try {
-      const res = await fetch('/api/contributions', {
-        method: wasContribed ? 'DELETE' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          wasContribed
-            ? { topic_id: topic.id }
-            : { topic_id: topic.id, cycle_id: topic.cycle_id }
-        ),
-      })
-      if (res.ok) {
-        if (!wasContribed) {
-          toast("You're in the arena 🤝", 'success')
-        } else {
-          toast('Stepped back from discussion', 'info')
-        }
-        fetchTopic() // background sync, no await
-      } else {
-        // Revert optimistic update
-        setTopic(t => t ? {
-          ...t,
-          user_has_contribed: wasContribed,
-          contrib_count: t.contrib_count + (wasContribed ? 1 : -1),
-        } : t)
-        const data = await res.json().catch(() => ({}))
-        if (res.status === 409) {
-          toast(data.error ?? 'Contribution limit reached for this cycle', 'warning', '🚫')
-        } else {
-          toast('Failed to update - check your connection', 'error')
-        }
-      }
-    } catch {
-      // Revert optimistic update
-      setTopic(t => t ? {
-        ...t,
-        user_has_contribed: wasContribed,
-        contrib_count: t.contrib_count + (wasContribed ? 1 : -1),
-      } : t)
-      toast('Failed to update - check your connection', 'error')
-    } finally {
-      setContribPending(false)
-    }
+  // A poll can be changed only until someone votes in it.
+  const pollLocked = (topic?.poll?.total_votes ?? 0) > 0
+  const draftFrom = (poll: TopicPoll | null | undefined): PollDraft | null =>
+    poll ? { question: poll.question, options: poll.options.map(o => o.label) } : null
+
+  const startEdit = () => {
+    if (!topic) return
+    setEditPoll(draftFrom(topic.poll))
+    setEditing(true)
   }
 
   const handleSaveEdit = async () => {
     if (!topic || saving) return
+    // Send the poll only when it changed, so an untouched poll is never rebuilt.
+    const pollChanged = !pollLocked && JSON.stringify(editPoll) !== JSON.stringify(draftFrom(topic.poll))
     setSaving(true)
     try {
       const res = await fetch('/api/topics', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: topic.id, title: editTitle.trim(), description: editDesc.trim() }),
+        body: JSON.stringify({
+          id: topic.id,
+          title: editTitle.trim(),
+          description: editDesc.trim(),
+          ...(pollChanged ? { poll: editPoll ? pollPayload(editPoll) : null } : {}),
+        }),
       })
       if (res.ok) {
         setEditing(false)
@@ -328,8 +286,17 @@ export default function TopicDetailPage({
                 placeholder="Supports **markdown** formatting"
               />
               <p className="text-[11px] text-cha text-right tabular-nums">{editDesc.length}/{DESCRIPTION_MAX_LENGTH}</p>
+              {pollLocked ? (
+                <p className="text-[12px] text-cha">The poll is locked because people have voted in it.</p>
+              ) : (
+                <PollEditor
+                  value={editPoll}
+                  onChange={setEditPoll}
+                  fieldClassName="w-full px-3.5 bg-kinu/30 border border-border rounded-(--radius-control) text-ink placeholder:text-cha focus:outline-none focus:border-saffron/40 transition-colors"
+                />
+              )}
               <div className="flex items-center gap-2">
-                <Button onClick={handleSaveEdit} disabled={saving || !editTitle.trim() || !editDesc.trim()}>
+                <Button onClick={handleSaveEdit} disabled={saving || !editTitle.trim() || !editDesc.trim() || (!!editPoll && !pollLocked && !pollPayload(editPoll))}>
                   {saving ? 'Saving…' : 'Save changes'}
                 </Button>
                 <Button
@@ -346,7 +313,7 @@ export default function TopicDetailPage({
                 <h1 className="font-serif text-[2.25rem] md:text-[2.625rem] font-normal tracking-[-0.012em] text-ink leading-[1.1] text-balance">{topic.title}</h1>
                 {isOwner && phase === 'open' && (
                   <div className="flex items-center gap-1 shrink-0">
-                    <Button size="sm" variant="ghost" icon={PencilSimple} onClick={() => setEditing(true)} title="Edit post">
+                    <Button size="sm" variant="ghost" icon={PencilSimple} onClick={startEdit} title="Edit post">
                       <span className="hidden sm:inline">Edit</span>
                     </Button>
                     <Button size="sm" variant="danger" icon={Trash} onClick={() => setConfirmDelete(true)} title="Delete post">
@@ -406,6 +373,12 @@ export default function TopicDetailPage({
                 <Markdown>{topic.description}</Markdown>
               </div>
 
+              {topic.poll && (
+                <div className="mb-6">
+                  <PollCard poll={topic.poll} onChange={poll => setTopic(t => (t ? { ...t, poll } : t))} />
+                </div>
+              )}
+
               {/* One-tap responses - usable even when the board is locked. */}
               <div className="mb-8">
                 <SignalRow topicId={topic.id} />
@@ -413,7 +386,7 @@ export default function TopicDetailPage({
             </>
           )}
 
-          {/* Vote + Contrib bar. On your own post the counts show as plain
+          {/* Vote bar. On your own post the counts show as plain
               text rather than disabled buttons: you cannot back it, and a
               greyed control reads as broken. */}
           {isOwner ? (
@@ -422,11 +395,6 @@ export default function TopicDetailPage({
                 <ArrowFatUp className="w-4 h-4" />
                 <span className="font-bold tabular-nums text-ink">{topic.vote_count}</span>
                 <span className="text-[12px]">{topic.vote_count === 1 ? 'upvote' : 'upvotes'}</span>
-              </span>
-              <span className="inline-flex items-center gap-2">
-                <Handshake className="w-4 h-4" />
-                <span className="font-bold tabular-nums text-ink">{topic.contrib_count}</span>
-                <span className="text-[12px]">joining in</span>
               </span>
             </div>
           ) : (
@@ -456,31 +424,6 @@ export default function TopicDetailPage({
                     ? topic.user_has_voted ? reactionFor(topic.category).done : reactionFor(topic.category).idle
                     : topic.user_has_voted ? 'Upvoted' : 'Upvote'}</span>
               </button>
-              <button
-                onClick={handleContrib}
-                disabled={!canContrib || contribPending}
-                className={cn(
-                  'inline-flex items-center gap-2 h-9 px-3 rounded-(--radius-control) border text-footnote font-medium transition-colors',
-                  topic.user_has_contribed
-                    ? 'bg-matcha/12 border-matcha/35 text-matcha'
-                    : canContrib
-                      ? 'border-border text-ink-soft hover:border-matcha/30 hover:text-matcha'
-                      : 'border-border text-ink-muted opacity-50',
-                  contribPending ? 'opacity-60 cursor-wait' : canContrib ? 'cursor-pointer' : 'cursor-not-allowed',
-                )}
-              >
-                {contribPending ? (
-                  <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
-                ) : (
-                  <span className={cn('transition-transform', contribPop && 'animate-vote-pop')}>
-                    <Handshake className="w-4 h-4" />
-                  </span>
-                )}
-                <span className="font-bold tabular-nums">{topic.contrib_count}</span>
-                <span className="text-[12px]">{FOCUS_FORMAT
-                    ? topic.user_has_contribed ? reactionFor(topic.category).contribDone : reactionFor(topic.category).contrib
-                    : topic.user_has_contribed ? "I'm in" : 'Join discussion'}</span>
-              </button>
             </div>
           )}
 
@@ -503,37 +446,15 @@ export default function TopicDetailPage({
           </div>
         </div>
 
-        {/* ─── Right sidebar: Contributors ─── */}
+        {/* ─── Right sidebar: stats and spark ─── */}
         <aside className="w-full lg:w-64 shrink-0">
           <div className="lg:sticky lg:top-20">
-            <div className="bg-paper/50 border border-border rounded-(--radius-card) p-(--pad-card)">
-              <h3 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-3">
-                Contributors ({topic.contributors.length})
-              </h3>
-              {topic.contributors.length === 0 ? (
-                <p className="text-[12px] text-cha">No contributors yet</p>
-              ) : (
-                <div className="space-y-2.5 max-h-[60vh] overflow-y-auto">
-                  {topic.contributors.map((c) => (
-                    <div key={c.user_id} className="flex items-center gap-2">
-                      <UserAvatar username={c.username} size={24} />
-                      <span className="text-[13px] text-ink-soft truncate">@{c.username}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
             {/* Topic stats */}
-            <div className="mt-4 bg-paper/50 border border-border rounded-(--radius-card) p-(--pad-card) space-y-2.5">
+            <div className="bg-paper/50 border border-border rounded-(--radius-card) p-(--pad-card) space-y-2.5">
               <h3 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-2">Stats</h3>
               <div className="flex items-center justify-between text-[12px]">
                 <span className="text-cha">{FOCUS_FORMAT ? (kindOf(topic.category)?.value === 'problem' ? 'Hit this too' : 'Want to discuss') : 'Votes'}</span>
                 <span className="text-ink font-medium tabular-nums">{topic.vote_count}</span>
-              </div>
-              <div className="flex items-center justify-between text-[12px]">
-                <span className="text-cha">{FOCUS_FORMAT ? (kindOf(topic.category)?.value === 'problem' ? 'Dealt with it' : 'Can add') : 'Contributors'}</span>
-                <span className="text-ink font-medium tabular-nums">{topic.contrib_count}</span>
               </div>
               <div className="flex items-center justify-between text-[12px]">
                 <span className="text-cha">Comments</span>
