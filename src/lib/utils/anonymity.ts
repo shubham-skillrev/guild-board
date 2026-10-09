@@ -153,6 +153,8 @@ export function serializeComment<T extends RawComment>(
   return {
     ...rest,
     is_anonymous: isGhost,
+    // GuildBot's comments, recognised by its reserved name, as for topics.
+    is_system: !isGhost && isSystemUsername(joinedUsername(joined)),
     is_owner: isOwner,
     is_op: isTopicAuthor && (topic.is_anonymous === true || !isGhost),
     can_delete: isOwner || viewer.isAdmin,

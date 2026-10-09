@@ -14,20 +14,36 @@ type Admin = ReturnType<typeof createAdminClient>
  * the 15s poll covers anyone who misses one.
  */
 export function broadcastTopicChange(topicId: string, changed: LiveChange[]): void {
-  after(async () => {
-    try {
-      const admin = createAdminClient()
-      const counts = await readCounts(admin, topicId)
-      if (!counts) return
-      const payload: LiveUpdate = { topic_id: topicId, changed, counts: counts.live }
-      await Promise.all([
-        send(admin, topicChannel(topicId), payload),
-        send(admin, boardChannel(counts.cycleId), payload),
-      ])
-    } catch (err) {
-      console.warn('broadcastTopicChange failed', err)
-    }
-  })
+  after(() => publishTopicChange(topicId, changed))
+}
+
+/**
+ * The same, sent now. For code that is already running after a response
+ * (GuildBot's reactions), where scheduling another after() is not needed.
+ */
+export async function publishTopicChange(topicId: string, changed: LiveChange[]): Promise<void> {
+  try {
+    const admin = createAdminClient()
+    const counts = await readCounts(admin, topicId)
+    if (!counts) return
+    const payload: LiveUpdate = { topic_id: topicId, changed, counts: counts.live }
+    await Promise.all([
+      send(admin, topicChannel(topicId), payload),
+      send(admin, boardChannel(counts.cycleId), payload),
+    ])
+  } catch (err) {
+    console.warn('publishTopicChange failed', err)
+  }
+}
+
+/** "GuildBot is typing" on one topic. No counts: nothing else changed yet. */
+export async function publishBotTyping(topicId: string): Promise<void> {
+  try {
+    const admin = createAdminClient()
+    await send(admin, topicChannel(topicId), { topic_id: topicId, changed: ['bot_typing'], counts: null })
+  } catch (err) {
+    console.warn('publishBotTyping failed', err)
+  }
 }
 
 /** A board-wide change with no single topic, e.g. GuildBot posting a batch. */

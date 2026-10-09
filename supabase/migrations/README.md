@@ -41,6 +41,8 @@ run, or the repo stops describing the database.
 | 028 | `028_anonymity_hardening.sql` | column-level grants hiding `topics.user_id`, `comments.user_id`, `idea_bank.user_id`/`promoted_by`, `topic_asks.asker_id`, `users.real_name`/`email`; members may only update their username and insert topics with the six form fields; `comments.is_anonymous`; `my_topic_count()`; drops `topics` from realtime | **Ship together with the code** — see below |
 | 029 | `029_retire_contributions_add_polls.sql` | score from votes only (backfills every topic's `score`); members can no longer write `contributions`; `topic_polls`, `poll_options`, `poll_votes` with cached counts, hidden per-option counts and no member access to who voted | **Ship together with the code**, after 028 |
 | 030 | `030_live_channels.sql` | RLS on `realtime.messages`: anyone may listen on `board:*` / `topic:*` private broadcast channels and join presence on `topic:*`; only the service role may send | Yes — the pages poll every 15s until it is applied |
+| 031 | `031_guildbot_events.sql` | `guildbot_events` (what GuildBot said on its own, for idempotency and daily caps; service role only) and `users.roast_me` (opt-in to being teased by name, readable by members, written via the API) | **Ship together with the code** |
+| 032 | `032_guildbot_chat.sql` | `guildbot_messages`: one private chat thread per member, API-only (no member grants), purged after 30 days by the daily GuildBot cron | **Ship together with the chat code** |
 
 > **028 and its code ship in the same deploy.** Apply 028 right after the code
 > goes live; never before. The old code reads `topics.user_id` and
@@ -65,6 +67,10 @@ run, or the repo stops describing the database.
 > exactly as before. It only adds policies. It cannot be tested on plain
 > Postgres (the `realtime` schema is Supabase's), so after applying it, open a
 > topic in two browsers and check that a vote shows up in the other one.
+
+> **031 ships with GuildBot's comments.** Without it every bot reaction stays
+> silent (claims fail closed), and the profile page errors on `roast_me`, so
+> apply it right after that deploy.
 
 > **027 goes out with the three-posts change.** The board offers a second and
 > third post as soon as the code ships; until 027 is applied the old trigger

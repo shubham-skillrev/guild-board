@@ -4,6 +4,7 @@ import { ArrowBendUpRight, PencilSimple, ThumbsUp, Trash } from '@phosphor-icons
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { cn } from '@/lib/utils/cn'
 import { UserAvatar } from '@/components/ui/UserAvatar'
+import { AuthorMark } from '@/components/topics/AuthorMark'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/hooks/useToast'
 import { useGuestGate } from '@/components/auth/GuestGate'
@@ -548,8 +549,14 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
       <div className="py-2.5">
         {/* Author line */}
         <div className="flex items-center gap-2 text-[12px]">
-          <UserAvatar username={comment.author_username ?? 'user'} size={20} />
-          <span className="font-medium text-ink-soft">@{comment.author_username}</span>
+          {comment.is_system ? (
+            <AuthorMark username={comment.author_username} isSystem size={20} tag="Bot" />
+          ) : (
+            <>
+              <UserAvatar username={comment.author_username ?? 'user'} size={20} />
+              <span className="font-medium text-ink-soft">@{comment.author_username}</span>
+            </>
+          )}
           {comment.is_op && (
             <span className="rounded-full border border-border px-1.5 text-[10px] leading-4 text-cha" title="Wrote this topic">OP</span>
           )}

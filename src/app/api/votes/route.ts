@@ -7,6 +7,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
+import { guildbotAfter, onVoteAdded } from '@/lib/guildbot-host/reactions'
+
+// GuildBot may write a comment after the response: a model call and a
+// review, about 20s each, plus up to 45s of retry on a busy model.
+export const maxDuration = 120
 import { notifyOnVote, notifyAfterResponse } from '@/lib/push/notify'
 
 export async function POST(request: Request) {
@@ -47,6 +52,7 @@ export async function POST(request: Request) {
 
   notifyAfterResponse(notifyOnVote({ topicId: topic_id, actorId: user.id }), "notifyOnVote")
   broadcastTopicChange(topic_id, ['counts'])
+  guildbotAfter(() => onVoteAdded(topic_id), 'onVoteAdded')
 
   return NextResponse.json(data, { status: 201 })
 }

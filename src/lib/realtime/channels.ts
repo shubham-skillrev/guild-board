@@ -19,6 +19,7 @@ export type LiveChange =
   | 'comments'  // the thread changed: refetch it
   | 'poll'      // poll votes moved: refetch (results are per-viewer)
   | 'topics'    // a topic was posted, edited, hidden or selected: refetch
+  | 'bot_typing' // GuildBot is writing a comment here: show it for a moment
 
 export interface LiveCounts {
   vote_count: number
