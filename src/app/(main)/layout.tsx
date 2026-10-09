@@ -12,6 +12,7 @@ import { GuestBanner } from "@/components/layout/GuestBanner";
 import { isGuestSession } from "@/lib/supabase/viewer";
 import { GuestGateProvider } from "@/components/auth/GuestGate";
 import { GuildBotChat } from "@/components/guildbot/GuildBotChat";
+import { KonamiEgg } from "@/components/guildbot/KonamiEgg";
 
 async function getUser() {
   try {
@@ -108,6 +109,7 @@ export default async function MainLayout({
 
       {/* GuildBot chat: on the board, topic and Bytes pages only. */}
       <GuildBotChat signedIn={!!profile} />
+      <KonamiEgg />
 
       {/* Mobile bottom nav stays outside scrolling container for stable viewport pinning */}
       <MobileBottomNav

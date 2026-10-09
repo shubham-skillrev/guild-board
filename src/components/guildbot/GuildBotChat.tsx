@@ -8,7 +8,16 @@ import { cn } from '@/lib/utils/cn'
 import { useToast } from '@/hooks/useToast'
 import { Button } from '@/components/ui/Button'
 import { KINDS, composeDescription } from '@/lib/kinds'
-import { SASS, BOT_MARK } from '@/lib/guildbot-host/voice'
+import { SASS, BOT_MARK, botSays } from '@/lib/guildbot-host/voice'
+
+const APRIL_KEY = 'guildbot:april-dodged'
+
+/** April 1st in India, once per browser session. */
+function dodgeToday(): boolean {
+  const parts = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'numeric', timeZone: 'Asia/Kolkata' }).formatToParts(new Date())
+  const part = (type: string) => Number(parts.find(p => p.type === type)?.value)
+  return part('day') === 1 && part('month') === 4 && sessionStorage.getItem(APRIL_KEY) !== '1'
+}
 
 type Cite = { type: 'topic' | 'byte'; id: string; title: string }
 type Draft = { kind: string; title: string; second: string; context: string; poll: { question: string; options: string[] } | null }
@@ -38,6 +47,9 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   const [loaded, setLoaded] = useState(false)
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
+  // April 1st: the button hops away from the first click, once. The chat is
+  // not a real action, so nothing anyone needs is ever in the way.
+  const [dodge, setDodge] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const toast = useToast()
 
@@ -95,14 +107,31 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     <>
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={() => {
+          if (!open && dodgeToday()) {
+            sessionStorage.setItem(APRIL_KEY, '1')
+            setDodge(botSays('egg.april', String(Date.now()), 'ui') ?? '')
+            setTimeout(() => setDodge(null), 4000)
+            return
+          }
+          setOpen(o => !o)
+        }}
         aria-expanded={open}
         aria-label={open ? 'Close GuildBot chat' : 'Chat with GuildBot'}
-        className="press fixed left-4 bottom-24 md:left-6 md:bottom-6 z-40 inline-flex items-center gap-2 h-11 pl-3.5 pr-4 rounded-full bg-ink text-parchment shadow-lg hover:bg-ink/90 transition-colors"
+        className={cn(
+          'press fixed left-4 bottom-24 md:left-6 md:bottom-6 z-40 inline-flex items-center gap-2 h-11 pl-3.5 pr-4 rounded-full bg-ink text-parchment shadow-lg hover:bg-ink/90 transition-[transform,background-color] duration-300 motion-reduce:transition-none',
+          dodge !== null && 'translate-x-24 -translate-y-16',
+        )}
       >
         <span aria-hidden className="text-saffron text-[15px]">{BOT_MARK}</span>
         <span className="text-[13px] font-medium">{open ? 'Close' : 'Ask GuildBot'}</span>
       </button>
+
+      {dodge && (
+        <p role="status" className="fixed left-4 bottom-38 md:left-6 md:bottom-20 z-40 max-w-xs rounded-(--radius-card) border border-saffron/40 bg-paper px-3 py-2 text-[12px] text-ink shadow-lg animate-fade-up">
+          <span aria-hidden className="text-saffron mr-1">{BOT_MARK}</span>{dodge}
+        </p>
+      )}
 
       {open && (
         <section

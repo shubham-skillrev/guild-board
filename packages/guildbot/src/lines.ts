@@ -89,6 +89,18 @@ export const LINES = {
   'ui.error': ["Something broke. Not me. Probably not me. Try again."],
   'ui.quota_out': ["Three posts this cycle. That's the cap. Even I'm impressed."],
 
+  /* ── Easter eggs (drafted 2026-10-09, pending sign-off) ── */
+  /* Konami code anywhere in the app. */
+  'egg.konami': [
+    "Cheat code accepted. You now have unlimited posts. Kidding. Three, like everyone else.",
+    "Up, up, down, down. Respect. There's no god mode here. I checked. I am the god mode.",
+  ],
+  /* April 1st only: the chat button dodges the first click, once. */
+  'egg.april': [
+    "Missed. It's April 1st, I'm allowed one. Click again, I'll behave.",
+    "Nice try. I moved. Once a year. Go again.",
+  ],
+
   /* ── Push titles ── */
   'push.new_topic': ["New on the board. It's not from me, which makes it newsworthy."],
   'push.vote': ["Someone voted for your topic. Momentum. I'd know. I've never had any."],
