@@ -368,6 +368,8 @@ export async function notifyOnComment(args: {
   topicId: string;
   parentCommentId: string | null;
   actorId: string;
+  /** How to name the commenter when it is not their username (a ghost handle). */
+  actorLabel?: string;
   body: string;
 }) {
   const admin = createAdminClient();
@@ -384,14 +386,16 @@ export async function notifyOnComment(args: {
     recipientId = parent?.user_id ?? null;
     isReply = true;
   } else {
+    // Ghost authors are told too: the push goes only to them, so it reveals
+    // nothing, and a ghost post nobody can answer to is a dead end.
     const topic = await getTopic(admin, args.topicId);
-    if (topic && !topic.is_anonymous) recipientId = topic.user_id;
+    if (topic) recipientId = topic.user_id;
   }
 
   if (!recipientId || recipientId === args.actorId) return;
   if (!(await getCommentAuthorPref(admin, recipientId, "push_replies"))) return;
 
-  const actor = await getUsername(admin, args.actorId);
+  const actor = args.actorLabel ?? (await getUsername(admin, args.actorId));
   const preview = truncate(args.body, 100);
   const titles = isReply ? COPY.reply.titles : COPY.comment.titles;
   const body = isReply ? COPY.reply.body(actor, preview) : COPY.comment.body(actor, preview);
@@ -680,13 +684,15 @@ export async function notifyOnAsked(args: {
   topicId: string;
   toUserId: string;
   askerId: string;
+  /** Set when the asker is a ghost here: their handle stands in for the name. */
+  askerLabel?: string;
   title: string;
   note: string | null;
 }) {
   if (args.toUserId === args.askerId) return;
 
   const admin = createAdminClient();
-  const asker = await getUsername(admin, args.askerId);
+  const asker = args.askerLabel ?? (await getUsername(admin, args.askerId));
 
   await sendPushToUser(args.toUserId, {
     title: pick(COPY.asked.titles),

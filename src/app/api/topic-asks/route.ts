@@ -3,14 +3,16 @@
 // PURPOSE: Invite a specific member into a topic. A direct ask to one person
 //          outperforms an open box addressed to the whole guild.
 // DB TABLES: topic_asks, topics, users
-// RLS: server client; admin client only to list guild members for the picker
+// RLS: insert with the server client. Reads and withdrawals use the service
+//      role because members cannot select topic_asks.asker_id (028): who asked
+//      stays private, since a ghost author asking would otherwise be unmasked.
 
 import { createClient } from '@/lib/supabase/server'
 import { getViewer } from '@/lib/supabase/viewer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { notifyOnAsked, notifyAfterResponse } from '@/lib/push/notify'
-import { joinedUsername } from '@/lib/utils/anonymity'
+import { ghostHandle, joinedUsername } from '@/lib/utils/anonymity'
 
 const NOTE_MAX = 140
 
@@ -32,9 +34,9 @@ export async function GET(request: Request) {
     admin.from('users').select('id, username').order('username'),
   ])
 
+  // asker_id is not sent: the viewer only needs to know whether it was them.
   const askRows = (asks ?? []).map(a => ({
     asked_id: a.asked_id,
-    asker_id: a.asker_id,
     note: a.note,
     created_at: a.created_at,
     username: joinedUsername(a.users) ?? 'unknown',
@@ -43,7 +45,7 @@ export async function GET(request: Request) {
   }))
 
   const askedIds = new Set(askRows.map(a => a.asked_id))
-  const myAskCount = askRows.filter(a => a.asker_id === user.id).length
+  const myAskCount = askRows.filter(a => a.can_withdraw).length
 
   return NextResponse.json({
     asks: askRows,
@@ -83,7 +85,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient()
   const { data: topic } = await admin
     .from('topics')
-    .select('id, title, is_deleted')
+    .select('id, title, is_deleted, user_id, is_anonymous')
     .eq('id', topic_id)
     .maybeSingle()
 
@@ -107,7 +109,15 @@ export async function POST(request: Request) {
   }
 
   notifyAfterResponse(
-    notifyOnAsked({ topicId: topic.id, toUserId: asked_id, askerId: user.id, title: topic.title, note }),
+    notifyOnAsked({
+      topicId: topic.id,
+      toUserId: asked_id,
+      askerId: user.id,
+      // A ghost topic's author asks as their ghost; naming them would unmask the post.
+      askerLabel: topic.is_anonymous && topic.user_id === user.id ? ghostHandle(user.id, topic.id) : undefined,
+      title: topic.title,
+      note,
+    }),
     'notifyOnAsked',
   )
 
@@ -129,8 +139,8 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'topic_id and asked_id are required' }, { status: 400 })
   }
 
-  // RLS restricts deletion to the asker.
-  const { error } = await supabase
+  // Only the asker may withdraw. Filtering on asker_id needs the service role.
+  const { error } = await createAdminClient()
     .from('topic_asks')
     .delete()
     .eq('topic_id', topic_id)

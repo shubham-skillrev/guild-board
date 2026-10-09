@@ -498,6 +498,7 @@ export default function TopicDetailPage({
               isOpen={true}
               onClose={() => {}}
               inline
+              isGhostOp={topic.is_anonymous && topic.is_owner === true}
             />
           </div>
         </div>

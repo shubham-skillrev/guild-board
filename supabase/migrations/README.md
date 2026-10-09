@@ -38,6 +38,19 @@ run, or the repo stops describing the database.
 | 024 | `024_discussion_kinds.sql` | five discussion kinds (problem, learned, new tech, take, show & tell) allowed in `category` on topics and the idea bank | Yes — widens two CHECKs, old values stay valid |
 | 026 | `026_themes_announcements.sql` | `cycles.theme` (per-month theme, Oct 2026 seeded as Problem Month) and `announcements` (admin announcement history) | Yes — additive only |
 | 027 | `027_three_posts_per_cycle.sql` | raises the per-person post cap from 1 to 3 per cycle | Yes — replaces one function body |
+| 028 | `028_anonymity_hardening.sql` | column-level grants hiding `topics.user_id`, `comments.user_id`, `idea_bank.user_id`/`promoted_by`, `topic_asks.asker_id`, `users.real_name`/`email`; members may only update their username and insert topics with the six form fields; `comments.is_anonymous`; `my_topic_count()`; drops `topics` from realtime | **Ship together with the code** — see below |
+
+> **028 and its code ship in the same deploy.** Apply 028 right after the code
+> goes live; never before. The old code reads `topics.user_id` and
+> `comments.user_id` with the member's session, so with 028 applied first the
+> board and comments return errors. The new code runs fine on the old schema
+> except ghost comments, which need the `is_anonymous` column (posting a
+> comment fails until 028 is in). Set `GHOST_HANDLE_SECRET` before the deploy.
+> Existing ghost handles change once, because they are now keyed by that secret.
+>
+> After 028, a column added to `topics`, `comments`, `idea_bank`, `topic_asks`
+> or `users` is invisible to members until granted:
+> `GRANT SELECT (new_col) ON public.<table> TO authenticated;`
 
 > **027 goes out with the three-posts change.** The board offers a second and
 > third post as soon as the code ships; until 027 is applied the old trigger

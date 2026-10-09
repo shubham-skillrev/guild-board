@@ -6,6 +6,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { withoutAuthor } from '@/lib/utils/anonymity'
 import { MAX_SELECTED_TOPICS } from '@/lib/constants'
 import { notifyOnTopicSelected, notifyAfterResponse } from '@/lib/push/notify'
 import { NextResponse } from 'next/server'
@@ -74,5 +75,6 @@ export async function PATCH(request: Request) {
     notifyAfterResponse(notifyOnTopicSelected({ topicId: topic_id }), "notifyOnTopicSelected")
   }
 
-  return NextResponse.json(data)
+  // Admins are not exempt from ghost anonymity: never send the author id.
+  return NextResponse.json(withoutAuthor(data))
 }

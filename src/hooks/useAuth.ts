@@ -26,9 +26,10 @@ export function useAuth() {
       return
     }
     const supabase = createClient()
+    // Not '*': real_name and email are not readable by members (028).
     const { data } = await supabase
       .from('users')
-      .select('*')
+      .select('id, username, role, spark_count, hall_of_flame, is_system, created_at')
       .eq('id', supabaseUser.id)
       .single()
 

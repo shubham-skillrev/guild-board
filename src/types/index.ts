@@ -18,8 +18,9 @@ export type OutcomeTag = 'discussed' | 'blog_born' | 'project_started' | 'carry_
 export interface User {
   id: string
   username: string
-  real_name: string         // Admin-visible only
-  email: string             // Admin-visible only
+  // Service-role only: members cannot select these columns (028).
+  real_name?: string
+  email?: string
   role: UserRole
   spark_count: number
   hall_of_flame: boolean
@@ -108,15 +109,21 @@ export interface BankedIdea {
 export interface Comment {
   id: string
   topic_id: string
-  user_id: string
   parent_id: string | null   // null = top-level, otherwise reply
   body: string
   is_deleted: boolean
+  /** Shown under a ghost handle (see serializeComment). Never paired with an author id. */
+  is_anonymous: boolean
   like_count: number
   dislike_count: number
   created_at: string
   updated_at: string
-  // Joined fields
+  // Server-computed: the API never sends a comment's user_id.
+  is_owner?: boolean
+  /** Written by the topic's author. Withheld when it would unmask a ghost. */
+  is_op?: boolean
+  /** Owner, or an admin hiding it. */
+  can_delete?: boolean
   author_username?: string
   user_reaction?: 1 | -1 | null  // current user's reaction
   replies?: Comment[]

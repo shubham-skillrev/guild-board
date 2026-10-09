@@ -28,20 +28,20 @@ export function useUserTokens(cycleId: string | null | undefined) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setState(s => ({ ...s, isLoading: false })); return }
 
-    const [{ data: votes }, { data: contribs }, { data: sparks }, { data: topics }] =
+    const [{ data: votes }, { data: contribs }, { data: sparks }, { data: topicCountRaw }] =
       await Promise.all([
         supabase.from('votes').select('id').eq('user_id', user.id).eq('cycle_id', cycleId).limit(TOKEN_LIMITS.VOTES_PER_CYCLE),
         supabase.from('contributions').select('id').eq('user_id', user.id).eq('cycle_id', cycleId).limit(TOKEN_LIMITS.CONTRIBS_PER_CYCLE),
         supabase.from('sparks').select('id').eq('from_user_id', user.id).eq('cycle_id', cycleId).limit(1),
-        supabase.from('topics').select('id').eq('user_id', user.id)
-          // Carried-forward posts are not counted, same as the trigger (migration 027).
-          .eq('cycle_id', cycleId).eq('is_deleted', false).eq('is_carry_forward', false).limit(TOKEN_LIMITS.TOPICS_PER_CYCLE),
+        // topics.user_id is hidden from members (028), so the count comes from
+        // an RPC that applies the same rule as the trigger (migration 027).
+        supabase.rpc('my_topic_count', { p_cycle_id: cycleId }),
       ])
 
     const voteCount = votes?.length ?? 0
     const contribCount = contribs?.length ?? 0
     const sparkCount = sparks?.length ?? 0
-    const topicCount = topics?.length ?? 0
+    const topicCount = typeof topicCountRaw === 'number' ? topicCountRaw : 0
 
     setState({
       // Problem Month drops both caps (migration 023), so nothing runs out.
