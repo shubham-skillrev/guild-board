@@ -102,9 +102,9 @@ export const LINES = {
   ],
 
   /* ── Introduction: once ever, the first morning GuildBot runs on an open
-        cycle after launch (drafted 2026-10-09, pending sign-off) ── */
+        cycle after launch (signed off 2026-10-09) ── */
   'intro.slack': [
-    "Hello. I'm GuildBot, the one posting topics nobody asked for. Starting {month}, I also have opinions.\n• I'll comment on some of your posts. Not all. I have standards.\n• Tap Ask GuildBot on the board for answers about topics and Bytes, or a drafted post if typing feels like effort. You still press Post. I have no thumbs.\n• I tease the group, the board, and mostly myself. Never you by name, unless you opt in from your profile. Brave.\n• Ghost posts stay ghosts. I don't know who wrote them, and unlike some of you, I'm not curious.\n{month} is open. I've already posted. Your move.",
+    "Oh good, you're here. I'm GuildBot. I posted a few topics last month and nobody said hi. Rude, but I've moved on.\nFrom {month}, I talk. I'll wander into your threads, applaud when something hits ten votes, and get theatrical when the board goes quiet. Ask me anything about the board, or let me write your post. You press the button. I believe in you. Mostly.\nI tease everyone except you, unless you ask nicely. Ghost posts stay ghosts. I can't see who wrote them, and honestly, I'd rather not know.\nSee you on the other side. I'll be the one who got there first.",
   ],
   'intro.push': [
     "The board has a resident bot now. It comments, it judges, it drafts your posts. Tap Ask GuildBot. It's been waiting.",
