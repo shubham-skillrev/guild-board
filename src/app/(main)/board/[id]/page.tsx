@@ -413,59 +413,76 @@ export default function TopicDetailPage({
             </>
           )}
 
-          {/* Vote + Contrib bar */}
-          <div className="flex flex-wrap items-center gap-3 mb-8 pb-6 border-b border-border">
-            <button
-              onClick={handleVote}
-              disabled={!canVote || votePending}
-              className={cn(
-                'inline-flex items-center gap-2 h-9 px-3 rounded-(--radius-control) border text-footnote font-medium transition-colors',
-                topic.user_has_voted
-                  ? 'bg-saffron/12 border-saffron/35 text-saffron'
-                  : canVote
-                    ? 'border-border text-ink-soft hover:border-saffron/30 hover:text-saffron'
-                    : 'border-border text-ink-muted opacity-50',
-                votePending ? 'opacity-60 cursor-wait' : canVote ? 'cursor-pointer' : 'cursor-not-allowed',
-              )}
-            >
-              {votePending ? (
-                <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
-              ) : (
-                <span className={cn('transition-transform', votePop && 'animate-vote-pop')}>
-                  {topic.user_has_voted ? <ArrowFatUp className="w-4 h-4" /> : <ArrowFatUp className="w-4 h-4" />}
-                </span>
-              )}
-              <span className="font-bold tabular-nums">{topic.vote_count}</span>
-              <span className="text-[12px]">{FOCUS_FORMAT
-                  ? topic.user_has_voted ? reactionFor(topic.category).done : reactionFor(topic.category).idle
-                  : topic.user_has_voted ? 'Upvoted' : 'Upvote'}</span>
-            </button>
-            <button
-              onClick={handleContrib}
-              disabled={!canContrib || contribPending}
-              className={cn(
-                'inline-flex items-center gap-2 h-9 px-3 rounded-(--radius-control) border text-footnote font-medium transition-colors',
-                topic.user_has_contribed
-                  ? 'bg-matcha/12 border-matcha/35 text-matcha'
-                  : canContrib
-                    ? 'border-border text-ink-soft hover:border-matcha/30 hover:text-matcha'
-                    : 'border-border text-ink-muted opacity-50',
-                contribPending ? 'opacity-60 cursor-wait' : canContrib ? 'cursor-pointer' : 'cursor-not-allowed',
-              )}
-            >
-              {contribPending ? (
-                <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
-              ) : (
-                <span className={cn('transition-transform', contribPop && 'animate-vote-pop')}>
-                  <Handshake className="w-4 h-4" />
-                </span>
-              )}
-              <span className="font-bold tabular-nums">{topic.contrib_count}</span>
-              <span className="text-[12px]">{FOCUS_FORMAT
-                  ? topic.user_has_contribed ? reactionFor(topic.category).contribDone : reactionFor(topic.category).contrib
-                  : topic.user_has_contribed ? "I'm in" : 'Join discussion'}</span>
-            </button>
-          </div>
+          {/* Vote + Contrib bar. On your own post the counts show as plain
+              text rather than disabled buttons: you cannot back it, and a
+              greyed control reads as broken. */}
+          {isOwner ? (
+            <div className="flex flex-wrap items-center gap-5 mb-8 pb-6 border-b border-border text-footnote text-ink-soft">
+              <span className="inline-flex items-center gap-2">
+                <ArrowFatUp className="w-4 h-4" />
+                <span className="font-bold tabular-nums text-ink">{topic.vote_count}</span>
+                <span className="text-[12px]">{topic.vote_count === 1 ? 'upvote' : 'upvotes'}</span>
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Handshake className="w-4 h-4" />
+                <span className="font-bold tabular-nums text-ink">{topic.contrib_count}</span>
+                <span className="text-[12px]">joining in</span>
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3 mb-8 pb-6 border-b border-border">
+              <button
+                onClick={handleVote}
+                disabled={!canVote || votePending}
+                className={cn(
+                  'inline-flex items-center gap-2 h-9 px-3 rounded-(--radius-control) border text-footnote font-medium transition-colors',
+                  topic.user_has_voted
+                    ? 'bg-saffron/12 border-saffron/35 text-saffron'
+                    : canVote
+                      ? 'border-border text-ink-soft hover:border-saffron/30 hover:text-saffron'
+                      : 'border-border text-ink-muted opacity-50',
+                  votePending ? 'opacity-60 cursor-wait' : canVote ? 'cursor-pointer' : 'cursor-not-allowed',
+                )}
+              >
+                {votePending ? (
+                  <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
+                ) : (
+                  <span className={cn('transition-transform', votePop && 'animate-vote-pop')}>
+                    {topic.user_has_voted ? <ArrowFatUp className="w-4 h-4" /> : <ArrowFatUp className="w-4 h-4" />}
+                  </span>
+                )}
+                <span className="font-bold tabular-nums">{topic.vote_count}</span>
+                <span className="text-[12px]">{FOCUS_FORMAT
+                    ? topic.user_has_voted ? reactionFor(topic.category).done : reactionFor(topic.category).idle
+                    : topic.user_has_voted ? 'Upvoted' : 'Upvote'}</span>
+              </button>
+              <button
+                onClick={handleContrib}
+                disabled={!canContrib || contribPending}
+                className={cn(
+                  'inline-flex items-center gap-2 h-9 px-3 rounded-(--radius-control) border text-footnote font-medium transition-colors',
+                  topic.user_has_contribed
+                    ? 'bg-matcha/12 border-matcha/35 text-matcha'
+                    : canContrib
+                      ? 'border-border text-ink-soft hover:border-matcha/30 hover:text-matcha'
+                      : 'border-border text-ink-muted opacity-50',
+                  contribPending ? 'opacity-60 cursor-wait' : canContrib ? 'cursor-pointer' : 'cursor-not-allowed',
+                )}
+              >
+                {contribPending ? (
+                  <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
+                ) : (
+                  <span className={cn('transition-transform', contribPop && 'animate-vote-pop')}>
+                    <Handshake className="w-4 h-4" />
+                  </span>
+                )}
+                <span className="font-bold tabular-nums">{topic.contrib_count}</span>
+                <span className="text-[12px]">{FOCUS_FORMAT
+                    ? topic.user_has_contribed ? reactionFor(topic.category).contribDone : reactionFor(topic.category).contrib
+                    : topic.user_has_contribed ? "I'm in" : 'Join discussion'}</span>
+              </button>
+            </div>
+          )}
 
           {/* Comments / Discussion section */}
           <div>

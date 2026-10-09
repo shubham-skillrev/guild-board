@@ -129,53 +129,72 @@ export function TopicCard({
       {/* mt-auto: whatever the text height, the counts sit on the bottom edge. */}
       {/* One row, never wrapping: the counts on the left, replies pinned right. */}
       <div className="mt-auto pt-4 flex items-center gap-1.5">
-        <button
-          onClick={handleVote}
-          disabled={!canVote || voteDisabled}
-          aria-pressed={hasVoted}
-          aria-label={
-            FOCUS_FORMAT
-              ? hasVoted ? `${reaction.done} (unmark)` : reaction.idle
-              : hasVoted ? 'Remove vote' : 'Upvote'
-          }
-          title={FOCUS_FORMAT ? (hasVoted ? reaction.done : reaction.idle) : undefined}
-          className={cn(
-            pill,
-            hasVoted
-              ? 'bg-saffron-light border-saffron/40 text-saffron'
-              : canVote && !voteDisabled
-                ? 'border-border text-ink-soft hover:border-saffron/40 hover:text-saffron'
-                : 'border-border text-ink-muted',
-            votePending && 'opacity-60 cursor-wait',
-          )}
-        >
-          {votePending
-            ? <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
-            : <ArrowFatUp className="w-3.5 h-3.5" weight={hasVoted ? 'fill' : 'regular'} />}
-          <span className="tabular-nums font-semibold">{topic.vote_count}</span>
-        </button>
+        {/* You cannot back your own post, so on it the counts show as plain
+            text rather than as disabled buttons: a greyed control reads as
+            broken, but you still want to see who is with you. */}
+        {isOwner ? (
+          <>
+            <span className="inline-flex items-center gap-1.5 h-8 px-1.5 text-[13px] text-ink-soft" title="Upvotes">
+              <ArrowFatUp className="w-3.5 h-3.5" />
+              <span className="tabular-nums font-semibold">{topic.vote_count}</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 h-8 px-1.5 text-[13px] text-ink-soft" title="Joining in">
+              <Handshake className="w-3.5 h-3.5" />
+              <span className="tabular-nums font-semibold">{topic.contrib_count}</span>
+            </span>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={handleVote}
+              disabled={!canVote || voteDisabled}
+              aria-pressed={hasVoted}
+              aria-label={
+                FOCUS_FORMAT
+                  ? hasVoted ? `${reaction.done} (unmark)` : reaction.idle
+                  : hasVoted ? 'Remove vote' : 'Upvote'
+              }
+              title={FOCUS_FORMAT ? (hasVoted ? reaction.done : reaction.idle) : undefined}
+              className={cn(
+                pill,
+                hasVoted
+                  ? 'bg-saffron-light border-saffron/40 text-saffron'
+                  : canVote && !voteDisabled
+                    ? 'border-border text-ink-soft hover:border-saffron/40 hover:text-saffron'
+                    : 'border-border text-ink-muted',
+                votePending && 'opacity-60 cursor-wait',
+              )}
+            >
+              {votePending
+                ? <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
+                : <ArrowFatUp className="w-3.5 h-3.5" weight={hasVoted ? 'fill' : 'regular'} />}
+              <span className="tabular-nums font-semibold">{topic.vote_count}</span>
+            </button>
 
-        <button
-          onClick={handleContrib}
-          disabled={!canContrib || contribDisabled}
-          aria-pressed={hasContributed}
-          aria-label={hasContributed ? 'Withdraw' : FOCUS_FORMAT ? reaction.contrib : "I'll contribute"}
-          title={FOCUS_FORMAT ? (hasContributed ? reaction.contribDone : reaction.contrib) : undefined}
-          className={cn(
-            pill,
-            hasContributed
-              ? 'bg-matcha-light border-matcha/40 text-matcha'
-              : canContrib && !contribDisabled
-                ? 'border-border text-ink-soft hover:border-matcha/40 hover:text-matcha'
-                : 'border-border text-ink-muted',
-            contribPending && 'opacity-60 cursor-wait',
-          )}
-        >
-          {contribPending
-            ? <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
-            : <Handshake className="w-3.5 h-3.5" weight={hasContributed ? 'fill' : 'regular'} />}
-          <span className="tabular-nums font-semibold">{topic.contrib_count}</span>
-        </button>
+            <button
+              onClick={handleContrib}
+              disabled={!canContrib || contribDisabled}
+              aria-pressed={hasContributed}
+              aria-label={hasContributed ? 'Withdraw' : FOCUS_FORMAT ? reaction.contrib : "I'll contribute"}
+              title={FOCUS_FORMAT ? (hasContributed ? reaction.contribDone : reaction.contrib) : undefined}
+              className={cn(
+                pill,
+                hasContributed
+                  ? 'bg-matcha-light border-matcha/40 text-matcha'
+                  : canContrib && !contribDisabled
+                    ? 'border-border text-ink-soft hover:border-matcha/40 hover:text-matcha'
+                    : 'border-border text-ink-muted',
+                contribPending && 'opacity-60 cursor-wait',
+              )}
+            >
+              {contribPending
+                ? <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent animate-spin-fast" />
+                : <Handshake className="w-3.5 h-3.5" weight={hasContributed ? 'fill' : 'regular'} />}
+              <span className="tabular-nums font-semibold">{topic.contrib_count}</span>
+            </button>
+
+          </>
+        )}
 
         <SignalRow topicId={topic.id} compact initialCounts={signalCounts} initialMine={mySignals} />
 
