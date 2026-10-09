@@ -21,9 +21,8 @@ export interface KindConfig {
   heading: string
   first: { label: string; example: string }
   second: { label: string; example: string; /** Heading it gets in the description. */ section: string }
-  /** The two one-tap reactions, in this kind's voice: "me too" (a vote) and
-      "I can help" (a contribution). */
-  reaction: { idle: string; done: string; short: string; contrib: string; contribDone: string }
+  /** The vote, in this kind's voice ("me too" on a problem). */
+  reaction: { idle: string; done: string; short: string }
 }
 
 export const KINDS: KindConfig[] = [
@@ -33,7 +32,7 @@ export const KINDS: KindConfig[] = [
     heading: 'Share a problem',
     first: { label: "What's the problem?", example: 'CI takes 25 minutes and nobody knows which step is slow' },
     second: { label: 'What have you tried?', example: 'Cached node_modules, no change. Haven’t profiled the test step yet.', section: "What I've tried" },
-    reaction: { idle: "I've hit this too", done: "You've hit this", short: 'hit this', contrib: "I've dealt with this", contribDone: "You've dealt with this" },
+    reaction: { idle: "I've hit this too", done: "You've hit this", short: 'hit this' },
   },
   {
     value: 'learned',
@@ -41,7 +40,7 @@ export const KINDS: KindConfig[] = [
     heading: 'Share something you learned',
     first: { label: 'What did you learn?', example: 'Postgres advisory locks replaced our Redis mutex' },
     second: { label: 'Where did it come up?', example: 'Two workers kept double-processing jobs. One lock, no extra infra.', section: 'Where it came up' },
-    reaction: { idle: 'Want to discuss', done: 'You want to discuss', short: 'discuss', contrib: 'I can add to this', contribDone: "You're adding to this" },
+    reaction: { idle: 'Want to discuss', done: 'You want to discuss', short: 'discuss' },
   },
   {
     value: 'new_tech',
@@ -49,7 +48,7 @@ export const KINDS: KindConfig[] = [
     heading: 'Share some new tech',
     first: { label: 'What are you looking at?', example: 'Ran Bun in production for a week' },
     second: { label: "What's interesting about it?", example: 'Cold starts halved. Two npm packages broke in odd ways.', section: "What's interesting" },
-    reaction: { idle: 'Want to discuss', done: 'You want to discuss', short: 'discuss', contrib: 'I can add to this', contribDone: "You're adding to this" },
+    reaction: { idle: 'Want to discuss', done: 'You want to discuss', short: 'discuss' },
   },
   {
     value: 'take',
@@ -57,7 +56,7 @@ export const KINDS: KindConfig[] = [
     heading: 'Share a take',
     first: { label: "What's your take?", example: 'Most of our microservices should have been a module' },
     second: { label: 'Why do you think so?', example: 'Three of them deploy together every time and share one database.', section: 'Why' },
-    reaction: { idle: 'Want to discuss', done: 'You want to discuss', short: 'discuss', contrib: 'I can add to this', contribDone: "You're adding to this" },
+    reaction: { idle: 'Want to discuss', done: 'You want to discuss', short: 'discuss' },
   },
   {
     value: 'show_tell',
@@ -65,7 +64,7 @@ export const KINDS: KindConfig[] = [
     heading: 'Show something you built',
     first: { label: 'What did you build?', example: 'A CLI that writes our release notes from merged PRs' },
     second: { label: 'What should people look at?', example: 'The prompt that groups commits. Repo link inside.', section: 'What to look at' },
-    reaction: { idle: 'Want to discuss', done: 'You want to discuss', short: 'discuss', contrib: 'I can add to this', contribDone: "You're adding to this" },
+    reaction: { idle: 'Want to discuss', done: 'You want to discuss', short: 'discuss' },
   },
 ]
 

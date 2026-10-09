@@ -16,16 +16,14 @@
  * until it runs out, and then it is the only warm thing in the row.
  */
 
-import { ArrowFatUp, Handshake, Lightbulb } from '@phosphor-icons/react/dist/ssr'
+import { ArrowFatUp, Lightbulb } from '@phosphor-icons/react/dist/ssr'
 import { StatStrip, StatChip } from '@/components/ui/Section'
 
 export function QuotaStrip({
   votesRemaining,
-  contribsRemaining,
   topicsRemaining,
 }: {
   votesRemaining: number
-  contribsRemaining: number
   topicsRemaining: number
 }) {
   return (
@@ -35,13 +33,6 @@ export function QuotaStrip({
         value={votesRemaining}
         label={`${votesRemaining === 1 ? 'vote' : 'votes'} left`}
         tone={votesRemaining > 0 ? 'default' : 'spent'}
-      />
-
-      <StatChip
-        icon={Handshake}
-        value={contribsRemaining}
-        label={`${contribsRemaining === 1 ? 'hand raise' : 'hand raises'} left`}
-        tone={contribsRemaining > 0 ? 'default' : 'spent'}
       />
 
       <StatChip

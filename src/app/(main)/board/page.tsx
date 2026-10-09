@@ -34,8 +34,8 @@ export default function BoardPage() {
   const reduceMotion = useReducedMotion()
   const { user, isLoading: authLoading } = useAuth()
   const { cycle, phase, isLoading: cycleLoading } = useCurrentCycle()
-  const { topics, isLoading: topicsLoading, mutate, optimisticVote, optimisticContrib } = useTopics(cycle?.id)
-  const { votes_remaining, contribs_remaining, topics_remaining, isLoading: tokensLoading, refresh: refreshTokens } = useUserTokens(cycle?.id)
+  const { topics, isLoading: topicsLoading, mutate, optimisticVote } = useTopics(cycle?.id)
+  const { votes_remaining, topics_remaining, isLoading: tokensLoading, refresh: refreshTokens } = useUserTokens(cycle?.id)
   const toast = useToast()
   const { blockGuest } = useGuestGate()
 
@@ -96,30 +96,6 @@ export default function BoardPage() {
       toast('Vote failed, check your connection', 'error')
     }
   }, [optimisticVote, refreshTokens, toast, blockGuest])
-
-  const handleContrib = useCallback(async (topicId: string, cycleId: string, hasContribed: boolean) => {
-    if (blockGuest()) return
-    optimisticContrib(topicId, hasContribed ? -1 : 1)
-    try {
-      const res = await fetch('/api/contributions', {
-        method: hasContribed ? 'DELETE' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(hasContribed ? { topic_id: topicId } : { topic_id: topicId, cycle_id: cycleId }),
-      })
-      if (!res.ok) {
-        optimisticContrib(topicId, hasContribed ? 1 : -1)
-        const data = await res.json().catch(() => ({}))
-        toast(data.error ?? 'Failed to update', 'error')
-      } else {
-        if (!hasContribed) toast("You're in 🤝", 'success')
-        else toast('Stepped back', 'info')
-        refreshTokens()
-      }
-    } catch {
-      optimisticContrib(topicId, hasContribed ? 1 : -1)
-      toast('Failed to update, check your connection', 'error')
-    }
-  }, [optimisticContrib, refreshTokens, toast, blockGuest])
 
   const isLoading = authLoading || cycleLoading
   const displayTopics = isViewingActive ? topics : archiveTopics
@@ -185,7 +161,6 @@ export default function BoardPage() {
           <motion.section {...section} className="mb-(--gap-section)" aria-label="What you have left this cycle">
             <QuotaStrip
               votesRemaining={isOpen ? votes_remaining : 0}
-              contribsRemaining={isOpen ? contribs_remaining : 0}
               topicsRemaining={isOpen ? topics_remaining : 0}
             />
           </motion.section>
@@ -284,9 +259,7 @@ export default function BoardPage() {
                 cycleId={viewingCycleId!}
                 currentUserId={user?.id}
                 votesRemaining={isViewingActive ? votes_remaining : 0}
-                contribsRemaining={isViewingActive ? contribs_remaining : 0}
                 onVote={handleVote}
-                onContrib={handleContrib}
               />
             )}
           </motion.section>

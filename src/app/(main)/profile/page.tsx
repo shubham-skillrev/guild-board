@@ -103,7 +103,6 @@ export default async function ProfilePage() {
                   </div>
                   <div className="text-right shrink-0 text-[12px] text-cha space-y-0.5">
                     <p>▲ {topic.vote_count}</p>
-                    <p>🤝 {topic.contrib_count}</p>
                   </div>
                 </div>
               </div>

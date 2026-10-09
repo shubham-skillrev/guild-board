@@ -82,6 +82,8 @@ export interface Topic {
   is_owner?: boolean
   /** Server-computed: viewer may spark this author (not themselves). */
   can_spark_author?: boolean
+  /** The topic's poll, if it has one. */
+  poll?: TopicPoll | null
 }
 
 /**
@@ -129,6 +131,24 @@ export interface Comment {
   replies?: Comment[]
 }
 
+/** A poll as sent to one viewer (see loadPolls in src/lib/polls.ts). */
+export interface TopicPoll {
+  id: string
+  question: string
+  total_votes: number
+  /** `votes` is null until the viewer has voted or voting has closed. */
+  options: { id: string; label: string; votes: number | null }[]
+  my_option_id: string | null
+  results_visible: boolean
+  voting_open: boolean
+}
+
+/** A poll as written by its author, before it has ids. */
+export interface PollInput {
+  question: string
+  options: string[]
+}
+
 export interface Vote {
   id: string
   topic_id: string
@@ -155,7 +175,6 @@ export interface Spark {
 
 export interface UserTokens {
   votes_remaining: number       // Max 3 per cycle
-  contribs_remaining: number    // Max 2 per cycle
   spark_given: boolean          // True if user gave spark this cycle
   topics_remaining: number      // Max 3 per cycle
 }
@@ -163,7 +182,6 @@ export interface UserTokens {
 export interface TopicScore {
   topic_id: string
   raw_votes: number
-  raw_contribs: number
   category_bonus: number
   final_score: number
 }

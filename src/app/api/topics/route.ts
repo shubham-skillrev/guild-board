@@ -1,7 +1,7 @@
 // ROUTE: GET /api/topics, POST /api/topics
 // AUTH: authenticated
-// PURPOSE: GET all active topics for current cycle (with user vote/contrib status); POST submit new topic
-// DB TABLES: topics, cycles, votes, contributions, users
+// PURPOSE: GET all active topics for current cycle (with user vote status); POST submit new topic
+// DB TABLES: topics, cycles, votes, users
 // RLS: server client for the viewer's own rows; topics are read with the
 //      service role because members cannot select topics.user_id (028) and the
 //      serializer needs it to hide ghost authors.
@@ -12,10 +12,11 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { notifyOnNewTopic, notifyAfterResponse } from '@/lib/push/notify'
 import { serializeTopic, withoutAuthor, MEMBER_TOPIC_FIELDS } from '@/lib/utils/anonymity'
-import { isInteractionLocked } from '@/lib/utils/cycle'
+import { isInteractionLocked, isVotingAllowed } from '@/lib/utils/cycle'
+import { createPoll, loadPolls, parsePollInput, replacePoll } from '@/lib/polls'
 import { ALL_CATEGORIES } from '@/lib/constants'
 import type { Cycle } from '@/types'
-import type { CategoryTag } from '@/types'
+import type { CategoryTag, PollInput } from '@/types'
 
 export async function GET(request: Request) {
   const { supabase, user } = await getViewer()
@@ -59,19 +60,21 @@ export async function GET(request: Request) {
 
   const topicIds = (topics ?? []).map(t => t.id)
 
-  // Get current user's votes and contributions for this cycle, plus signals
+  const admin = createAdminClient()
+  const { data: cycleRow } = await admin.from('cycles').select('status, meeting_at').eq('id', cycleId).maybeSingle()
+  const polls = await loadPolls(admin, topicIds, user.id, isVotingAllowed(cycleRow as Cycle | null))
+
+  // Get current user's votes for this cycle, plus signals
   // for these topics. Signals ship inline so the board does not fire one
   // request per card.
-  const [{ data: userVotes }, { data: userContribs }, { data: signals }] = await Promise.all([
+  const [{ data: userVotes }, { data: signals }] = await Promise.all([
     supabase.from('votes').select('topic_id').eq('user_id', user.id).eq('cycle_id', cycleId),
-    supabase.from('contributions').select('topic_id').eq('user_id', user.id).eq('cycle_id', cycleId),
     topicIds.length
       ? supabase.from('topic_signals').select('topic_id, signal, user_id').in('topic_id', topicIds)
       : Promise.resolve({ data: [] as { topic_id: string; signal: string; user_id: string }[] }),
   ])
 
   const votedTopicIds = new Set((userVotes ?? []).map(v => v.topic_id))
-  const contribTopicIds = new Set((userContribs ?? []).map(c => c.topic_id))
 
   const signalCounts = new Map<string, Record<string, number>>()
   const mySignals = new Map<string, string[]>()
@@ -87,7 +90,7 @@ export async function GET(request: Request) {
   const result = (topics ?? []).map((topic: any) => ({
     ...serializeTopic(topic, user.id),
     user_has_voted: votedTopicIds.has(topic.id),
-    user_has_contribed: contribTopicIds.has(topic.id),
+    poll: polls.get(topic.id) ?? null,
     signal_counts: signalCounts.get(topic.id) ?? {},
     my_signals: mySignals.get(topic.id) ?? [],
   }))
@@ -103,7 +106,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  let body: { title?: string; description?: string; category?: CategoryTag; is_anonymous?: boolean }
+  let body: { title?: string; description?: string; category?: CategoryTag; is_anonymous?: boolean; poll?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -120,6 +123,14 @@ export async function POST(request: Request) {
   }
   if (title.length > 80) return NextResponse.json({ error: 'Title too long' }, { status: 400 })
   if (description.length > 1000) return NextResponse.json({ error: 'Description too long (max 1000 characters)' }, { status: 400 })
+
+  // Checked before the topic exists, so a bad poll never leaves a half-made post.
+  let poll: PollInput | null = null
+  if (body.poll != null) {
+    const parsed = parsePollInput(body.poll)
+    if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
+    poll = parsed.poll
+  }
 
   // Get current open cycle - most recent by year/month
   const { data: cycle } = await supabase
@@ -161,6 +172,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
+  if (poll) {
+    const pollErr = await createPoll(createAdminClient(), data.id, poll)
+    if (pollErr) {
+      // Undo the post rather than publish it without the poll it was written around.
+      await createAdminClient().from('topics').update({ is_deleted: true }).eq('id', data.id)
+      return NextResponse.json({ error: 'Could not save the poll. Nothing was posted, try again.' }, { status: 500 })
+    }
+  }
+
   notifyAfterResponse(notifyOnNewTopic({ topicId: data.id, actorId: user.id }), "notifyOnNewTopic")
 
   return NextResponse.json({ ...data, is_owner: true }, { status: 201 })
@@ -171,7 +191,7 @@ export async function PATCH(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  let body: { id?: string; title?: string; description?: string; category?: CategoryTag }
+  let body: { id?: string; title?: string; description?: string; category?: CategoryTag; poll?: unknown }
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }) }
 
   const { id, title, description, category } = body
@@ -199,6 +219,19 @@ export async function PATCH(request: Request) {
     updates.description = description.trim()
   }
   if (category) updates.category = category
+
+  // `poll` absent: leave it. null: remove it. Object: replace it. Either change
+  // is refused once someone has voted (see replacePoll).
+  if (body.poll !== undefined) {
+    let poll: PollInput | null = null
+    if (body.poll !== null) {
+      const parsed = parsePollInput(body.poll)
+      if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
+      poll = parsed.poll
+    }
+    const pollErr = await replacePoll(admin, id, poll)
+    if (pollErr) return NextResponse.json({ error: pollErr }, { status: 409 })
+  }
 
   const { data, error } = await admin
     .from('topics')

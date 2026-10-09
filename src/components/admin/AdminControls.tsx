@@ -401,8 +401,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                   <div className="shrink-0 text-right min-w-14">
                     <p className="text-footnote font-semibold text-ink num">{topic.score.toFixed(1)}</p>
                     <p className="text-[11px] text-cha mt-0.5">
-                      <span className="num">{topic.vote_count}</span> votes ·{' '}
-                      <span className="num">{topic.contrib_count}</span> in
+                      <span className="num">{topic.vote_count}</span> votes
                     </p>
                   </div>
                 </div>

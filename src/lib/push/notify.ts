@@ -59,16 +59,6 @@ const BASE_COPY = {
     body: (voter: string, title: string) =>
       `${voter} upvoted "${title}". Momentum is building.`,
   },
-  contribute: {
-    titles: [
-      "You got a co-author",
-      "Someone joined your topic",
-      "Pair programmer found",
-      "Backup has arrived",
-    ],
-    body: (helper: string, title: string) =>
-      `${helper} raised a hand on "${title}". Two heads, one agenda item.`,
-  },
   reply: {
     titles: [
       "New reply in your thread",
@@ -199,11 +189,11 @@ const BASE_COPY = {
   },
 };
 
-// A problem post speaks in its own voice: a vote means "I've hit this too" and
-// a hand raise means "I've dealt with this". Chosen by the post's kind, so a
+// A problem post speaks in its own voice: a vote means "I've hit this too".
+// Chosen by the post's kind, so a
 // problem reads the same in any month and other kinds keep the base copy.
 // The cycle-open message comes from the month's theme instead (see SLACK).
-const PROBLEM_COPY: Pick<typeof BASE_COPY, "newTopic" | "vote" | "contribute"> = {
+const PROBLEM_COPY: Pick<typeof BASE_COPY, "newTopic" | "vote"> = {
   newTopic: {
     titles: ["New problem on the board", "Someone's stuck on something", "Have you hit this?"],
     body: (author: string, title: string) =>
@@ -213,11 +203,6 @@ const PROBLEM_COPY: Pick<typeof BASE_COPY, "newTopic" | "vote" | "contribute"> =
     titles: ["Someone's hit this too", "You're not the only one", "+1 on your problem"],
     body: (voter: string, title: string) =>
       `${voter} has hit "${title}" too. Worth bringing to the meeting.`,
-  },
-  contribute: {
-    titles: ["Someone's dealt with this", "Help has arrived", "Someone's been here before"],
-    body: (helper: string, title: string) =>
-      `${helper} has dealt with "${title}". Ask them what worked.`,
   },
 };
 
@@ -345,22 +330,6 @@ export async function notifyOnVote(args: { topicId: string; actorId: string }) {
     body: copyFor(topic.category).vote.body(voter, truncate(topic.title, 50)),
     url: `/board/${topic.id}`,
     tag: `vote:${topic.id}`,
-  });
-}
-
-export async function notifyOnContribute(args: { topicId: string; actorId: string }) {
-  const admin = createAdminClient();
-  const topic = await getTopic(admin, args.topicId);
-  if (!topic || topic.user_id === args.actorId) return;
-  if (topic.is_anonymous) return;
-
-  const helper = await getUsername(admin, args.actorId);
-
-  await sendPushToUser(topic.user_id, {
-    title: pick(copyFor(topic.category).contribute.titles),
-    body: copyFor(topic.category).contribute.body(helper, truncate(topic.title, 50)),
-    url: `/board/${topic.id}`,
-    tag: `contrib:${topic.id}`,
   });
 }
 

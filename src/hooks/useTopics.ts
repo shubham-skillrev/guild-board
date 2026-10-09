@@ -11,7 +11,7 @@ interface TopicsState {
 }
 
 function recalcScore(t: Topic): number {
-  const base = t.vote_count * 1 + t.contrib_count * 2
+  const base = t.vote_count
   const bonus = base * (CATEGORY_BONUS[t.category] ?? 0)
   return parseFloat((base + bonus).toFixed(2))
 }
@@ -66,18 +66,5 @@ export function useTopics(cycleId: string | null | undefined) {
     }))
   }, [])
 
-  // Optimistic contrib toggle (with score recalculation - no re-sort to keep card positions stable)
-  const optimisticContrib = useCallback((topicId: string, delta: 1 | -1) => {
-    setState(s => ({
-      ...s,
-      topics: s.topics.map(t => {
-        if (t.id !== topicId) return t
-        const updated = { ...t, contrib_count: t.contrib_count + delta, user_has_contribed: delta === 1 } as Topic & { user_has_contribed: boolean }
-        updated.score = recalcScore(updated)
-        return updated
-      }),
-    }))
-  }, [])
-
-  return { ...state, mutate: fetchTopics, optimisticVote, optimisticContrib }
+  return { ...state, mutate: fetchTopics, optimisticVote }
 }

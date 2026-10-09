@@ -1,11 +1,14 @@
-// ROUTE: GET /api/topics/[id] - single topic with contributors
+// ROUTE: GET /api/topics/[id] - single topic
 // AUTH: authenticated
-// PURPOSE: Fetch topic detail + contributor list
+// PURPOSE: Fetch topic detail + the viewer's vote
 
 import { getViewer } from '@/lib/supabase/viewer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import { serializeTopic, joinedUsername } from '@/lib/utils/anonymity'
+import { serializeTopic } from '@/lib/utils/anonymity'
+import { loadPolls } from '@/lib/polls'
+import { isVotingAllowed } from '@/lib/utils/cycle'
+import type { Cycle } from '@/types'
 
 export async function GET(
   request: Request,
@@ -17,7 +20,8 @@ export async function GET(
 
   // Service role: members cannot select topics.user_id (028), which the
   // serializer needs to decide ownership and hide ghost authors.
-  const { data: topic, error } = await createAdminClient()
+  const admin = createAdminClient()
+  const { data: topic, error } = await admin
     .from('topics')
     .select('id,cycle_id,user_id,is_anonymous,title,description,category,vote_count,contrib_count,comment_count,score,is_selected,is_deleted,status,outcome_tag,outcome_note,override_reason,created_at,updated_at,users!topics_user_id_fkey(username)')
     .eq('id', id)
@@ -26,27 +30,15 @@ export async function GET(
 
   if (error || !topic) return NextResponse.json({ error: 'Topic not found' }, { status: 404 })
 
-  // Fetch contributors with usernames
-  const { data: contribs } = await supabase
-    .from('contributions')
-    .select('user_id, users!contributions_user_id_fkey(username)')
-    .eq('topic_id', id)
-
-  const contributors = (contribs ?? []).map((c: any) => ({
-    user_id: c.user_id,
-    username: joinedUsername(c.users) ?? 'unknown',
-  }))
-
-  // Check current user's vote/contrib status
-  const [{ data: userVote }, { data: userContrib }] = await Promise.all([
+  const [{ data: userVote }, { data: cycle }] = await Promise.all([
     supabase.from('votes').select('id').eq('user_id', user.id).eq('topic_id', id).maybeSingle(),
-    supabase.from('contributions').select('id').eq('user_id', user.id).eq('topic_id', id).maybeSingle(),
+    admin.from('cycles').select('status, meeting_at').eq('id', topic.cycle_id).maybeSingle(),
   ])
+  const polls = await loadPolls(admin, [id], user.id, isVotingAllowed(cycle as Cycle | null))
 
   return NextResponse.json({
     ...serializeTopic(topic, user.id),
     user_has_voted: !!userVote,
-    user_has_contribed: !!userContrib,
-    contributors,
+    poll: polls.get(id) ?? null,
   })
 }
