@@ -25,7 +25,8 @@ test('every hand-written line passes the guard on its surface', () => {
     for (const text of pool) {
       const filled = text.replace(/\{(\w+)\}/g, (_, k: string) => String(sample[k as keyof typeof sample]))
       const surface = surfaceFor(key) as 'push' | 'ui' | 'chat' | 'slack'
-      const res = guard(filled, { surface })
+      // The one-time intro is allowed 900 characters (INTRO_MAX in the host).
+      const res = guard(filled, { surface, ...(key === 'intro.slack' ? { maxLength: 900 } : {}) })
       assert.ok(res.ok, `${key}: ${filled} -> ${res.ok ? '' : res.reasons.join('; ')}`)
     }
   }
@@ -52,4 +53,17 @@ test('mood and drought tiers', () => {
   assert.equal(s(9, 12), 'drought.meltdown')
   assert.equal(s(4, 4), 'drought.meltdown')
   assert.equal(s(9, 12, 1), null)
+})
+
+test('one language everywhere: British spelling and GuildBoard words in every hand-written line', () => {
+  const american = /\b(favorite|color|behavior|humor|optimiz|summariz|organiz|analyz|realiz|apologiz|recogniz|center)\w*/i
+  const all = [
+    ...Object.values(LINES).flat(),
+    ...EXAMPLES.map(e => e.comment),
+    ...REPLY_EXAMPLES.map(r => r.reply),
+  ]
+  for (const text of all) {
+    assert.ok(!american.test(text), `American spelling: ${text}`)
+    assert.ok(!/\bbytes\b/.test(text), `"Bytes" takes a capital B: ${text}`)
+  }
 })

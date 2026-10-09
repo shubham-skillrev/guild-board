@@ -12,6 +12,7 @@ This package is the bot's brain only. It has no database, HTTP or app imports. T
 | `src/mood.ts` | Mood and drought tier from board counts |
 | `src/comments.ts` | Model-written comments and replies: persona, guard, then a review call |
 | `src/chat.ts` | One-to-one chat: answers from host-supplied context, can draft a post |
+| `src/learnings.ts` | Meeting-day themes from the month's chats: only themes two or more people raised, reviewed, never quotes or names |
 
 ## Rules every line follows
 

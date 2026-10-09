@@ -40,7 +40,7 @@ test('the guard runs before the review and blocks the draft', async () => {
 })
 
 test('@name only for an opted-in, named author', async () => {
-  const line = '@dev_wizard has chosen violence again.'
+  const line = '@dev_wizard has chosen chaos again.'
   assert.equal(await writeComment(fakeLlm(line).llm, topic()), null)
   assert.equal(await writeComment(fakeLlm(line).llm, topic({ authorRoastMe: true })), line)
   // A ghost is never named, even if their account opted in.
@@ -64,4 +64,13 @@ test('replies: one guarded line, ghosts never named', async () => {
     await writeReply(fakeLlm('@ghost_ab12cd fair point.').llm, { topic: topic(), botSaid: 'x', theySaid: 'y', replier: 'ghost_ab12cd', replierRoastMe: true }),
     null,
   )
+})
+
+test('the code, not the model, decides when a running bit is allowed', async () => {
+  const on = fakeLlm('ok then.')
+  await writeComment(on.llm, topic(), { bits: true })
+  assert.ok(on.calls[0].prompt.includes('you may use one running bit'))
+  const off = fakeLlm('ok then.')
+  await writeComment(off.llm, topic(), { bits: false })
+  assert.ok(off.calls[0].prompt.includes('do not use any running bit'))
 })

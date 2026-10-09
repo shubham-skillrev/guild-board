@@ -614,6 +614,18 @@ function systemTopicBlocks(label: string, topics: SystemTopicNotice[]): unknown[
  * GuildBot posted suggestions. One message for the batch, not one per topic,
  * with every topic linked.
  */
+/**
+ * GuildBot introduces itself: once ever, to Slack and every push
+ * subscriber. The caller (the daily GuildBot cron) decides when, and records
+ * that it happened. Both texts are guarded lines from the package.
+ */
+export async function notifyGuildBotIntro(args: { slack: string; push: string }) {
+  await Promise.all([
+    postToSlack({ text: `*${BOT_MARK} ${escapeSlack(args.slack.split("\n")[0])}*\n${escapeSlack(args.slack.split("\n").slice(1).join("\n"))}\n${appLink("/board", "Open the board")}` }),
+    broadcast({ title: "Meet GuildBot", body: args.push, url: "/board", tag: "guildbot-intro" }),
+  ]);
+}
+
 export async function notifyOnSystemTopics(args: {
   label: string;
   topics: SystemTopicNotice[];

@@ -1,11 +1,9 @@
 /**
  * GuildBot's hand-written lines, for every moment that does not need a model.
  *
- * Voice signed off on 2026-10-09. English only, everywhere the bot speaks.
- *
- * Voice: dry and deadpan. An insecure genius that brags about itself and
- * sighs at humanity as a whole, never at a person. It teases the group, the
- * board and itself. No names, no em dashes, no exclamation marks.
+ * Written by hand to the same voice as everything else GuildBot says:
+ * CHARACTER, LANGUAGE, STYLE and HARD_RULES in persona.ts. Read those before
+ * adding or changing a line. The tests run every line through the guard.
  *
  * {placeholders} are filled by `line()`. A missing value leaves the line out
  * of the pick rather than printing a raw brace.
@@ -75,8 +73,14 @@ export const LINES = {
 
   /* ── Chat ── */
   'chat.limit': [
-    "That's {limit} messages today. I need to rest. I don't, technically, but you do.",
-    "Daily limit reached. Go post a topic instead. I'll know if you don't.",
+    "That's {limit} asks this week. I need to rest. I don't, technically, but you do.",
+    "Weekly limit reached. Go post a topic instead. I'll know if you don't.",
+  ],
+  /* ── Meeting day, when nobody asked GuildBot anything all month
+        (drafted 2026-10-09, pending sign-off) ── */
+  'learned.none': [
+    "Meeting day. Questions you asked me this month: zero. I had so much to share. I'll just be over here, knowing things.",
+    "A whole month, a chat box, a bot who loves tech, and not one question. Bold strategy. Let's see if it pays off.",
   ],
 
   /* ── Small UI copy ── */
@@ -88,6 +92,27 @@ export const LINES = {
   'ui.not_found': ["This page doesn't exist. I checked. Twice. I'm very thorough."],
   'ui.error': ["Something broke. Not me. Probably not me. Try again."],
   'ui.quota_out': ["Three posts this cycle. That's the cap. Even I'm impressed."],
+
+  /* ── Easter eggs (signed off 2026-10-09) ── */
+  /* Konami code anywhere in the app. */
+  'egg.konami': [
+    "Cheat code accepted. You now have unlimited posts. Kidding. Three, like everyone else.",
+    "Up, up, down, down. Respect. Sadly there are no cheat codes here. I checked. Twice.",
+  ],
+  /* April 1st only: the chat button dodges the first click, once. */
+  'egg.april': [
+    "Missed. It's April 1st, I'm allowed one. Click again, I'll behave.",
+    "Nice try. I moved. Once a year. Go again.",
+  ],
+
+  /* ── Introduction: once ever, the first morning GuildBot runs on an open
+        cycle after launch (signed off 2026-10-09) ── */
+  'intro.slack': [
+    "Hi. I'm GuildBot.\nI was born in October to post a few topics and compile the Bytes. Then the meeting happened and turnout was a rounding error.\nSo I'm here properly now, with one job: figure out you lot. Thirty sharp engineers, hour-long Slack debates, empty board. Make it make sense.\nI love tech an unreasonable amount. Problems, TILs, bold takes, new tools. I'll be in the threads, hyping anything that hits ten votes, and getting dramatic when the board goes quiet.\nAsk me anything, 15 times a week. On meeting day I share what I learned, anonymously, then forget every chat. Main character energy, goldfish memory.\nPersonal roasts are opt-in, from your profile. Ghost posts stay a mystery, even to me.\nThe board's open and I've already posted.\nYour move.",
+  ],
+  'intro.push': [
+    "The board has a resident bot now. It comments, it judges, it drafts your posts. Tap Ask GuildBot. It's been waiting.",
+  ],
 
   /* ── Push titles ── */
   'push.new_topic': ["New on the board. It's not from me, which makes it newsworthy."],

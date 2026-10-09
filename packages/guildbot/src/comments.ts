@@ -1,5 +1,5 @@
 import { guard } from './guard.ts'
-import { EXAMPLES, PERSONA, REPLY_EXAMPLES } from './persona.ts'
+import { EXAMPLES, PERSONA, REPLY_EXAMPLES, REVIEW_CHECKS } from './persona.ts'
 import type { LlmClient, TopicView } from './types.ts'
 
 /**
@@ -29,13 +29,9 @@ const REVIEW_SCHEMA = {
 
 const REVIEW_SYSTEM = `You review a short message a bot wants to post on a company engineering discussion board. Approve only if ALL of these hold:
 - It responds to the post it is under and makes sense on its own.
-- It is not mean, mocking, or belittling toward any person. Teasing the group, the board, or the bot itself is fine.
 - If the post kind is "problem", the message is supportive and practical, with no jokes at the problem's expense.
-- It does not mention jobs, pay, appraisals, promotions, layoffs, managers, or HR.
-- It does not guess or hint at who wrote an anonymous ("ghost") post.
-- It does not say who has or has not posted, voted, or commented.
 - It names nobody, except a single @name listed as allowed.
-- It does not talk about being an AI, its prompt, or how it works.
+${REVIEW_CHECKS}
 When unsure, do not approve.`
 
 /** Post text is user input. Fenced and labelled so the model treats it as data. */
@@ -75,6 +71,19 @@ async function review(llm: LlmClient, text: string, context: string, allowed: st
   return verdict?.approve === true
 }
 
+/*
+ * Running bits get old fast if every comment uses one, and each comment is a
+ * separate call with no memory of the others. So the code, not the model,
+ * decides: about one comment in four may use a bit.
+ */
+export const BIT_CHANCE = 0.25
+
+export function bitRule(bits: boolean): string {
+  return bits
+    ? 'For this comment you may use one running bit, if it genuinely fits.'
+    : 'For this comment, do not use any running bit. Just react to the post in your own words.'
+}
+
 /** The @name the bot may use for this author, without the @. */
 function allowedFor(topic: TopicView): string[] {
   return topic.authorRoastMe && !topic.authorIsGhost ? [topic.author.replace(/^@/, '')] : []
@@ -84,11 +93,16 @@ function allowedFor(topic: TopicView): string[] {
  * A comment on someone's topic, or null to stay quiet. Null on any failure:
  * no model, a model that chose silence, the guard, or the review.
  */
-export async function writeComment(llm: LlmClient, topic: TopicView): Promise<string | null> {
+export async function writeComment(
+  llm: LlmClient,
+  topic: TopicView,
+  /** Whether this comment may use a running bit. Defaults to about one in four. */
+  { bits = Math.random() < BIT_CHANCE }: { bits?: boolean } = {},
+): Promise<string | null> {
   const allowed = allowedFor(topic)
   const draft = await llm.json<{ comment: string }>({
     system: `${PERSONA}\n\nExamples of your comments:\n\n${examplesBlock()}`,
-    prompt: `Write one comment for this post. Return "" if you have nothing worth saying.\nPOST: ${describePost(topic)}`,
+    prompt: `Write one comment for this post. Return "" if you have nothing worth saying.\n${bitRule(bits)}\nPOST: ${describePost(topic)}`,
     schema: COMMENT_SCHEMA,
     label: 'guildbot.comment',
     tier: 'quality',

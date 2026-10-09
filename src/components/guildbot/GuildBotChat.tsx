@@ -8,7 +8,18 @@ import { cn } from '@/lib/utils/cn'
 import { useToast } from '@/hooks/useToast'
 import { Button } from '@/components/ui/Button'
 import { KINDS, composeDescription } from '@/lib/kinds'
-import { SASS, BOT_MARK } from '@/lib/guildbot-host/voice'
+import { SASS, botSays } from '@/lib/guildbot-host/voice'
+import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
+import { BodyPortal } from '@/components/guildbot/BodyPortal'
+
+const APRIL_KEY = 'guildbot:april-dodged'
+
+/** April 1st in India, once per browser session. */
+function dodgeToday(): boolean {
+  const parts = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'numeric', timeZone: 'Asia/Kolkata' }).formatToParts(new Date())
+  const part = (type: string) => Number(parts.find(p => p.type === type)?.value)
+  return part('day') === 1 && part('month') === 4 && sessionStorage.getItem(APRIL_KEY) !== '1'
+}
 
 type Cite = { type: 'topic' | 'byte'; id: string; title: string }
 type Draft = { kind: string; title: string; second: string; context: string; poll: { question: string; options: string[] } | null }
@@ -25,8 +36,8 @@ function pageOf(path: string): { kind: 'board' } | { kind: 'topic'; topicId: str
 }
 
 /**
- * Chat with GuildBot, on the board, topic and Bytes pages. Bottom-left: the
- * meeting countdown pill owns the bottom-right corner. Signed-in members
+ * Chat with GuildBot, on the board, topic and Bytes pages. Fixed to the
+ * bottom-right corner; the meeting countdown pill stacks just above it. Signed-in members
  * only. The bot can answer from the board and Bytes, and draft a post, which
  * shows here as a card: nothing is posted until you press Post.
  */
@@ -38,6 +49,9 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   const [loaded, setLoaded] = useState(false)
   const [input, setInput] = useState('')
   const [thinking, setThinking] = useState(false)
+  // April 1st: the button hops away from the first click, once. The chat is
+  // not a real action, so nothing anyone needs is ever in the way.
+  const [dodge, setDodge] = useState<string | null>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const toast = useToast()
 
@@ -92,25 +106,43 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   }
 
   return (
-    <>
+    <BodyPortal>
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={() => {
+          if (!open && dodgeToday()) {
+            sessionStorage.setItem(APRIL_KEY, '1')
+            setDodge(botSays('egg.april', String(Date.now()), 'ui') ?? '')
+            setTimeout(() => setDodge(null), 4000)
+            return
+          }
+          setOpen(o => !o)
+        }}
         aria-expanded={open}
         aria-label={open ? 'Close GuildBot chat' : 'Chat with GuildBot'}
-        className="press fixed left-4 bottom-24 md:left-6 md:bottom-6 z-40 inline-flex items-center gap-2 h-11 pl-3.5 pr-4 rounded-full bg-ink text-parchment shadow-lg hover:bg-ink/90 transition-colors"
+        className={cn(
+          'press fixed right-4 bottom-24 md:right-6 md:bottom-6 z-(--z-overlay) inline-flex items-center justify-center gap-2 h-12 w-12 md:h-11 md:w-auto md:pl-3 md:pr-4 rounded-full bg-ink text-parchment shadow-lg hover:bg-ink/90 transition-[transform,background-color] duration-300 motion-reduce:transition-none',
+          dodge !== null && '-translate-x-24 -translate-y-16',
+        )}
       >
-        <span aria-hidden className="text-saffron text-[15px]">{BOT_MARK}</span>
-        <span className="text-[13px] font-medium">{open ? 'Close' : 'Ask GuildBot'}</span>
+        <GuildBotMark size={22} />
+        {/* Just the face on a phone: the full pill would cover the cards. */}
+        <span className="hidden md:inline text-[13px] font-medium">{open ? 'Close' : 'Ask GuildBot'}</span>
       </button>
+
+      {dodge && (
+        <p role="status" className="fixed right-4 bottom-38 md:right-6 md:bottom-20 z-50 max-w-xs inline-flex items-start gap-1.5 rounded-(--radius-card) border border-saffron/40 bg-paper px-3 py-2 text-[12px] text-ink shadow-lg animate-fade-up">
+          <GuildBotMark size={16} className="text-ink mt-px" />{dodge}
+        </p>
+      )}
 
       {open && (
         <section
           aria-label="Chat with GuildBot"
-          className="fixed left-4 bottom-38 md:left-6 md:bottom-20 z-40 flex flex-col w-[min(380px,calc(100vw-2rem))] h-[min(560px,65vh)] bg-paper border border-border rounded-(--radius-card) shadow-2xl animate-fade-up"
+          className="fixed right-4 bottom-38 md:right-6 md:bottom-20 z-50 flex flex-col w-[min(380px,calc(100vw-2rem))] h-[min(560px,65vh)] bg-paper border border-border rounded-(--radius-card) shadow-2xl animate-fade-up"
         >
           <header className="flex items-center gap-2 px-4 h-12 border-b border-border">
-            <span aria-hidden className="text-saffron">{BOT_MARK}</span>
+            <GuildBotMark size={20} className="text-ink" />
             <h2 className="text-[14px] font-semibold text-ink">GuildBot</h2>
             <span className="text-[11px] text-cha">Knows the board and Bytes</span>
             <div className="ml-auto flex items-center gap-1">
@@ -135,7 +167,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
               <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3" aria-live="polite">
                 {loaded && messages.length === 0 && (
                   <p className="text-[13px] text-cha leading-relaxed">
-                    Ask about this month&apos;s topics or Bytes, or tell me an idea and ask me to draft it as a post. Chats are private and kept 30 days.
+                    Ask about this month&apos;s topics or Bytes, or tell me an idea and ask me to draft it as a post. 15 asks a week. On meeting day I share anonymous themes from everyone&apos;s chats in Slack, never who asked what, then delete every chat.
                   </p>
                 )}
                 {messages.map(m => (
@@ -147,7 +179,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                 ))}
                 {thinking && (
                   <p role="status" className="inline-flex items-center gap-1.5 text-[12px] text-cha">
-                    <span aria-hidden className="text-saffron">{BOT_MARK}</span>
+                    <GuildBotMark size={16} className="text-ink-soft" />
                     GuildBot is typing<span className="animate-pulse">…</span>
                   </p>
                 )}
@@ -180,7 +212,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
           )}
         </section>
       )}
-    </>
+    </BodyPortal>
   )
 }
 
