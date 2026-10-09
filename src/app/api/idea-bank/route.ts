@@ -3,10 +3,14 @@
 // PURPOSE: Capture ideas any day of the month, in any cycle phase. Unlimited -
 //          the 1-per-cycle cap applies to promotion onto the board, not to banking.
 // DB TABLES: idea_bank, users
-// RLS: server client (own rows + is_open rows, enforced by policy)
+// RLS: the session identifies the caller; rows are read and written with the
+//      service role because members cannot select idea_bank.user_id (028).
+//      What RLS used to enforce (own rows + open rows, own-only writes) is
+//      therefore spelled out in every query below.
 
 import { createClient } from '@/lib/supabase/server'
 import { getViewer } from '@/lib/supabase/viewer'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { TITLE_MAX_LENGTH, ALL_CATEGORIES } from '@/lib/constants'
 import { joinedUsername } from '@/lib/utils/anonymity'
@@ -28,7 +32,7 @@ type IdeaRow = {
 /** Hide the author of an anonymous open idea; expose ownership explicitly. */
 function serialize(row: IdeaRow, viewerId: string) {
   const isOwner = row.user_id === viewerId
-  const { users, ...rest } = row
+  const { users, promoted_by: _promoter, ...rest } = row
 
   if (row.is_anonymous && !isOwner) {
     const { user_id: _hidden, ...anon } = rest
@@ -37,20 +41,21 @@ function serialize(row: IdeaRow, viewerId: string) {
 
   return {
     ...rest,
+    ...(isOwner ? { promoted_by: _promoter } : {}),
     is_owner: isOwner,
     author_username: joinedUsername(users) ?? 'unknown',
   }
 }
 
 export async function GET(request: Request) {
-  const { supabase, user } = await getViewer()
+  const { user } = await getViewer()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // ?scope=open  → the up-for-grabs pool (everyone's, unpromoted)
   // default      → the caller's own bank
   const scope = new URL(request.url).searchParams.get('scope')
 
-  let query = supabase.from('idea_bank').select(SELECT).order('created_at', { ascending: false })
+  let query = createAdminClient().from('idea_bank').select(SELECT).order('created_at', { ascending: false })
 
   if (scope === 'open') {
     query = query.eq('is_open', true).is('promoted_topic_id', null)
@@ -94,7 +99,7 @@ export async function POST(request: Request) {
   }
 
   // No quota check on purpose - banking is unlimited in every cycle phase.
-  const { data, error } = await supabase
+  const { data, error } = await createAdminClient()
     .from('idea_bank')
     .insert({
       user_id: user.id,
@@ -131,7 +136,8 @@ export async function PATCH(request: Request) {
   const { id } = body
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
-  const { data: existing, error: existingErr } = await supabase
+  const admin = createAdminClient()
+  const { data: existing, error: existingErr } = await admin
     .from('idea_bank')
     .select('user_id, promoted_topic_id')
     .eq('id', id)
@@ -172,7 +178,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await admin
     .from('idea_bank')
     .update(updates)
     .eq('id', id)
@@ -196,7 +202,8 @@ export async function DELETE(request: Request) {
   const { id } = body
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
-  const { data: existing } = await supabase
+  const admin = createAdminClient()
+  const { data: existing } = await admin
     .from('idea_bank')
     .select('user_id, promoted_topic_id')
     .eq('id', id)
@@ -209,7 +216,7 @@ export async function DELETE(request: Request) {
   }
 
   // Hard delete: a banked idea is a private note, not shared history.
-  const { error } = await supabase.from('idea_bank').delete().eq('id', id)
+  const { error } = await admin.from('idea_bank').delete().eq('id', id).eq('user_id', user.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ ok: true })

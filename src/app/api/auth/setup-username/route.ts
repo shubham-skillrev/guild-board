@@ -5,6 +5,7 @@
 // RLS: server client
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { RESERVED_USERNAMES } from '@/lib/system/identity'
 
@@ -39,7 +40,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'That username is reserved' }, { status: 400 })
   }
 
-  const { data: profile } = await supabase
+  // real_name is hidden from members (028); read our own with the service role.
+  const { data: profile } = await createAdminClient()
     .from('users')
     .select('real_name')
     .eq('id', user.id)

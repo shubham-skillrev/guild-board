@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { PencilLine } from '@phosphor-icons/react/dist/ssr'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CATEGORY_LABELS } from '@/lib/constants'
@@ -13,9 +14,12 @@ async function getProfile() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Your own email and your own topics are columns members cannot select
+  // (028), so these two reads use the service role, pinned to user.id.
+  const admin = createAdminClient()
   const [{ data: profile }, { data: topics }, { data: sparksReceived }] = await Promise.all([
-    supabase.from('users').select('*').eq('id', user.id).single(),
-    supabase
+    admin.from('users').select('*').eq('id', user.id).single(),
+    admin
       .from('topics')
       .select('*, cycles(label, month, year, status)')
       .eq('user_id', user.id)

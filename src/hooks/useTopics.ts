@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useEffect, useState, useCallback } from 'react'
 import { CATEGORY_BONUS } from '@/lib/constants'
 import type { Topic } from '@/types'
 
@@ -17,7 +16,7 @@ function recalcScore(t: Topic): number {
   return parseFloat((base + bonus).toFixed(2))
 }
 
-const POLL_INTERVAL = 15_000 // 15s polling fallback
+const POLL_INTERVAL = 15_000
 
 export function useTopics(cycleId: string | null | undefined) {
   const [state, setState] = useState<TopicsState>({
@@ -25,8 +24,6 @@ export function useTopics(cycleId: string | null | undefined) {
     isLoading: true,
     error: null,
   })
-  const channelRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null)
-  const realtimeActive = useRef(false)
 
   const fetchTopics = useCallback(async () => {
     try {
@@ -44,49 +41,14 @@ export function useTopics(cycleId: string | null | undefined) {
     fetchTopics()
   }, [fetchTopics])
 
-  // Realtime subscription - updates vote/contrib/score in place without refetch
-  useEffect(() => {
-    if (!cycleId) return
-
-    const supabase = createClient()
-    channelRef.current?.unsubscribe()
-    realtimeActive.current = false
-
-    channelRef.current = supabase
-      .channel(`topics:cycle_id=eq.${cycleId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'topics', filter: `cycle_id=eq.${cycleId}` },
-        payload => {
-          if (payload.eventType === 'INSERT') {
-            // New topic added - full refetch to get author info
-            fetchTopics()
-          } else if (payload.eventType === 'UPDATE') {
-            setState(s => ({
-              ...s,
-              topics: s.topics.map(t => t.id === payload.new.id
-                ? { ...t, vote_count: payload.new.vote_count, contrib_count: payload.new.contrib_count, score: payload.new.score }
-                : t
-              ),
-            }))
-          }
-        }
-      )
-      .subscribe((status) => {
-        realtimeActive.current = status === 'SUBSCRIBED'
-      })
-
-    return () => {
-      channelRef.current?.unsubscribe()
-      realtimeActive.current = false
-    }
-  }, [cycleId, fetchTopics])
-
-  // Polling fallback - if realtime is not active, poll every 15s
+  /* Polling, not postgres_changes. Raw row events carry every column, ghost
+     authors' user_id included, so topics left the realtime publication in
+     migration 028. Live updates come back as a sanitized server broadcast;
+     until then the board refreshes every 15s, and only while visible. */
   useEffect(() => {
     if (!cycleId) return
     const interval = setInterval(() => {
-      if (!realtimeActive.current) fetchTopics()
+      if (document.visibilityState === 'visible') fetchTopics()
     }, POLL_INTERVAL)
     return () => clearInterval(interval)
   }, [cycleId, fetchTopics])

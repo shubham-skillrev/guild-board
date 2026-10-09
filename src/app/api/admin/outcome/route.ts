@@ -6,6 +6,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { withoutAuthor } from '@/lib/utils/anonymity'
 import { NextResponse } from 'next/server'
 import { OUTCOME_NOTE_MAX_LENGTH } from '@/lib/constants'
 import type { OutcomeTag } from '@/types'
@@ -43,5 +44,6 @@ export async function PATCH(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  // Admins are not exempt from ghost anonymity: never send the author id.
+  return NextResponse.json(withoutAuthor(data))
 }

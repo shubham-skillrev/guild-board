@@ -3,6 +3,7 @@
 // PURPOSE: Fetch topic detail + contributor list
 
 import { getViewer } from '@/lib/supabase/viewer'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { serializeTopic, joinedUsername } from '@/lib/utils/anonymity'
 
@@ -14,8 +15,9 @@ export async function GET(
   const { supabase, user } = await getViewer()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Fetch topic
-  const { data: topic, error } = await supabase
+  // Service role: members cannot select topics.user_id (028), which the
+  // serializer needs to decide ownership and hide ghost authors.
+  const { data: topic, error } = await createAdminClient()
     .from('topics')
     .select('id,cycle_id,user_id,is_anonymous,title,description,category,vote_count,contrib_count,comment_count,score,is_selected,is_deleted,status,outcome_tag,outcome_note,override_reason,created_at,updated_at,users!topics_user_id_fkey(username)')
     .eq('id', id)

@@ -4,12 +4,15 @@
 //          Banking is unlimited; promotion is where the 1-topic-per-cycle
 //          cap applies - check_topic_limit() is left intact on purpose.
 // DB TABLES: idea_bank, topics, cycles, users
-// RLS: server client for identity + insert; admin client only to credit the
-//      originator of someone else's open idea (their row is not caller-visible)
+// RLS: server client for identity + the topic insert (so the 3-per-cycle
+//      trigger and insert policy apply as the member). The bank row is read
+//      with the service role because idea_bank.user_id is hidden from members
+//      (028); the own-or-open rule RLS used to apply is checked explicitly.
 
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
+import { MEMBER_TOPIC_FIELDS } from '@/lib/utils/anonymity'
 import { notifyOnNewTopic, notifyOnIdeaTaken, notifyAfterResponse } from '@/lib/push/notify'
 import type { CategoryTag } from '@/types'
 
@@ -26,8 +29,8 @@ export async function POST(request: Request) {
   const { id } = body
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
-  // Readable via RLS if it is the caller's own idea, or open to the guild.
-  const { data: idea, error: ideaErr } = await supabase
+  // Visible if it is the caller's own idea, or open to the guild (checked below).
+  const { data: idea, error: ideaErr } = await createAdminClient()
     .from('idea_bank')
     .select('id, user_id, title, note, category, is_open, is_anonymous, promoted_topic_id')
     .eq('id', id)
@@ -37,8 +40,9 @@ export async function POST(request: Request) {
   if (!idea) return NextResponse.json({ error: 'Idea not found' }, { status: 404 })
 
   const isOwner = idea.user_id === user.id
+  // 404, not 403: someone else's private draft must not even be confirmed to exist.
   if (!isOwner && !idea.is_open) {
-    return NextResponse.json({ error: 'Not your idea' }, { status: 403 })
+    return NextResponse.json({ error: 'Idea not found' }, { status: 404 })
   }
   if (idea.promoted_topic_id) {
     return NextResponse.json({ error: 'This idea is already on the board' }, { status: 409 })
@@ -99,7 +103,7 @@ export async function POST(request: Request) {
       // someone else's open idea is pitching it themselves.
       is_anonymous: isOwner && idea.is_anonymous,
     })
-    .select()
+    .select(MEMBER_TOPIC_FIELDS)
     .single()
 
   if (topicErr) {

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { serializeTopic } from '@/lib/utils/anonymity'
 import { notFound } from 'next/navigation'
 import { AdminControls } from '@/components/admin/AdminControls'
 import { CycleListCards } from '@/components/admin/CycleListCards'
@@ -31,14 +33,19 @@ async function getAdminData() {
       .select('*')
       .order('year', { ascending: false })
       .order('month', { ascending: false }),
-    supabase
+    // Service role to read user_id, then serialized: admins see ghost
+    // handles like everyone else, never the person behind them.
+    createAdminClient()
       .from('topics')
       .select('*, users!topics_user_id_fkey(username)')
       .eq('is_deleted', false)
       .order('score', { ascending: false }),
   ])
 
-  return { cycles: cycles ?? [], allTopics: allTopics ?? [] }
+  return {
+    cycles: cycles ?? [],
+    allTopics: (allTopics ?? []).map(t => serializeTopic(t, user.id)),
+  }
 }
 
 export default async function AdminPage() {

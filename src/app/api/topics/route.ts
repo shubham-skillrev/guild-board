@@ -2,14 +2,16 @@
 // AUTH: authenticated
 // PURPOSE: GET all active topics for current cycle (with user vote/contrib status); POST submit new topic
 // DB TABLES: topics, cycles, votes, contributions, users
-// RLS: server client
+// RLS: server client for the viewer's own rows; topics are read with the
+//      service role because members cannot select topics.user_id (028) and the
+//      serializer needs it to hide ghost authors.
 
 import { createClient } from '@/lib/supabase/server'
 import { getViewer } from '@/lib/supabase/viewer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { notifyOnNewTopic, notifyAfterResponse } from '@/lib/push/notify'
-import { serializeTopic } from '@/lib/utils/anonymity'
+import { serializeTopic, withoutAuthor, MEMBER_TOPIC_FIELDS } from '@/lib/utils/anonymity'
 import { isInteractionLocked } from '@/lib/utils/cycle'
 import { ALL_CATEGORIES } from '@/lib/constants'
 import type { Cycle } from '@/types'
@@ -45,7 +47,8 @@ export async function GET(request: Request) {
     return NextResponse.json([])
   }
 
-  const { data: topics, error } = await supabase
+  // Service role: RLS would hide deleted rows, so that filter stays explicit.
+  const { data: topics, error } = await createAdminClient()
     .from('topics')
     .select('id,cycle_id,user_id,is_anonymous,title,description,category,vote_count,contrib_count,comment_count,score,is_selected,is_deleted,status,outcome_tag,outcome_note,override_reason,created_at,updated_at,users!topics_user_id_fkey(username)')
     .eq('cycle_id', cycleId)
@@ -147,7 +150,8 @@ export async function POST(request: Request) {
       category,
       is_anonymous: is_anonymous === true,
     })
-    .select()
+    // Not user_id: members cannot read it back (028), and the client does not need it.
+    .select(MEMBER_TOPIC_FIELDS)
     .single()
 
   if (error) {
@@ -159,7 +163,7 @@ export async function POST(request: Request) {
 
   notifyAfterResponse(notifyOnNewTopic({ topicId: data.id, actorId: user.id }), "notifyOnNewTopic")
 
-  return NextResponse.json(data, { status: 201 })
+  return NextResponse.json({ ...data, is_owner: true }, { status: 201 })
 }
 
 export async function PATCH(request: Request) {
@@ -204,7 +208,7 @@ export async function PATCH(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data)
+  return NextResponse.json({ ...withoutAuthor(data), is_owner: true })
 }
 
 export async function DELETE(request: Request) {
@@ -228,7 +232,11 @@ export async function DELETE(request: Request) {
 
   if (existingErr) return NextResponse.json({ error: existingErr.message }, { status: 500 })
   if (!existing || existing.is_deleted) return NextResponse.json({ error: 'Topic not found' }, { status: 404 })
-  if (existing.user_id !== user.id) return NextResponse.json({ error: 'Not your topic' }, { status: 403 })
+  // Admins may hide any topic, ghost ones included. Hiding never reveals who
+  // wrote it: this route answers with a bare success either way.
+  if (existing.user_id !== user.id && !(await isAdmin(admin, user.id))) {
+    return NextResponse.json({ error: 'Not your topic' }, { status: 403 })
+  }
 
   const { data: updated, error } = await admin
     .from('topics')
@@ -258,4 +266,9 @@ export async function DELETE(request: Request) {
   if (releaseErr) console.warn('topics: could not release banked idea', releaseErr)
 
   return NextResponse.json({ success: true })
+}
+
+async function isAdmin(admin: ReturnType<typeof createAdminClient>, userId: string): Promise<boolean> {
+  const { data } = await admin.from('users').select('role').eq('id', userId).maybeSingle()
+  return data?.role === 'admin'
 }

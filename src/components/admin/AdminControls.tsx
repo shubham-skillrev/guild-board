@@ -162,6 +162,22 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
       },
     })
 
+  /** Hide a topic from the board. Works on ghost topics without revealing
+   *  who wrote them: the admin never learns the author, only that it is gone. */
+  const hideTopic = (topicId: string, title: string) => {
+    if (!window.confirm(`Hide "${title}" from the board? The author can't undo this.`)) return
+    return doAction(`hide-${topicId}`, () =>
+      fetch('/api/topics', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: topicId }),
+      })
+    , {
+      refresh: false,
+      onSuccess: () => setLocalTopics(prev => prev.filter(t => t.id !== topicId)),
+    })
+  }
+
   const createCycle = () =>
     doAction('create-cycle', () => {
       const label = `${MONTHS[newCycleMonth - 1]} ${newCycleYear}`
@@ -373,7 +389,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                       <span className="text-[11px] text-cha">{CATEGORY_LABELS[topic.category]}</span>
                       <span className="text-border-strong">·</span>
-                      <span className="text-[11px] text-cha">@{topic.users?.username ?? 'unknown'}</span>
+                      <span className="text-[11px] text-cha">@{topic.author_username ?? 'unknown'}</span>
                       {topic.is_selected && <Badge tone="saffron">Selected</Badge>}
                       {topic.outcome_tag && (
                         <Badge tone={OUTCOME_TONES[topic.outcome_tag as OutcomeTag] ?? 'neutral'}>
@@ -401,6 +417,15 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                     disabled={anyLoading || (!topic.is_selected && localTopics.filter((t: any) => t.is_selected).length >= MAX_SELECTED_TOPICS)}
                   >
                     {isLoading(`select-${topic.id}`) ? '…' : topic.is_selected ? 'Deselect' : 'Select'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="ml-auto text-ink-muted"
+                    onClick={() => hideTopic(topic.id, topic.title)}
+                    disabled={anyLoading}
+                  >
+                    {isLoading(`hide-${topic.id}`) ? '…' : 'Hide'}
                   </Button>
                 </div>
               </div>

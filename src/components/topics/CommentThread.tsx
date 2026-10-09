@@ -16,6 +16,8 @@ interface CommentThreadProps {
   isOpen: boolean
   onClose: () => void
   inline?: boolean
+  /** The viewer wrote this topic as a ghost: they always reply as that ghost. */
+  isGhostOp?: boolean
 }
 
 interface Member { id: string; username: string }
@@ -41,7 +43,7 @@ function sortComments(list: Comment[], by: SortKey): Comment[] {
   return sorted.map(c => c.replies?.length ? { ...c, replies: sortComments(c.replies, by) } : c)
 }
 
-export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline }: CommentThreadProps) {
+export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline, isGhostOp = false }: CommentThreadProps) {
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(false)
   const [newComment, setNewComment] = useState('')
@@ -51,6 +53,8 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [submitting, setSubmitting] = useState(false)
   const [sort, setSort] = useState<SortKey>('newest')
+  // Reply as a ghost: one handle per person per topic, never linked to you.
+  const [asGhost, setAsGhost] = useState(false)
 
   /* Mentions and asks, in the one composer. Typing @ lists every member.
      Mentioning someone who can still be asked also sends them a direct ask
@@ -92,7 +96,11 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
   const mentionedNames = new Set(
     [...newComment.matchAll(/(?:^|\s)@([\w.-]+)/g)].map(m => m[1].toLowerCase()),
   )
-  const willAsk = members
+  /* An ask tells the person who asked. A ghost comment therefore sends none,
+     or the push would name its author. A ghost OP is the exception: the
+     server signs their asks with the topic's ghost handle. */
+  const asksSuppressed = asGhost && !isGhostOp
+  const willAsk = asksSuppressed ? [] : members
     .filter(m => mentionedNames.has(m.username.toLowerCase()) && askable.has(m.id))
     .slice(0, asksLeft)
 
@@ -158,7 +166,7 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
       const res = await fetch('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic_id: topicId, parent_id: replyTo?.id ?? null, body }),
+        body: JSON.stringify({ topic_id: topicId, parent_id: replyTo?.id ?? null, body, is_anonymous: asGhost }),
       })
       if (res.ok) {
         setNewComment(''); setReplyTo(null); setMention(null)
@@ -379,6 +387,44 @@ export function CommentThread({ topicId, currentUserId, isOpen, onClose, inline 
         </div>
       </div>
 
+      {/* Anonymity: one labelled switch, the same control as "Post anonymously"
+          in the share form. A ghost post's author has no choice to make: they
+          always reply as that ghost, so they get a statement, not a switch. */}
+      {isGhostOp ? (
+        <p className="mt-2.5 text-[12px] text-cha leading-relaxed">
+          <span className="text-ink-soft">Commenting anonymously.</span> You posted this as a ghost, so your replies use the same handle, marked OP.
+        </p>
+      ) : (
+        <label className="mt-2.5 flex items-start gap-3 cursor-pointer select-none">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={asGhost}
+            onClick={() => setAsGhost(v => !v)}
+            className={cn(
+              'relative mt-0.5 shrink-0 w-8 h-4.5 rounded-full transition-colors',
+              asGhost ? 'bg-ink' : 'bg-border-strong',
+            )}
+          >
+            <span
+              className={cn(
+                'absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-paper transition-transform',
+                asGhost && 'translate-x-3.5',
+              )}
+            />
+            <span className="sr-only">Comment anonymously</span>
+          </button>
+          <span className="min-w-0">
+            <span className="block text-[13px] text-ink">Comment anonymously</span>
+            {asGhost && (
+              <span className="block text-[12px] text-cha mt-0.5 leading-relaxed">
+                Your name is hidden from everyone, admins included. @mentions won&apos;t ask anyone in, since an ask shows who sent it.
+              </span>
+            )}
+          </span>
+        </label>
+      )}
+
       {asked.length > 0 && (
         <p className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[12px] text-cha">
           Asked:
@@ -441,7 +487,8 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
   const editTextareaRef = useRef<HTMLTextAreaElement>(null)
   const toast = useToast()
   const { blockGuest } = useGuestGate()
-  const isOwner = currentUserId === comment.user_id
+  const isOwner = comment.is_owner === true
+  const canDelete = comment.can_delete === true
   const maxDepth = 3
 
   const handleSaveEdit = () => {
@@ -495,6 +542,9 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
         <div className="flex items-center gap-2 text-[12px]">
           <UserAvatar username={comment.author_username ?? 'user'} size={20} />
           <span className="font-medium text-ink-soft">@{comment.author_username}</span>
+          {comment.is_op && (
+            <span className="rounded-full border border-border px-1.5 text-[10px] leading-4 text-cha" title="Wrote this topic">OP</span>
+          )}
           <span className="text-cha">{timeAgo}</span>
           {comment.updated_at !== comment.created_at && (
             <span className="text-cha text-[11px]">(edited)</span>
@@ -571,22 +621,27 @@ function CommentNode({ comment, currentUserId, depth, onReply, onDelete, onEdit,
             </button>
           )}
           {isOwner && !editing && (
-            <>
-              <button
-                onClick={() => { setEditBody(comment.body); setEditing(true) }}
-                className="inline-flex items-center gap-1 text-[11px] text-cha hover:text-ink-soft transition-colors cursor-pointer"
-              >
-                <PencilSimple className="w-3 h-3" />
-                Edit
-              </button>
-              <button
-                onClick={() => onDelete(comment.id)}
-                className="inline-flex items-center gap-1 text-[11px] text-red-400/70 hover:text-red-400 transition-colors cursor-pointer"
-              >
-                <Trash className="w-3 h-3" />
-                Delete
-              </button>
-            </>
+            <button
+              onClick={() => { setEditBody(comment.body); setEditing(true) }}
+              className="inline-flex items-center gap-1 text-[11px] text-cha hover:text-ink-soft transition-colors cursor-pointer"
+            >
+              <PencilSimple className="w-3 h-3" />
+              Edit
+            </button>
+          )}
+          {/* Admins see Hide on everyone's comments, ghosts included. Hiding
+              tells them nothing about who wrote it. */}
+          {canDelete && !editing && (
+            <button
+              onClick={() => {
+                if (!isOwner && !window.confirm('Hide this comment from everyone?')) return
+                onDelete(comment.id)
+              }}
+              className="inline-flex items-center gap-1 text-[11px] text-red-400/70 hover:text-red-400 transition-colors cursor-pointer"
+            >
+              <Trash className="w-3 h-3" />
+              {isOwner ? 'Delete' : 'Hide'}
+            </button>
           )}
         </div>
       </div>
