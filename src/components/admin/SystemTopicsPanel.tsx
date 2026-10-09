@@ -91,7 +91,7 @@ export function SystemTopicsPanel() {
         {drafts.length === 0 ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-[13px] text-ink-soft max-w-md">
-              Gemini reads this week&apos;s AI and engineering news and suggests 3 to 5 topics. You
+              Gemini reads this week&apos;s AI and engineering news and suggests up to 5 topics, the first fitting this month&apos;s theme. You
               review them before anything is posted.
             </p>
             <Button icon={Sparkle} onClick={preview} disabled={busy !== null}>

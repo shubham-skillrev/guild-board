@@ -2,14 +2,18 @@ import 'server-only'
 import { geminiJson } from '@/lib/ai/gemini'
 import { fetchCandidates, type Candidate } from '@/lib/bytes/sources'
 import type { SystemTopicDraft } from '@/lib/system/topics'
+import type { CycleTheme } from '@/lib/themes'
 
 /**
  * GuildBot's monthly board suggestions, from this week's tech news.
  *
  * 1. Fetch the latest from our sources: Google News search on AI and
  *    engineering topics, the engineering blogs and talks, and Hacker News.
- * 2. Hand the whole pool to Gemini and ask for 3-5 discussion topics, each
- *    with a title and a description: 1-2 about AI, 2-3 about engineering.
+ * 2. Hand the whole pool to Gemini and ask for 5 discussion topics, best
+ *    first, each with a title and a description: 1-2 about AI, the rest
+ *    about engineering. When the month has a theme, the first one fits it.
+ * 3. Keep the first `count` that survive the checks below. The monthly job
+ *    posts 3; the admin button previews all 5 to choose from.
  *
  * Grounding: every topic must cite pool items by id, and the links it gets
  * come from those items, never from the model. A topic citing nothing we
@@ -58,9 +62,10 @@ const SCHEMA = {
 
 const SYSTEM = `You pick discussion topics for SkillRev's monthly engineering guild: about thirty software engineers who meet for an hour to talk tech.
 
-You are given this week's tech news and engineering posts, each with a source_id. Choose between 3 and 5 topics in total:
+You are given this week's tech news and engineering posts, each with a source_id, and possibly this month's theme. Choose 5 topics, best first:
 - 1 or 2 topics about AI.
-- 2 or 3 topics about software engineering (architecture, infrastructure, tooling, languages, security, data, practice).
+- The rest about software engineering (architecture, infrastructure, tooling, languages, security, data, practice).
+- If a theme is given, put a topic that fits it first, framed so it invites the kind of post the theme asks for. The theme is a lens, not a requirement: only use it where the items genuinely support it, and never invent facts to make something fit.
 
 A good topic is something engineers would genuinely want to argue about or try. Skip funding rounds, earnings, gadgets and consumer news. Merge items that cover the same story into one topic.
 
@@ -69,9 +74,12 @@ For each topic write a plain, specific title and a 2-4 sentence description that
 export async function suggestSystemTopics(args: {
   monthLabel: string
   existingTitles: string[]
+  theme?: CycleTheme | null
   count?: number
 }): Promise<SystemTopicDraft[]> {
   const max = Math.min(args.count ?? MAX_TOPICS, MAX_TOPICS)
+  // Never all AI: at least one engineering topic, however few are kept.
+  const maxAi = Math.min(MAX_AI, max - 1)
 
   const pool = (await fetchCandidates(8, 40))
     .sort((a, b) => b.score - a.score)
@@ -93,6 +101,8 @@ export async function suggestSystemTopics(args: {
     label: 'system topics',
     system: SYSTEM,
     prompt: `It is ${args.monthLabel}.
+
+${args.theme ? `This month's theme: ${args.theme.title} ${args.theme.blurb}` : 'This month has no theme.'}
 
 Already on the board (do not repeat):
 ${args.existingTitles.map(t => `- ${t}`).join('\n') || '- (nothing yet)'}
@@ -118,9 +128,9 @@ ${JSON.stringify(items)}`,
       .filter((c): c is Candidate => !!c)
     if (cited.length === 0) continue
 
-    // The split, enforced: 1-2 AI, 2-3 engineering.
+    // The split, enforced: 1-2 AI, the rest engineering.
     if (t.area === 'ai') {
-      if (ai >= MAX_AI) continue
+      if (ai >= maxAi) continue
       ai++
     } else {
       if (eng >= MAX_ENGINEERING) continue

@@ -2,7 +2,7 @@
 // AUTH: admin only
 // PURPOSE: The admin "Suggest topics" button. Two steps, so a person sees
 //          Gemini's picks before anything reaches the board or Slack:
-//            { action: 'preview' }          -> 3-5 drafts, nothing written
+//            { action: 'preview' }          -> up to 5 drafts, nothing written
 //            { action: 'post', drafts: [] } -> post the chosen drafts as
 //                                              GuildBot, then one Slack
 //                                              message and one push
@@ -15,6 +15,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { suggestSystemTopics } from '@/lib/system/suggest'
 import { publishSystemTopics, sanitizeDrafts } from '@/lib/system/topics'
 import { isGeminiConfigured } from '@/lib/ai/gemini'
+import { sanitizeTheme } from '@/lib/themes'
 
 // Fetching the news pool plus one Gemini call, with retries on rate limits.
 export const maxDuration = 300
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
 
   const { data: cycle } = await admin
     .from('cycles')
-    .select('id, label')
+    .select('id, label, theme')
     .eq('status', 'open')
     .order('year', { ascending: false })
     .order('month', { ascending: false })
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
     const drafts = await suggestSystemTopics({
       monthLabel: cycle.label,
       existingTitles: (topics ?? []).map(t => t.title),
+      theme: sanitizeTheme(cycle.theme),
     })
     if (drafts.length === 0) {
       return NextResponse.json(

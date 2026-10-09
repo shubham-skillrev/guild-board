@@ -11,19 +11,21 @@ import { rejectIfNotCron } from '@/lib/bytes/cron'
 import { CURATED } from '@/lib/system/curated'
 import { countSystemTopics, publishSystemTopics } from '@/lib/system/topics'
 import { suggestSystemTopics } from '@/lib/system/suggest'
+import { sanitizeTheme } from '@/lib/themes'
 
 /* Runs daily, acts once: the first run that finds an open cycle with no
    system posts fills it, and every later run that cycle is a no-op. Cycles
    are opened by hand, so a fixed monthly date would miss a late opening.
-   A month listed in CURATED uses those hand-checked picks; any other month
-   asks Gemini to pick 3-5 from this week's fetched news (1-2 AI, 2-3
-   engineering). ?dry=1 skips both guards and returns Gemini's picks without
+   It runs 30 minutes after autopilot (vercel.json), so a month autopilot
+   opens gets its posts the same morning. A month listed in CURATED uses
+   those hand-checked picks; any other month asks Gemini for 3 from this
+   week's fetched news, the first fitting the month's theme. ?dry=1 skips both guards and returns Gemini's picks without
    posting or notifying, for checking the output. */
 
 // Fetching the pool plus one Gemini call, with retries on rate limits.
 export const maxDuration = 300
 
-const SUGGESTIONS_PER_CYCLE = 5
+const SUGGESTIONS_PER_CYCLE = 3
 
 export async function GET(request: Request) {
   const rejected = rejectIfNotCron(request)
@@ -32,7 +34,7 @@ export async function GET(request: Request) {
   const admin = createAdminClient()
   const { data: cycle } = await admin
     .from('cycles')
-    .select('id, label, month, year')
+    .select('id, label, month, year, theme')
     .eq('status', 'open')
     .order('year', { ascending: false })
     .order('month', { ascending: false })
@@ -40,12 +42,14 @@ export async function GET(request: Request) {
     .maybeSingle()
   if (!cycle) return NextResponse.json({ skipped: true, reason: 'no_open_cycle' })
 
+  const theme = sanitizeTheme(cycle.theme)
   const dry = new URL(request.url).searchParams.get('dry') === '1'
   if (dry) {
     const { data: topics } = await admin.from('topics').select('title').eq('cycle_id', cycle.id).eq('is_deleted', false)
     const drafts = await suggestSystemTopics({
       monthLabel: cycle.label,
       existingTitles: (topics ?? []).map(t => t.title),
+      theme,
       count: SUGGESTIONS_PER_CYCLE,
     })
     return NextResponse.json({ dryRun: true, count: drafts.length, drafts })
@@ -67,6 +71,7 @@ export async function GET(request: Request) {
     drafts = await suggestSystemTopics({
       monthLabel: cycle.label,
       existingTitles: (topics ?? []).map(t => t.title),
+      theme,
       count: SUGGESTIONS_PER_CYCLE,
     })
   }
