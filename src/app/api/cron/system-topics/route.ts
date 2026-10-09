@@ -2,6 +2,8 @@
 // AUTH: shared secret via Authorization: Bearer $CRON_SECRET (NOT a user session)
 // PURPOSE: Once per cycle, GuildBot suggests a few topics nobody has brought
 //          yet (recent tech and AI releases), posted to the board as its own.
+//          Every day, it also runs GuildBot's daily check (drought messages,
+//          its own ignored topics) from src/lib/guildbot-host/reactions.ts.
 // DB TABLES: cycles, topics, bytes, users
 // RLS: service-role client (no user context exists here)
 
@@ -12,6 +14,7 @@ import { CURATED } from '@/lib/system/curated'
 import { countSystemTopics, publishSystemTopics } from '@/lib/system/topics'
 import { suggestSystemTopics } from '@/lib/system/suggest'
 import { sanitizeTheme } from '@/lib/themes'
+import { runDaily } from '@/lib/guildbot-host/reactions'
 
 /* Runs daily, acts once: the first run that finds an open cycle with no
    system posts fills it, and every later run that cycle is a no-op. Cycles
@@ -34,7 +37,7 @@ export async function GET(request: Request) {
   const admin = createAdminClient()
   const { data: cycle } = await admin
     .from('cycles')
-    .select('id, label, month, year, theme')
+    .select('id, label, month, year, theme, opens_at, created_at, meeting_at')
     .eq('status', 'open')
     .order('year', { ascending: false })
     .order('month', { ascending: false })
@@ -42,8 +45,19 @@ export async function GET(request: Request) {
     .maybeSingle()
   if (!cycle) return NextResponse.json({ skipped: true, reason: 'no_open_cycle' })
 
-  const theme = sanitizeTheme(cycle.theme)
   const dry = new URL(request.url).searchParams.get('dry') === '1'
+  const topics = await postTopics(admin, cycle, dry)
+  // After posting, so a drought count on opening day includes the bot's own topics.
+  const guildbot = await runDaily(cycle, { dry })
+  return NextResponse.json({ ...topics, guildbot })
+}
+
+async function postTopics(
+  admin: ReturnType<typeof createAdminClient>,
+  cycle: { id: string; label: string; month: number; year: number; theme: unknown },
+  dry: boolean,
+) {
+  const theme = sanitizeTheme(cycle.theme)
   if (dry) {
     const { data: topics } = await admin.from('topics').select('title').eq('cycle_id', cycle.id).eq('is_deleted', false)
     const drafts = await suggestSystemTopics({
@@ -52,11 +66,11 @@ export async function GET(request: Request) {
       theme,
       count: SUGGESTIONS_PER_CYCLE,
     })
-    return NextResponse.json({ dryRun: true, count: drafts.length, drafts })
+    return { dryRun: true, count: drafts.length, drafts }
   }
 
   if ((await countSystemTopics(cycle.id)) > 0) {
-    return NextResponse.json({ skipped: true, reason: 'already_posted' })
+    return { skipped: true, reason: 'already_posted' }
   }
 
   const key = `${cycle.year}-${String(cycle.month).padStart(2, '0')}`
@@ -77,9 +91,9 @@ export async function GET(request: Request) {
   }
 
   if (drafts.length === 0) {
-    return NextResponse.json({ skipped: true, reason: 'nothing_to_suggest', source })
+    return { skipped: true, reason: 'nothing_to_suggest', source }
   }
 
   const posted = await publishSystemTopics(cycle, drafts.slice(0, SUGGESTIONS_PER_CYCLE))
-  return NextResponse.json({ posted: posted.length, source, titles: posted.map(p => p.title) })
+  return { posted: posted.length, source, titles: posted.map(p => p.title) }
 }

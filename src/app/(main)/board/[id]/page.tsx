@@ -94,6 +94,10 @@ export default function TopicDetailPage({
      refetch would overwrite your draft. */
   const [liveSignals, setLiveSignals] = useState<Record<string, number> | undefined>(undefined)
   const [commentsVersion, setCommentsVersion] = useState(0)
+  // "GuildBot is typing": shown until its comment lands, or 25s at most.
+  const [botTyping, setBotTyping] = useState(false)
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (typingTimer.current) clearTimeout(typingTimer.current) }, [])
   const editingRef = useRef(false)
   useEffect(() => { editingRef.current = editing }, [editing])
   const refetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -111,7 +115,15 @@ export default function TopicDetailPage({
       } : t)
       setLiveSignals(c.signal_counts)
     }
-    if (u.changed.includes('comments')) setCommentsVersion(v => v + 1)
+    if (u.changed.includes('bot_typing')) {
+      setBotTyping(true)
+      if (typingTimer.current) clearTimeout(typingTimer.current)
+      typingTimer.current = setTimeout(() => setBotTyping(false), 25_000)
+    }
+    if (u.changed.includes('comments')) {
+      setCommentsVersion(v => v + 1)
+      setBotTyping(false)
+    }
     if ((u.changed.includes('poll') || u.changed.includes('topics')) && !editingRef.current) {
       if (refetchTimer.current) clearTimeout(refetchTimer.current)
       refetchTimer.current = setTimeout(fetchTopic, 300)
@@ -485,6 +497,12 @@ export default function TopicDetailPage({
               isGhostOp={topic.is_anonymous && topic.is_owner === true}
               refreshKey={commentsVersion}
             />
+            {botTyping && (
+              <p role="status" className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-cha">
+                <span aria-hidden className="text-saffron">◈</span>
+                GuildBot is typing<span className="animate-pulse">…</span>
+              </p>
+            )}
           </div>
         </div>
 

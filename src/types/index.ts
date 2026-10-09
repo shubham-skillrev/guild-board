@@ -129,6 +129,8 @@ export interface Comment {
   is_op?: boolean
   /** Owner, or an admin hiding it. */
   can_delete?: boolean
+  /** Written by GuildBot. */
+  is_system?: boolean
   author_username?: string
   user_reaction?: 1 | -1 | null  // current user's reaction
   replies?: Comment[]

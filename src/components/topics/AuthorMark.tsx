@@ -12,9 +12,12 @@ export function AuthorMark({
   isSystem,
   size = 16,
   className,
+  tag = 'Suggested',
 }: {
   username: string | null | undefined
   isSystem?: boolean
+  /** The pill after GuildBot's name: "Suggested" on topics, "Bot" in comments. */
+  tag?: string
   size?: number
   className?: string
 }) {
@@ -29,7 +32,7 @@ export function AuthorMark({
           ◈
         </span>
         <span className="font-medium text-ink-soft truncate">{SYSTEM_DISPLAY_NAME}</span>
-        <span className="shrink-0 rounded-full border border-border px-1.5 text-[10px] leading-4 text-cha">Suggested</span>
+        <span className="shrink-0 rounded-full border border-border px-1.5 text-[10px] leading-4 text-cha">{tag}</span>
       </span>
     )
   }

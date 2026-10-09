@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { UserAvatar } from '@/components/ui/UserAvatar'
+import { RoastMeToggle } from '@/components/profile/RoastMeToggle'
 
 export const metadata: Metadata = { title: 'Your profile' }
 
@@ -73,6 +74,8 @@ export default async function ProfilePage() {
       </div>
 
       {/* Your ideas */}
+      <RoastMeToggle initial={profile.roast_me === true} />
+
       <section className="mb-8">
         <h2 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-3">
           Your Ideas ({topics.length})

@@ -13,6 +13,11 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
+import { guildbotAfter, onTopicPosted } from '@/lib/guildbot-host/reactions'
+
+// GuildBot may write a comment after the response: a model call and a
+// review, about 20s each, plus up to 45s of retry on a busy model.
+export const maxDuration = 120
 import { MEMBER_TOPIC_FIELDS } from '@/lib/utils/anonymity'
 import { notifyOnNewTopic, notifyOnIdeaTaken, notifyAfterResponse } from '@/lib/push/notify'
 import type { CategoryTag } from '@/types'
@@ -141,6 +146,7 @@ export async function POST(request: Request) {
     'notifyOnNewTopic',
   )
   broadcastTopicChange(topic.id, ['topics'])
+  guildbotAfter(() => onTopicPosted(topic.id), 'onTopicPosted')
 
   // Tell the originator their idea got picked up - the payoff for banking
   // something you were never going to pitch yourself.

@@ -11,6 +11,11 @@ import { getViewer } from '@/lib/supabase/viewer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
+import { guildbotAfter, onTopicPosted } from '@/lib/guildbot-host/reactions'
+
+// GuildBot may write a comment after the response: a model call and a
+// review, about 20s each, plus up to 45s of retry on a busy model.
+export const maxDuration = 120
 import { botSays } from '@/lib/guildbot-host/voice'
 import { notifyOnNewTopic, notifyAfterResponse } from '@/lib/push/notify'
 import { serializeTopic, withoutAuthor, MEMBER_TOPIC_FIELDS } from '@/lib/utils/anonymity'
@@ -187,6 +192,7 @@ export async function POST(request: Request) {
 
   notifyAfterResponse(notifyOnNewTopic({ topicId: data.id, actorId: user.id }), "notifyOnNewTopic")
   broadcastTopicChange(data.id, ['topics'])
+  guildbotAfter(() => onTopicPosted(data.id), 'onTopicPosted')
 
   return NextResponse.json({ ...data, is_owner: true }, { status: 201 })
 }

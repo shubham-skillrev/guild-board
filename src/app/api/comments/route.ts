@@ -12,6 +12,11 @@ import { notifyOnComment, notifyAfterResponse } from '@/lib/push/notify'
 import { commentIsGhost, ghostHandle, serializeComment, withoutAuthor } from '@/lib/utils/anonymity'
 import { broadcastTopicChange } from '@/lib/realtime/broadcast'
 import { NextResponse } from 'next/server'
+import { guildbotAfter, onCommentPosted } from '@/lib/guildbot-host/reactions'
+
+// GuildBot may write a comment after the response: a model call and a
+// review, about 20s each, plus up to 45s of retry on a busy model.
+export const maxDuration = 120
 
 const COMMENT_MAX_LENGTH = 2000
 
@@ -159,6 +164,7 @@ export async function POST(request: Request) {
     body: commentBody.trim(),
   }), "notifyOnComment")
   broadcastTopicChange(topic_id, ['counts', 'comments'])
+  guildbotAfter(() => onCommentPosted(data.id), 'onCommentPosted')
 
   return NextResponse.json({
     ...serializeComment(data, topic, { id: user.id, isAdmin: false }),
