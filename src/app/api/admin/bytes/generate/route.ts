@@ -79,7 +79,7 @@ export async function POST(request: Request) {
      cron one and has to announce itself the same way. It did not, which meant a
      manually generated digest sat on the page with nobody told it existed. */
   notifyAfterResponse(
-    notifyOnBytesPublished({ label: result.label, count: result.count, mix: result.mix }),
+    notifyOnBytesPublished({ digestId: result.digestId, label: result.label, count: result.count, mix: result.mix }),
     'notifyOnBytesPublished',
   )
 

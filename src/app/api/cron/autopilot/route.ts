@@ -158,7 +158,7 @@ export async function GET(request: Request) {
             if (!result.ok) {
               steps.push({ step: 'bytes', done: false, detail: `${label}: ${result.reason} (${result.message})` })
             } else {
-              await notifyOnBytesPublished({ label: result.label, count: result.count, mix: result.mix })
+              await notifyOnBytesPublished({ digestId: result.digestId, label: result.label, count: result.count, mix: result.mix })
               steps.push({ step: 'bytes', done: true, detail: `${label}: ${result.count} stories` })
             }
           }

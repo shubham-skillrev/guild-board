@@ -258,8 +258,15 @@ const SLACK = {
       `*GuildBot suggested ${topics.length} ${topics.length === 1 ? 'topic' : 'topics'} for ${escapeSlack(label)}.* Mark the ones you want to talk about.`,
       ...topics.map(t => `• ${appLink(`/board/${t.id}`, truncate(t.title, 90))}`),
     ].join("\n"),
-  bytes: (label: string, parts: string[]) =>
-    `*Bytes · ${escapeSlack(label)}*${parts.length ? ` · ${parts.join(", ")}` : ""}\n${appLink("/bytes", "Read it on GuildBoard")}`,
+  /* The whole digest, one line per story, so the channel gets a glimpse of
+     what is in it. Each line opens the story on GuildBoard, where the upvote
+     that puts it on the agenda lives. */
+  bytes: (label: string, parts: string[], items: ByteNotice[]) =>
+    [
+      `*Bytes · ${escapeSlack(label)}*${parts.length ? ` · ${parts.join(", ")}` : ""}`,
+      ...items.map(b => `• ${appLink(`/bytes/${b.id}`, truncate(b.title, 90))}${b.source_name ? ` · _${escapeSlack(b.source_name)}_` : ""}`),
+      appLink("/bytes", "Read it on GuildBoard"),
+    ].join("\n"),
 };
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -485,6 +492,7 @@ export async function notifyOnCycleEnded(args: { label: string }) {
  * where the board is locked and there is otherwise nothing to come back for.
  */
 export async function notifyOnBytesPublished(args: {
+  digestId: string;
   label: string;
   count: number;
   mix?: { blog: number; news: number; video: number; hn: number };
@@ -492,8 +500,18 @@ export async function notifyOnBytesPublished(args: {
   // With Bytes hidden this push would land on a redirect.
   if (HIDE_BYTES) return;
   const parts = describeMix(args.mix);
+  const { data: rows } = await createAdminClient()
+    .from("bytes")
+    .select("id, source_title, source_name")
+    .eq("digest_id", args.digestId)
+    .order("position", { ascending: true });
+  const items: ByteNotice[] = (rows ?? []).map(r => ({
+    id: r.id,
+    title: r.source_title,
+    source_name: r.source_name,
+  }));
   await Promise.all([
-    postToSlack({ text: SLACK.bytes(args.label, parts) }),
+    postToSlack({ text: SLACK.bytes(args.label, parts, items) }),
     broadcast({
       title: pick(COPY.bytesPublished.titles),
       body: COPY.bytesPublished.body(args.label, args.count, parts),
@@ -543,6 +561,13 @@ export async function notifyMeetingReminder(args: {
       tag: `meeting:${args.cycleId}`,
     }),
   ]);
+}
+
+/** One story in a digest, as the Slack message lists it. */
+interface ByteNotice {
+  id: string;
+  title: string;
+  source_name: string | null;
 }
 
 export interface SystemTopicNotice {
