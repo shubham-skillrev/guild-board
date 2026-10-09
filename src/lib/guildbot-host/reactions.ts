@@ -272,7 +272,7 @@ export async function runDaily(
  * open cycle after launch, right after that month's suggested topics go up.
  * Recorded before sending, so a second run can never repeat it.
  */
-export const INTRO_MAX = 800
+export const INTRO_MAX = 900
 
 export async function introduceOnce(
   cycle: { id: string; label: string },

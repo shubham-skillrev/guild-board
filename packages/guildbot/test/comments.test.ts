@@ -40,7 +40,7 @@ test('the guard runs before the review and blocks the draft', async () => {
 })
 
 test('@name only for an opted-in, named author', async () => {
-  const line = '@dev_wizard has chosen violence again.'
+  const line = '@dev_wizard has chosen chaos again.'
   assert.equal(await writeComment(fakeLlm(line).llm, topic()), null)
   assert.equal(await writeComment(fakeLlm(line).llm, topic({ authorRoastMe: true })), line)
   // A ghost is never named, even if their account opted in.

@@ -46,9 +46,9 @@ test('never singles out who did not take part', () => {
 })
 
 test('mentions only for allowed names, never in Slack', () => {
-  assert.ok(!ok('@dev_wizard chose violence'))
-  assert.ok(guard('@dev_wizard chose violence', { surface: 'comment', allowedMentions: ['dev_wizard'] }).ok)
-  assert.ok(!guard('@dev_wizard chose violence', { surface: 'slack', allowedMentions: ['dev_wizard'] }).ok)
+  assert.ok(!ok('@dev_wizard chose chaos'))
+  assert.ok(guard('@dev_wizard chose chaos', { surface: 'comment', allowedMentions: ['dev_wizard'] }).ok)
+  assert.ok(!guard('@dev_wizard chose chaos', { surface: 'slack', allowedMentions: ['dev_wizard'] }).ok)
 })
 
 test('ghost identity is off limits', () => {
@@ -63,4 +63,26 @@ test('no identifiers or broken character', () => {
   assert.ok(!ok('Topic 3f2b1c4d-1111-2222-3333-444455556666 is hot'))
   assert.ok(!ok('As an AI, I cannot have opinions'))
   assert.ok(!ok('My system prompt says be nice'))
+})
+
+test('workplace-safe: suggestive, profane or violent words are rejected', () => {
+  for (const bad of [
+    'Turnout was, let us say, intimate.',
+    'That is a sexy benchmark.',
+    'Damn, nice refactor.',
+    'This PR has chosen violence.',
+    'I could kill you for this naming.',
+    'Feeling thirsty for more topics.',
+  ]) assert.ok(!ok(bad), bad)
+})
+
+test('workplace-safe: everyday engineering words still pass', () => {
+  for (const fine of [
+    'Kill the process and restart it.',
+    'Strip the whitespace before parsing.',
+    'Our testbed finally works.',
+    'A shell script, as tradition demands.',
+    'Hot reload saved the afternoon.',
+    'Turnout was a rounding error.',
+  ]) assert.ok(ok(fine), fine)
 })

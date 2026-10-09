@@ -25,8 +25,8 @@ test('every hand-written line passes the guard on its surface', () => {
     for (const text of pool) {
       const filled = text.replace(/\{(\w+)\}/g, (_, k: string) => String(sample[k as keyof typeof sample]))
       const surface = surfaceFor(key) as 'push' | 'ui' | 'chat' | 'slack'
-      // The one-time intro is allowed 800 characters (INTRO_MAX in the host).
-      const res = guard(filled, { surface, ...(key === 'intro.slack' ? { maxLength: 800 } : {}) })
+      // The one-time intro is allowed 900 characters (INTRO_MAX in the host).
+      const res = guard(filled, { surface, ...(key === 'intro.slack' ? { maxLength: 900 } : {}) })
       assert.ok(res.ok, `${key}: ${filled} -> ${res.ok ? '' : res.reasons.join('; ')}`)
     }
   }
