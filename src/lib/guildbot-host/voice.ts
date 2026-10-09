@@ -18,11 +18,13 @@ export function botSays(
   seed: string,
   surface: Surface,
   vars: Record<string, string | number> = {},
+  /** Override the surface's length cap, for one-off messages like the intro. */
+  maxLength?: number,
 ): string | null {
   if (!SASS) return null
   const text = line(key, seed, vars)
   if (!text) return null
-  const checked = guard(text, { surface })
+  const checked = guard(text, { surface, maxLength })
   return checked.ok ? checked.text : null
 }
 

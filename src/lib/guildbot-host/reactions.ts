@@ -272,6 +272,8 @@ export async function runDaily(
  * open cycle after launch, right after that month's suggested topics go up.
  * Recorded before sending, so a second run can never repeat it.
  */
+export const INTRO_MAX = 800
+
 export async function introduceOnce(
   cycle: { id: string; label: string },
   { dry = false }: { dry?: boolean } = {},
@@ -280,7 +282,8 @@ export async function introduceOnce(
   const admin = createAdminClient()
   if (await firedEver(admin, 'intro')) return { sent: false, reason: 'already_introduced' }
 
-  const slack = botSays('intro.slack', 'intro', 'slack', { month: cycle.label })
+  // Said once ever, so it gets more room than a routine Slack line.
+  const slack = botSays('intro.slack', 'intro', 'slack', { month: cycle.label }, INTRO_MAX)
   const push = botSays('intro.push', 'intro', 'push')
   if (!slack || !push) return { sent: false, reason: 'no_line' }
   if (dry) return { sent: false, reason: 'dry_run', text: slack }
