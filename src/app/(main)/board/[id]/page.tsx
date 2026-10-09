@@ -19,6 +19,7 @@ import { useGuestGate } from '@/components/auth/GuestGate'
 import { SparkButton } from '@/components/voting/SparkButton'
 import { SignalRow } from '@/components/topics/SignalRow'
 import { PollCard } from '@/components/topics/PollCard'
+import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
 import { PollEditor, pollPayload, type PollDraft } from '@/components/topics/PollEditor'
 import { FOCUS_FORMAT } from '@/lib/experiment'
 import { useLiveChannel } from '@/hooks/useLiveChannel'
@@ -499,7 +500,7 @@ export default function TopicDetailPage({
             />
             {botTyping && (
               <p role="status" className="mt-3 inline-flex items-center gap-1.5 text-[12px] text-cha">
-                <span aria-hidden className="text-saffron">◈</span>
+                <GuildBotMark size={16} className="text-ink-soft" />
                 GuildBot is typing<span className="animate-pulse">…</span>
               </p>
             )}

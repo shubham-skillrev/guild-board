@@ -115,7 +115,7 @@ export function PushOptIn() {
 
   return (
     <Portal>
-      <div className="fixed inset-x-3 bottom-20 z-(--z-overlay) mx-auto max-w-sm elev-2 rounded-(--radius-card) p-4 sm:left-auto sm:right-4 sm:bottom-4">
+      <div className="fixed inset-x-3 bottom-20 z-(--z-overlay) mx-auto max-w-sm elev-2 rounded-(--radius-card) p-4 sm:right-auto sm:left-4 sm:bottom-4">
         <p className="text-sm font-semibold text-ink">Stay in the loop</p>
         <p className="mt-1 text-xs text-ink-soft">
           Enable notifications for replies, reactions, and topic activity.

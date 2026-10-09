@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { moodFor } from '@guildboard/guildbot'
-import { botSays, BOT_MARK } from '@/lib/guildbot-host/voice'
+import { botSays } from '@/lib/guildbot-host/voice'
+import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
 import type { Cycle, Topic } from '@/types'
 
 const DAY = 86_400_000
@@ -29,7 +30,7 @@ export function GuildBotMood({ cycle, topics }: { cycle: Cycle; topics: Topic[] 
 
   return (
     <p className="mt-2 inline-flex items-center gap-1.5 text-[12px] text-cha" aria-label={`GuildBot says: ${text}`}>
-      <span aria-hidden className="text-saffron">{BOT_MARK}</span>
+      <GuildBotMark size={16} className="text-ink-soft" />
       {text}
     </p>
   )

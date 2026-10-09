@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { botSays, BOT_MARK } from '@/lib/guildbot-host/voice'
+import { botSays } from '@/lib/guildbot-host/voice'
+import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
+import { BodyPortal } from '@/components/guildbot/BodyPortal'
 
 const SEQUENCE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a']
 
@@ -39,14 +41,16 @@ export function KonamiEgg() {
 
   if (!text) return null
   return (
+    <BodyPortal>
     <button
       type="button"
       onClick={() => setText(null)}
       role="status"
       className="fixed inset-x-4 top-20 z-50 mx-auto max-w-sm flex items-start gap-2.5 rounded-(--radius-card) border border-saffron/40 bg-paper p-4 text-left shadow-2xl animate-fade-up"
     >
-      <span aria-hidden className="text-saffron text-lg leading-none">{BOT_MARK}</span>
+      <GuildBotMark size={22} className="text-ink" />
       <span className="text-[13px] leading-relaxed text-ink">{text}</span>
     </button>
+    </BodyPortal>
   )
 }

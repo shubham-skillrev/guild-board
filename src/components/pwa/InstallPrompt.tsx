@@ -169,7 +169,7 @@ export function InstallPrompt() {
 
   return (
     <Portal>
-      <div className="fixed inset-x-3 bottom-20 z-(--z-overlay) mx-auto max-w-sm rounded-(--radius-card) border border-saffron/25 bg-sumi/95 p-4 shadow-[0_20px_60px_var(--shadow-tint-strong)] backdrop-blur sm:left-auto sm:right-4 sm:bottom-4">
+      <div className="fixed inset-x-3 bottom-20 z-(--z-overlay) mx-auto max-w-sm rounded-(--radius-card) border border-saffron/25 bg-sumi/95 p-4 shadow-[0_20px_60px_var(--shadow-tint-strong)] backdrop-blur sm:right-auto sm:left-4 sm:bottom-4">
         {!showHow ? (
           <div className="flex items-start gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
