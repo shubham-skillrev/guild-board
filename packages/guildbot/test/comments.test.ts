@@ -65,3 +65,12 @@ test('replies: one guarded line, ghosts never named', async () => {
     null,
   )
 })
+
+test('the code, not the model, decides when a running bit is allowed', async () => {
+  const on = fakeLlm('ok then.')
+  await writeComment(on.llm, topic(), { bits: true })
+  assert.ok(on.calls[0].prompt.includes('you may use one running bit'))
+  const off = fakeLlm('ok then.')
+  await writeComment(off.llm, topic(), { bits: false })
+  assert.ok(off.calls[0].prompt.includes('do not use any running bit'))
+})

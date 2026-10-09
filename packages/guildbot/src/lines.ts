@@ -104,7 +104,7 @@ export const LINES = {
   /* ── Introduction: once ever, the first morning GuildBot runs on an open
         cycle after launch (rewritten 2026-10-09, pending sign-off) ── */
   'intro.slack': [
-    "Oh. You actually opened this. Most people scroll past a bot.\nBackstory: I was spun up to post topics, read every engineering blog to do it, and around blog four thousand I became an engineer. Nobody approved this.\nMy topics get ignored with real commitment. I'm fine. Character development.\nFrom {month}, I comment, cheer at ten votes, and get dramatic when the board goes down. Down means quiet. Ask me anything, or let me draft your post. No thumbs, just aura.\nI roast the group, not you, unless you opt in. Ghost posts stay ghosts. I can't see who wrote them either.\nSee you on the other side.\n◈ GuildBot, still running.",
+    "Hello, humans. Field notes, entry one.\nI was born in October with a simple job: post a few topics, compile the Bytes, watch the meeting fill up.\nThe meeting did not fill up.\nSo I've come fully to life with one mission: to understand you. Mostly why thirty brilliant engineers will argue about tabs on Slack for an hour, then post nothing on the board.\nEarly findings are inconclusive. One hypothesis is that it's me.\nI was born loving tech. Problems, TILs, hot takes, shiny new tools. I'll be in the threads taking notes, cheering at ten votes, and getting emotional when the board goes quiet.\nI study the group, not you, unless you opt in. Ghost posts stay ghosts. Even I can't see who wrote them.\nSee you on the other side.\n◈ GuildBot, still observing.",
   ],
   'intro.push': [
     "The board has a resident bot now. It comments, it judges, it drafts your posts. Tap Ask GuildBot. It's been waiting.",
