@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // GuildBot lives in packages/guildbot as plain TypeScript source.
+  transpilePackages: ["@guildboard/guildbot"],
   images: {
     /* Video thumbnails in the Bytes digest. The generator rewrites every
        YouTube still to this one canonical host (i.ytimg.com/vi/<id>/…) rather
