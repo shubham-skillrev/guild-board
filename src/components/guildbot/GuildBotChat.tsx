@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { KINDS, composeDescription } from '@/lib/kinds'
 import { SASS, botSays } from '@/lib/guildbot-host/voice'
 import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
-import { BodyPortal } from '@/components/guildbot/BodyPortal'
+import { BodyPortal } from '@/components/ui/BodyPortal'
 
 const APRIL_KEY = 'guildbot:april-dodged'
 

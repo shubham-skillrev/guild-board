@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { botSays } from '@/lib/guildbot-host/voice'
 import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
-import { BodyPortal } from '@/components/guildbot/BodyPortal'
+import { BodyPortal } from '@/components/ui/BodyPortal'
 
 const SEQUENCE = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a']
 

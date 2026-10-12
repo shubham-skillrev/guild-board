@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { cn } from '@/lib/utils/cn'
+import { BodyPortal } from '@/components/ui/BodyPortal'
 
 interface ModalProps {
   title: string
@@ -33,8 +34,12 @@ export function Modal({ title, subtitle, onClose, children, className }: ModalPr
   }, [onClose])
 
   return (
-    // A modal is a blocking task, so it pairs the surface with a dimming scrim
-    // that pushes the background back.
+    // Portalled: inside the page's animated wrapper, `fixed inset-0` sized
+    // itself to the whole page, so on a scrolled phone the dialog sat off
+    // screen and its bottom was cut.
+    <BodyPortal>
+    {/* A modal is a blocking task, so it pairs the surface with a dimming
+        scrim that pushes the background back. */}
     <motion.div
       className="fixed inset-0 z-(--z-scrim) flex items-center justify-center bg-black/35 dark:bg-black/60 backdrop-blur-sm"
       onClick={onClose}
@@ -49,7 +54,9 @@ export function Modal({ title, subtitle, onClose, children, className }: ModalPr
         aria-label={title}
         className={cn(
           'material-raised border border-border-strong rounded-(--radius-card) w-full max-w-lg mx-4',
-          'max-h-[90vh] overflow-y-auto',
+          // dvh, not vh: on phones vh includes the area under the browser bars,
+          // which cut off the dialog's last row (the Post button).
+          'max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain',
           className,
         )}
         onClick={e => e.stopPropagation()}
@@ -80,5 +87,6 @@ export function Modal({ title, subtitle, onClose, children, className }: ModalPr
         {children}
       </motion.div>
     </motion.div>
+    </BodyPortal>
   )
 }

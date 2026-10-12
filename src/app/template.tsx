@@ -18,7 +18,11 @@ export default function Template({ children }: { children: ReactNode }) {
         initial={{ opacity: 0.97, scale: 0.997 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.42, ease: [0.16, 1, 0.3, 1] }}
-        style={{ willChange: 'opacity, transform' }}
+        // Not `transform`: will-change: transform makes this div the containing
+        // block for every position: fixed element inside a page, which broke
+        // modals and floating buttons on scrolled pages. Framer clears the
+        // transform once the scale settles at 1.
+        style={{ willChange: 'opacity' }}
         className="min-h-full"
       >
         {children}
