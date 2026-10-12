@@ -42,7 +42,9 @@ export default async function MainLayout({
 
   return (
     <GuestGateProvider isGuest={isGuest}>
-      <div className="min-h-screen bg-parchment flex flex-col overflow-x-hidden">
+      {/* --gb-drawer-w is set while the GuildBot drawer is docked (>=1280px),
+          so the page narrows beside it instead of hiding under it. */}
+      <div className="min-h-screen bg-parchment flex flex-col overflow-x-hidden xl:pr-[var(--gb-drawer-w,0px)] transition-[padding] duration-300">
         <Suspense fallback={null}>
           <UsernameSetupModal />
         </Suspense>

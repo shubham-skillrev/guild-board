@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { motion, useDragControls, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChartBar, PaperPlaneRight, Trash, X } from '@phosphor-icons/react/dist/ssr'
+import { ArrowUp, ChartBar, ChatsCircle, Newspaper, PencilSimpleLine, Trash, X } from '@phosphor-icons/react/dist/ssr'
 import { cn } from '@/lib/utils/cn'
 import { useToast } from '@/hooks/useToast'
 import { Button } from '@/components/ui/Button'
@@ -13,12 +13,13 @@ import { SASS, botSays } from '@/lib/guildbot-host/voice'
 import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
 import { BodyPortal } from '@/components/ui/BodyPortal'
 import { useGuildBotMood } from '@/components/guildbot/useGuildBotMood'
-import { welcomeKey, meetingWhen, isoWeek } from '@guildboard/guildbot'
+import { welcomeKey, meetingWhen, isoWeek, type Mood } from '@guildboard/guildbot'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useUserTokens } from '@/hooks/useUserTokens'
 import { TOKEN_LIMITS } from '@/lib/constants'
 
 const APRIL_KEY = 'guildbot:april-dodged'
+const DRAWER_W = 400
 
 /** April 1st in India, once per browser session. */
 function dodgeToday(): boolean {
@@ -72,6 +73,14 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   const toast = useToast()
   const { mood, line: moodLine } = useGuildBotMood()
   const desktop = useMediaQuery('(min-width: 768px)')
+  // From 1280px the drawer docks: the page narrows by its width instead of
+  // being covered, so nothing (like the share button) hides underneath it.
+  const docked = useMediaQuery('(min-width: 1280px)')
+  useEffect(() => {
+    if (!open || !docked) return
+    document.documentElement.style.setProperty('--gb-drawer-w', `${DRAWER_W}px`)
+    return () => { document.documentElement.style.removeProperty('--gb-drawer-w') }
+  }, [open, docked])
   const keyboard = useKeyboardInset(open && !desktop)
   const reduce = useReducedMotion()
   const drag = useDragControls()
@@ -109,10 +118,13 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
 
   if (!SASS || !page) return null
 
-  const send = async () => {
-    const text = input.trim()
+  const send = async (preset?: string) => {
+    const text = (preset ?? input).trim()
     if (!text || thinking) return
-    setInput('')
+    if (!preset) {
+      setInput('')
+      if (inputRef.current) inputRef.current.style.height = 'auto'
+    }
     setMessages(m => [...m, { id: `local-${Date.now()}`, role: 'user', body: text }])
     setThinking(true)
     try {
@@ -172,7 +184,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
       )}
 
       {dodge && (
-        <p role="status" className="fixed right-4 bottom-38 md:right-6 md:bottom-20 z-50 max-w-xs inline-flex items-start gap-1.5 rounded-(--radius-card) border border-saffron/40 bg-paper px-3 py-2 text-[12px] text-ink shadow-lg animate-fade-up">
+        <p role="status" className="fixed right-4 bottom-38 md:right-6 md:bottom-20 z-50 max-w-xs inline-flex items-start gap-1.5 rounded-(--radius-card) border border-border-strong bg-paper px-3 py-2 text-[12px] text-ink shadow-lg animate-fade-up">
           <GuildBotMark size={16} className="text-ink mt-px" />{dodge}
         </p>
       )}
@@ -196,10 +208,12 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
             onDragEnd={(_, info) => { if (info.offset.y > 120 || info.velocity.y > 600) setOpen(false) }}
             style={desktop ? undefined : { bottom: keyboard.inset, height: keyboard.height }}
             className={cn(
-              'fixed z-50 flex flex-col bg-paper border-border shadow-2xl',
+              // Its own surface: a raised panel with a firm edge and a cast
+              // shadow, so it never reads as part of the page beside it.
+              'fixed z-50 flex flex-col overflow-hidden bg-paper border-border-strong',
               desktop
-                ? 'top-0 right-0 bottom-0 w-[400px] border-l'
-                : 'inset-x-0 rounded-t-2xl border-t',
+                ? 'top-0 right-0 bottom-0 w-[400px] border-l shadow-[-20px_0_48px_-16px_rgba(0,0,0,0.45)]'
+                : 'inset-x-0 rounded-t-2xl border-t shadow-[0_-12px_40px_-8px_rgba(0,0,0,0.4)]',
             )}
           >
             {!desktop && (
@@ -212,7 +226,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
               onPointerDown={e => { if (!desktop) drag.start(e) }}
               className={cn('flex items-center gap-3 px-4 border-b border-border', desktop ? 'h-16' : 'pb-3 touch-none')}
             >
-              <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-saffron-light text-ink shrink-0">
+              <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-sumi border border-border text-ink shrink-0">
                 <GuildBotMark size={22} mood={mood} />
               </span>
               <div className="min-w-0">
@@ -238,51 +252,90 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
               </div>
             ) : (
               <>
-                <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3" aria-live="polite">
+                {/* A recessed well behind the conversation, darker than the header
+                    and composer, so the three zones read apart without colour. */}
+                <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 space-y-5 bg-sumi" aria-live="polite">
                   {loaded && messages.length === 0 && (
-                    <p className="text-footnote text-cha leading-relaxed">
-                      Ask about this month&apos;s topics or Bytes, or tell me an idea and ask me to draft it as a post. 15 asks a week. On meeting day I share anonymous themes from everyone&apos;s chats in Slack, never who asked what, then delete every chat.
-                    </p>
+                    <div className="space-y-4">
+                      <BotRow mood={mood}>
+                        <p className="rounded-2xl rounded-tl-md border border-border bg-paper px-3.5 py-2.5 text-footnote leading-relaxed text-ink">
+                          Ask me about this month&apos;s topics or Bytes, or give me an idea and I&apos;ll draft the post. You press Post.
+                        </p>
+                      </BotRow>
+                      <div className="flex flex-wrap gap-2 pl-9">
+                        {suggestionsFor(page).map(q => (
+                          <button
+                            key={q}
+                            type="button"
+                            onClick={() => send(q)}
+                            className="press rounded-full border border-border bg-paper px-3 h-8 text-footnote text-ink-soft hover:border-border-strong hover:text-ink"
+                          >
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="pl-9 text-caption text-cha leading-relaxed">
+                        15 asks a week. On meeting day I share anonymous themes from everyone&apos;s chats in Slack, never who asked what, then delete every chat.
+                      </p>
+                    </div>
                   )}
                   {messages.map(m => (
                     <ChatBubble
                       key={m.id}
                       message={m}
+                      mood={mood}
                       onPosted={() => setMessages(list => list.map(x => (x.id === m.id ? { ...x, posted: true } : x)))}
                     />
                   ))}
                   {thinking && (
-                    <p role="status" className="inline-flex items-center gap-1.5 text-caption text-cha">
-                      <GuildBotMark size={16} mood={mood} className="text-ink-soft" />
-                      GuildBot is typing<span className="animate-pulse">…</span>
-                    </p>
+                    <BotRow mood={mood}>
+                      <p role="status" className="inline-flex items-center gap-1 rounded-2xl rounded-tl-md border border-border bg-paper px-3.5 h-9 text-caption text-cha">
+                        GuildBot is typing<span className="animate-pulse">…</span>
+                      </p>
+                    </BotRow>
                   )}
                 </div>
 
                 <form
                   onSubmit={e => { e.preventDefault(); send() }}
-                  className="flex items-end gap-2 p-3 border-t border-border pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+                  className="bg-paper border-t border-border px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
                 >
-                  <textarea
-                    ref={inputRef}
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-                    rows={1}
-                    maxLength={1500}
-                    placeholder="Ask GuildBot…"
-                    aria-label="Message GuildBot"
-                    // 16px on phones: smaller text makes iOS zoom the page on focus.
-                    className="flex-1 max-h-28 resize-none bg-sumi rounded-(--radius-control) px-3 py-2.5 text-[16px] md:text-footnote text-ink placeholder:text-cha focus:outline-none focus:bg-paper border border-transparent focus:border-border-strong"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!input.trim() || thinking}
-                    aria-label="Send"
-                    className="press shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full bg-saffron text-parchment disabled:opacity-40"
-                  >
-                    <PaperPlaneRight className="w-4 h-4" />
-                  </button>
+                  {/* One field with the send button inside it, the shape every
+                      chat app has taught people to read as "type here". */}
+                  {/* The text line is exactly the button's 32px, so on one line
+                      they share a centre; as the text grows the button stays on
+                      the last line (items-end). */}
+                  <div className="flex items-end gap-2 rounded-2xl border border-border bg-sumi pl-3.5 pr-1.5 py-1.5 transition-colors focus-within:border-border-strong focus-within:bg-paper">
+                    <textarea
+                      ref={inputRef}
+                      value={input}
+                      onChange={e => {
+                        setInput(e.target.value)
+                        const el = e.target
+                        el.style.height = 'auto'
+                        el.style.height = `${Math.min(el.scrollHeight, 168)}px`
+                      }}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+                      rows={1}
+                      maxLength={1500}
+                      placeholder="Ask GuildBot…"
+                      aria-label="Message GuildBot"
+                      // 16px on phones: smaller text makes iOS zoom the page on focus.
+                      className="flex-1 min-w-0 resize-none bg-transparent py-1 min-h-8 text-[16px] leading-6 md:text-[14px] text-ink placeholder:text-cha focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!input.trim() || thinking}
+                      aria-label="Send"
+                      className={cn(
+                        'press shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full transition-colors',
+                        input.trim() && !thinking ? 'bg-saffron text-parchment hover:bg-saffron/90' : 'bg-fill text-cha',
+                      )}
+                    >
+                      <ArrowUp className="w-4 h-4" weight="bold" />
+                    </button>
+                  </div>
+                  <p className="hidden md:block mt-1.5 px-1 text-caption text-cha">Enter to send · Shift + Enter for a new line</p>
                 </form>
               </>
             )}
@@ -293,34 +346,57 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   )
 }
 
-function ChatBubble({ message, onPosted }: { message: Message; onPosted: () => void }) {
-  const mine = message.role === 'user'
+/** A bot turn: GuildBot's face beside whatever it said. */
+function BotRow({ mood, children }: { mood: Mood; children: React.ReactNode }) {
   return (
-    <div className={cn('flex flex-col gap-1.5', mine ? 'items-end' : 'items-start')}>
-      <p
-        className={cn(
-          'max-w-[90%] whitespace-pre-wrap rounded-(--radius-card) px-3 py-2 text-[13px] leading-relaxed',
-          mine ? 'bg-ink text-parchment' : 'bg-sumi text-ink',
-        )}
-      >
+    <div className="flex items-start gap-2">
+      <span className="mt-0.5 inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-full bg-paper border border-border text-ink">
+        <GuildBotMark size={18} mood={mood} />
+      </span>
+      <div className="min-w-0 flex-1 flex flex-col items-start gap-2">{children}</div>
+    </div>
+  )
+}
+
+function ChatBubble({ message, mood, onPosted }: { message: Message; mood: Mood; onPosted: () => void }) {
+  if (message.role === 'user') {
+    return (
+      <div className="flex justify-end">
+        <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tr-md bg-fill border border-border px-3.5 py-2.5 text-footnote leading-relaxed text-ink">
+          {message.body}
+        </p>
+      </div>
+    )
+  }
+  return (
+    <BotRow mood={mood}>
+      <p className="max-w-full whitespace-pre-wrap rounded-2xl rounded-tl-md border border-border bg-paper px-3.5 py-2.5 text-footnote leading-relaxed text-ink">
         {message.body}
       </p>
       {!!message.cites?.length && (
-        <div className="flex flex-wrap gap-1.5 max-w-[90%]">
+        <div className="flex flex-wrap gap-1.5 max-w-full">
           {message.cites.map(c => (
             <Link
               key={c.id}
               href={c.type === 'topic' ? `/board/${c.id}` : `/bytes/${c.id}`}
-              className="truncate max-w-full rounded-full border border-border px-2 py-0.5 text-[11px] text-ink-soft hover:border-border-strong"
+              className="inline-flex items-center gap-1 h-6 max-w-full rounded-full border border-border bg-paper px-2 text-[11px] text-ink-soft hover:border-border-strong hover:text-ink"
             >
-              {c.type === 'byte' ? 'Bytes: ' : ''}{c.title}
+              {c.type === 'byte' ? <Newspaper className="w-3 h-3 shrink-0" /> : <ChatsCircle className="w-3 h-3 shrink-0" />}
+              <span className="truncate">{c.title}</span>
             </Link>
           ))}
         </div>
       )}
       {message.draft && <DraftCard draft={message.draft} posted={!!message.posted} onPosted={onPosted} />}
-    </div>
+    </BotRow>
   )
+}
+
+/** Conversation starters for an empty chat, tuned to the page. */
+function suggestionsFor(page: NonNullable<ReturnType<typeof pageOf>>): string[] {
+  if (page.kind === 'topic') return ['Summarise this discussion', "What's the other side of this?", 'Draft a follow-up post']
+  if (page.kind === 'bytes') return ["What's worth reading in Bytes?", 'Anything here about AI?', 'Draft a post from a story']
+  return ["What's hot this month?", "Draft a post for this month's theme", "What's in Bytes?"]
 }
 
 /** A post GuildBot drafted. Nothing goes on the board until you press Post. */
@@ -359,32 +435,39 @@ function DraftCard({ draft, posted, onPosted }: { draft: Draft; posted: boolean;
   }
 
   return (
-    <div className="w-[90%] rounded-(--radius-card) border border-border bg-paper p-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-cha">Draft · {kind.label}</p>
-      <p className="mt-1 text-[14px] font-semibold leading-snug text-ink">{draft.title}</p>
-      <p className="mt-1 text-[12px] text-ink-soft"><span className="text-cha">{kind.second.label} </span>{draft.second}</p>
-      {draft.context && <p className="mt-1 text-[12px] text-ink-soft"><span className="text-cha">Context </span>{draft.context}</p>}
-      {draft.poll && (
-        <p className="mt-1.5 inline-flex items-center gap-1 text-[12px] text-cha">
-          <ChartBar className="w-3.5 h-3.5" /> Poll: {draft.poll.question} ({draft.poll.options.join(' / ')})
-        </p>
-      )}
+    <div className="w-full rounded-(--radius-card) border border-border-strong bg-paper overflow-hidden">
+      <p className="flex items-center gap-1.5 px-3.5 py-2 border-b border-border text-caption text-ink-soft">
+        <PencilSimpleLine className="w-3.5 h-3.5" />
+        Draft · {kind.label}
+      </p>
+      <div className="px-3.5 py-3 space-y-1.5">
+        <p className="text-footnote font-semibold leading-snug text-ink">{draft.title}</p>
+        <p className="text-caption leading-relaxed text-ink-soft"><span className="text-cha">{kind.second.label} </span>{draft.second}</p>
+        {draft.context && <p className="text-caption leading-relaxed text-ink-soft"><span className="text-cha">Context </span>{draft.context}</p>}
+        {draft.poll && (
+          <p className="inline-flex items-center gap-1 text-caption text-cha">
+            <ChartBar className="w-3.5 h-3.5" /> Poll: {draft.poll.question} ({draft.poll.options.join(' / ')})
+          </p>
+        )}
+      </div>
 
-      {posted || topicId ? (
-        <p className="mt-2.5 text-[12px] text-matcha">
-          Posted.{topicId && <> <Link href={`/board/${topicId}`} className="underline">Open it</Link></>}
-        </p>
-      ) : (
-        <div className="mt-2.5 flex items-center gap-2">
-          <label className="inline-flex items-center gap-1.5 text-[12px] text-ink-soft cursor-pointer select-none">
-            <input type="checkbox" checked={ghost} onChange={e => setGhost(e.target.checked)} className="accent-ink" />
-            Post anonymously
-          </label>
-          <Button size="sm" className="ml-auto" onClick={post} disabled={pending}>
-            {pending ? 'Posting…' : 'Post'}
-          </Button>
-        </div>
-      )}
+      <div className="flex items-center gap-2 px-3.5 py-2.5 border-t border-border">
+        {posted || topicId ? (
+          <p className="text-caption text-matcha">
+            Posted.{topicId && <> <Link href={`/board/${topicId}`} className="underline">Open it</Link></>}
+          </p>
+        ) : (
+          <>
+            <label className="inline-flex items-center gap-1.5 text-caption text-ink-soft cursor-pointer select-none">
+              <input type="checkbox" checked={ghost} onChange={e => setGhost(e.target.checked)} className="accent-ink" />
+              Post anonymously
+            </label>
+            <Button size="sm" className="ml-auto" onClick={post} disabled={pending}>
+              {pending ? 'Posting…' : 'Post'}
+            </Button>
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -471,7 +554,7 @@ function WelcomeCard({ text, onOpen, onDismiss }: { text: string; onOpen: () => 
       <div className="relative rounded-(--radius-card) border border-border bg-paper shadow-lg">
         <button type="button" onClick={onOpen} className="block w-full text-left px-3.5 pt-3 pb-3">
           <span className="flex items-center gap-2 pr-6">
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-saffron-light text-ink">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sumi border border-border text-ink">
               <GuildBotMark size={16} />
             </span>
             <span className="text-footnote text-ink">GuildBot</span>
