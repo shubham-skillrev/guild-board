@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus } from '@phosphor-icons/react/dist/ssr'
+import { ArrowFatUp, Plus } from '@phosphor-icons/react/dist/ssr'
 import { CATEGORY_LABELS, OUTCOME_LABELS, MAX_SELECTED_TOPICS } from '@/lib/constants'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
@@ -11,6 +11,11 @@ import type { Cycle, OutcomeTag } from '@/types'
 import type { CycleTheme } from '@/lib/themes'
 import { ThemeEditor, isThemeComplete } from '@/components/admin/ThemeEditor'
 import { defaultMeetingAt } from '@/lib/cycles/dates'
+import { SectionHeader } from '@/components/ui/Section'
+import { OverflowMenu } from '@/components/ui/OverflowMenu'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { AuthorMark } from '@/components/topics/AuthorMark'
+import { problemBlurb } from '@/lib/experiment'
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -53,6 +58,13 @@ function nextMonth(): { month: number; year: number } {
 }
 
 type BadgeTone = React.ComponentProps<typeof Badge>['tone']
+
+const STATUS_LABELS: Record<string, string> = {
+  upcoming: 'Upcoming',
+  open: 'Open',
+  frozen: 'Frozen',
+  closed: 'Closed',
+}
 
 const OUTCOME_TONES: Record<OutcomeTag, BadgeTone> = {
   discussed: 'indigo',
@@ -139,6 +151,9 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
     )
   }
 
+  // Deleting a cycle also deletes its topics. It used to fire on one click;
+  // it now goes through a dialog where the month's name must be typed.
+  const [confirmDelete, setConfirmDelete] = useState<Cycle | null>(null)
   const deleteCycle = (cycleId: string) =>
     doAction(`delete-${cycleId}`, () =>
       fetch('/api/admin/cycles', {
@@ -146,7 +161,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cycle_id: cycleId }),
       })
-    )
+    , { onSuccess: () => setConfirmDelete(null) })
 
   const selectTopic = (topicId: string, isSelected: boolean) =>
     doAction(`select-${topicId}`, () =>
@@ -195,38 +210,42 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
   const isLoading = (key: string) => loading === key
   const anyLoading = !!loading
 
+  const field = 'w-full h-9 px-3 bg-sumi border border-border rounded-(--radius-control) text-footnote text-ink focus:outline-none focus:border-saffron/50'
+  const fieldLabel = 'block text-footnote text-ink-soft mb-1.5'
+  const selectedCount = localTopics.filter((t: any) => t.is_selected).length
+
   return (
-    <div className="space-y-8">
-      {/* Error */}
+    <div className="space-y-(--gap-section)">
       {error && (
-        <div className="px-(--pad-card) py-3 bg-vermillion/10 rounded-(--radius-card) text-footnote text-vermillion">
+        <div role="alert" className="px-(--pad-card) py-3 bg-vermillion/10 rounded-(--radius-card) text-footnote text-vermillion">
           {error}
         </div>
       )}
 
-      {/* ─── Create new cycle ─── */}
+      {/* ─── This cycle: meeting date, status, and the way to start the next one ─── */}
       <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[11px] font-semibold text-cha uppercase tracking-wider">Create Cycle</h2>
-          <Button
-            size="sm"
-            variant={showNewCycle ? 'ghost' : 'tinted'}
-            icon={showNewCycle ? undefined : Plus}
-            onClick={() => setShowNewCycle(!showNewCycle)}
-          >
-            {showNewCycle ? 'Cancel' : 'New cycle'}
-          </Button>
-        </div>
+        <SectionHeader
+          title="This cycle"
+          hint={activeCycle ? activeCycle.label : 'No cycle yet'}
+          action={
+            <Button
+              size="sm"
+              variant={showNewCycle ? 'ghost' : 'secondary'}
+              icon={showNewCycle ? undefined : Plus}
+              onClick={() => setShowNewCycle(!showNewCycle)}
+            >
+              {showNewCycle ? 'Cancel' : 'New cycle'}
+            </Button>
+          }
+        />
 
         {showNewCycle && (
-          <div className="p-(--pad-card) bg-paper border border-border rounded-(--radius-card) space-y-4">
-            {/* Suggest next month button */}
-            <div className="flex items-center justify-between">
-              <p className="text-[12px] text-cha">Pre-fill with suggested next cycle</p>
+          <div className="mb-4 p-(--pad-card) bg-paper border border-border rounded-(--radius-card) space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-footnote text-ink">New cycle</p>
               <Button
                 size="sm"
                 variant="ghost"
-                className="text-saffron hover:text-saffron"
                 onClick={() => {
                   const s = nextMonth()
                   setNewCycleMonth(s.month)
@@ -234,13 +253,13 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                   setMeetingDate(getSecondFriday(s.month, s.year))
                 }}
               >
-                Suggest {MONTHS[nextMonth().month - 1]} {nextMonth().year}
+                Use {MONTHS[nextMonth().month - 1]} {nextMonth().year}
               </Button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[11px] font-medium text-cha uppercase tracking-wider mb-1.5">Month</label>
+            <div className="grid grid-cols-2 gap-3">
+              <label>
+                <span className={fieldLabel}>Month</span>
                 <select
                   value={newCycleMonth}
                   onChange={e => {
@@ -248,15 +267,15 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                     setNewCycleMonth(m)
                     setMeetingDate(getSecondFriday(m, newCycleYear))
                   }}
-                  className="w-full px-3 py-2 bg-sumi border border-border rounded-(--radius-control) text-[13px] text-ink focus:outline-none focus:border-saffron/50"
+                  className={field}
                 >
                   {MONTHS.map((m, i) => (
                     <option key={m} value={i + 1}>{m}</option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-medium text-cha uppercase tracking-wider mb-1.5">Year</label>
+              </label>
+              <label>
+                <span className={fieldLabel}>Year</span>
                 <input
                   type="number"
                   value={newCycleYear}
@@ -267,32 +286,23 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                   }}
                   min={2024}
                   max={2030}
-                  className="w-full px-3 py-2 bg-sumi border border-border rounded-(--radius-control) text-[13px] text-ink focus:outline-none focus:border-saffron/50"
+                  className={field}
                 />
-              </div>
-            </div>
-            <div>
-              <label className="block text-[11px] font-medium text-cha uppercase tracking-wider mb-1">
-                Meeting date & time <span className="normal-case font-normal">(2nd Friday, 11 AM IST auto-filled)</span>
               </label>
-              <input
-                type="datetime-local"
-                value={meetingDate}
-                onChange={e => setMeetingDate(e.target.value)}
-                className="w-full px-3 py-2 bg-sumi border border-border rounded-(--radius-control) text-[13px] text-ink focus:outline-none focus:border-saffron/50"
-              />
-              {meetingDate && (
-                <p className="text-[11px] text-cha mt-1">
-                  {new Date(datetimeLocalToISO(meetingDate)).toLocaleString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
-                </p>
-              )}
             </div>
+            <label className="block">
+              <span className={fieldLabel}>Meeting <span className="text-cha">(2nd Friday, 11:00 IST, pre-filled)</span></span>
+              <input type="datetime-local" value={meetingDate} onChange={e => setMeetingDate(e.target.value)} className={field} />
+              {meetingDate && (
+                <span className="block text-caption text-cha mt-1">
+                  {new Date(datetimeLocalToISO(meetingDate)).toLocaleString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })}
+                </span>
+              )}
+            </label>
             {/* Picked here, not after: creating the cycle opens it and sends
                 the month-open message, which is the theme's first outing. */}
             <div>
-              <label className="block text-[11px] font-medium text-cha uppercase tracking-wider mb-2">
-                Theme <span className="normal-case font-normal">(optional, sets the board copy and the month-open message)</span>
-              </label>
+              <p className={fieldLabel}>Theme <span className="text-cha">(optional: board copy and the month-open message)</span></p>
               <ThemeEditor
                 monthLabel={`${MONTHS[newCycleMonth - 1]} ${newCycleYear}`}
                 value={newTheme}
@@ -304,93 +314,80 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
             </Button>
           </div>
         )}
-      </section>
 
-      {/* ─── Active cycle controls ─── */}
-      {activeCycle && (
-        <section>
-          <h2 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-4">
-            Active Cycle - {activeCycle.label}
-          </h2>
-
-          {/* Cycle controls */}
-          <div className="p-(--pad-card) bg-paper border border-border rounded-(--radius-card) mb-4 space-y-3">
-            <div className="grid sm:grid-cols-[1fr_auto] gap-3 items-end">
-              <div>
-                <label className="block text-[11px] font-medium text-cha uppercase tracking-wider mb-1">Meeting date & time</label>
+        {activeCycle && (
+          <div className="p-(--pad-card) bg-paper border border-border rounded-(--radius-card) space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-2">
+              <label className="flex-1 min-w-0 sm:max-w-xs">
+                <span className={fieldLabel}>Meeting date and time</span>
                 <input
                   type="datetime-local"
                   value={activeMeetingDate}
                   onChange={e => setActiveMeetingDate(e.target.value)}
-                  className="w-full max-w-xs px-3 py-2 bg-sumi border border-border rounded-(--radius-control) text-[13px] text-ink focus:outline-none focus:border-saffron/50"
+                  className={field}
                 />
-              </div>
-              <Button variant="tinted" onClick={() => updateCycleDate(activeCycle.id)} disabled={anyLoading}>
-                {isLoading(`date-${activeCycle.id}`) ? 'Saving…' : 'Update date'}
+              </label>
+              <Button variant="secondary" onClick={() => updateCycleDate(activeCycle.id)} disabled={anyLoading} className="self-start sm:self-auto">
+                {isLoading(`date-${activeCycle.id}`) ? 'Saving…' : 'Save date'}
               </Button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge tone={activeCycle.status === 'open' ? 'matcha' : 'neutral'}>
-                {activeCycle.status === 'open' ? 'Open' : activeCycle.status === 'closed' ? 'Closed' : activeCycle.status}
+            <div className="flex items-center gap-2 pt-4 border-t border-border">
+              <Badge tone={activeCycle.status === 'open' ? 'matcha' : 'neutral'} dot>
+                {STATUS_LABELS[activeCycle.status] ?? activeCycle.status}
               </Badge>
               {activeCycle.status === 'open' && (
-                <Button variant="secondary" onClick={() => setCycleStatus(activeCycle.id, 'closed')} disabled={anyLoading}>
+                <Button size="sm" variant="secondary" onClick={() => setCycleStatus(activeCycle.id, 'closed')} disabled={anyLoading}>
                   {isLoading(`status-${activeCycle.id}`) ? 'Closing…' : 'Close cycle'}
                 </Button>
               )}
               {/* Only the latest cycle can reopen (the route also limits it to
                   this month or last), so two boards are never open at once. */}
               {activeCycle.status !== 'open' && activeCycle.id === cycles[0]?.id && (
-                <Button variant="secondary" onClick={() => setCycleStatus(activeCycle.id, 'open')} disabled={anyLoading}>
+                <Button size="sm" variant="secondary" onClick={() => setCycleStatus(activeCycle.id, 'open')} disabled={anyLoading}>
                   {isLoading(`status-${activeCycle.id}`) ? 'Reopening…' : 'Reopen cycle'}
                 </Button>
               )}
-              <Button
-                variant="danger"
-                onClick={() => deleteCycle(activeCycle.id)}
-                disabled={anyLoading}
-              >
-                {isLoading(`delete-${activeCycle.id}`) ? 'Deleting…' : 'Delete cycle'}
-              </Button>
+              <OverflowMenu
+                className="ml-auto"
+                label={`More actions for ${activeCycle.label}`}
+                items={[{ label: `Delete ${activeCycle.label}…`, danger: true, onSelect: () => setConfirmDelete(activeCycle) }]}
+              />
             </div>
           </div>
+        )}
+      </section>
 
-          {/* Topic rows */}
-          <div className="space-y-2.5">
-            {(() => {
-              const selectedCount = localTopics.filter((t: any) => t.is_selected).length
-              return (
-                <div className="flex items-center justify-between px-1 mb-1">
-                  <p className="text-[12px] text-cha">
-                    {selectedCount}/{MAX_SELECTED_TOPICS} topics selected
-                  </p>
-                  {selectedCount >= MAX_SELECTED_TOPICS && (
-                    <span className="text-[11px] font-medium text-saffron">Selection limit reached</span>
-                  )}
-                </div>
-              )
-            })()}
-            {localTopics.length === 0 && (
-              <p className="text-[13px] text-cha italic px-1">No topics submitted yet.</p>
-            )}
-            {localTopics.map((topic: any) => (
-              <div
-                key={topic.id}
-                className={cn(
-                  'p-(--pad-card) bg-paper rounded-(--radius-card) border transition-colors',
-                  topic.is_selected ? 'border-saffron/25 bg-saffron-light/30' : 'border-border',
-                )}
-              >
-                <div className="flex items-start justify-between gap-3">
+      {/* ─── Topics: one compact row each ─── */}
+      {activeCycle && (
+        <section>
+          <SectionHeader
+            title="Topics"
+            hint={selectedCount >= MAX_SELECTED_TOPICS
+              ? `${selectedCount} of ${MAX_SELECTED_TOPICS} on the agenda. That's the limit.`
+              : `${selectedCount} of ${MAX_SELECTED_TOPICS} on the agenda`}
+          />
+          {localTopics.length === 0 ? (
+            <p className="text-footnote text-cha">No topics yet.</p>
+          ) : (
+            <ul className="bg-paper border border-border rounded-(--radius-card) divide-y divide-border overflow-hidden">
+              {localTopics.map((topic: any) => (
+                <li
+                  key={topic.id}
+                  className={cn('flex items-start gap-3 px-(--pad-card) py-3', topic.is_selected && 'bg-saffron/6')}
+                >
                   <div className="flex-1 min-w-0">
-                    <p className="text-footnote font-semibold text-ink">{topic.title}</p>
-                    <p className="text-[12px] text-ink-soft mt-0.5 line-clamp-1">{topic.description}</p>
-                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                      <span className="text-[11px] text-cha">{CATEGORY_LABELS[topic.category]}</span>
-                      <span className="text-border-strong">·</span>
-                      <span className="text-[11px] text-cha">@{topic.author_username ?? 'unknown'}</span>
-                      {topic.is_selected && <Badge tone="saffron">Selected</Badge>}
+                    <p className="text-footnote text-ink line-clamp-2 sm:line-clamp-1">{topic.title}</p>
+                    <p className="text-caption text-cha mt-0.5 line-clamp-1">{problemBlurb(topic.description)}</p>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-caption text-cha">
+                      <span>{CATEGORY_LABELS[topic.category]}</span>
+                      <span aria-hidden>·</span>
+                      <AuthorMark username={topic.author_username} isSystem={topic.is_system} size={14} className="text-caption" />
+                      <span aria-hidden>·</span>
+                      <span className="inline-flex items-center gap-1" title="Votes">
+                        <ArrowFatUp className="w-3 h-3" />
+                        <span className="num">{topic.vote_count}</span>
+                      </span>
                       {topic.outcome_tag && (
                         <Badge tone={OUTCOME_TONES[topic.outcome_tag as OutcomeTag] ?? 'neutral'}>
                           {OUTCOME_LABELS[topic.outcome_tag]}
@@ -398,41 +395,41 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
                       )}
                     </div>
                   </div>
-                  <div className="shrink-0 text-right min-w-14">
-                    <p className="text-footnote font-semibold text-ink num">{topic.score.toFixed(1)}</p>
-                    <p className="text-[11px] text-cha mt-0.5">
-                      <span className="num">{topic.vote_count}</span> votes
-                    </p>
+                  <div className="shrink-0 flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant={topic.is_selected ? 'secondary' : 'tinted'}
+                      onClick={() => selectTopic(topic.id, !topic.is_selected)}
+                      disabled={anyLoading || (!topic.is_selected && selectedCount >= MAX_SELECTED_TOPICS)}
+                    >
+                      {isLoading(`select-${topic.id}`) ? '…' : topic.is_selected ? 'Selected' : 'Select'}
+                    </Button>
+                    <OverflowMenu
+                      label={`More actions for ${topic.title}`}
+                      items={[
+                        ...(topic.is_selected ? [{ label: 'Remove from agenda', onSelect: () => selectTopic(topic.id, false) }] : []),
+                        { label: 'Hide from the board…', danger: true, onSelect: () => hideTopic(topic.id, topic.title) },
+                      ]}
+                    />
                   </div>
-                </div>
-
-                {/* Row actions */}
-                <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/60">
-                  <Button
-                    size="sm"
-                    variant={topic.is_selected ? 'ghost' : 'tinted'}
-                    className="-ml-2.5"
-                    onClick={() => selectTopic(topic.id, !topic.is_selected)}
-                    disabled={anyLoading || (!topic.is_selected && localTopics.filter((t: any) => t.is_selected).length >= MAX_SELECTED_TOPICS)}
-                  >
-                    {isLoading(`select-${topic.id}`) ? '…' : topic.is_selected ? 'Deselect' : 'Select'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="ml-auto text-ink-muted"
-                    onClick={() => hideTopic(topic.id, topic.title)}
-                    disabled={anyLoading}
-                  >
-                    {isLoading(`hide-${topic.id}`) ? '…' : 'Hide'}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       )}
 
+      {confirmDelete && (
+        <ConfirmDialog
+          title={`Delete ${confirmDelete.label}?`}
+          body="This deletes the cycle and every topic, vote and comment in it. It cannot be undone."
+          confirmText={confirmDelete.label}
+          actionLabel="Delete cycle"
+          pending={isLoading(`delete-${confirmDelete.id}`)}
+          onConfirm={() => deleteCycle(confirmDelete.id)}
+          onClose={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   )
 }

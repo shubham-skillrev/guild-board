@@ -17,7 +17,9 @@ const FIELD = [
 export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return (
     <label
-      className={cn('block text-caption uppercase tracking-wider text-label-3 mb-1.5', className)}
+      // Sentence case at 13px, like the share form's labels. Small uppercase
+      // labels read as a second heading style competing with the section titles.
+      className={cn('block text-footnote text-ink-soft mb-1.5', className)}
       {...props}
     />
   )

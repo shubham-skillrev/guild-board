@@ -169,7 +169,7 @@ export function AnnouncePanel() {
 
               {/* What people will actually see. */}
               <div className="space-y-3">
-                <p className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider">Preview</p>
+                <p className="text-footnote text-ink-soft">Preview</p>
                 <div className={cn('rounded-(--radius-card) border border-border bg-sumi/60 p-3 flex gap-3', !channels.has('push') && 'opacity-40')}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/icon-192.png" alt="" width={36} height={36} className="rounded-(--radius-control) shrink-0" />
@@ -208,7 +208,7 @@ export function AnnouncePanel() {
 
         {history.length > 0 && (
           <div className="border-t border-border pt-4">
-            <p className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider mb-2">Sent</p>
+            <p className="text-footnote text-ink-soft mb-2">Sent</p>
             <ul className="divide-y divide-border">
               {history.map(a => (
                 <li key={a.id} className="py-2 flex items-start justify-between gap-3">

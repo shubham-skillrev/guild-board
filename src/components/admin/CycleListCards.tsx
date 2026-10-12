@@ -3,83 +3,88 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
+import { OverflowMenu } from '@/components/ui/OverflowMenu'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import type { Cycle } from '@/types'
 
-interface CycleListCardsProps {
-  cycles: Cycle[]
-}
-
-const STATUS_TONES: Record<Cycle['status'], React.ComponentProps<typeof Badge>['tone']> = {
-  upcoming: 'saffron',
-  open: 'matcha',
-  frozen: 'indigo',
-  closed: 'neutral',
+const STATUS: Record<Cycle['status'], { label: string; tone: React.ComponentProps<typeof Badge>['tone'] }> = {
+  upcoming: { label: 'Upcoming', tone: 'saffron' },
+  open: { label: 'Open', tone: 'matcha' },
+  frozen: { label: 'Frozen', tone: 'indigo' },
+  closed: { label: 'Closed', tone: 'neutral' },
 }
 
 function formatDate(dateStr: string) {
-  return new Intl.DateTimeFormat('en-GB', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(dateStr))
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(dateStr))
 }
 
-export function CycleListCards({ cycles }: CycleListCardsProps) {
+/**
+ * Every cycle, one compact row each. Delete lives in the row's ⋯ menu and asks
+ * for the month's name to be typed: it removes every topic, vote and comment
+ * in that month, so it should never be a red word sitting on each row.
+ */
+export function CycleListCards({ cycles }: { cycles: Cycle[] }) {
   const router = useRouter()
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [target, setTarget] = useState<Cycle | null>(null)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState('')
 
-  const handleDelete = async (cycleId: string, label: string) => {
-    const confirmed = window.confirm(`Delete ${label}? This cannot be undone.`)
-    if (!confirmed) return
-
-    setDeletingId(cycleId)
+  const remove = async (cycle: Cycle) => {
+    setPending(true)
+    setError('')
     try {
       const res = await fetch('/api/admin/cycles', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cycle_id: cycleId }),
+        body: JSON.stringify({ cycle_id: cycle.id }),
       })
-
-      if (res.ok) {
-        router.refresh()
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error ?? 'Could not delete that cycle.')
+        return
       }
+      setTarget(null)
+      router.refresh()
     } finally {
-      setDeletingId(null)
+      setPending(false)
     }
   }
 
   return (
-    <div className="space-y-2">
-      {cycles.map(cycle => (
-        <div
-          key={cycle.id}
-          className="flex items-center justify-between gap-3 p-(--pad-card) bg-paper/50 rounded-(--radius-card) border border-border hover:border-border-strong transition-colors"
-        >
-          <div className="min-w-0">
-            <p className="text-footnote font-semibold text-ink">{cycle.label}</p>
-            <p className="text-[12px] text-ink-soft mt-0.5">
-              {cycle.opens_at
-                ? `Opened ${formatDate(cycle.opens_at)}`
-                : 'Not opened yet'}
-              {cycle.meeting_at && ` · Meeting ${formatDate(cycle.meeting_at)}`}
-            </p>
-          </div>
+    <>
+      {error && <p role="alert" className="mb-2 text-footnote text-vermillion">{error}</p>}
+      <ul className="bg-paper border border-border rounded-(--radius-card) divide-y divide-border">
+        {cycles.map(cycle => {
+          const status = STATUS[cycle.status]
+          return (
+            <li key={cycle.id} className="flex items-center gap-3 pl-(--pad-card) pr-2 py-2.5">
+              <div className="flex-1 min-w-0">
+                <p className="text-footnote text-ink truncate">{cycle.label}</p>
+                <p className="text-caption text-cha mt-0.5 truncate">
+                  {cycle.meeting_at ? `Meeting ${formatDate(cycle.meeting_at)}` : cycle.opens_at ? `Opened ${formatDate(cycle.opens_at)}` : 'Not opened yet'}
+                </p>
+              </div>
+              <Badge tone={status.tone}>{status.label}</Badge>
+              <OverflowMenu
+                label={`More actions for ${cycle.label}`}
+                items={[{ label: `Delete ${cycle.label}…`, danger: true, onSelect: () => setTarget(cycle) }]}
+              />
+            </li>
+          )
+        })}
+      </ul>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Badge tone={STATUS_TONES[cycle.status]}>{cycle.status}</Badge>
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={() => handleDelete(cycle.id, cycle.label)}
-              disabled={deletingId === cycle.id}
-            >
-              {deletingId === cycle.id ? 'Deleting…' : 'Delete'}
-            </Button>
-          </div>
-        </div>
-      ))}
-    </div>
+      {target && (
+        <ConfirmDialog
+          title={`Delete ${target.label}?`}
+          body="This deletes the cycle and every topic, vote and comment in it. It cannot be undone."
+          confirmText={target.label}
+          actionLabel="Delete cycle"
+          pending={pending}
+          onConfirm={() => remove(target)}
+          onClose={() => setTarget(null)}
+        />
+      )}
+    </>
   )
 }

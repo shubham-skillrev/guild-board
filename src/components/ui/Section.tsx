@@ -43,8 +43,11 @@ export function SectionHeader({
   href,
   hrefLabel = 'See all',
   id,
+  action,
 }: {
   title: string
+  /** A control at the right of the title, e.g. "New cycle". Instead of href. */
+  action?: React.ReactNode
   /** Short clarifier. Answers "what is this list" without a tooltip. */
   hint?: string
   href?: string
@@ -60,10 +63,11 @@ export function SectionHeader({
      under it where a long one costs nothing. */
   return (
     <div className="mb-3">
-      <div className="flex items-baseline gap-3">
+      <div className={cn('flex gap-3', action ? 'items-center' : 'items-baseline')}>
         <h2 id={id} className="text-title-3 text-label min-w-0 truncate">
           {title}
         </h2>
+        {action && <div className="ml-auto shrink-0 flex items-center gap-2">{action}</div>}
         {href && (
           <Link
             href={href}

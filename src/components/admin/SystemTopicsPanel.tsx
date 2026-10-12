@@ -94,7 +94,9 @@ export function SystemTopicsPanel() {
               Gemini reads this week&apos;s AI and engineering news and suggests up to 5 topics, the first fitting this month&apos;s theme. You
               review them before anything is posted.
             </p>
-            <Button icon={Sparkle} onClick={preview} disabled={busy !== null}>
+            {/* Tinted, like "Draft with Gemini": it starts a flow, and the
+                saffron primary is kept for the step that posts. */}
+            <Button variant="tinted" icon={Sparkle} onClick={preview} disabled={busy !== null}>
               {busy === 'preview' ? 'Reading the news…' : 'Suggest topics'}
             </Button>
           </div>

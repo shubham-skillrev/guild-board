@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/Button'
+import { OverflowMenu } from '@/components/ui/OverflowMenu'
 import { Badge } from '@/components/ui/Badge'
 import { SectionHeader } from '@/components/ui/Section'
 import { useToast } from '@/hooks/useToast'
@@ -104,74 +105,46 @@ export function ByteGenerator() {
   const isLive = digest?.status === 'published'
 
   return (
-    <section className="rounded-(--radius-card) border border-border bg-paper/40 p-(--pad-card)">
+    <section>
       <SectionHeader
         title="Bytes"
-        hint="10 stories ~15 days before each meeting, 10 more ~3 days before"
-        href="/bytes"
-        hrefLabel="View"
+        hint="Autopilot: 10 stories ~15 days before the meeting, 10 more ~3 days before"
+        action={
+          <OverflowMenu
+            label="More Bytes actions"
+            items={[
+              // The same look-back the 1st-of-the-month job builds. A separate
+              // action, not a mode toggle: the two produce different digests.
+              { label: 'Rebuild top of the month', onSelect: () => generate('monthly'), disabled: generating },
+              ...(digest ? [{ label: isLive ? 'Hide from the guild' : 'Make visible again', onSelect: toggleHidden }] : []),
+            ]}
+          />
+        }
       />
 
-      <p className="type-body text-cha mb-4 -mt-1">
-        A mix of engineering blog posts, tech reporting and conference talks, with a
-        little Hacker News. Titles, links and thumbnails are verbatim from those feeds.
-        Summaries are AI-drafted and optional. Fetching notifies the guild.
-      </p>
-
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <Button
-          size="sm"
-          variant="tinted"
-          onClick={() => generate('fresh')}
-          disabled={generating}
-        >
-          {generating ? 'Fetching…' : 'Fetch more now'}
-        </Button>
-        {/* The same look-back the 1st-of-the-month job builds. Separate button
-            rather than a mode toggle: the two produce different digests, and a
-            control whose meaning depends on a switch elsewhere is a control
-            you have to read twice. */}
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => generate('monthly')}
-          disabled={generating}
-        >
-          Rebuild top of the month
-        </Button>
-        {digest && (
-          <Button size="sm" variant="secondary" onClick={toggleHidden}>
-            {isLive ? 'Hide from guild' : 'Make visible'}
-          </Button>
-        )}
-      </div>
-
-      {loading ? (
-        <p className="type-body text-cha">Loading…</p>
-      ) : !digest ? (
-        <p className="type-body text-cha">
-          No digest yet. Autopilot publishes one about 15 days before the meeting
-          and another about 3 days before. Or fetch now.
-        </p>
-      ) : (
-        <>
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <span className="type-title text-ink">{digest.label}</span>
-            <Badge tone={isLive ? 'matcha' : 'neutral'}>{isLive ? 'Live' : 'Hidden'}</Badge>
-            <span className="type-caption text-cha tabular">{bytes.length} stories</span>
+      <div className="p-(--pad-card) bg-paper border border-border rounded-(--radius-card) space-y-3">
+        {loading ? (
+          <p className="text-footnote text-cha">Loading…</p>
+        ) : !digest ? (
+          <p className="text-footnote text-cha">No digest yet. Autopilot publishes one, or fetch now.</p>
+        ) : (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-footnote text-ink">{digest.label}</span>
+            <Badge tone={isLive ? 'matcha' : 'neutral'} dot>{isLive ? 'Live' : 'Hidden'}</Badge>
+            <span className="text-caption text-cha tabular">{bytes.length} stories</span>
           </div>
+        )}
 
-          {/* The full story list lived here. It is gone on purpose: curating a
-              digest story by story is a job for the Bytes page itself, and
-              reproducing every row inside the admin panel made this screen the
-              longest in the product for an action nobody performs weekly.
-              What stays is the state and the controls. */}
-          <p className="text-footnote text-ink-muted">
-            Edit individual stories on the{' '}
-            <a href="/bytes" className="text-saffron hover:underline">Bytes page</a>.
-          </p>
-        </>
-      )}
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button size="sm" variant="tinted" onClick={() => generate('fresh')} disabled={generating}>
+            {generating ? 'Fetching…' : 'Fetch more now'}
+          </Button>
+          {/* Curating story by story is the Bytes page's job; this panel keeps
+              only the state and the controls. */}
+          <a href="/bytes" className="text-caption text-saffron hover:underline">Edit stories</a>
+        </div>
+        <p className="text-caption text-cha">Fetching notifies the guild.</p>
+      </div>
     </section>
   )
 }

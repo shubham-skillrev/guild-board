@@ -8,7 +8,8 @@ const FIELD =
   'focus:outline-none focus:border-saffron/50 ' +
   'placeholder:text-ink-muted transition-colors'
 
-const LABEL = 'block text-[11px] font-semibold text-ink-soft uppercase tracking-wider mb-1.5'
+// Sentence case at 13px, the same as Field's Label and the share form.
+const LABEL = 'block text-footnote text-ink-soft mb-1.5'
 
 /** Field label matching the submit-modal treatment. */
 export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
