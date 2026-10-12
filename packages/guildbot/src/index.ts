@@ -13,3 +13,4 @@ export { PERSONA, CHARACTER, LANGUAGE, STYLE, HARD_RULES, REVIEW_CHECKS, MEMES, 
 export { writeComment, writeReply, BIT_CHANCE } from './comments.ts'
 export { chat, CHAT_RULES, CHAT_FALLBACK, type ChatContext, type ChatTopic, type ChatByte, type ChatTurn, type ChatDraft, type ChatAnswer } from './chat.ts'
 export { summariseLearnings, type AskedQuestion, type Learnings } from './learnings.ts'
+export { welcomeKey, meetingWhen, isoWeek, type WelcomeFacts } from './welcome.ts'

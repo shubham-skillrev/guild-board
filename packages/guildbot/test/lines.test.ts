@@ -19,8 +19,8 @@ test('lines missing a value are skipped, not printed raw', () => {
 
 test('every hand-written line passes the guard on its surface', () => {
   const surfaceFor = (key: string) =>
-    key.startsWith('push') ? 'push' : key.startsWith('mood') || key.startsWith('ui') ? 'ui' : key.startsWith('chat') ? 'chat' : 'slack'
-  const sample = { days: 9, bot_posts: 3, meeting_days: 4, month: 'October', theme: 'Problem Month', time: '11:00', count: 12, top: 'Flaky tests', comments: 40, top_thread: 'Flaky tests', posts: 5, lonely: 2, limit: 30 }
+    key.startsWith('push') ? 'push' : key.startsWith('mood') || key.startsWith('ui') || key.startsWith('welcome') ? 'ui' : key.startsWith('chat') ? 'chat' : 'slack'
+  const sample = { when: 'in 3 days', days: 9, bot_posts: 3, meeting_days: 4, month: 'October', theme: 'Problem Month', time: '11:00', count: 12, top: 'Flaky tests', comments: 40, top_thread: 'Flaky tests', posts: 5, lonely: 2, limit: 30 }
   for (const [key, pool] of Object.entries(LINES)) {
     for (const text of pool) {
       const filled = text.replace(/\{(\w+)\}/g, (_, k: string) => String(sample[k as keyof typeof sample]))
@@ -66,4 +66,21 @@ test('one language everywhere: British spelling and GuildBoard words in every ha
     assert.ok(!american.test(text), `American spelling: ${text}`)
     assert.ok(!/\bbytes\b/.test(text), `"Bytes" takes a capital B: ${text}`)
   }
+})
+
+test('welcome: the right situation for each set of facts', async () => {
+  const { welcomeKey, meetingWhen, isoWeek } = await import('../src/welcome.ts')
+  const base = { signedIn: true, phase: 'open' as const, postsUsed: 0, postsAllowed: 3, daysToMeeting: 20, hasTheme: true }
+  assert.equal(welcomeKey({ ...base, signedIn: false }), 'welcome.guest')
+  assert.equal(welcomeKey({ ...base, phase: 'upcoming' }), 'welcome.upcoming')
+  assert.equal(welcomeKey({ ...base, phase: 'discussion' }), 'welcome.discussion')
+  assert.equal(welcomeKey({ ...base, postsUsed: 3 }), 'welcome.maxed')
+  assert.equal(welcomeKey({ ...base, postsUsed: 1, daysToMeeting: 1 }), 'welcome.posted')
+  assert.equal(welcomeKey({ ...base, daysToMeeting: 2 }), 'welcome.deadline')
+  assert.equal(welcomeKey(base), 'welcome.theme')
+  assert.equal(welcomeKey({ ...base, daysToMeeting: 7 }), 'welcome.idle')
+  assert.equal(welcomeKey({ ...base, hasTheme: false }), 'welcome.idle')
+  assert.deepEqual([0, 1, 4].map(meetingWhen), ['today', 'tomorrow', 'in 4 days'])
+  assert.equal(isoWeek(new Date('2026-10-12T10:00:00Z')), '2026-W42')
+  assert.equal(isoWeek(new Date('2027-01-01T10:00:00Z')), '2026-W53')
 })

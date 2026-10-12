@@ -11,6 +11,10 @@ import { KINDS, composeDescription } from '@/lib/kinds'
 import { SASS, botSays } from '@/lib/guildbot-host/voice'
 import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
 import { BodyPortal } from '@/components/ui/BodyPortal'
+import { welcomeKey, meetingWhen, isoWeek } from '@guildboard/guildbot'
+import { useCurrentCycle } from '@/hooks/useCurrentCycle'
+import { useUserTokens } from '@/hooks/useUserTokens'
+import { TOKEN_LIMITS } from '@/lib/constants'
 
 const APRIL_KEY = 'guildbot:april-dodged'
 
@@ -52,6 +56,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   // April 1st: the button hops away from the first click, once. The chat is
   // not a real action, so nothing anyone needs is ever in the way.
   const [dodge, setDodge] = useState<string | null>(null)
+  const welcome = useWelcome(pathname === '/board' && !open, signedIn)
   const listRef = useRef<HTMLDivElement>(null)
   const toast = useToast()
 
@@ -129,6 +134,31 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
         {/* Just the face on a phone: the full pill would cover the cards. */}
         <span className="hidden md:inline text-[13px] font-medium">{open ? 'Close' : 'Ask GuildBot'}</span>
       </button>
+
+      {welcome.text && !open && !dodge && (
+        <div
+          role="status"
+          className="fixed right-[4.75rem] bottom-24 md:right-[11.5rem] md:bottom-6 z-(--z-overlay) w-[min(18rem,calc(100vw-6rem))] animate-fade-up"
+        >
+          <button
+            type="button"
+            onClick={() => { welcome.dismiss(); setOpen(true) }}
+            className="relative w-full text-left rounded-(--radius-card) border border-border bg-paper px-3.5 py-2.5 pr-8 text-[13px] leading-snug text-ink shadow-lg"
+          >
+            {welcome.text}
+            {/* Tail pointing at the chat button. */}
+            <span aria-hidden className="absolute -right-1.5 bottom-4 h-3 w-3 rotate-45 border-r border-t border-border bg-paper" />
+          </button>
+          <button
+            type="button"
+            onClick={welcome.dismiss}
+            aria-label="Dismiss"
+            className="absolute top-1.5 right-1.5 p-1 rounded-full text-cha hover:text-ink hover:bg-kinu/60"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       {dodge && (
         <p role="status" className="fixed right-4 bottom-38 md:right-6 md:bottom-20 z-50 max-w-xs inline-flex items-start gap-1.5 rounded-(--radius-card) border border-saffron/40 bg-paper px-3 py-2 text-[12px] text-ink shadow-lg animate-fade-up">
@@ -310,4 +340,54 @@ function DraftCard({ draft, posted, onPosted }: { draft: Draft; posted: boolean;
       )}
     </div>
   )
+}
+
+const WELCOME_DELAY_MS = 1200
+const WELCOME_VISIBLE_MS = 12_000
+
+/**
+ * The bubble above the chat button on the board: one line a week, chosen by
+ * the situation (theme, whether you have posted, how close the meeting is).
+ * Shown the first time you open the board in a week, and again if your
+ * situation changes that week (say, you post). Tapping it opens the chat.
+ */
+function useWelcome(active: boolean, signedIn: boolean) {
+  const { cycle, phase, isLoading } = useCurrentCycle()
+  const tokens = useUserTokens(cycle?.id)
+  const [text, setText] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!active || isLoading || tokens.isLoading || !cycle) return
+    const now = new Date()
+    const days = cycle.meeting_at ? Math.ceil((new Date(cycle.meeting_at).getTime() - now.getTime()) / 86_400_000) : null
+    const key = welcomeKey({
+      signedIn,
+      phase,
+      postsUsed: TOKEN_LIMITS.TOPICS_PER_CYCLE - tokens.topics_remaining,
+      postsAllowed: TOKEN_LIMITS.TOPICS_PER_CYCLE,
+      daysToMeeting: days,
+      hasTheme: !!cycle.theme?.name,
+    })
+    const week = isoWeek(now)
+    const storageKey = `guildbot:welcome:${week}:${key}`
+    if (localStorage.getItem(storageKey)) return
+
+    const line = botSays(key, `${week}:${cycle.id}`, 'ui', {
+      ...(cycle.theme?.name ? { theme: cycle.theme.name } : {}),
+      ...(days !== null ? { when: meetingWhen(days) } : {}),
+    })
+    if (!line) return
+
+    const show = setTimeout(() => {
+      // An install or push prompt is a one-time ask and wins the bottom of the
+      // screen. Skip without marking as seen, so the bubble shows next visit.
+      if (document.querySelector('[data-floating-prompt]')) return
+      localStorage.setItem(storageKey, '1')
+      setText(line)
+    }, WELCOME_DELAY_MS)
+    const hide = setTimeout(() => setText(null), WELCOME_DELAY_MS + WELCOME_VISIBLE_MS)
+    return () => { clearTimeout(show); clearTimeout(hide) }
+  }, [active, isLoading, tokens.isLoading, tokens.topics_remaining, cycle, phase, signedIn])
+
+  return { text: active ? text : null, dismiss: () => setText(null) }
 }

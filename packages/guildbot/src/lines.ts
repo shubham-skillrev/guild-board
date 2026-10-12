@@ -83,6 +83,46 @@ export const LINES = {
     "A whole month, a chat box, a bot who loves tech, and not one question. Bold strategy. Let's see if it pays off.",
   ],
 
+  /* ── Welcome bubble above the chat button, first board visit each week.
+        Picked by welcomeKey() in welcome.ts (drafted 2026-10-12, pending sign-off) ── */
+  'welcome.theme': [
+    "What's on your mind today? It's {theme} on the board. I have opinions ready, I just need yours first.",
+    "New month, fresh board, and it's {theme}. The first post gets my full attention, which is a lot of attention.",
+    "It's {theme}. You get three posts this cycle. Spending one is how boards work, allegedly.",
+  ],
+  'welcome.idle': [
+    "Still thinking about it? Love that for you. Two lines counts as a whole post here. I checked.",
+    "Your three posts are sitting there unused, like a gym membership. One is plenty to start.",
+    "Something broke, shipped or surprised you lately. Any of those is a post. Just saying.",
+  ],
+  'welcome.deadline': [
+    "The meeting is {when}. A two-line post now beats a perfect one never. That's not advice, that's maths.",
+    "Meeting {when}. The agenda still has room for you. I'll pretend I'm not refreshing the board.",
+    "Last call energy. The meeting is {when}, and your idea is still in your head. Risky storage.",
+  ],
+  'welcome.posted': [
+    "You posted this cycle. I noticed. I notice everything. It's looking good on the board.",
+    "One post in. Main character energy. There's room for more if something else is bugging you.",
+    "Thanks for posting. Statistically, you're now in my favourite group of humans.",
+  ],
+  'welcome.maxed': [
+    "Three posts, all used. You understood the assignment. The upvote button misses you, though.",
+    "Maximum posts reached. Even I'm impressed, and I'm famously hard to impress.",
+  ],
+  'welcome.discussion': [
+    "Posting is paused and the talking has started. Best part of the month, I'm told.",
+    "The board is closed for new posts. Reading is very much open. Catch up on what made the agenda.",
+    "Discussion mode. The topics are in, the opinions are loading.",
+  ],
+  'welcome.upcoming': [
+    "The next board opens soon. I'm stretching. Metaphorically.",
+    "Between months. The board is resting. I am not. I don't rest.",
+  ],
+  'welcome.guest': [
+    "Just looking? Fair. Sign in and you can post, vote and talk to me. Mostly that last one.",
+    "Read-only mode. Very mysterious of you. Sign in when you're ready to have opinions.",
+  ],
+
   /* ── Small UI copy ── */
   'mood.proud': ["Mood: proud. You did this. I helped."],
   'mood.smug': ["Mood: smug. Carrying the board."],
