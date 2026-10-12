@@ -136,28 +136,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
       </button>
 
       {welcome.text && !open && !dodge && (
-        <div
-          role="status"
-          className="fixed right-[4.75rem] bottom-24 md:right-[11.5rem] md:bottom-6 z-(--z-overlay) w-[min(18rem,calc(100vw-6rem))] animate-fade-up"
-        >
-          <button
-            type="button"
-            onClick={() => { welcome.dismiss(); setOpen(true) }}
-            className="relative w-full text-left rounded-(--radius-card) border border-border bg-paper px-3.5 py-2.5 pr-8 text-[13px] leading-snug text-ink shadow-lg"
-          >
-            {welcome.text}
-            {/* Tail pointing at the chat button. */}
-            <span aria-hidden className="absolute -right-1.5 bottom-4 h-3 w-3 rotate-45 border-r border-t border-border bg-paper" />
-          </button>
-          <button
-            type="button"
-            onClick={welcome.dismiss}
-            aria-label="Dismiss"
-            className="absolute top-1.5 right-1.5 p-1 rounded-full text-cha hover:text-ink hover:bg-kinu/60"
-          >
-            <X className="w-3 h-3" />
-          </button>
-        </div>
+        <WelcomeCard text={welcome.text} onOpen={() => { welcome.dismiss(); setOpen(true) }} onDismiss={welcome.dismiss} />
       )}
 
       {dodge && (
@@ -390,4 +369,58 @@ function useWelcome(active: boolean, signedIn: boolean) {
   }, [active, isLoading, tokens.isLoading, tokens.topics_remaining, cycle, phase, signedIn])
 
   return { text: active ? text : null, dismiss: () => setText(null) }
+}
+
+/**
+ * The welcome line, as a small chat card above the button: GuildBot's face and
+ * name, the line, and a tail pointing down at the button. While it is up it
+ * publishes its height as --gb-bubble-h on <body>, so the meeting pill (which
+ * also lives above the button) can step up over it instead of overlapping.
+ */
+function WelcomeCard({ text, onOpen, onDismiss }: { text: string; onOpen: () => void; onDismiss: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const publish = () => document.body.style.setProperty('--gb-bubble-h', `${el.offsetHeight + 12}px`)
+    publish()
+    const observer = new ResizeObserver(publish)
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      document.body.style.removeProperty('--gb-bubble-h')
+    }
+  }, [])
+
+  return (
+    <div
+      ref={ref}
+      role="status"
+      // Just above the button: 6rem + 3rem button on a phone, 1.5rem + 2.75rem on md.
+      className="fixed right-4 bottom-[9.5rem] md:right-6 md:bottom-[5rem] z-(--z-overlay) w-[min(18rem,calc(100vw-2rem))] animate-fade-up"
+    >
+      <div className="relative rounded-(--radius-card) border border-border bg-paper shadow-lg">
+        <button type="button" onClick={onOpen} className="block w-full text-left px-3.5 pt-3 pb-3">
+          <span className="flex items-center gap-2 pr-6">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-saffron-light text-ink">
+              <GuildBotMark size={16} />
+            </span>
+            <span className="text-footnote text-ink">GuildBot</span>
+          </span>
+          <span className="mt-1.5 block text-[13px] leading-snug text-ink-soft">{text}</span>
+        </button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss"
+          className="absolute top-2 right-2 p-1 rounded-full text-cha hover:text-ink hover:bg-kinu/60"
+        >
+          <X className="w-3 h-3" />
+        </button>
+        {/* Tail, pointing down at the button. */}
+        <span aria-hidden className="absolute -bottom-1.5 right-5 h-3 w-3 rotate-45 border-r border-b border-border bg-paper" />
+      </div>
+    </div>
+  )
 }

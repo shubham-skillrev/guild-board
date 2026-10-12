@@ -107,13 +107,15 @@ export function MeetingPill({ cycle, phase }: MeetingPillProps) {
       ? `${countdown.hours}h ${String(countdown.minutes).padStart(2, '0')}m ${String(countdown.seconds).padStart(2, '0')}s`
       : 'Starting now'
 
+  /* Both states sit one step above the GuildBot button, and a step higher
+     again while its welcome card is up (--gb-bubble-h, set by that card). */
   /* ── Collapsed: small pulsing dot ── */
   if (collapsed) {
     return createPortal(
       <button
         onClick={() => setCollapsed(false)}
         aria-label="Show meeting countdown"
-        className="fixed bottom-36 right-4 md:bottom-20 md:right-6 z-(--z-overlay) w-9 h-9 rounded-full bg-paper/95 border border-saffron/40 shadow-lg shadow-black/30 backdrop-blur-sm flex items-center justify-center transition-transform hover:scale-110"
+        className="fixed bottom-[calc(9rem+var(--gb-bubble-h,0px))] right-4 md:bottom-[calc(5rem+var(--gb-bubble-h,0px))] md:right-6 z-(--z-overlay) w-9 h-9 rounded-full bg-paper/95 border border-saffron/40 shadow-lg shadow-black/30 backdrop-blur-sm flex items-center justify-center transition-[transform,bottom] duration-300 hover:scale-110"
       >
         <span className="relative flex h-3 w-3">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-saffron opacity-50" />
@@ -130,7 +132,7 @@ export function MeetingPill({ cycle, phase }: MeetingPillProps) {
       onClick={() => setCollapsed(true)}
       aria-label="Collapse meeting countdown"
       className={[
-        'fixed bottom-36 right-4 md:bottom-20 md:right-6 z-(--z-overlay)',
+        'fixed bottom-[calc(9rem+var(--gb-bubble-h,0px))] right-4 md:bottom-[calc(5rem+var(--gb-bubble-h,0px))] md:right-6 z-(--z-overlay)',
         'flex items-center gap-2.5 px-3 py-2 rounded-(--radius-card) border',
         'shadow-lg backdrop-blur-sm transition-all active:scale-95',
         isToday
