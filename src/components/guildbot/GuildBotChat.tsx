@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { motion, useDragControls, useReducedMotion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChartBar, PaperPlaneRight, Trash, X } from '@phosphor-icons/react/dist/ssr'
@@ -11,6 +12,7 @@ import { KINDS, composeDescription } from '@/lib/kinds'
 import { SASS, botSays } from '@/lib/guildbot-host/voice'
 import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
 import { BodyPortal } from '@/components/ui/BodyPortal'
+import { useGuildBotMood } from '@/components/guildbot/useGuildBotMood'
 import { welcomeKey, meetingWhen, isoWeek } from '@guildboard/guildbot'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useUserTokens } from '@/hooks/useUserTokens'
@@ -40,10 +42,18 @@ function pageOf(path: string): { kind: 'board' } | { kind: 'topic'; topicId: str
 }
 
 /**
- * Chat with GuildBot, on the board, topic and Bytes pages. Fixed to the
- * bottom-right corner; the meeting countdown pill stacks just above it. Signed-in members
+ * Chat with GuildBot, on the board, topic and Bytes pages. Signed-in members
  * only. The bot can answer from the board and Bytes, and draft a post, which
  * shows here as a card: nothing is posted until you press Post.
+ *
+ * The button sits in the bottom-right corner (the meeting pill stacks above
+ * it) and wears the bot's current mood. It opens:
+ *  - on desktop, a full-height drawer on the right, next to the button. No
+ *    dimming: the page stays scrollable and clickable, and moving to another
+ *    topic keeps the chat open with the new topic as context.
+ *  - on phones, a sheet covering 92% of the screen, over a dimmed sliver of
+ *    the page. Drag it down or tap x to close. It sizes itself to the visible
+ *    viewport, so the input stays above the keyboard.
  */
 export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname()
@@ -58,7 +68,27 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   const [dodge, setDodge] = useState<string | null>(null)
   const welcome = useWelcome(pathname === '/board' && !open, signedIn)
   const listRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const toast = useToast()
+  const { mood, line: moodLine } = useGuildBotMood()
+  const desktop = useMediaQuery('(min-width: 768px)')
+  const keyboard = useKeyboardInset(open && !desktop)
+  const reduce = useReducedMotion()
+  const drag = useDragControls()
+
+  // Esc closes; phones lock the page behind the sheet, desktop does not.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', onKey)
+    const prev = document.body.style.overflow
+    if (!desktop) document.body.style.overflow = 'hidden'
+    if (desktop) inputRef.current?.focus()
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [open, desktop])
 
   const load = useCallback(async () => {
     const res = await fetch('/api/guildbot/chat')
@@ -124,15 +154,17 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
           setOpen(o => !o)
         }}
         aria-expanded={open}
-        aria-label={open ? 'Close GuildBot chat' : 'Chat with GuildBot'}
+        aria-label="Chat with GuildBot"
         className={cn(
           'press fixed right-4 bottom-24 md:right-6 md:bottom-6 z-(--z-overlay) inline-flex items-center justify-center gap-2 h-12 w-12 md:h-11 md:w-auto md:pl-3 md:pr-4 rounded-full bg-ink text-parchment shadow-lg hover:bg-ink/90 transition-[transform,background-color] duration-300 motion-reduce:transition-none',
           dodge !== null && '-translate-x-24 -translate-y-16',
+          // The drawer or sheet has its own close; the button would only sit on top of it.
+          open && 'hidden',
         )}
       >
-        <GuildBotMark size={22} />
+        <GuildBotMark size={22} mood={mood} />
         {/* Just the face on a phone: the full pill would cover the cards. */}
-        <span className="hidden md:inline text-[13px] font-medium">{open ? 'Close' : 'Ask GuildBot'}</span>
+        <span className="hidden md:inline text-[13px] font-medium">Ask GuildBot</span>
       </button>
 
       {welcome.text && !open && !dodge && (
@@ -146,80 +178,116 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
       )}
 
       {open && (
-        <section
-          aria-label="Chat with GuildBot"
-          className="fixed right-4 bottom-38 md:right-6 md:bottom-20 z-50 flex flex-col w-[min(380px,calc(100vw-2rem))] h-[min(560px,65vh)] bg-paper border border-border rounded-(--radius-card) shadow-2xl animate-fade-up"
-        >
-          <header className="flex items-center gap-2 px-4 h-12 border-b border-border">
-            <GuildBotMark size={20} className="text-ink" />
-            <h2 className="text-[14px] font-semibold text-ink">GuildBot</h2>
-            <span className="text-[11px] text-cha">Knows the board and Bytes</span>
-            <div className="ml-auto flex items-center gap-1">
-              {signedIn && messages.length > 0 && (
-                <button type="button" onClick={clear} aria-label="Clear chat" title="Clear chat" className="p-1.5 rounded-full text-cha hover:text-ink hover:bg-kinu/60">
-                  <Trash className="w-3.5 h-3.5" />
-                </button>
-              )}
-              <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="p-1.5 rounded-full text-cha hover:text-ink hover:bg-kinu/60">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </header>
-
-          {!signedIn ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
-              <p className="text-[13px] text-ink-soft">Sign in to chat with GuildBot.</p>
-              <Link href="/login" className="text-[13px] text-saffron hover:underline">Sign in</Link>
-            </div>
-          ) : (
-            <>
-              <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3" aria-live="polite">
-                {loaded && messages.length === 0 && (
-                  <p className="text-[13px] text-cha leading-relaxed">
-                    Ask about this month&apos;s topics or Bytes, or tell me an idea and ask me to draft it as a post. 15 asks a week. On meeting day I share anonymous themes from everyone&apos;s chats in Slack, never who asked what, then delete every chat.
-                  </p>
-                )}
-                {messages.map(m => (
-                  <ChatBubble
-                    key={m.id}
-                    message={m}
-                    onPosted={() => setMessages(list => list.map(x => (x.id === m.id ? { ...x, posted: true } : x)))}
-                  />
-                ))}
-                {thinking && (
-                  <p role="status" className="inline-flex items-center gap-1.5 text-[12px] text-cha">
-                    <GuildBotMark size={16} className="text-ink-soft" />
-                    GuildBot is typing<span className="animate-pulse">…</span>
-                  </p>
-                )}
+        <>
+          {/* Phones only: dim the sliver of page above the sheet; tap it to close. */}
+          {!desktop && <div aria-hidden className="fixed inset-0 z-50 bg-black/40" onClick={() => setOpen(false)} />}
+          <motion.section
+            role="dialog"
+            aria-label="Chat with GuildBot"
+            aria-modal={!desktop}
+            initial={reduce ? { opacity: 0 } : desktop ? { x: '100%' } : { y: '100%' }}
+            animate={reduce ? { opacity: 1 } : desktop ? { x: 0 } : { y: 0 }}
+            transition={{ type: 'spring', bounce: 0, duration: 0.35 }}
+            drag={desktop ? false : 'y'}
+            dragControls={drag}
+            dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.6 }}
+            onDragEnd={(_, info) => { if (info.offset.y > 120 || info.velocity.y > 600) setOpen(false) }}
+            style={desktop ? undefined : { bottom: keyboard.inset, height: keyboard.height }}
+            className={cn(
+              'fixed z-50 flex flex-col bg-paper border-border shadow-2xl',
+              desktop
+                ? 'top-0 right-0 bottom-0 w-[400px] border-l'
+                : 'inset-x-0 rounded-t-2xl border-t',
+            )}
+          >
+            {!desktop && (
+              // Grab handle: drag the sheet down to close it.
+              <div onPointerDown={e => drag.start(e)} className="flex justify-center pt-2.5 pb-1 touch-none cursor-grab">
+                <span className="h-1 w-10 rounded-full bg-border-strong" />
               </div>
-
-              <form
-                onSubmit={e => { e.preventDefault(); send() }}
-                className="flex items-end gap-2 p-3 border-t border-border"
-              >
-                <textarea
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-                  rows={1}
-                  maxLength={1500}
-                  placeholder="Ask GuildBot…"
-                  aria-label="Message GuildBot"
-                  className="flex-1 max-h-28 resize-none bg-sumi rounded-(--radius-control) px-3 py-2 text-[13px] text-ink placeholder:text-cha focus:outline-none focus:bg-paper border border-transparent focus:border-border-strong"
-                />
-                <button
-                  type="submit"
-                  disabled={!input.trim() || thinking}
-                  aria-label="Send"
-                  className="press shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full bg-ink text-parchment disabled:opacity-40"
-                >
-                  <PaperPlaneRight className="w-4 h-4" />
+            )}
+            <header
+              onPointerDown={e => { if (!desktop) drag.start(e) }}
+              className={cn('flex items-center gap-3 px-4 border-b border-border', desktop ? 'h-16' : 'pb-3 touch-none')}
+            >
+              <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-saffron-light text-ink shrink-0">
+                <GuildBotMark size={22} mood={mood} />
+              </span>
+              <div className="min-w-0">
+                <h2 className="text-footnote font-semibold text-ink">GuildBot</h2>
+                <p className="text-caption text-cha truncate">{moodLine ?? 'Knows the board and Bytes'}</p>
+              </div>
+              <div className="ml-auto flex items-center gap-1">
+                {signedIn && messages.length > 0 && (
+                  <button type="button" onClick={clear} aria-label="Clear chat" title="Clear chat" className="p-2 rounded-full text-cha hover:text-ink hover:bg-kinu/60">
+                    <Trash className="w-4 h-4" />
+                  </button>
+                )}
+                <button type="button" onClick={() => setOpen(false)} aria-label="Close chat" className="p-2 rounded-full text-cha hover:text-ink hover:bg-kinu/60">
+                  <X className="w-4 h-4" />
                 </button>
-              </form>
-            </>
-          )}
-        </section>
+              </div>
+            </header>
+
+            {!signedIn ? (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
+                <p className="text-footnote text-ink-soft">Sign in to chat with GuildBot.</p>
+                <Link href="/login" className="text-footnote text-saffron hover:underline">Sign in</Link>
+              </div>
+            ) : (
+              <>
+                <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3" aria-live="polite">
+                  {loaded && messages.length === 0 && (
+                    <p className="text-footnote text-cha leading-relaxed">
+                      Ask about this month&apos;s topics or Bytes, or tell me an idea and ask me to draft it as a post. 15 asks a week. On meeting day I share anonymous themes from everyone&apos;s chats in Slack, never who asked what, then delete every chat.
+                    </p>
+                  )}
+                  {messages.map(m => (
+                    <ChatBubble
+                      key={m.id}
+                      message={m}
+                      onPosted={() => setMessages(list => list.map(x => (x.id === m.id ? { ...x, posted: true } : x)))}
+                    />
+                  ))}
+                  {thinking && (
+                    <p role="status" className="inline-flex items-center gap-1.5 text-caption text-cha">
+                      <GuildBotMark size={16} mood={mood} className="text-ink-soft" />
+                      GuildBot is typing<span className="animate-pulse">…</span>
+                    </p>
+                  )}
+                </div>
+
+                <form
+                  onSubmit={e => { e.preventDefault(); send() }}
+                  className="flex items-end gap-2 p-3 border-t border-border pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+                >
+                  <textarea
+                    ref={inputRef}
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+                    rows={1}
+                    maxLength={1500}
+                    placeholder="Ask GuildBot…"
+                    aria-label="Message GuildBot"
+                    // 16px on phones: smaller text makes iOS zoom the page on focus.
+                    className="flex-1 max-h-28 resize-none bg-sumi rounded-(--radius-control) px-3 py-2.5 text-[16px] md:text-footnote text-ink placeholder:text-cha focus:outline-none focus:bg-paper border border-transparent focus:border-border-strong"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!input.trim() || thinking}
+                    aria-label="Send"
+                    className="press shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full bg-saffron text-parchment disabled:opacity-40"
+                  >
+                    <PaperPlaneRight className="w-4 h-4" />
+                  </button>
+                </form>
+              </>
+            )}
+          </motion.section>
+        </>
       )}
     </BodyPortal>
   )
@@ -423,4 +491,42 @@ function WelcomeCard({ text, onOpen, onDismiss }: { text: string; onOpen: () => 
       </div>
     </div>
   )
+}
+
+/** True while a media query matches; false on the server and during hydration. */
+function useMediaQuery(query: string): boolean {
+  return useSyncExternalStore(
+    cb => {
+      const mq = window.matchMedia(query)
+      mq.addEventListener('change', cb)
+      return () => mq.removeEventListener('change', cb)
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  )
+}
+
+/**
+ * Where the phone sheet should sit: 92% of the visible viewport, lifted above
+ * the on-screen keyboard. iOS does not shrink dvh for the keyboard, so this
+ * reads window.visualViewport instead.
+ */
+function useKeyboardInset(active: boolean): { inset: number; height: string } {
+  const [state, setState] = useState({ inset: 0, height: '92dvh' })
+  useEffect(() => {
+    const vv = window.visualViewport
+    if (!active || !vv) return
+    const update = () => {
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      setState(inset > 0 ? { inset, height: `${Math.round(vv.height - 8)}px` } : { inset: 0, height: '92dvh' })
+    }
+    update()
+    vv.addEventListener('resize', update)
+    vv.addEventListener('scroll', update)
+    return () => {
+      vv.removeEventListener('resize', update)
+      vv.removeEventListener('scroll', update)
+    }
+  }, [active])
+  return active ? state : { inset: 0, height: '92dvh' }
 }
