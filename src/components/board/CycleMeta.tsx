@@ -77,7 +77,9 @@ export function MeetingDate({ cycle, phase }: { cycle: Cycle | null | undefined;
   if (withinWindow !== true) return null
 
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full bg-paper/60 border border-border text-ink-soft">
+    // Same 32px height and 13px text as the share button beside it, so the
+    // header reads as one row of one family.
+    <span className="inline-flex items-center gap-1.5 h-8 px-3 text-footnote rounded-full bg-paper/60 border border-border text-ink-soft whitespace-nowrap">
       <Icon icon={CalendarBlank} size="sm" className="text-ink-muted" />
       {format(meeting)}
     </span>
@@ -95,7 +97,7 @@ export function CycleStatus({ phase }: { phase: string }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full ${
+      className={`inline-flex items-center gap-1.5 h-8 px-3 text-footnote rounded-full whitespace-nowrap ${
         isOpen ? 'bg-matcha-light text-matcha' : 'bg-indigo-light text-indigo-jp'
       }`}
     >

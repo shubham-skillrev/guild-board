@@ -31,10 +31,11 @@ type Variant = 'primary' | 'tinted' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md'
 
 const VARIANTS: Record<Variant, string> = {
-  /* Ink, not accent: dark on light, light on dark, from the same tokens.
-     Saffron is kept for emphasis (an accent word, a selected state), so the
-     primary action reads as confident rather than loud. No glow or shadow. */
-  primary: 'bg-ink text-parchment hover:bg-ink/85',
+  /* Saffron, the brand: the one action a screen is for. Parchment text reads
+     on both themes from the same tokens: near-white on the deep light-theme
+     saffron, near-black on the bright dark-theme one. One per screen keeps it
+     a signal rather than a colour scheme. No glow or shadow. */
+  primary: 'bg-saffron text-parchment hover:bg-saffron/90',
   /* Accent colour, no fill weight. This is what most "primary" actions in the
      product actually want: the row still reads as text with one warm word in
      it, rather than as a stack of orange blocks. */

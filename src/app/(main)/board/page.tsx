@@ -143,7 +143,9 @@ export default function BoardPage() {
                   empty the empty state carries it instead, being the more
                   prominent invitation. */}
               {!listIsEmpty && isOpen && canShare && (
-                <Button icon={Plus} onClick={() => setShowSubmit(true)}>
+                // Full width on a phone, under the chips: the main thing to do,
+                // at thumb reach. Inline beside the chips from sm up.
+                <Button icon={Plus} onClick={() => setShowSubmit(true)} className="w-full basis-full sm:w-auto sm:basis-auto">
                   {shareLabel(cycle?.theme)}
                 </Button>
               )}
