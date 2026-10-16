@@ -110,7 +110,7 @@ export async function POST(request: Request) {
   return NextResponse.json({ reply: answer.reply, draft, cites, reaction: answer.reaction, fallback: answer.reply === CHAT_FALLBACK, asks })
 }
 
-const DOING = new Set(['sleeping', 'waking up', 'brushing his teeth', 'having coffee', 'coding', 'having lunch', 'out for a walk', 'reading a book', 'listening to music', 'meditating', 'sulking about the meeting', 'focusing with this person', 'on a break with this person'])
+const DOING = new Set(['sleeping', 'waking up', 'brushing his teeth', 'having coffee', 'coding', 'having lunch', 'out for a walk', 'sitting in the garden, too hot to walk', 'watching the rain with chai', 'reading a book', 'listening to music', 'meditating', 'sulking about the meeting', 'focusing with this person', 'on a break with this person'])
 const WEARING = new Set(['sunglasses', 'sweating', 'beanie', 'scarf', 'umbrella'])
 
 /** What the browser says GuildBot is doing and wearing: known values only, so it can't carry anything else to the model. */

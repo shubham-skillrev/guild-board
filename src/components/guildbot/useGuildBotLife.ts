@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { isoWeek, meetingJustEnded, meetingOn, moodFor, reactTo, type BoardEvent, type Expression, type LineKey, type Mood } from '@guildboard/guildbot'
+import { daySeed, isoWeek, meetingJustEnded, meetingOn, moodFor, moodOfDay, reactTo, type BoardEvent, type Expression, type LineKey, type Mood } from '@guildboard/guildbot'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { botSays, SASS } from '@/lib/guildbot-host/voice'
 import { listen } from '@/lib/guildbot-host/live-bus'
@@ -143,10 +143,15 @@ export function useGuildBotLife() {
       else react({ kind: 'post', mine: null, humanPostsBefore: before })
     }
 
-    const next = moodFor({ daysSinceOpen, daysToMeeting, humanPosts: humans, botPosts })
+    // The board sets his mood, but he has days: someone posting today makes
+    // him proud, and a quiet month doesn't keep him bored every single day.
+    const today = new Date().toDateString()
+    const postedToday = topics.some((t: { is_system?: boolean; created_at?: string }) => !t.is_system && t.created_at && new Date(t.created_at).toDateString() === today)
+    const board = moodFor({ daysSinceOpen, daysToMeeting, humanPosts: humans, botPosts })
+    const next = moodOfDay(board, postedToday, daySeed(new Date(), 'mood'))
     moodRef.current = next
     setMood(next)
-    setMoodLine(botSays(`mood.${next}`, cycle.id, 'ui', { posts: humans, days: daysSinceOpen }))
+    setMoodLine(botSays(`mood.${next}`, `${cycle.id}:${today}`, 'ui', { posts: humans, days: daysSinceOpen }))
 
     if (before !== null) return
     // First count of this page: a visitor! Once a visit. The day after a
@@ -284,15 +289,29 @@ export function useGuildBotLife() {
     return true
   }, [speak, pullFace])
 
-  /** His own walk, when the schedule says so: once an hour at most, and he says so. */
+  /** His own walk, when the schedule says so: laps across the screen, back and forth. */
   const startWalk = useCallback(() => {
     if (prefsRef.current.hidden) return
     const key = `guildbot:walked:${new Date().toDateString()}:${new Date().getHours()}`
-    if (sessionStorage.getItem(key)) return
-    sessionStorage.setItem(key, '1')
-    speak('walk.start', { stay: true })
-    setPatrol(Date.now())
+    // He says so once an hour; the laps carry on all walk long.
+    if (!sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, '1')
+      speak('walk.start', { stay: true })
+    }
+    setPatrol(p => p ?? Date.now())
   }, [speak])
+
+  /** Asked for a walk while he's on his walk: no energy spent, he just says so. */
+  const alreadyWalking = useCallback((): string | null => {
+    setPatrol(p => p ?? Date.now())
+    const now = Date.now()
+    const text = botSays('trick.walk.already', `walk:${now}`, 'ui')
+    if (text) {
+      setBubble({ id: now, text, stay: true })
+      later('bubble', BUBBLE_MS, () => setBubble(null))
+    }
+    return text
+  }, [])
 
   const setQuiet = (on: boolean) => {
     if (on) localStorage.setItem(QUIET, new Date().toDateString()); else localStorage.removeItem(QUIET)
@@ -323,6 +342,7 @@ export function useGuildBotLife() {
     /** Say a line now (the weather, say), with a face to go with it. */
     say,
     startWalk,
+    alreadyWalking,
     energy,
     energyMax: ENERGY_MAX,
     meeting,

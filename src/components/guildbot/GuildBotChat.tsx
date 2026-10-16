@@ -14,12 +14,12 @@ import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
 import { useActivity, type Asks as AsksState, type Scene } from '@/components/guildbot/GuildBotScene'
 import { useFocusState, useRemaining, type BreakKind } from '@/lib/focus/store'
 import { useWeather, WearContext } from '@/components/guildbot/useWeather'
-import { GuildBotStamp, MoodCloud, type StampVariant } from '@/components/guildbot/GuildBotStamp'
+import { PlushBot, type PlushColour } from '@/components/guildbot/PlushBot'
 import { GuildBotStage, type Knock } from '@/components/guildbot/GuildBotStage'
 import { BodyPortal } from '@/components/ui/BodyPortal'
 import { useGuildBotLife } from '@/components/guildbot/useGuildBotLife'
 import { announceSelf } from '@/lib/guildbot-host/live-bus'
-import { welcomeKey, meetingWhen, isoWeek, describeWeather, type Activity, type ChatReaction, type Expression } from '@guildboard/guildbot'
+import { welcomeKey, meetingWhen, isoWeek, describeWeather, variantOf, type Activity, type ChatReaction, type Expression } from '@guildboard/guildbot'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useUserTokens } from '@/hooks/useUserTokens'
 import { TOKEN_LIMITS } from '@/lib/constants'
@@ -122,6 +122,10 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   const activity = useActivity() ?? 'coding'
   const focusState = useFocusState()
   const weather = useWeather()
+  // Today's take on what he's doing: too hot to walk (the garden), rain (the
+  // window and chai), iced coffee, a tiffin, the guitar.
+  const w = weather.weather
+  const variant = variantOf(activity, new Date(), w ? { temperature: w.temperature, code: w.code } : null)
   // A break's guided bit (sips, eyes, a stretch, a walk) runs for its own time, then he rests.
   const guiding = useRemaining(focusState.guideEndsAt) > 0
   const welcome = useWelcome(pathname === '/board' && !open, signedIn)
@@ -130,6 +134,14 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   const toast = useToast()
   const life = useGuildBotLife()
   const { mood, moodLine } = life
+  // What he's doing: the meeting beats everything, then a focus session you
+  // started, then his own day.
+  const scene: Scene = life.meeting
+    ? 'meeting'
+    : focusState.phase === 'focus' ? 'coding'
+    : focusState.phase === 'break' ? (guiding && focusState.breakKind ? BREAK_SCENE[focusState.breakKind] : 'meditating')
+    : variant === 'garden' || variant === 'rainwatch' ? variant
+    : activity
   // While a reply is on its way: reading the board, thinking, writing (shown in the header).
   const [phase, setPhase] = useState<'searching' | 'thinking' | 'writing'>('searching')
   const left = signedIn ? (asks?.left ?? null) : null
@@ -194,13 +206,15 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     return () => clearTimeout(t)
   }, [weather.weather, weather.line, sayWeather])
 
-  // His own walk, when the schedule says it's time (once an hour at most).
+  // His own walk, when the schedule says it's time: laps across the screen,
+  // a breather in the corner between them, until walk time is over.
   const startWalk = life.startWalk
+  const walkingNow = scene === 'walking' && focusState.phase !== 'break'
   useEffect(() => {
-    if (activity !== 'walking' || open) return
-    const t = setTimeout(startWalk, 4000)
+    if (!walkingNow || open || life.patrol) return
+    const t = setTimeout(startWalk, 6000)
     return () => clearTimeout(t)
-  }, [activity, open, startWalk])
+  }, [walkingNow, open, life.patrol, startWalk])
 
   if (!SASS || !page) return null
 
@@ -216,7 +230,8 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     // tricks and breaks. Not saved; gone on reload, like he promised.
     const local = localCommand(text)
     if (local) {
-      const said = life.doTrick(local)
+      // Asked to walk while he's already on his walk: he says so, free.
+      const said = local === 'walk' && walkingNow ? life.alreadyWalking() : life.doTrick(local)
       // Orders come back as a receipt, and a pat gets a heart.
       setMessages(m => [...m, {
         id: `local-bot-${Date.now()}`,
@@ -264,6 +279,8 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
       doing: life.meeting ? 'sulking about the meeting'
         : focusState.phase === 'focus' ? 'focusing with this person'
         : focusState.phase === 'break' ? 'on a break with this person'
+        : variant === 'garden' ? 'sitting in the garden, too hot to walk'
+        : variant === 'rainwatch' ? 'watching the rain with chai'
         : DOING[activity],
       weather: w ? `${w.city}, ${w.temperature}°C, ${describeWeather(w.code)}` : null,
       wearing: [wear.sunglasses && 'sunglasses', wear.sweat && 'sweating', wear.beanie && 'beanie', wear.scarf && 'scarf', wear.umbrella && 'umbrella'].filter(Boolean),
@@ -271,19 +288,8 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   }
 
   const expression: Expression = life.expression
-  // Which stamp in the series: the moment beats the mood.
-  const stampVariant: StampVariant = life.meeting ? 'meeting'
-    : genie ? 'genie'
-    : weather.wear.sweat ? 'heatwave'
-    : weather.wear.beanie || weather.wear.scarf ? 'chilly'
-    : mood
-  // What he's doing: the meeting beats everything, then a focus session you
-  // started, then his own day.
-  const scene: Scene = life.meeting
-    ? 'meeting'
-    : focusState.phase === 'focus' ? 'coding'
-    : focusState.phase === 'break' ? (guiding && focusState.breakKind ? BREAK_SCENE[focusState.breakKind] : 'meditating')
-    : activity
+  // His felt colour: the meeting's plum, genie blue, else his mood's own.
+  const colour: PlushColour = life.meeting ? 'meeting' : genie ? 'genie' : mood
 
   const press = (e: React.MouseEvent) => {
     if (open) { setOpen(false); return }
@@ -330,6 +336,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
       {SASS && (
         <GuildBotStage
           scene={scene}
+          colour={colour}
           asks={asksState}
           left={left}
           expression={expression}
@@ -339,7 +346,8 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
           onDismissBubble={life.dismissBubble}
           onChip={life.answer}
           trick={life.trick}
-          onTrick={t => life.doTrick(t)}
+          onTrick={t => (t === 'walk' && walkingNow ? life.alreadyWalking() : life.doTrick(t))}
+          variant={variant}
           patrol={life.patrol}
           onPatrolEnd={life.endPatrol}
           city={weather.city}
@@ -443,18 +451,12 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                 </div>
               </div>
 
-              {/* A postcard from him: what he said when you came over, written
-                  out in full on ruled lines, his stamp in the corner. */}
-              <div className="relative mt-2 rounded-(--radius-card) border border-border bg-sumi pl-3.5 pr-15 pt-2 pb-2.5">
-                <p className="gb-ruled font-serif italic text-[15px] leading-6 text-ink line-clamp-3">
+              {/* Him, and what he said when you came over. */}
+              <div className="mt-2 flex items-end gap-2">
+                <PlushBot colour={colour} expression={expression} size={60} status={thinking ? 'thinking' : null} follow className="-mb-1" />
+                <p className="relative flex-1 min-w-0 rounded-2xl rounded-bl-md border border-border bg-sumi px-3.5 py-2.5 font-serif italic text-[15px] leading-snug text-ink">
                   {greeting ?? moodLine ?? 'Ask me about the board and Bytes, or tell me to do something.'}
                 </p>
-                <p className="mt-0.5 text-caption text-cha">From GuildBot&apos;s desk</p>
-                <span className="absolute top-2 right-2">
-                  <GuildBotStamp expression={expression} variant={stampVariant} className="rotate-3" />
-                  {/* His mood as a little weather of its own, floating over the stamp. */}
-                  <MoodCloud mood={mood} className="absolute -top-3 -left-3" />
-                </span>
               </div>
             </header>
 

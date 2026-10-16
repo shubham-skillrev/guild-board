@@ -1,9 +1,8 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { activityAt, type Activity, type Expression } from '@guildboard/guildbot'
-import { cn } from '@/lib/utils/cn'
-import { BotFigure, BotHead, type AvatarStatus } from '@/components/guildbot/GuildBotAvatar'
+import { activityAt, type Activity, type Expression, type Variant } from '@guildboard/guildbot'
+import { Mitten, PlushFigure, plushEdge, type AvatarStatus, type PlushColour } from '@/components/guildbot/PlushBot'
 import { GuildBotHome } from '@/components/guildbot/GuildBotHome'
 
 /**
@@ -19,12 +18,12 @@ import { GuildBotHome } from '@/components/guildbot/GuildBotHome'
  *   floor    waking (a big stretch), brushing, walking
  *   house    sleeping (GuildBotHome)
  *
- * The asks left this week are written on his saffron mug. In the last three
- * the mug becomes a genie's lamp and his eyes go blue; with none left an OUT
- * card stands where the mug was, and he carries on with his day. Colours come from the theme
+ * A cup only shows up when he's actually having coffee. In the last three
+ * asks a genie's lamp sits beside him and he turns blue; with none left an
+ * OUT card stands there, and he carries on with his day. Colours come from the theme
  * (.gb-scene in globals.css), so light and dark both work.
  */
-export type Scene = Activity | 'meeting'
+export type Scene = Activity | 'meeting' | 'garden' | 'rainwatch'
 export type Asks = 'normal' | 'genie' | 'out'
 export type Trick = 'dance' | 'pat' | null
 
@@ -52,6 +51,8 @@ function restingFace(scene: Scene, mood: Expression): Expression {
     case 'lunch':
     case 'music': return 'proud'
     case 'learning': return 'nosy'
+    case 'garden':
+    case 'rainwatch': return 'relieved'
     default: return mood
   }
 }
@@ -68,6 +69,8 @@ const STAGE: Record<Scene, 'desk' | 'cushion' | 'floor' | 'house'> = {
   music: 'cushion',
   meditating: 'cushion',
   meeting: 'desk',
+  garden: 'floor',
+  rainwatch: 'floor',
 }
 
 export function GuildBotScene({
@@ -75,6 +78,7 @@ export function GuildBotScene({
   asks,
   left,
   expression,
+  colour = 'smug',
   reacting = false,
   status = null,
   knocking = false,
@@ -82,15 +86,18 @@ export function GuildBotScene({
   doorOpen = false,
   doorway,
   trick = null,
+  variant = null,
   mug = true,
   width = 120,
 }: {
   scene: Scene
   asks: Asks
-  /** Asks left this week, for the mug; null for guests. */
+  /** Asks left this week, for the sign at his house; null for guests. */
   left: number | null
   /** His mood, or a live reaction. */
   expression: Expression
+  /** His felt colour: the month's mood, genie blue, or meeting plum. */
+  colour?: PlushColour
   /** True while a reaction is showing: its face beats the activity's own. */
   reacting?: boolean
   status?: AvatarStatus | null
@@ -101,7 +108,9 @@ export function GuildBotScene({
   doorOpen?: boolean
   doorway?: ReactNode
   trick?: Trick
-  /** His mug (with the asks left on it, or the genie lamp, or the OUT sign). Off on the focus page. */
+  /** Today's version of the activity: iced coffee, a tiffin lunch, the guitar. */
+  variant?: Variant
+  /** The genie lamp or the OUT sign, when the asks call for one. Off on the focus page. */
   mug?: boolean
   width?: number
 }) {
@@ -123,6 +132,8 @@ export function GuildBotScene({
     )
   }
   const genie = asks === 'genie'
+  // Genie blue for the last three asks, otherwise his mood's own colour.
+  const paint: PlushColour = genie ? 'genie' : colour
   const face: Expression = reacting || trick ? expression : restingFace(shown, expression)
   const floorY = stage === 'desk' ? 62 : 84
   const mugX = stage === 'desk' ? 100 : 98
@@ -137,31 +148,54 @@ export function GuildBotScene({
     >
       <svg viewBox="0 0 120 90" className="absolute inset-0 w-full h-full overflow-visible" aria-hidden>
         <ellipse cx={60} cy={86.5} rx={54} ry={3.2} fill="#000" opacity={0.12} />
-        {stage === 'desk' && <Desk scene={shown} face={face} genie={genie} away={away} status={status} />}
-        {stage === 'cushion' && <Cushion scene={shown} face={face} genie={genie} away={away} status={status} />}
-        {stage === 'floor' && <Floor scene={shown} face={face} genie={genie} away={away} status={status} />}
+        {stage === 'desk' && <Desk scene={shown} face={face} colour={paint} away={away} status={status} variant={variant} />}
+        {stage === 'cushion' && <Cushion scene={shown} face={face} colour={paint} away={away} status={status} variant={variant} />}
+        {stage === 'floor' && (shown === 'garden' || shown === 'rainwatch'
+          ? <Outdoors scene={shown} face={face} colour={paint} away={away} status={status} />
+          : <Floor scene={shown} face={face} colour={paint} away={away} status={status} />)}
         {trick === 'pat' && !away && <Hearts />}
-        {mug && (genie ? <GenieLamp x={mugX - 4} y={floorY} /> : out ? <OutSign y={floorY} /> : <Mug x={mugX} y={floorY} />)}
+        {mug && (genie ? <GenieLamp x={mugX - 4} y={floorY} /> : out ? <OutSign y={floorY} /> : null)}
       </svg>
-      {mug && left !== null && !out && (
-        <span
-          aria-hidden
-          className={cn(
-            'absolute -translate-x-1/2 -translate-y-1/2 text-[11px] font-bold tabular-nums leading-none',
-            genie ? 'min-w-4.5 h-4.5 px-1 inline-flex items-center justify-center rounded-full bg-indigo-jp text-white shadow-sm' : 'text-parchment',
-          )}
-          style={stage === 'desk'
-            ? { left: genie ? '94%' : '88.3%', top: genie ? '75%' : '62%' }
-            : { left: genie ? '92%' : '86.6%', top: genie ? '98%' : '86%' }}
-        >
-          {left}
-        </span>
-      )}
     </span>
   )
 }
 
-type Part = { face: Expression; genie: boolean; away: boolean; status: AvatarStatus | null }
+type Hand = { x: number; y: number; side: 'l' | 'r' }
+
+/** Where the desk scenes put his hands (the mittens drawn on the desk). */
+function deskHands(scene: Scene): Hand[] {
+  switch (scene) {
+    case 'coding': return [{ x: 57, y: 57, side: 'l' }, { x: 65, y: 57, side: 'r' }]
+    case 'coffee': return [{ x: 63, y: 50, side: 'r' }]
+    case 'lunch': return [{ x: 69, y: 43, side: 'r' }]
+    case 'learning': return [{ x: 36, y: 55, side: 'l' }, { x: 66, y: 55, side: 'r' }]
+    case 'meeting': return [{ x: 47, y: 56, side: 'l' }, { x: 55, y: 56, side: 'r' }]
+    default: return []
+  }
+}
+
+/**
+ * The faint arm lines to the hands a scene draws itself, from the plush's
+ * shoulders (it sits at `from`, scaled by s). Drawn before the plush, so
+ * they come out from behind the felt like his own.
+ */
+function Arms({ from, to, colour }: { from: { x: number; y: number; s: number }; to: Hand[]; colour: PlushColour }) {
+  if (!to.length) return null
+  return (
+    <g stroke={plushEdge(colour)} strokeOpacity={0.45} strokeWidth={1.8 * from.s} strokeLinecap="round" fill="none">
+      {to.map(h => {
+        const sx = from.x + from.s * (h.side === 'l' ? 18 : 82)
+        const sy = from.y + from.s * 62
+        return <path key={`${h.x}-${h.y}`} d={`M${sx} ${sy}L${h.x} ${h.y}`} />
+      })}
+    </g>
+  )
+}
+
+type Part = { face: Expression; colour: PlushColour; away: boolean; status: AvatarStatus | null }
+
+/** What he's doing, as plush status: thought dots or sound lines. */
+const plushStatus = (s: AvatarStatus | null) => (s === 'thinking' ? 'thinking' : s === 'talking' ? 'talking' : null)
 
 function Plant({ dy = 0 }: { dy?: number }) {
   return (
@@ -172,7 +206,7 @@ function Plant({ dy = 0 }: { dy?: number }) {
   )
 }
 
-function Desk({ scene, face, genie, away, status }: Part & { scene: Scene }) {
+function Desk({ scene, face, colour, away, status, variant }: Part & { scene: Scene; variant: Variant }) {
   const sulking = scene === 'meeting'
   return (
     <>
@@ -182,9 +216,11 @@ function Desk({ scene, face, genie, away, status }: Part & { scene: Scene }) {
       <path d="M33 59V43a7 7 0 0 1 7-7h23a7 7 0 0 1 7 7v16" className="gb-chair" strokeWidth={1.8} />
 
       {!away && (
-        <g data-part="bot">
-          <g transform="translate(29.5 19) scale(0.68)">
-            <BotHead expression={face} genie={genie} status={status} />
+        <g data-part="bot" className="gb-plush" data-motion="idle">
+          {/* The plush, sat behind his desk (the desk top hides his bottom). */}
+          <Arms from={{ x: 27, y: 15, s: 0.46 }} to={deskHands(scene)} colour={colour} />
+          <g transform="translate(27 15) scale(0.46)">
+            <PlushFigure colour={colour} expression={face} status={plushStatus(status)} hands="none" fuzzy={false} />
           </g>
           {sulking && <Fumes />}
           <path data-part="exclaim" d="M78 8v8M78 20.5v.5" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
@@ -207,24 +243,47 @@ function Desk({ scene, face, genie, away, status }: Part & { scene: Scene }) {
         <>
           {scene === 'coding' && (
             <g>
-              <rect data-hand="l" x={52} y={56} width={7.5} height={4} rx={2} className="gb-shell" strokeWidth={1.4} />
-              <rect data-hand="r" x={61} y={56} width={7.5} height={4} rx={2} className="gb-shell" strokeWidth={1.4} />
+              <g data-hand="l"><Mitten x={57} y={57} colour={colour} rot={-90} /></g>
+              <g data-hand="r"><Mitten x={65} y={57} colour={colour} rot={-90} /></g>
             </g>
           )}
           {scene === 'coffee' && (
             <g data-part="sip">
-              <path d="M59.5 36c-1.6-2 1.6-3 0-5" className="gb-steam-on" strokeWidth={1.2} fill="none" strokeLinecap="round" />
-              <path d="M56 38h9v7.5a2.5 2.5 0 0 1-2.5 2.5h-4A2.5 2.5 0 0 1 56 45.5Z" className="gb-mug" strokeWidth={1.4} strokeLinejoin="round" />
-              <ellipse cx={60.5} cy={49} rx={4.5} ry={2.4} className="gb-shell" strokeWidth={1.3} />
+              {variant === 'iced' ? (
+                // Too warm for hot coffee: iced, with a straw.
+                <>
+                  <path d="M60 32l2 6" className="gb-line" strokeWidth={1.4} strokeLinecap="round" />
+                  <path d="M56 37h9l-1 11h-7Z" fill="#E8D4BC" fillOpacity={0.85} className="gb-line" strokeWidth={1.3} strokeLinejoin="round" />
+                  <rect x={57.5} y={39} width={2.6} height={2.6} rx={0.6} fill="#FFFFFF" opacity={0.8} />
+                  <rect x={60.5} y={41.5} width={2.6} height={2.6} rx={0.6} fill="#FFFFFF" opacity={0.8} />
+                </>
+              ) : (
+                <>
+                  <path d="M59.5 36c-1.6-2 1.6-3 0-5" className="gb-steam-on" strokeWidth={1.2} fill="none" strokeLinecap="round" />
+                  <path d="M56 38h9v7.5a2.5 2.5 0 0 1-2.5 2.5h-4A2.5 2.5 0 0 1 56 45.5Z" className="gb-mug" strokeWidth={1.4} strokeLinejoin="round" />
+                </>
+              )}
+              <Mitten x={63} y={50} colour={colour} flip rot={10} />
             </g>
           )}
           {scene === 'lunch' && (
             <g>
-              <path d="M42 54h22c0 5-5 7.5-11 7.5S42 59 42 54Z" className="gb-pot" strokeWidth={1.5} strokeLinejoin="round" />
-              <path d="M45 54q3-3 6 0t6 0 5 0" className="gb-noodle" strokeWidth={1.6} fill="none" strokeLinecap="round" />
+              {variant === 'tiffin' ? (
+                // A stacked steel tiffin, lids off.
+                <g>
+                  <rect x={42} y={52} width={10} height={8} rx={1.5} fill="#C9CED6" className="gb-line" strokeWidth={1.2} />
+                  <rect x={53} y={50} width={10} height={10} rx={1.5} fill="#D7DCE3" className="gb-line" strokeWidth={1.2} />
+                  <path d="M44 54h6M55 52.5h6" stroke="#E8B64B" strokeWidth={2} strokeLinecap="round" />
+                </g>
+              ) : (
+                <>
+                  <path d="M42 54h22c0 5-5 7.5-11 7.5S42 59 42 54Z" className="gb-pot" strokeWidth={1.5} strokeLinejoin="round" />
+                  <path d="M45 54q3-3 6 0t6 0 5 0" className="gb-noodle" strokeWidth={1.6} fill="none" strokeLinecap="round" />
+                </>
+              )}
               <g data-part="chopsticks">
                 <path d="M66 42 55 53M68.5 43.5 57 54" className="gb-line" strokeWidth={1.4} strokeLinecap="round" />
-                <ellipse cx={68} cy={42.5} rx={3.6} ry={2.3} className="gb-shell" strokeWidth={1.3} />
+                <Mitten x={69} y={43} colour={colour} flip rot={-20} />
               </g>
             </g>
           )}
@@ -233,15 +292,15 @@ function Desk({ scene, face, genie, away, status }: Part & { scene: Scene }) {
               <path d="M37 45.5 51 48v12l-14-2.5Z" className="gb-page" strokeWidth={1.4} strokeLinejoin="round" />
               <path d="M65 45.5 51 48v12l14-2.5Z" className="gb-page" strokeWidth={1.4} strokeLinejoin="round" />
               <path d="M40 49.5l8 1.4M40 52.5l8 1.4M54 50.9l8-1.4M54 53.9l8-1.4" className="gb-line" strokeOpacity={0.35} strokeWidth={1} />
-              <ellipse cx={36} cy={54} rx={3} ry={2.2} className="gb-shell" strokeWidth={1.3} />
-              <ellipse cx={66} cy={54} rx={3} ry={2.2} className="gb-shell" strokeWidth={1.3} />
+              <Mitten x={36} y={55} colour={colour} rot={20} />
+              <Mitten x={66} y={55} colour={colour} flip rot={-20} />
             </g>
           )}
           {sulking && (
             <g>
-              {/* Arms crossed. */}
-              <rect x={42} y={54} width={16} height={5} rx={2.5} className="gb-shell" strokeWidth={1.4} transform="rotate(-10 50 56)" />
-              <rect x={46} y={54} width={16} height={5} rx={2.5} className="gb-shell" strokeWidth={1.4} transform="rotate(10 54 56)" />
+              {/* Mittens crossed, in protest. */}
+              <Mitten x={47} y={56} colour={colour} rot={-60} />
+              <Mitten x={55} y={56} colour={colour} flip rot={60} />
             </g>
           )}
         </>
@@ -285,7 +344,7 @@ function MeetingSign() {
   )
 }
 
-function Cushion({ scene, face, genie, away, status }: Part & { scene: Scene }) {
+function Cushion({ scene, face, colour, away, status, variant }: Part & { scene: Scene; variant: Variant }) {
   const music = scene === 'music'
   return (
     <>
@@ -296,14 +355,21 @@ function Cushion({ scene, face, genie, away, status }: Part & { scene: Scene }) 
       {!away && (
         <g data-part="bot">
           <g data-part={music ? 'groove' : 'float'}>
-            <path d="M30 73q22-9 44 0q-22 7-44 0Z" className="gb-foot" strokeLinejoin="round" />
-            <rect x={40} y={52} width={24} height={20} rx={9} className="gb-shell" strokeWidth={1.8} />
-            <path d="M42 58q-10 6-10 14M62 58q10 6 10 14" className="gb-line" strokeWidth={1.8} fill="none" strokeLinecap="round" />
-            <circle cx={32} cy={72} r={2.6} className="gb-shell" strokeWidth={1.4} />
-            <circle cx={72} cy={72} r={2.6} className="gb-shell" strokeWidth={1.4} />
-            <g transform="translate(30 14) scale(0.66)">
-              <BotHead expression={face} genie={genie} status={status} headphones={music} />
+            {/* The plush, floating a little over his cushion. */}
+            <g transform="translate(29 25) scale(0.5)" className="gb-plush" data-motion="still">
+              <PlushFigure colour={colour} expression={face} status={plushStatus(status)} wear={music && variant !== 'guitar' ? 'headphones' : null} hands={music && variant === 'guitar' ? 'one' : 'rest'} fuzzy={false} />
             </g>
+            {music && variant === 'guitar' && (
+              // A tiny guitar, strummed by a floating mitten.
+              <g>
+                <Arms from={{ x: 29, y: 25, s: 0.5 }} to={[{ x: 46, y: 74, side: 'r' }]} colour={colour} />
+                <path d="M60 64l20-12" stroke="#8B5A3C" strokeWidth={3.4} strokeLinecap="round" />
+                <path d="M78 50l5-3" stroke="#3A2E22" strokeWidth={4} strokeLinecap="round" />
+                <ellipse cx={50} cy={70} rx={12} ry={8.5} fill="#D9893F" className="gb-line" strokeWidth={1.3} />
+                <circle cx={52} cy={69} r={2.6} fill="#3A2E22" />
+                <g data-part="strum"><Mitten x={46} y={74} colour={colour} rot={-30} /></g>
+              </g>
+            )}
           </g>
           {music ? (
             <>
@@ -323,7 +389,7 @@ function Cushion({ scene, face, genie, away, status }: Part & { scene: Scene }) 
   )
 }
 
-function Floor({ scene, face, genie, away, status }: Part & { scene: Scene }) {
+function Floor({ scene, face, colour, away, status }: Part & { scene: Scene }) {
   return (
     <>
       {scene === 'waking' && (
@@ -343,30 +409,14 @@ function Floor({ scene, face, genie, away, status }: Part & { scene: Scene }) {
 
       {!away && (
         <g data-part="bot">
-          <g transform="translate(36 17) scale(0.8)">
-            <BotFigure
-              expression={face}
-              genie={genie}
-              status={status}
-              pose={scene === 'walking' ? 'walk' : scene === 'waking' ? 'stretch' : 'brush'}
-            />
+          {/* Standing on the floor: stretching tall, scrubbing, or hopping along. */}
+          <g transform="translate(34 26) scale(0.55)" className="gb-plush" data-motion={scene === 'walking' ? 'walk' : scene === 'waking' ? 'stretch' : 'idle'}>
+            <PlushFigure colour={colour} expression={face} status={plushStatus(status)} hands={scene === 'brushing' ? 'brush' : 'rest'} fuzzy={false} />
           </g>
           <path data-part="exclaim" d="M90 12v8M90 24.5v.5" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
         </g>
       )}
     </>
-  )
-}
-
-/** His saffron mug: the asks left are written on it. Sits on (x, y) as its base. */
-function Mug({ x, y }: { x: number; y: number }) {
-  return (
-    <g transform={`translate(${x} ${y})`}>
-      <path data-part="steam" d="M4 -17c-2-3 2-4.5 0-7.5" className="gb-steam" strokeWidth={1.4} fill="none" strokeLinecap="round" />
-      <path data-part="steam" d="M8.5 -17c-2-3 2-4.5 0-7.5" className="gb-steam" strokeWidth={1.4} fill="none" strokeLinecap="round" />
-      <path d="M12.5 -11.5a3.6 3.6 0 0 1 0 7" className="gb-line" strokeWidth={2} fill="none" strokeLinecap="round" />
-      <path d="M0 -14h13v10.5a3.5 3.5 0 0 1-3.5 3.5h-6A3.5 3.5 0 0 1 0-3.5Z" className="gb-mug" strokeWidth={1.6} strokeLinejoin="round" />
-    </g>
   )
 }
 
@@ -424,5 +474,60 @@ function Hearts() {
       <path data-heart d="M50 18c-2-3-6-1-4 2l4 4 4-4c2-3-2-5-4-2Z" />
       <path data-heart d="M66 12c-1.5-2.4-4.6-.8-3.2 1.6l3.2 3.2 3.2-3.2c1.4-2.4-1.7-4-3.2-1.6Z" />
     </g>
+  )
+}
+
+/** Walk time, but the weather said no: the garden in the heat, or the window in the rain. */
+function Outdoors({ scene, face, colour, away, status }: Part & { scene: Scene }) {
+  const garden = scene === 'garden'
+  return (
+    <>
+      {garden ? (
+        <g>
+          {/* Sun, a shady tree, grass. */}
+          <circle cx={100} cy={18} r={7} fill="#F6C431" opacity={0.9} />
+          <path d="M22 80V52" stroke="#7A4A2E" strokeWidth={4} strokeLinecap="round" />
+          <circle cx={22} cy={42} r={16} className="gb-leaf" strokeWidth={1.4} />
+          <circle cx={12} cy={50} r={9} className="gb-leaf" strokeWidth={1.4} />
+          <path d="M0 80h120" stroke="#16774F" strokeWidth={3} strokeOpacity={0.5} />
+          <path d="M6 80l2-4 2 4M40 80l2-4 2 4M92 80l2-4 2 4M108 80l2-4 2 4" stroke="#16774F" strokeWidth={1.2} fill="none" strokeOpacity={0.7} />
+        </g>
+      ) : (
+        <g>
+          {/* A window with the rain coming down behind him. */}
+          <rect x={30} y={8} width={60} height={50} rx={3} fill="#3A4A66" className="gb-line" strokeWidth={2} />
+          <path d="M60 8v50M30 33h60" className="gb-line" strokeWidth={1.6} />
+          <g className="gb-rain" stroke="#A9C7F2" strokeWidth={1.2} strokeLinecap="round">
+            <path data-drop d="M38 14l-2 6M50 22l-2 6M70 12l-2 6M82 24l-2 6M44 38l-2 6M76 40l-2 6" />
+          </g>
+          <path d="M0 80h120" className="gb-line" strokeOpacity={0.15} strokeWidth={1.2} />
+        </g>
+      )}
+      {!away && (
+        <g data-part="bot">
+          <Arms from={{ x: 36, y: 31, s: 0.5 }} to={[{ x: garden ? 86 : 85, y: garden ? 74 : 72, side: 'r' }]} colour={colour} />
+          <g transform="translate(36 31) scale(0.5)" className="gb-plush" data-motion="idle">
+            <PlushFigure colour={colour} expression={face} status={plushStatus(status)} hands="one" fuzzy={false} />
+          </g>
+          {garden ? (
+            // Lemonade.
+            <g>
+              <path d="M76 66h8l-1 12h-6Z" fill="#F6E27A" fillOpacity={0.85} className="gb-line" strokeWidth={1.2} strokeLinejoin="round" />
+              <path d="M81 66l3-6" className="gb-line" strokeWidth={1.2} strokeLinecap="round" />
+              <circle cx={78} cy={66} r={2.2} fill="#9BCB4C" />
+              <Mitten x={86} y={74} colour={colour} flip rot={10} />
+            </g>
+          ) : (
+            // Chai, in a little glass.
+            <g>
+              <path d="M78 62c-1.4-2 1.4-3 0-5" className="gb-steam-on" strokeWidth={1.1} fill="none" strokeLinecap="round" />
+              <path d="M75 64h8l-1 9h-6Z" fill="#C98A4B" className="gb-line" strokeWidth={1.2} strokeLinejoin="round" />
+              <Mitten x={85} y={72} colour={colour} flip rot={10} />
+            </g>
+          )}
+          <path data-part="exclaim" d="M90 12v8M90 24.5v.5" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
+        </g>
+      )}
+    </>
   )
 }
