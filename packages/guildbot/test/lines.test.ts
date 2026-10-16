@@ -19,14 +19,14 @@ test('lines missing a value are skipped, not printed raw', () => {
 
 test('every hand-written line passes the guard on its surface', () => {
   const surfaceFor = (key: string) =>
-    key.startsWith('push') ? 'push' : key.startsWith('mood') || key.startsWith('ui') || key.startsWith('welcome') || ['home', 'react', 'meeting', 'trick', 'talk', 'focus', 'break', 'walk', 'weather'].some(p => key.startsWith(p)) ? 'ui' : key.startsWith('chat') ? 'chat' : 'slack'
+    key.startsWith('push') ? 'push' : key.startsWith('mood') || key.startsWith('ui') || key.startsWith('welcome') || ['home', 'react', 'meeting', 'trick', 'talk', 'focus', 'break', 'walk', 'weather', 'hours'].some(p => key.startsWith(p)) ? 'ui' : key.startsWith('chat') ? 'chat' : 'slack'
   const sample = { when: 'in 3 days', days: 9, bot_posts: 3, meeting_days: 4, month: 'October', theme: 'Problem Month', time: '11:00', count: 12, top: 'Flaky tests', comments: 40, top_thread: 'Flaky tests', posts: 5, lonely: 2, limit: 30, present: 4, city: 'Mumbai', temp: 35 }
   for (const [key, pool] of Object.entries(LINES)) {
     for (const text of pool) {
       const filled = text.replace(/\{(\w+)\}/g, (_, k: string) => String(sample[k as keyof typeof sample]))
       const surface = surfaceFor(key) as 'push' | 'ui' | 'chat' | 'slack'
-      // The one-time intro is allowed 900 characters (INTRO_MAX in the host).
-      const res = guard(filled, { surface, ...(key === 'intro.slack' ? { maxLength: 900 } : {}) })
+      // The one-time intro is allowed 900 characters, the hour scenes 200.
+      const res = guard(filled, { surface, ...(key === 'intro.slack' ? { maxLength: 900 } : key.startsWith('hours.') ? { maxLength: 200 } : {}) })
       assert.ok(res.ok, `${key}: ${filled} -> ${res.ok ? '' : res.reasons.join('; ')}`)
     }
   }

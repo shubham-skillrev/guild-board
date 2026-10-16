@@ -1013,3 +1013,21 @@ body {
   0%, 100% { opacity: 0; }
   40% { opacity: 0.5; }
 }
+
+/* ═══════════════════════════════════════════════════════
+   The guild building (/hours, and the focus room): stars twinkle, the
+   roof beacon blinks at night, steam rises off the chai cart, z's drift
+   out of GuildBot's window. All of it stops under reduced motion.
+   ═══════════════════════════════════════════════════════ */
+.gb-building .gb-stars circle { transform-box: fill-box; transform-origin: 50% 50%; animation: gb-twinkle 3.4s ease-in-out infinite; }
+.gb-building .gb-stars circle:nth-child(3n) { animation-delay: 1.1s; }
+.gb-building .gb-stars circle:nth-child(3n + 1) { animation-delay: 2.2s; }
+.gb-building[data-night] .gb-beacon { animation: gb-beacon 2.2s steps(1) infinite; }
+@keyframes gb-beacon { 0%, 60% { opacity: 1; } 61%, 100% { opacity: 0.25; } }
+.gb-building .gb-chai-steam { transform-box: fill-box; animation: gb-steam 2.6s var(--motion-out) infinite; }
+.gb-building .gb-zz { animation: gb-z 2.8s var(--motion-out) infinite; }
+.gb-building .gb-zz + .gb-zz { animation-delay: 1.4s; }
+.gb-hours { transition: background 700ms ease; }
+@media (prefers-reduced-motion: reduce) {
+  .gb-building .gb-stars circle, .gb-building .gb-beacon, .gb-building .gb-chai-steam, .gb-building .gb-zz { animation: none; opacity: 1; }
+}
