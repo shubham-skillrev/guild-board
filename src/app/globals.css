@@ -1033,53 +1033,57 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════
-   GuildBot, the plush (PlushBot.tsx). Toy physics: he breathes, hops,
-   wiggles, stretches tall and hops along when he walks; his eyes blink;
-   floating hands and feet swing on faint lines. Transform and opacity only; nothing moves
-   under reduced motion.
+   Kers (components/kers): the cursor breathes, bobs as he walks, hops and
+   dances; his arms sway, his legs step, one arm waves; his eyes blink; his
+   cursor states spin, blink and ripple. Transform and opacity only; nothing
+   moves under reduced motion.
    ═══════════════════════════════════════════════════════ */
-.gb-plush .gb-plush-body, .gb-plush .gb-plush-shadow, .gb-plush [data-eye], .gb-plush [data-drop], .gb-plush .gb-plush-float-prop {
-  transform-box: fill-box;
-}
-.gb-plush .gb-plush-body { transform-origin: 50% 100%; transition: fill 1.2s ease; }
-.gb-plush .gb-plush-shadow { transform-origin: 50% 50%; }
-.gb-plush[data-motion='idle'] .gb-plush-body { animation: gb-plush-breathe 3.6s ease-in-out infinite; }
-@keyframes gb-plush-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.015, 0.985); } }
-.gb-plush[data-motion='hop'] .gb-plush-body { animation: gb-plush-hop 620ms var(--motion-out); }
-.gb-plush[data-motion='hop'] .gb-plush-shadow { animation: gb-plush-shadow 620ms var(--motion-out); }
-@keyframes gb-plush-hop {
+@keyframes gb-kers-hop {
   0%, 100% { transform: translateY(0) scale(1, 1); }
   18% { transform: translateY(0) scale(1.1, 0.88); }
   48% { transform: translateY(-16%) scale(0.94, 1.08); }
   78% { transform: translateY(0) scale(1.06, 0.94); }
 }
-@keyframes gb-plush-shadow { 0%, 100% { transform: scale(1); opacity: 0.18; } 48% { transform: scale(0.7); opacity: 0.08; } }
-.gb-plush[data-motion='dance'] .gb-plush-body { animation: gb-plush-dance 760ms ease-in-out infinite; }
-@keyframes gb-plush-dance {
-  0%, 100% { transform: rotate(0deg) scale(1, 1); }
-  25% { transform: rotate(-12deg) translateY(-6%) scale(0.96, 1.05); }
-  50% { transform: rotate(0deg) scale(1.08, 0.92); }
-  75% { transform: rotate(12deg) translateY(-6%) scale(0.96, 1.05); }
-}
-.gb-plush[data-motion='stretch'] .gb-plush-body { animation: gb-plush-stretch 3s ease-in-out infinite; }
-@keyframes gb-plush-stretch { 0%, 100% { transform: scale(1, 1); } 40%, 60% { transform: scale(0.86, 1.22); } }
-.gb-plush[data-motion='walk'] .gb-plush-body { animation: gb-plush-walk 520ms ease-in-out infinite; }
-.gb-plush[data-motion='walk'] .gb-plush-shadow { animation: gb-plush-shadow 520ms ease-in-out infinite; }
-@keyframes gb-plush-walk {
-  0%, 100% { transform: translateY(0) rotate(-3deg) scale(1.04, 0.96); }
-  50% { transform: translateY(-10%) rotate(3deg) scale(0.97, 1.03); }
-}
-.gb-plush [data-eye] { transform-origin: 50% 50%; animation: gb-plush-blink 5.4s infinite; }
-@keyframes gb-plush-blink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
+@keyframes gb-kers-eyeblink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
 /* Kers (components/kers): breathes, bobs as he walks, hops; his cursor
    states spin, blink and ripple. Transform and opacity only. */
 .gb-kers .gb-kers-body { transform-origin: 50% 100%; }
 .gb-kers[data-motion='idle'] .gb-kers-body { animation: gb-kers-breathe 3.6s ease-in-out infinite; }
 @keyframes gb-kers-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, 0.98); } }
 .gb-kers[data-motion='walk'] .gb-kers-body { animation: gb-kers-bob 260ms ease-in-out infinite alternate; }
-@keyframes gb-kers-bob { from { transform: translateY(0); } to { transform: translateY(-3%); } }
-.gb-kers[data-motion='hop'] .gb-kers-body { animation: gb-plush-hop 620ms var(--motion-out); }
-.gb-kers [data-eye] { transform-box: fill-box; transform-origin: 50% 50%; animation: gb-plush-blink 5.4s infinite; }
+@keyframes gb-kers-bob { from { transform: translateY(0) rotate(-1.5deg); } to { transform: translateY(-3%) rotate(1.5deg); } }
+.gb-kers[data-motion='hop'] .gb-kers-body { animation: gb-kers-hop 620ms var(--motion-out); }
+/* His parts: arms sway at rest and swing as he walks, legs step, one arm
+   waves, the tail wags. Each part pivots at the origin set on it inline. */
+.gb-kers .kx-arm-l, .gb-kers .kx-arm-r, .gb-kers .kx-leg-l, .gb-kers .kx-leg-r, .gb-kers .kx-tail, .gb-kers .kx-wave { transform-box: view-box; }
+.gb-kers[data-motion='idle'] .kx-arm-l { animation: kx-sway 3.2s ease-in-out infinite alternate; }
+.gb-kers[data-motion='idle'] .kx-arm-r { animation: kx-sway-r 3.2s ease-in-out infinite alternate; }
+@keyframes kx-sway { from { rotate: -3deg; } to { rotate: 6deg; } }
+@keyframes kx-sway-r { from { rotate: 3deg; } to { rotate: -6deg; } }
+.gb-kers .kx-tail { animation: kx-wag 2.6s ease-in-out infinite alternate; }
+@keyframes kx-wag { from { rotate: -5deg; } to { rotate: 7deg; } }
+.gb-kers .kx-wave { animation: kx-wave 520ms ease-in-out infinite alternate; }
+@keyframes kx-wave { from { rotate: -10deg; } to { rotate: 14deg; } }
+.gb-kers[data-motion='walk'] .kx-leg-l { animation: kx-step 520ms ease-in-out infinite alternate; }
+.gb-kers[data-motion='walk'] .kx-leg-r { animation: kx-step 520ms ease-in-out infinite alternate-reverse; }
+.gb-kers[data-motion='walk'] .kx-arm-l { animation: kx-swing 520ms ease-in-out infinite alternate-reverse; }
+.gb-kers[data-motion='walk'] .kx-arm-r { animation: kx-swing 520ms ease-in-out infinite alternate; }
+.gb-kers[data-motion='walk'] .kx-tail { animation-duration: 520ms; }
+@keyframes kx-step { from { rotate: -14deg; } to { rotate: 14deg; } }
+@keyframes kx-swing { from { rotate: -16deg; } to { rotate: 16deg; } }
+.gb-kers[data-motion='dance'] .kx-arm-l { animation: kx-wave 380ms ease-in-out infinite alternate; }
+.gb-kers[data-motion='dance'] .kx-arm-r { animation: kx-wave 380ms ease-in-out infinite alternate-reverse; }
+.gb-kers[data-motion='dance'] .kx-leg-l { animation: kx-step 380ms ease-in-out infinite alternate; }
+.gb-kers[data-motion='dance'] .kx-leg-r { animation: kx-step 380ms ease-in-out infinite alternate-reverse; }
+.gb-kers .gb-kers-steam { animation: gb-steam 3s var(--motion-out) infinite; }
+.gb-kers[data-motion='dance'] .gb-kers-body { animation: gb-kers-dance 700ms ease-in-out infinite; }
+@keyframes gb-kers-dance { 0%, 100% { transform: rotate(-6deg) translateY(0); } 50% { transform: rotate(6deg) translateY(-5%); } }
+.gb-kers .gb-kers-float { animation: gb-float 4s ease-in-out infinite; }
+.gb-kers .gb-kers-sweat [data-drop] { transform-box: fill-box; animation: gb-drip 1.8s ease-in infinite; }
+.gb-kers .gb-kers-sweat [data-drop] + [data-drop] { animation-delay: 0.9s; }
+.gb-kers .gb-kers-brush { transform-box: fill-box; animation: gb-kers-scrub 260ms ease-in-out infinite alternate; }
+@keyframes gb-kers-scrub { from { transform: translateX(-6px); } to { transform: translateX(6px); } }
+.gb-kers [data-eye] { transform-box: fill-box; transform-origin: 50% 50%; animation: gb-kers-eyeblink 5.4s infinite; }
 .gb-kers .gb-kers-spin { transform-box: fill-box; transform-origin: center; animation: gb-kers-spin 1.1s linear infinite; }
 @keyframes gb-kers-spin { to { transform: rotate(360deg); } }
 .gb-kers .gb-kers-caret { animation: gb-kers-blink 1s steps(1) infinite; }
@@ -1091,69 +1095,10 @@ body {
   .gb-kers *, .gb-kers .gb-kers-body { animation: none !important; }
 }
 
-/* Nibble's clicky ears: a button presses down and darkens for a moment. */
-.gb-plush .gb-ear { transition: transform 90ms var(--motion-out), filter 90ms var(--motion-out); }
-.gb-plush .gb-ear[data-pressed] { transform: translateY(1.8px); filter: brightness(0.86); }
-/* His cable tail wags, slowly, from where it leaves his back. */
-.gb-plush .gb-tail { transform-origin: 80px 91px; animation: gb-tail 2.6s ease-in-out infinite alternate; }
-@keyframes gb-tail { from { rotate: -5deg; } to { rotate: 6deg; } }
-.gb-plush[data-motion='walk'] .gb-tail, .gb-plush[data-motion='dance'] .gb-tail { animation-duration: 520ms; }
-/* A lamp catches his top edge in dark mode only. */
-.gb-plush .gb-plush-rim { opacity: 0; }
-.dark .gb-plush .gb-plush-rim { opacity: 1; }
-/* Limbs pivot at the shoulder or hip (each limb group's own origin). */
-.gb-plush [class^='gb-arm'], .gb-plush [class^='gb-leg'], .gb-plush [class^='gb-mitten'] { transform-origin: 0 0; }
-.gb-plush[data-motion='idle'] .gb-arm-l { animation: gb-arm-sway 3.6s ease-in-out infinite alternate; }
-.gb-plush[data-motion='idle'] .gb-arm-r { animation: gb-arm-sway-r 3.6s ease-in-out infinite alternate; }
-@keyframes gb-arm-sway { to { rotate: 8deg; } }
-@keyframes gb-arm-sway-r { to { rotate: -8deg; } }
-/* Walking: legs step, arms swing against them. */
-.gb-plush[data-motion='walk'] .gb-leg-l { animation: gb-step 520ms ease-in-out infinite alternate; }
-.gb-plush[data-motion='walk'] .gb-leg-r { animation: gb-step 520ms ease-in-out infinite alternate-reverse; }
-.gb-plush[data-motion='walk'] .gb-arm-l { animation: gb-swing 520ms ease-in-out infinite alternate-reverse; }
-.gb-plush[data-motion='walk'] .gb-arm-r { animation: gb-swing-r 520ms ease-in-out infinite alternate; }
-@keyframes gb-step { from { rotate: -26deg; } to { rotate: 26deg; } }
-@keyframes gb-swing { from { rotate: -22deg; } to { rotate: 30deg; } }
-@keyframes gb-swing-r { from { rotate: 22deg; } to { rotate: -30deg; } }
-/* Dancing: hands up in turn, little kicks. */
-.gb-plush[data-motion='dance'] .gb-arm-l { animation: gb-raise 380ms ease-in-out infinite alternate; }
-.gb-plush[data-motion='dance'] .gb-arm-r { animation: gb-raise-r 380ms ease-in-out infinite alternate-reverse; }
-.gb-plush[data-motion='dance'] .gb-leg-l { animation: gb-kick 380ms ease-in-out infinite alternate; }
-.gb-plush[data-motion='dance'] .gb-leg-r { animation: gb-kick-r 380ms ease-in-out infinite alternate-reverse; }
-@keyframes gb-raise { from { rotate: 10deg; } to { rotate: 120deg; } }
-@keyframes gb-raise-r { from { rotate: -10deg; } to { rotate: -120deg; } }
-@keyframes gb-kick { from { rotate: 0deg; } to { rotate: 34deg; } }
-@keyframes gb-kick-r { from { rotate: 0deg; } to { rotate: -34deg; } }
-/* The big stretch: arms all the way up. */
-.gb-plush[data-motion='stretch'] .gb-arm-l { animation: gb-reach 3s ease-in-out infinite; }
-.gb-plush[data-motion='stretch'] .gb-arm-r { animation: gb-reach-r 3s ease-in-out infinite; }
-@keyframes gb-reach { 0%, 100% { rotate: 0deg; } 40%, 60% { rotate: 130deg; } }
-@keyframes gb-reach-r { 0%, 100% { rotate: 0deg; } 40%, 60% { rotate: -130deg; } }
-.gb-plush[data-motion='hop'] .gb-arm-l { animation: gb-flap 620ms var(--motion-out); }
-.gb-plush[data-motion='hop'] .gb-arm-r { animation: gb-flap-r 620ms var(--motion-out); }
-@keyframes gb-flap { 48% { rotate: 70deg; } }
-@keyframes gb-flap-r { 48% { rotate: -70deg; } }
-/* Jobs: typing taps, a wave, a sip, a scrub. */
-.gb-plush .gb-mitten-l { animation: gb-mitten-tap 360ms ease-in-out infinite; }
-.gb-plush .gb-mitten-r { animation: gb-mitten-tap 360ms ease-in-out infinite 180ms; }
-@keyframes gb-mitten-tap { 0%, 100% { translate: 0 0; } 50% { translate: 0 -4px; } }
-.gb-plush .gb-mitten-wave { animation: gb-mitten-wave 520ms ease-in-out infinite alternate; }
-@keyframes gb-mitten-wave { from { rotate: -14deg; } to { rotate: 12deg; } }
-.gb-plush .gb-mitten-mug { animation: gb-mitten-sip 3.2s ease-in-out infinite; }
-@keyframes gb-mitten-sip { 0%, 60%, 100% { rotate: 0deg; } 70%, 85% { rotate: -42deg; } }
-.gb-plush .gb-mitten-brush { animation: gb-mitten-scrub 260ms ease-in-out infinite alternate; }
-@keyframes gb-mitten-scrub { from { translate: -2px 0; } to { translate: 2px 0; } }
-.gb-plush .gb-plush-sweat [data-drop] { animation: gb-drip 1.8s ease-in infinite; }
-.gb-plush .gb-plush-sweat [data-drop] + [data-drop] { animation-delay: 0.9s; }
-.gb-plush .gb-plush-float-prop { animation: gb-float 4s ease-in-out infinite; }
 .gb-scene .gb-rain [data-drop] { animation: gb-rainfall 900ms linear infinite; }
 @keyframes gb-rainfall { from { transform: translateY(-4px); opacity: 0; } 30% { opacity: 1; } to { transform: translateY(8px); opacity: 0; } }
 .gb-scene [data-part='strum'] { transform-box: fill-box; transform-origin: 50% 50%; animation: gb-strum 300ms ease-in-out infinite alternate; }
 @keyframes gb-strum { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
-.gb-plush .gb-plush-status [data-dot] { transform-box: fill-box; transform-origin: 50% 50%; animation: gb-dot 1.2s ease-in-out infinite; }
-.gb-plush .gb-plush-status [data-dot]:nth-child(2) { animation-delay: 0.2s; }
-.gb-plush .gb-plush-status [data-dot]:nth-child(3) { animation-delay: 0.4s; }
-.gb-plush .gb-plush-status [data-wave] { transform-box: fill-box; animation: gb-wave 1s var(--motion-out) infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .gb-plush *, .gb-plush[data-motion] .gb-plush-body, .gb-plush .gb-ear, .gb-scene .gb-rain *, .gb-scene [data-part='strum'] { animation: none !important; }
+  .gb-scene .gb-rain *, .gb-scene [data-part='strum'] { animation: none !important; }
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import type { HourScene } from '@/lib/hours/scenes'
-import { PlushFigure } from '@/components/guildbot/PlushBot'
+import { Kers } from '@/components/kers/Kers'
 import { GuildBotScene } from '@/components/guildbot/GuildBotScene'
 
 /**
@@ -132,7 +132,9 @@ export function GuildBuilding({
         // Asleep at his window: head down, z's drifting up.
         <g>
           <rect x={106} y={322} width={140} height={58} rx={3} fill="#1C2033" opacity={0.75} />
-          <g transform="translate(152 336) scale(0.42)"><PlushFigure expression="sleepy" wear="sleepmask" fuzzy={false} limbs={false} /></g>
+          <foreignObject x={140} y={330} width={60} height={46}>
+            <div className="w-full h-full flex items-end justify-center"><Kers pose="asleep" size={36} motion="still" /></div>
+          </foreignObject>
           <text className="gb-zz" x={196} y={340} fontSize={12} fontWeight={700} fill="#F4E7B8">z</text>
           <text className="gb-zz" x={204} y={330} fontSize={9} fontWeight={700} fill="#F4E7B8">z</text>
         </g>

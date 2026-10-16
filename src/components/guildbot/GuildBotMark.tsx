@@ -1,11 +1,10 @@
 import type { Mood } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
-import { PlushBot } from '@/components/guildbot/PlushBot'
+import { Kers } from '@/components/kers/Kers'
 
 /**
  * GuildBot's mark, wherever he's named in a line of UI (his posts, the
- * Konami egg, small cards): the plush, small and still, in his mood's colour
- * and face. No felt fuzz at this size.
+ * Konami egg, small cards): Kers, small and still, filled with his mood.
  */
 export function GuildBotMark({
   size = 20,
@@ -20,7 +19,7 @@ export function GuildBotMark({
 }) {
   return (
     <span role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : true} className={cn('inline-flex shrink-0', className)}>
-      <PlushBot size={size} colour={mood} expression={mood} motion="still" limbs={false} />
+      <Kers size={size} colour={mood} expression={mood} motion="still" />
     </span>
   )
 }

@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import type { Expression, Variant } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
-import { PlushBot, type PlushColour } from '@/components/guildbot/PlushBot'
+import type { KersColour } from '@/components/kers/look'
+import { Kers } from '@/components/kers/Kers'
 import { GuildBotScene, type Asks, type Scene, type Trick as SceneTrick } from '@/components/guildbot/GuildBotScene'
 import type { Bubble, Chip, Trick } from '@/components/guildbot/useGuildBotLife'
 
@@ -71,7 +72,7 @@ export function GuildBotStage({
 }: {
   scene: Scene
   /** His felt colour (the chat works it out: mood, genie, meeting). */
-  colour: PlushColour
+  colour: KersColour
   asks: Asks
   left: number | null
   expression: Expression
@@ -166,7 +167,7 @@ export function GuildBotStage({
             style={slot ? slotBubble(slot) : { right: strolling ? STROLL - 24 : 8 }}
           >
             <div className="relative rounded-2xl border border-border-strong bg-paper px-3.5 py-2.5 text-[13px] leading-snug text-ink shadow-lg">
-              <span className="block text-caption font-semibold text-ink-soft mb-0.5">Nibble</span>
+              <span className="block text-caption font-semibold text-ink-soft mb-0.5">Kers</span>
               {say}
               {bubble?.chips && say === bubble.text && (
                 <span className="mt-2 flex flex-wrap gap-1.5">
@@ -194,7 +195,7 @@ export function GuildBotStage({
             transition={{ transform: { duration: STROLL_MS / 1000, ease: [0.77, 0, 0.175, 1] }, opacity: { duration: 0.2 } }}
           >
             <span key={hop} className="gb-hop block">
-              <PlushBot colour={colour} expression={expression} size={50} motion={stroll === 'walking-out' || stroll === 'walking-in' ? 'walk' : 'idle'} follow />
+              <Kers colour={colour} expression={expression} size={64} motion={stroll === 'walking-out' || stroll === 'walking-in' ? 'walk' : 'idle'} follow />
             </span>
           </motion.div>
         )}
@@ -202,7 +203,7 @@ export function GuildBotStage({
         {/* Tricks he stands up for: in front of the desk, whole body. */}
         {dancing && (
           <span className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[5] pointer-events-none">
-            <PlushBot colour={colour} expression={expression} size={Math.round(width * 0.5)} motion="dance" />
+            <Kers colour={colour} expression={expression} size={Math.round(width * 0.62)} motion="dance" />
           </span>
         )}
 
@@ -215,15 +216,15 @@ export function GuildBotStage({
             transition={{ duration: walk.seconds, ease: 'linear', times: walk.times }}
             onAnimationComplete={onPatrolEnd}
           >
-            <PlushBot colour={colour} expression={expression} size={desktop ? 54 : 44} motion="walk" />
+            <Kers colour={colour} expression={expression} size={desktop ? 68 : 56} motion="walk" />
           </motion.div>
         )}
 
         {/* What do you want? Talk, or something else. */}
         {choice && !open && (
-          <div role="dialog" aria-label="What should Nibble do?" className="absolute bottom-full right-2 mb-1 w-[min(16rem,calc(100vw-2rem))] animate-fade-up z-10">
+          <div role="dialog" aria-label="What should Kers do?" className="absolute bottom-full right-2 mb-1 w-[min(16rem,calc(100vw-2rem))] animate-fade-up z-10">
             <div className="relative rounded-2xl border border-border-strong bg-paper px-3.5 py-3 text-[13px] leading-snug text-ink shadow-lg">
-              <span className="block text-caption font-semibold text-ink-soft mb-0.5">Nibble</span>
+              <span className="block text-caption font-semibold text-ink-soft mb-0.5">Kers</span>
               What&apos;ll it be? A chat, or shall I do something?
               <span className="mt-2.5 flex gap-2">
                 <button type="button" autoFocus onClick={e => { setChoice(false); onTalk(e) }} className="press flex-1 h-8 rounded-full bg-ink text-parchment text-[13px] font-medium">
@@ -240,7 +241,7 @@ export function GuildBotStage({
 
         {/* His actions: stays open while he performs, until you close it. */}
         {panel && !open && (
-          <div role="dialog" aria-label="Nibble's actions" className="absolute bottom-full right-2 mb-1 w-[min(17rem,calc(100vw-1.5rem))] animate-fade-up z-10">
+          <div role="dialog" aria-label="Kers's actions" className="absolute bottom-full right-2 mb-1 w-[min(17rem,calc(100vw-1.5rem))] animate-fade-up z-10">
             <div className="rounded-2xl border border-border-strong bg-paper p-2 shadow-lg text-[13px]">
               <div className="flex items-center gap-2 px-1.5 pt-0.5 pb-1.5">
                 <span className="font-semibold text-ink">Make me do something</span>
@@ -302,7 +303,7 @@ export function GuildBotStage({
               <button
                 type="button"
                 onClick={() => hideDoing(doing)}
-                aria-label="Hide what Nibble is doing"
+                aria-label="Hide what Kers is doing"
                 className="absolute top-1 right-1.5 not-italic text-[13px] leading-none text-cha hover:text-ink"
               >
                 ×
@@ -348,7 +349,7 @@ export function GuildBotStage({
               doorway={
                 hidden ? null : (
                   <span key={hop} className="gb-hop block">
-                    <PlushBot colour={colour} expression={lightsOut ? 'sleepy' : expression} size={18} motion="still" limbs={false} />
+                    <Kers colour={colour} expression={lightsOut ? 'sleepy' : expression} size={22} motion="still" />
                   </span>
                 )
               }

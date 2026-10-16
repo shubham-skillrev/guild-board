@@ -1,38 +1,53 @@
 'use client'
 
-import { useEffect, useId, useState } from 'react'
-import type { Expression } from '@guildboard/guildbot'
+import { useContext, useId } from 'react'
+import type { Expression, Wear } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
-import { Eye, PLUSH_COLOURS, eyeShape, useLookAt, type PlushColour } from '@/components/guildbot/PlushBot'
-import { KERS_POSES, type KersPose, type PoseSpec } from '@/components/kers/poses'
+import { Eye, KERS_COLOURS, eyeShape, mix, useLookAt, type KersColour } from '@/components/kers/look'
+import { WearContext } from '@/components/guildbot/useWeather'
+import { HIPS, RIGS, SHOULDERS, type KersPose, type Point, type Rig } from '@/components/kers/poses'
 
 /**
- * Kers, GuildBot's character: a puffy plush mouse cursor (↖). His body is a
- * rendered picture per pose (docs/kers/prompts.md); everything that changes
- * is drawn here on top of it:
+ * Kers, GuildBot's character: the classic mouse cursor (↖) come to life,
+ * drawn and animated in SVG. The icon itself, white with its outline, with
+ * stick limbs: thin lines ending in round hands and feet, and the cursor's
+ * stem hanging behind his legs like a tail. Depth from a soft drop shadow, a
+ * gradient across the icon, a highlight along its edges, lit round hands
+ * and feet, and a contact shadow on the ground.
  *
- * - Mood: his outline piping is sumi on an ordinary day and takes the mood's
- *   Japanese dye when his mood shifts (genie ruri, meeting budo too). The
- *   render's piping is a grey shading layer, dyed by a masked colour under it.
+ * - Mood: his outline and limbs are always sumi, like a real cursor; his
+ *   fill is the classic white on an ordinary day and takes the mood's
+ *   Japanese dye when his mood shifts (genie ruri, meeting budo too).
  * - Face: googly eyes (pupils follow the pointer) and stitched eyebrows.
  * - Cursor states, his quirk: a loader ring while he thinks, a blinking
  *   I-beam caret while he writes, a click ripple when he's pleased, a ⊘
  *   when he says no.
- *
- * Until a pose's render is processed (KERS_POSES[pose].ready), a rough
- * placeholder stands in, so the sheet can be built around him.
+ * - Poses are rigs (poses.ts); motion is CSS (.gb-kers in globals.css) and
+ *   stops under reduced motion.
  */
 export type KersState = 'thinking' | 'writing' | 'pleased' | 'refusing' | null
-export type KersMotion = 'idle' | 'walk' | 'hop' | 'still'
+export type KersMotion = 'idle' | 'walk' | 'hop' | 'dance' | 'still'
+/** What he wears for what he's doing (the weather comes from WearContext). */
+export type KersWear = 'headphones' | null
 
 const SUMI = '#2B2B2B'
-const CREAM = '#F4EDE1'
-/** The rendered fabric around his face, for eyelids that match it. */
-const FABRIC = '#E8DECA'
+const W = 200
+const H = 240
 
-/** His piping: sumi on a smug (ordinary) day, otherwise the mood's dye. */
-export function pipingDye(colour: PlushColour): string {
-  return colour === 'smug' ? SUMI : PLUSH_COLOURS[colour]
+// The classic arrow cursor, as on every screen: tip top-left, straight left
+// edge, the wing, and the stem (which hangs behind his legs like a tail).
+const CURSOR = '52,18 52,170 90,132 118,198 138,189 109,122 157,122'
+const OUTLINE = 9
+// Where things sit on him.
+const EYES: [Point, Point] = [[71, 86], [99, 86]]
+const EYE_R = 12
+const TIP: Point = [52, 18]
+const CENTRE: Point = [100, 120]
+const WHITE = '#FFFFFF'
+
+/** His fill: the classic white cursor on a smug (ordinary) day, otherwise the mood's dye. */
+export function fillDye(colour: KersColour): string {
+  return colour === 'smug' ? WHITE : KERS_COLOURS[colour]
 }
 
 export function Kers({
@@ -43,77 +58,177 @@ export function Kers({
   size = 120,
   motion = 'idle',
   follow = false,
+  tint,
+  wear = null,
   className,
 }: {
   pose?: KersPose
-  colour?: PlushColour
+  colour?: KersColour
   expression?: Expression
   state?: KersState
   /** Height in px. */
   size?: number
   motion?: KersMotion
   follow?: boolean
+  /** Any fill colour, for the anonymous cursors in the focus crowd. */
+  tint?: string
+  wear?: KersWear
   className?: string
 }) {
   const look = useLookAt(follow)
-  const shown = useWalkCycle(pose, motion)
-  const spec = KERS_POSES[shown]
-  const dye = pipingDye(colour)
-  const face = shown === 'asleep' ? 'relieved' : expression
+  const weather = useContext(WearContext)
+  const walking = motion === 'walk' || pose === 'walk-a' || pose === 'walk-b'
+  const rig = RIGS[motion === 'dance' ? 'arms-up' : pose]
+  const dye = tint ?? fillDye(colour)
+  const face = rig.lying ? 'relieved' : expression
 
   return (
     <span
       className={cn('gb-kers relative inline-block shrink-0', className)}
-      style={{ width: (size * spec.w) / spec.h, height: size }}
-      data-motion={motion}
+      style={{ width: (size * W) / H, height: size }}
+      data-motion={walking ? 'walk' : motion}
     >
       <span className="gb-kers-body absolute inset-0">
-        {spec.ready ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element -- layered sprites, sized by the wrapper */}
-            <img src={`/kers/${shown}/body.webp`} alt="" draggable={false} className="absolute inset-0 w-full h-full" />
-            <span
-              aria-hidden
-              className="absolute inset-0"
-              style={{
-                background: dye,
-                maskImage: `url(/kers/${shown}/piping.webp)`,
-                WebkitMaskImage: `url(/kers/${shown}/piping.webp)`,
-                maskSize: '100% 100%',
-                WebkitMaskSize: '100% 100%',
-              }}
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element -- the piping's shading, multiplied over the dye */}
-            <img src={`/kers/${shown}/piping.webp`} alt="" draggable={false} className="absolute inset-0 w-full h-full mix-blend-multiply" />
-            <svg viewBox={`0 0 ${spec.w} ${spec.h}`} className="absolute inset-0 w-full h-full overflow-visible" aria-hidden>
-              <Face spec={spec} expression={face} look={look} />
-              <States spec={spec} state={state} />
-            </svg>
-          </>
-        ) : (
-          <svg viewBox={`0 0 ${spec.w} ${spec.h}`} className="absolute inset-0 w-full h-full overflow-visible" aria-hidden>
-            <KersPlaceholder spec={spec} dye={dye}>
-              <Face spec={spec} expression={face} look={look} />
-            </KersPlaceholder>
-            <States spec={spec} state={state} />
-          </svg>
-        )}
+        <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 w-full h-full overflow-visible" aria-hidden>
+          <Figure rig={rig} dye={dye} face={face} look={look} weather={weather} wear={wear} />
+          <States rig={rig} state={state} />
+        </svg>
       </span>
     </span>
   )
 }
 
-/** Walking swaps between the two step renders. */
-function useWalkCycle(pose: KersPose, motion: KersMotion): KersPose {
-  const [step, setStep] = useState(0)
-  const walking = motion === 'walk'
-  useEffect(() => {
-    if (!walking || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const id = setInterval(() => setStep(s => 1 - s), 260)
-    return () => clearInterval(id)
-  }, [walking])
-  if (!walking) return pose
-  return step ? (KERS_POSES['walk-b'].ready ? 'walk-b' : 'standing') : 'walk-a'
+type Ink = { line: string; fill: string }
+
+/** Him, layered back to front for depth. */
+function Figure({ rig, dye, face, look, weather, wear }: {
+  rig: Rig
+  dye: string
+  face: Expression
+  look: { x: number; y: number }
+  weather: Wear
+  wear: KersWear
+}) {
+  const id = useId().replace(/:/g, '')
+  const ink: Ink = { line: `url(#${id}-ink)`, fill: `url(#${id}-ball)` }
+  const hip = (i: 0 | 1): Point => [HIPS[i][0], HIPS[i][1] + rig.dy]
+
+  return (
+    <g transform={rig.lying ? 'translate(0 220) rotate(-90) scale(0.86)' : undefined}>
+      <defs>
+        <linearGradient id={`${id}-face`} gradientUnits="userSpaceOnUse" x1={52} y1={20} x2={150} y2={200}>
+          <stop offset="0%" stopColor={mix(dye, '#FFFFFF', 0.35)} />
+          <stop offset="60%" stopColor={mix(dye, '#F2EFEA', 0.06)} />
+          <stop offset="100%" stopColor={mix(dye, '#5A5048', 0.16)} />
+        </linearGradient>
+        <linearGradient id={`${id}-ink`} gradientUnits="userSpaceOnUse" x1={30} y1={10} x2={170} y2={230}>
+          <stop offset="0%" stopColor="#4A4A4A" />
+          <stop offset="100%" stopColor="#1A1A1A" />
+        </linearGradient>
+        <radialGradient id={`${id}-ball`} cx="38%" cy="32%" r="70%">
+          <stop offset="0%" stopColor={WHITE} />
+          <stop offset="100%" stopColor="#DCD8D0" />
+        </radialGradient>
+        <filter id={`${id}-blur`} x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5" /></filter>
+        <filter id={`${id}-ground`} x="-30%" y="-200%" width="160%" height="500%"><feGaussianBlur stdDeviation="3.5" /></filter>
+      </defs>
+
+      {/* Contact shadow on the ground. */}
+      <ellipse cx={86} cy={231} rx={rig.dy > 0 ? 62 : 48} ry={5.5} fill="#000" opacity={0.2} filter={`url(#${id}-ground)`} />
+      {rig.prop === 'cushion' && <Cushion />}
+
+      {/* Legs: thin lines down to round feet, behind the cursor's bottom edge. */}
+      {HIPS.map((_, i) => {
+        const h = hip(i as 0 | 1)
+        const f = rig.feet[i]
+        return (
+          <g key={i} className={`kx-leg-${i === 0 ? 'l' : 'r'}`} style={{ transformOrigin: `${h[0]}px ${h[1]}px` }}>
+            <path d={`M${h[0]} ${h[1]}L${f[0]} ${f[1] - 4}`} stroke={WHITE} strokeOpacity={0.85} strokeWidth={7} strokeLinecap="round" />
+            <path d={`M${h[0]} ${h[1]}L${f[0]} ${f[1] - 4}`} stroke={ink.line} strokeWidth={3.6} strokeLinecap="round" />
+            <Ball x={f[0]} y={f[1]} rx={12} ry={7.5} ink={ink} />
+          </g>
+        )
+      })}
+
+      <g className="kx-body" transform={rig.dy ? `translate(0 ${rig.dy})` : undefined}>
+        {!rig.front && <Arms rig={rig} ink={ink} />}
+
+        {/* The cursor: a soft drop shadow behind it for depth, then the icon itself. */}
+        <polygon points={CURSOR} transform="translate(7 9)" fill="#000" stroke="#000" strokeWidth={OUTLINE} strokeLinejoin="round" opacity={0.16} filter={`url(#${id}-blur)`} />
+        {/* Like a real cursor, a thin white edge around the dark outline, so he reads on any background. */}
+        <polygon points={CURSOR} fill={WHITE} stroke={WHITE} strokeOpacity={0.85} strokeWidth={OUTLINE + 5} strokeLinejoin="round" />
+        <polygon points={CURSOR} fill={`url(#${id}-face)`} stroke={ink.line} strokeWidth={OUTLINE} strokeLinejoin="round" />
+        {/* A highlight down his straight edge and across the wing, like light on plastic. */}
+        <path d="M60 34V140M66 34l64 64" stroke={WHITE} strokeWidth={3} strokeLinecap="round" opacity={0.7} />
+
+        <Face face={face} look={look} lid={dye} />
+        <Gear weather={weather} wear={wear} asleep={!!rig.lying} />
+
+        {rig.prop === 'laptop' && <Laptop />}
+        {rig.prop === 'book' && <Book />}
+        {rig.prop === 'mug' && <Mug />}
+        {rig.front && <Arms rig={rig} ink={ink} />}
+        {rig.prop === 'toothbrush' && <Toothbrush hand={rig.hands[1]} />}
+      </g>
+    </g>
+  )
+}
+
+/** A round hand or foot: white, outlined, lit from the top left. */
+function Ball({ x, y, rx, ry, ink }: { x: number; y: number; rx: number; ry: number; ink: Ink }) {
+  return (
+    <g>
+      <ellipse cx={x} cy={y} rx={rx + 2} ry={ry + 2} fill={WHITE} opacity={0.85} />
+      <ellipse cx={x} cy={y} rx={rx} ry={ry} fill={ink.fill} stroke={ink.line} strokeWidth={3} />
+      <ellipse cx={x - rx * 0.35} cy={y - ry * 0.4} rx={rx * 0.32} ry={ry * 0.26} fill={WHITE} opacity={0.9} />
+    </g>
+  )
+}
+
+/** His two arms: thin lines from the cursor to round hands, pivoting where they join (CSS swings them). */
+function Arms({ rig, ink }: { rig: Rig; ink: Ink }) {
+  return (
+    <>
+      {SHOULDERS.map((s, i) => {
+        const side = i === 0 ? 'left' : 'right'
+        const h = rig.hands[i]
+        return (
+          <g key={side} className={rig.wave === side ? 'kx-wave' : `kx-arm-${side === 'left' ? 'l' : 'r'}`} style={{ transformOrigin: `${s[0]}px ${s[1]}px` }}>
+            <path d={`M${s[0]} ${s[1]}L${h[0]} ${h[1]}`} stroke={WHITE} strokeOpacity={0.85} strokeWidth={7} strokeLinecap="round" />
+            <path d={`M${s[0]} ${s[1]}L${h[0]} ${h[1]}`} stroke={ink.line} strokeWidth={3.6} strokeLinecap="round" />
+            <Ball x={h[0]} y={h[1]} rx={8.5} ry={8.5} ink={ink} />
+          </g>
+        )
+      })}
+    </>
+  )
+}
+
+/** His googly eyes and stitched brows. */
+function Face({ face, look, lid }: { face: Expression; look: { x: number; y: number }; lid: string }) {
+  const shape = eyeShape(face)
+  const k = EYE_R / 12
+  const brow = BROWS[face] ?? { lift: [0, 0] as [number, number], tilt: [0, 0] as [number, number] }
+  return (
+    <g>
+      {EYES.map(([x, y], side) => (
+        <g key={side} transform={`translate(${x} ${y}) scale(${k})`}>
+          {/* A googly eye is a little plastic dome: a soft shadow under it and a rim. */}
+          {!shape.arcs && <circle cx={0.6} cy={1.6} r={shape.r + 0.8} fill="#000000" opacity={0.18} />}
+          {!shape.arcs && <circle r={shape.r + 0.9} fill="#FFFFFF" stroke="#8C8579" strokeWidth={0.8} />}
+          <Eye cx={0} cy={0} shape={shape} side={side as 0 | 1} look={look} lid={lid} />
+          <path
+            d="M-10 0H10"
+            transform={`translate(0 ${-shape.r - 7 - brow.lift[side]}) rotate(${brow.tilt[side]})`}
+            stroke={SUMI}
+            strokeWidth={2.4}
+            strokeDasharray="3 2"
+            strokeLinecap="round"
+          />
+        </g>
+      ))}
+    </g>
+  )
 }
 
 /** Stitched eyebrows: how high each sits and how it tilts (inner end up for sad, down for cross). */
@@ -130,104 +245,139 @@ const BROWS: Partial<Record<Expression, { lift: [number, number]; tilt: [number,
   grumpy: { lift: [-2, -2], tilt: [16, -16] },
 }
 
-/** His googly eyes and stitched brows, placed for the pose. */
-function Face({ spec, expression, look }: { spec: PoseSpec; expression: Expression; look: { x: number; y: number } }) {
-  const shape = eyeShape(expression)
-  const k = spec.eyeR / 12
-  const brow = BROWS[expression] ?? { lift: [0, 0], tilt: [0, 0] }
+/** Weather and activity gear, placed from his eyes and tip. */
+function Gear({ weather, wear, asleep }: { weather: Wear; wear: KersWear; asleep: boolean }) {
+  const [[lx, ly], [rx, ry]] = EYES
+  const R = EYE_R
+  const ey = (ly + ry) / 2
+  const [tx, ty] = TIP
   return (
     <g>
-      {spec.eyes.map(([x, y], side) => (
-        <g key={side} transform={`translate(${x} ${y}) scale(${k})`}>
-          {/* A googly eye is a little plastic dome: a soft shadow under it and a rim, so it reads on cream. */}
-          {!shape.arcs && <circle cx={0.6} cy={1.4} r={shape.r + 0.8} fill="#000000" opacity={0.18} />}
-          {!shape.arcs && <circle r={shape.r + 0.9} fill="#FFFFFF" stroke="#8C8579" strokeWidth={0.9} />}
-          <Eye cx={0} cy={0} shape={shape} side={side as 0 | 1} look={look} lid={FABRIC} />
-          <path
-            d="M-10 0H10"
-            transform={`translate(0 ${-shape.r - 7 - brow.lift[side]}) rotate(${brow.tilt[side]})`}
-            stroke={SUMI}
-            strokeWidth={2.8}
-            strokeDasharray="3.2 2.2"
-            strokeLinecap="round"
-          />
+      {weather.umbrella && !asleep && (
+        <g className="gb-kers-float">
+          <path d={`M${tx + 30} ${ty - 14}v40`} stroke="#3A3F4F" strokeWidth={3} strokeLinecap="round" />
+          <path d={`M${tx - 26} ${ty - 6}Q${tx + 30} ${ty - 66} ${tx + 86} ${ty - 6}q-14-8-28 0-14-8-28 0-14-8-28 0-14-8-28 0Z`} fill="#3E7BFA" stroke="#1E2B57" strokeWidth={2} strokeLinejoin="round" />
         </g>
-      ))}
+      )}
+      {weather.beanie && (
+        // A knitted cap pulled over his tip.
+        <g transform={`translate(${tx + 6} ${ty + 12}) rotate(-14)`}>
+          <path d="M-18 0C-17 -26 17 -26 18 0Z" fill="#2F3A56" />
+          <rect x={-20} y={-3} width={40} height={8} rx={3.5} fill="#46557A" />
+          <circle cx={0} cy={-21} r={5.5} fill="#E9E4DA" />
+        </g>
+      )}
+      {wear === 'headphones' && (
+        <g>
+          <path d={`M${lx - R * 1.4} ${ey}C${lx - R * 1.4} ${ey - R * 3.6} ${rx + R * 1.4} ${ey - R * 3.6} ${rx + R * 1.4} ${ey}`} fill="none" stroke="#2A2F3D" strokeWidth={4} strokeLinecap="round" />
+          <rect x={lx - R * 1.9} y={ey - R * 0.8} width={R * 0.9} height={R * 1.6} rx={R * 0.45} fill="#2A2F3D" />
+          <rect x={rx + R * 1.0} y={ey - R * 0.8} width={R * 0.9} height={R * 1.6} rx={R * 0.45} fill="#2A2F3D" />
+        </g>
+      )}
+      {weather.sunglasses && !weather.beanie && !asleep && (
+        <g>
+          <circle cx={lx} cy={ly} r={R * 1.15} fill="#121318" />
+          <circle cx={rx} cy={ry} r={R * 1.15} fill="#121318" />
+          <path d={`M${lx + R} ${ey}H${rx - R}`} stroke="#121318" strokeWidth={2.6} strokeLinecap="round" />
+          <path d={`M${lx - 6} ${ly - 5}l5 -2.5M${rx - 6} ${ry - 5}l5 -2.5`} stroke="#FFFFFF" strokeOpacity={0.5} strokeWidth={1.8} strokeLinecap="round" />
+        </g>
+      )}
+      {weather.scarf && (
+        <g>
+          <path d="M50 110q32 11 64 0l-2 8q-30 11-60 0Z" fill="#16774F" />
+          <path d="M92 116l3 20h7l-3-21Z" fill="#16774F" />
+        </g>
+      )}
+      {weather.sweat && !asleep && (
+        <g className="gb-kers-sweat" fill="#8EC2FF">
+          <path data-drop d="M124 52c3 4 4 6 4 7.5a4 4 0 0 1-8 0c0-1.5 1-3.5 4-7.5Z" />
+          <path data-drop d="M38 44c2.5 3.4 3.4 5 3.4 6.3a3.4 3.4 0 0 1-6.8 0c0-1.3.9-2.9 3.4-6.3Z" />
+        </g>
+      )}
     </g>
   )
 }
 
-/** His cursor states, around the render. */
-function States({ spec, state }: { spec: PoseSpec; state: KersState }) {
+/** Props he holds, in his body's coordinates (the ground is at y 204 when he sits). */
+function Laptop() {
+  return (
+    <g>
+      <rect x={34} y={150} width={98} height={52} rx={5} fill="#5B6068" />
+      <path d="M39 154h88" stroke="#7E848D" strokeWidth={2} strokeLinecap="round" />
+      <path d="M83 172l3 3-3 3-3-3Z" fill="#E8913A" opacity={0.85} />
+      <rect x={30} y={200} width={106} height={5} rx={2.5} fill="#43474E" />
+    </g>
+  )
+}
+
+function Book() {
+  return (
+    <g>
+      <path d="M44 122l42 6v40l-42-6Z" fill="#B9B4AA" stroke="#8D877C" strokeWidth={1.5} strokeLinejoin="round" />
+      <path d="M128 122l-42 6v40l42-6Z" fill="#C4BFB5" stroke="#8D877C" strokeWidth={1.5} strokeLinejoin="round" />
+      <path d="M86 128v40" stroke="#8D877C" strokeWidth={2} />
+      <path d="M48 120l38 5 38-5" stroke="#F4EFE6" strokeWidth={3} fill="none" />
+    </g>
+  )
+}
+
+function Mug() {
+  return (
+    <g>
+      <path className="gb-kers-steam" d="M80 112c-3-4 3-6 0-10M88 112c-3-4 3-6 0-10" stroke="#BDB6AA" strokeWidth={2} fill="none" strokeLinecap="round" />
+      <rect x={72} y={116} width={24} height={26} rx={5} fill="#4A6A8A" stroke="#33506B" strokeWidth={1.5} />
+      <ellipse cx={84} cy={118} rx={10} ry={2.8} fill="#5A3A22" />
+      <path d="M76 122v14" stroke="#FFFFFF" strokeOpacity={0.3} strokeWidth={3} strokeLinecap="round" />
+    </g>
+  )
+}
+
+function Cushion() {
+  return (
+    <g>
+      <ellipse cx={92} cy={224} rx={68} ry={14} fill="#A9513A" />
+      <ellipse cx={92} cy={219} rx={64} ry={10} fill="#C76A4E" />
+      <ellipse cx={78} cy={215} rx={26} ry={3.2} fill="#FFFFFF" opacity={0.2} />
+    </g>
+  )
+}
+
+/** Brushing: a toothbrush in his hand, scrubbing just under his eyes, with a little foam. */
+function Toothbrush({ hand }: { hand: Point }) {
+  return (
+    <g className="gb-kers-brush">
+      <path d={`M${hand[0]} ${hand[1]}L84 110`} stroke="#3E7BFA" strokeWidth={4.5} strokeLinecap="round" />
+      <rect x={74} y={105} width={11} height={7} rx={2} fill="#F3F1EC" stroke="#C9CED6" strokeWidth={1.2} />
+      <circle cx={72} cy={109} r={3.2} fill="#FFFFFF" stroke="#E2E2E2" strokeWidth={0.8} />
+      <circle cx={68} cy={114} r={2.3} fill="#FFFFFF" stroke="#E2E2E2" strokeWidth={0.8} />
+    </g>
+  )
+}
+
+/** His cursor states, around him. */
+function States({ rig, state }: { rig: Rig; state: KersState }) {
   if (!state) return null
-  const [tx, ty] = spec.tip
+  const [tx, ty] = [TIP[0], TIP[1] + rig.dy]
   if (state === 'thinking') {
-    const r = Math.max(spec.w, spec.h) * 0.5
+    const r = 118
     const c = 2 * Math.PI * r
-    return (
-      <circle className="gb-kers-spin" cx={spec.centre[0]} cy={spec.centre[1]} r={r} fill="none" stroke={SUMI} strokeOpacity={0.3} strokeWidth={10} strokeLinecap="round" strokeDasharray={`${c * 0.22} ${c * 0.78}`} />
-    )
+    return <circle className="gb-kers-spin" cx={CENTRE[0]} cy={CENTRE[1] + rig.dy} r={r} fill="none" stroke={SUMI} strokeOpacity={0.3} strokeWidth={5} strokeLinecap="round" strokeDasharray={`${c * 0.22} ${c * 0.78}`} />
   }
   if (state === 'writing') {
-    const [hx, hy] = spec.hand
-    return <path className="gb-kers-caret" d={`M${hx + 46} ${hy - 90}v72M${hx + 34} ${hy - 90}h24M${hx + 34} ${hy - 18}h24`} stroke={SUMI} strokeWidth={7} strokeLinecap="round" fill="none" />
+    return <path className="gb-kers-caret" d="M178 60v40M171 60h14M171 100h14" stroke={SUMI} strokeWidth={4} strokeLinecap="round" fill="none" />
   }
   if (state === 'pleased') {
     return (
-      <g className="gb-kers-ripple" fill="none" stroke={SUMI} strokeWidth={6}>
-        <circle cx={tx} cy={ty} r={30} />
-        <circle cx={tx} cy={ty} r={30} />
+      <g className="gb-kers-ripple" fill="none" stroke={SUMI} strokeWidth={3}>
+        <circle cx={tx} cy={ty} r={12} />
+        <circle cx={tx} cy={ty} r={12} />
       </g>
     )
   }
   return (
-    <g transform={`translate(${tx - 6} ${ty - 6})`}>
-      <circle r={36} fill="#FFFFFF" stroke="#B7282E" strokeWidth={9} />
-      <path d="M-24 24L24 -24" stroke="#B7282E" strokeWidth={9} strokeLinecap="round" />
-    </g>
-  )
-}
-
-/**
- * A rough stand-in for a pose that hasn't been rendered yet: the right
- * shape and layout (arrowhead body, two legs, the stem as his tail, stub
- * arms, piping), none of the plush. Not for the live app.
- */
-function KersPlaceholder({ spec, dye, children }: { spec: PoseSpec; dye: string; children: React.ReactNode }) {
-  const id = useId().replace(/:/g, '')
-  const body = '176,78 452,400 322,440 176,478'
-  const [la, ra] = spec.arms
-  const lift = (side: 'left' | 'right') => (spec.step === side ? -26 : 0)
-  const tube = (d: string, w: number) => (
-    <>
-      <path d={d} stroke={dye} strokeWidth={w + 16} strokeLinecap="round" fill="none" />
-      <path d={d} stroke={`url(#${id}-cream)`} strokeWidth={w} strokeLinecap="round" fill="none" />
-    </>
-  )
-  return (
-    <g transform={spec.lying ? 'rotate(-90 300 320) scale(0.9)' : undefined} style={spec.lying ? { transformOrigin: '300px 320px' } : undefined}>
-      <defs>
-        <radialGradient id={`${id}-cream`} gradientUnits="userSpaceOnUse" cx={250} cy={220} r={420}>
-          <stop offset="0%" stopColor="#FFFCF6" />
-          <stop offset="60%" stopColor={CREAM} />
-          <stop offset="100%" stopColor="#DCD1BE" />
-        </radialGradient>
-      </defs>
-      <ellipse cx={270} cy={612} rx={170} ry={16} fill="#000" opacity={0.12} />
-      {/* The stem is his tail, out of his lower back. */}
-      {tube('M370 424Q450 470 500 450', 56)}
-      {/* Two stubby legs and round feet. */}
-      {tube(`M228 470L224 ${572 + lift('left')}`, 54)}
-      {tube(`M304 452L306 ${572 + lift('right')}`, 54)}
-      <ellipse cx={218} cy={588 + lift('left')} rx={42} ry={22} fill={`url(#${id}-cream)`} stroke={dye} strokeWidth={8} />
-      <ellipse cx={312} cy={588 + lift('right')} rx={42} ry={22} fill={`url(#${id}-cream)`} stroke={dye} strokeWidth={8} />
-      {/* The arrowhead: puffy, piped. */}
-      <polygon points={body} fill={dye} stroke={dye} strokeWidth={104} strokeLinejoin="round" />
-      <polygon points={body} fill={`url(#${id}-cream)`} stroke={`url(#${id}-cream)`} strokeWidth={84} strokeLinejoin="round" />
-      {/* Stub arms, sewn on at his sides. */}
-      {tube(`M196 360l${la[0]} ${la[1]}`, 40)}
-      {tube(`M392 356l${ra[0]} ${ra[1]}`, 40)}
-      {children}
+    <g transform={`translate(${tx - 4} ${ty - 4})`}>
+      <circle r={15} fill="#FFFFFF" stroke="#B7282E" strokeWidth={4} />
+      <path d="M-10 10L10 -10" stroke="#B7282E" strokeWidth={4} strokeLinecap="round" />
     </g>
   )
 }
