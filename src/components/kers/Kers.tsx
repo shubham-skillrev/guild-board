@@ -17,8 +17,8 @@ import type { CursorPlay } from '@/components/kers/useCursorPlay'
  * puffy top, lit round hands and feet, and a contact shadow.
  *
  * - Mood: his outline and limbs are always sumi, like a real cursor; his
- *   fill is a mid-tone of the GuildBoard palette for his mood (the theme's
- *   saffron on an ordinary day; genie indigo, meeting plum too). Under 24px he's a simple mark: the cursor in
+ *   fill is a bold colour for his mood (electric blue on an ordinary day;
+ *   genie purple, meeting plum-pink too). Under 24px he's a simple mark: the cursor in
  *   his fill with two dot eyes.
  * - Face: googly eyes (pupils follow the pointer) and stitched eyebrows.
  * - Cursor states, his quirk: a loader ring while he thinks, a blinking
@@ -74,23 +74,24 @@ const CENTRE: Point = [98, 136]
 const WHITE = '#FFFFFF'
 
 /**
- * His fill: mid-tones of GuildBoard's own palette, light enough to glow on
- * the dark theme and deep enough to stand off a white page. Warm saffron
- * (the theme's accent) on an ordinary, smug day.
+ * His fill: bold, saturated colours (like the dots), strong enough to read
+ * on white and on black. Electric blue on an ordinary, smug day; the other
+ * moods each get their own (genie is purple, so it never looks like his
+ * everyday blue). Dark mode lifts them a touch and adds a glow (globals.css).
  */
 const FILLS: Record<KersColour, string> = {
-  smug: '#EC9542',     // saffron, the theme's accent
-  bored: '#A39C93',    // cha, warm grey
-  dramatic: '#E2624F', // beni red
-  proud: '#F0B33A',    // amber
-  genie: '#5B8DEF',    // the theme's indigo
-  meeting: '#9A6E9C',  // soft plum
+  smug: '#2F7BFF',     // electric blue
+  bored: '#7D8794',    // slate grey
+  dramatic: '#FF4D3D', // tomato
+  proud: '#FFC21A',    // sunny yellow
+  genie: '#9B5CFF',    // magic purple
+  meeting: '#C2367A',  // plum-pink
 }
 export function fillDye(colour: KersColour): string {
   return FILLS[colour]
 }
-/** Anonymous cursors (the focus crowd): any tint, softened a little toward the same mid-tones. */
-const midTone = (hex: string) => mix(hex, '#FFFFFF', 0.12)
+/** Anonymous cursors (the focus crowd): any tint, as given. */
+const midTone = (hex: string) => hex
 
 export function Kers({
   pose = 'standing',
@@ -138,7 +139,7 @@ export function Kers({
   return (
     <span
       className={cn('gb-kers relative inline-block shrink-0', className)}
-      style={{ width: (size * W) / H, height: size }}
+      style={{ width: (size * W) / H, height: size, ['--kers-glow' as string]: `${dye}55` }}
       data-motion={walking ? 'walk' : motion}
       data-jiggle={jiggle ? '' : undefined}
       data-play={play ?? undefined}
@@ -213,13 +214,13 @@ function Figure({ rig, dye, face, eyes, look, weather, wear, fur }: {
       <defs>
         {/* Lit from the top left, falling into shadow toward the bottom right: depth without an outline. */}
         <radialGradient id={`${id}-face`} gradientUnits="userSpaceOnUse" cx={78} cy={72} r={175}>
-          <stop offset="0%" stopColor={mix(dye, '#FFFFFF', 0.5)} />
+          <stop offset="0%" stopColor={mix(dye, '#FFFFFF', 0.2)} />
           <stop offset="42%" stopColor={dye} />
-          <stop offset="100%" stopColor={mix(dye, '#7A4A2E', 0.24)} />
+          <stop offset="100%" stopColor={mix(dye, '#14102A', 0.3)} />
         </radialGradient>
         <radialGradient id={`${id}-ball`} cx="36%" cy="30%" r="75%">
-          <stop offset="0%" stopColor={mix(dye, '#FFFFFF', 0.55)} />
-          <stop offset="100%" stopColor={mix(dye, '#4A2E1E', 0.28)} />
+          <stop offset="0%" stopColor={mix(dye, '#FFFFFF', 0.25)} />
+          <stop offset="100%" stopColor={mix(dye, '#14102A', 0.3)} />
         </radialGradient>
         <clipPath id={`${id}-clip`}><path d={BODY} /></clipPath>
         {fur && (
@@ -228,9 +229,9 @@ function Figure({ rig, dye, face, eyes, look, weather, wear, fur }: {
             <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="5" result="noise" />
             <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G" result="fuzzy" />
             <feTurbulence type="fractalNoise" baseFrequency="2.1" numOctaves="1" seed="9" result="grain" />
-            <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0.3  0 0 0 0 0.18  0 0 0 0 0.1  0 0 0 0.2 -0.06" result="dark" />
+            <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0.05  0 0 0 0 0.04  0 0 0 0 0.12  0 0 0 0.32 -0.08" result="dark" />
             <feComposite in="dark" in2="fuzzy" operator="in" result="darkFur" />
-            <feColorMatrix in="grain" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0.45 0 0 0 -0.16" result="light" />
+            <feColorMatrix in="grain" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0.22 0 0 0 -0.1" result="light" />
             <feComposite in="light" in2="fuzzy" operator="in" result="lightFur" />
             <feMerge><feMergeNode in="fuzzy" /><feMergeNode in="darkFur" /><feMergeNode in="lightFur" /></feMerge>
           </filter>
@@ -264,13 +265,13 @@ function Figure({ rig, dye, face, eyes, look, weather, wear, fur }: {
         <g filter={ink.fur}>
           <path d={BODY} fill={`url(#${id}-face)`} stroke={`url(#${id}-face)`} strokeWidth={5} strokeLinejoin="round" />
           <g clipPath={`url(#${id}-clip)`}>
-            <path d={BODY} transform="translate(-8 -9)" fill="none" stroke="#6A3A1E" strokeOpacity={0.22} strokeWidth={22} filter={`url(#${id}-blur)`} />
-            <path d={BODY} transform="translate(7 8)" fill="none" stroke={WHITE} strokeOpacity={0.6} strokeWidth={18} filter={`url(#${id}-blur)`} />
-            <ellipse cx={78} cy={92} rx={18} ry={30} fill={WHITE} opacity={0.35} filter={`url(#${id}-blur)`} />
+            <path d={BODY} transform="translate(-8 -9)" fill="none" stroke="#14102A" strokeOpacity={0.3} strokeWidth={22} filter={`url(#${id}-blur)`} />
+            <path d={BODY} transform="translate(7 8)" fill="none" stroke={WHITE} strokeOpacity={0.26} strokeWidth={14} filter={`url(#${id}-blur)`} />
+            <ellipse cx={74} cy={84} rx={9} ry={16} fill={WHITE} opacity={0.3} filter={`url(#${id}-blur)`} />
           </g>
         </g>
 
-        <Face face={face} eyes={eyes} look={look} lid={mix(dye, '#FFFFFF', 0.3)} />
+        <Face face={face} eyes={eyes} look={look} lid={mix(dye, '#FFFFFF', 0.12)} />
         {!rig.lying && !rig.sleep && <Mark4 face={face} />}
         <Gear weather={weather} wear={wear} asleep={!!rig.lying} />
 
