@@ -14,7 +14,6 @@ import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
 import { useActivity, type Asks as AsksState, type Scene } from '@/components/guildbot/GuildBotScene'
 import { useFocusState, useRemaining, type BreakKind } from '@/lib/focus/store'
 import { useWeather, WearContext } from '@/components/guildbot/useWeather'
-import type { AvatarStatus } from '@/components/guildbot/GuildBotAvatar'
 import { GuildBotStamp } from '@/components/guildbot/GuildBotStamp'
 import { GuildBotStage, type Knock } from '@/components/guildbot/GuildBotStage'
 import { BodyPortal } from '@/components/ui/BodyPortal'
@@ -123,10 +122,8 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   const toast = useToast()
   const life = useGuildBotLife()
   const { mood, moodLine } = life
-  // What GuildBot is doing while you chat: the rings round him say it.
-  const [focused, setFocused] = useState(false)
+  // While a reply is on its way: reading the board, thinking, writing (shown in the header).
   const [phase, setPhase] = useState<'searching' | 'thinking' | 'writing'>('searching')
-  const [talking, setTalking] = useState(false)
   const left = signedIn ? (asks?.left ?? null) : null
   const asksState: AsksState = left === 0 ? 'out' : left !== null && left <= 3 ? 'genie' : 'normal'
   const genie = asksState === 'genie'
@@ -235,8 +232,6 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
       }
       setMessages(m => [...m, { id: `bot-${Date.now()}`, role: 'bot', body: data.reply, draft: data.draft, cites: data.cites }])
       if (data.asks) setAsks(data.asks)
-      setTalking(true)
-      timers.current.push(setTimeout(() => setTalking(false), 1800))
     } catch {
       toast('GuildBot did not answer, check your connection', 'error')
     } finally {
@@ -259,7 +254,6 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     }
   }
 
-  const status: AvatarStatus = thinking ? phase : talking ? 'talking' : focused && input.trim() ? 'listening' : 'idle'
   const expression: Expression = life.expression
   // What he's doing: the meeting beats everything, then a focus session you
   // started, then his own day.
@@ -335,9 +329,6 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
           lightsOut={lightsOut}
           open={open}
           desktop={desktop}
-          drawerWidth={DRAWER_W}
-          phoneSheetBottom={`calc(${keyboard.height} + ${keyboard.inset}px - 6px)`}
-          status={status}
           hidden={life.hidden}
           reduce={!!reduce}
           dodge={dodge}
@@ -506,8 +497,6 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                     <textarea
                       ref={inputRef}
                       disabled={outOfAsks}
-                      onFocus={() => setFocused(true)}
-                      onBlur={() => setFocused(false)}
                       value={input}
                       onChange={e => {
                         setInput(e.target.value)

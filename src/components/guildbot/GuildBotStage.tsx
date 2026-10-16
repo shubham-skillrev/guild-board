@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import type { Expression } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
-import { GuildBotAvatar, type AvatarStatus } from '@/components/guildbot/GuildBotAvatar'
+import { GuildBotAvatar } from '@/components/guildbot/GuildBotAvatar'
 import { GuildBotScene, type Asks, type Scene, type Trick as SceneTrick } from '@/components/guildbot/GuildBotScene'
 import type { Bubble, Chip, Trick } from '@/components/guildbot/useGuildBotLife'
 
@@ -24,10 +24,8 @@ const STROLL_MS = 1100
  *    desktop: he gets up, strolls out along the bottom edge, says it, and
  *    goes back. On phones he stays put; at night he leans out of his door.
  *  - Tapped: see GuildBotChat. He startles and answers (at night, you knock).
- *  - Chat open: he gets up from whatever he was doing and comes over to
- *    help. On desktop he stands at the dock's edge, on phones on top of the
- *    sheet, and what he's doing for you shows on him. His spot stays empty
- *    until you close the chat.
+ *  - Chat open: he leaves his spot for his diary (the dock), where he's an
+ *    ink drawing (InkBot). His spot stays empty until you close it.
  *  - Tap him and he asks: talk, or do something? Talking is the knock and the
  *    chat. Doing something opens his actions panel (it stays open): tricks
  *    (he gets tired), a walk, the weather he dresses for, focus with him, and
@@ -35,7 +33,8 @@ const STROLL_MS = 1100
  *    walks across the bottom of the screen and back (once on a wide screen,
  *    twice on a phone).
  *  - On the focus page he moves out of the corner into the page itself (the
- *    #gb-focus-slot element), bigger, and does the breaks there.
+ *    #gb-focus-slot element), bigger, and does the breaks there. He's working
+ *    with you there: tapping him does nothing, no chat, no tricks.
  */
 export function GuildBotStage({
   scene,
@@ -52,9 +51,6 @@ export function GuildBotStage({
   lightsOut,
   open,
   desktop,
-  drawerWidth,
-  phoneSheetBottom,
-  status,
   trick,
   onTrick,
   patrol,
@@ -84,10 +80,6 @@ export function GuildBotStage({
   lightsOut: string | null
   open: boolean
   desktop: boolean
-  drawerWidth: number
-  /** Where the top of the phone sheet is, as a CSS length from the bottom. */
-  phoneSheetBottom: string
-  status: AvatarStatus | null
   trick: SceneTrick
   onTrick: (t: Trick) => void
   /** A walk across the screen is on (its id), and when it's done. */
@@ -144,8 +136,6 @@ export function GuildBotStage({
   const say = lightsOut ?? (knock === 'door' ? greeting : null) ?? (open ? null : bubble?.text ?? dodge)
   const width = slot ? slot.width : desktop ? 124 : 100
 
-  // Over at the chat: where he stands.
-  const helper: CSSProperties = desktop ? { right: drawerWidth + 10, bottom: 10 } : { right: 14, bottom: `calc(${phoneSheetBottom} - 10px)` }
 
   return (
     <>
@@ -295,14 +285,18 @@ export function GuildBotStage({
         <button
           type="button"
           onClick={e => {
+            // On the focus page he's working with you: not a chat, no tricks.
+            if (slot) return
             if (open || knock !== 'idle') { onPress(e); return }
             setPanel(null)
             setChoice(c => !c)
           }}
+          tabIndex={slot ? -1 : undefined}
+          aria-hidden={slot ? true : undefined}
           aria-expanded={open || choice || !!panel}
           aria-haspopup="dialog"
           aria-label={label}
-          className="relative rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4"
+          className={cn('relative rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4', slot && 'cursor-default')}
         >
           <span key={atHouse ? 'house' : hop} className={cn('block', !atHouse && !strolling && hop > 0 && 'gb-hop')}>
             <GuildBotScene
@@ -328,18 +322,6 @@ export function GuildBotStage({
         </button>
       </div>
 
-      {/* Over at the chat, helping. */}
-      {open && (
-        <motion.div
-          className={cn('fixed pointer-events-none', desktop ? 'z-(--z-overlay)' : 'z-55')}
-          style={helper}
-          initial={reduce ? { opacity: 0 } : { transform: 'translateX(60px)', opacity: 0 }}
-          animate={reduce ? { opacity: 1 } : { transform: 'translateX(0px)', opacity: 1 }}
-          transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
-        >
-          <GuildBotAvatar expression={expression} status={status} size={desktop ? 76 : 52} genie={genie} feet={desktop} pose={trick === 'dance' ? 'dance' : trick === 'pat' ? 'wave' : 'stand'} follow />
-        </motion.div>
-      )}
     </>
   )
 }
