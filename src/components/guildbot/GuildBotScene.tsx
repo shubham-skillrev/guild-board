@@ -82,6 +82,7 @@ export function GuildBotScene({
   doorOpen = false,
   doorway,
   trick = null,
+  mug = true,
   width = 120,
 }: {
   scene: Scene
@@ -100,6 +101,8 @@ export function GuildBotScene({
   doorOpen?: boolean
   doorway?: ReactNode
   trick?: Trick
+  /** His mug (with the asks left on it, or the genie lamp, or the OUT sign). Off on the focus page. */
+  mug?: boolean
   width?: number
 }) {
   const out = asks === 'out'
@@ -138,9 +141,9 @@ export function GuildBotScene({
         {stage === 'cushion' && <Cushion scene={shown} face={face} genie={genie} away={away} status={status} />}
         {stage === 'floor' && <Floor scene={shown} face={face} genie={genie} away={away} status={status} />}
         {trick === 'pat' && !away && <Hearts />}
-        {genie ? <GenieLamp x={mugX - 4} y={floorY} /> : out ? <OutSign /> : <Mug x={mugX} y={floorY} />}
+        {mug && (genie ? <GenieLamp x={mugX - 4} y={floorY} /> : out ? <OutSign /> : <Mug x={mugX} y={floorY} />)}
       </svg>
-      {left !== null && !out && (
+      {mug && left !== null && !out && (
         <span
           aria-hidden
           className={cn(

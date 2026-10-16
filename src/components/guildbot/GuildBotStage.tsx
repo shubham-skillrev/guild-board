@@ -301,8 +301,11 @@ export function GuildBotStage({
           <span key={atHouse ? 'house' : hop} className={cn('block', !atHouse && !strolling && hop > 0 && 'gb-hop')}>
             <GuildBotScene
               scene={scene}
-              asks={asks}
-              left={left}
+              // On the focus page he's working with you: nothing about chat asks
+              // (no mug count, genie lamp, or napping behind an OUT sign).
+              asks={slot ? 'normal' : asks}
+              left={slot ? null : left}
+              mug={!slot}
               expression={expression}
               reacting={reacting}
               knocking={knock !== 'idle'}
