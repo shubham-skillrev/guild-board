@@ -20,8 +20,8 @@ import { GuildBotHome } from '@/components/guildbot/GuildBotHome'
  *   house    sleeping (GuildBotHome)
  *
  * The asks left this week are written on his saffron mug. In the last three
- * the mug becomes a genie's lamp and his eyes go blue; with none left he naps
- * on a shut laptop behind an OUT sign. Colours come from the theme
+ * the mug becomes a genie's lamp and his eyes go blue; with none left an OUT
+ * card stands where the mug was, and he carries on with his day. Colours come from the theme
  * (.gb-scene in globals.css), so light and dark both work.
  */
 export type Scene = Activity | 'meeting'
@@ -106,13 +106,13 @@ export function GuildBotScene({
   width?: number
 }) {
   const out = asks === 'out'
-  // Out of asks he naps at his desk, whatever the schedule says (at night, a dark house).
-  const shown: Scene = out && scene !== 'sleeping' ? 'coding' : scene
+  // Out of asks changes nothing about his day: only the OUT card where his mug was.
+  const shown: Scene = scene
   const stage = STAGE[shown]
   if (stage === 'house') {
     return (
       <GuildBotHome
-        look={out ? 'dark' : 'night'}
+        look="night"
         left={left}
         width={width * 0.8}
         knocking={knocking}
@@ -123,7 +123,7 @@ export function GuildBotScene({
     )
   }
   const genie = asks === 'genie'
-  const face: Expression = out ? 'sleepy' : reacting || trick ? expression : restingFace(shown, expression)
+  const face: Expression = reacting || trick ? expression : restingFace(shown, expression)
   const floorY = stage === 'desk' ? 62 : 84
   const mugX = stage === 'desk' ? 100 : 98
   return (
@@ -137,11 +137,11 @@ export function GuildBotScene({
     >
       <svg viewBox="0 0 120 90" className="absolute inset-0 w-full h-full overflow-visible" aria-hidden>
         <ellipse cx={60} cy={86.5} rx={54} ry={3.2} fill="#000" opacity={0.12} />
-        {stage === 'desk' && <Desk scene={shown} face={face} genie={genie} out={out} away={away} status={status} />}
+        {stage === 'desk' && <Desk scene={shown} face={face} genie={genie} away={away} status={status} />}
         {stage === 'cushion' && <Cushion scene={shown} face={face} genie={genie} away={away} status={status} />}
         {stage === 'floor' && <Floor scene={shown} face={face} genie={genie} away={away} status={status} />}
         {trick === 'pat' && !away && <Hearts />}
-        {mug && (genie ? <GenieLamp x={mugX - 4} y={floorY} /> : out ? <OutSign /> : <Mug x={mugX} y={floorY} />)}
+        {mug && (genie ? <GenieLamp x={mugX - 4} y={floorY} /> : out ? <OutSign y={floorY} /> : <Mug x={mugX} y={floorY} />)}
       </svg>
       {mug && left !== null && !out && (
         <span
@@ -172,21 +172,20 @@ function Plant({ dy = 0 }: { dy?: number }) {
   )
 }
 
-function Desk({ scene, face, genie, out, away, status }: Part & { scene: Scene; out: boolean }) {
+function Desk({ scene, face, genie, away, status }: Part & { scene: Scene }) {
   const sulking = scene === 'meeting'
   return (
     <>
       <Plant />
 
-      {/* Chair back (pushed in while he naps on the desk). */}
-      {!out && <path d="M33 59V43a7 7 0 0 1 7-7h23a7 7 0 0 1 7 7v16" className="gb-chair" strokeWidth={1.8} />}
+      {/* Chair back. */}
+      <path d="M33 59V43a7 7 0 0 1 7-7h23a7 7 0 0 1 7 7v16" className="gb-chair" strokeWidth={1.8} />
 
       {!away && (
         <g data-part="bot">
-          <g transform={out ? 'translate(27 25) rotate(-12 32 58) scale(0.62)' : 'translate(29.5 19) scale(0.68)'}>
+          <g transform="translate(29.5 19) scale(0.68)">
             <BotHead expression={face} genie={genie} status={status} />
           </g>
-          {out && <Zzz x={64} y={26} />}
           {sulking && <Fumes />}
           <path data-part="exclaim" d="M78 8v8M78 20.5v.5" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
         </g>
@@ -198,15 +197,13 @@ function Desk({ scene, face, genie, out, away, status }: Part & { scene: Scene; 
       <path d="M10 67.5V86M110 67.5V86" className="gb-line" strokeWidth={2.4} strokeLinecap="round" />
 
       {/* What's on the desk. */}
-      {out ? (
-        <path d="M68 60.5h28l-1.6-3H69.6Z" className="gb-laptop" strokeWidth={1.4} strokeLinejoin="round" />
-      ) : sulking ? (
+      {sulking ? (
         <MeetingSign />
       ) : (
         <Laptop open={scene === 'coding' || scene === 'coffee'} />
       )}
 
-      {!away && !out && (
+      {!away && (
         <>
           {scene === 'coding' && (
             <g>
@@ -387,23 +384,16 @@ function GenieLamp({ x, y }: { x: number; y: number }) {
   )
 }
 
-function OutSign() {
+/** No asks left this week: a little OUT card where the mug stands (base at y). */
+function OutSign({ y }: { y: number }) {
   return (
-    <g>
+    <g transform={`translate(0 ${y - 62})`}>
       <path d="M99 62 102.5 48h13l3.5 14Z" className="gb-pot" strokeWidth={1.4} strokeLinejoin="round" />
       <text x={109} y={58} textAnchor="middle" fontSize={6.2} fontWeight={800} className="gb-sign-text">OUT</text>
     </g>
   )
 }
 
-function Zzz({ x, y }: { x: number; y: number }) {
-  return (
-    <g transform={`translate(${x} ${y})`} className="gb-zzz" fill="none" strokeLinecap="round" strokeLinejoin="round">
-      <path data-z d="M0 0h4l-4 4h4" strokeWidth={1.4} />
-      <path data-z d="M6 -8h5l-5 5h5" strokeWidth={1.6} />
-    </g>
-  )
-}
 
 /** Steam off his head: the meeting he wasn't invited to. */
 function Fumes() {
