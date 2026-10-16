@@ -1,35 +1,25 @@
 'use client'
 
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Pause, Play, ArrowCounterClockwise, SkipForward, Bell, SpeakerSimpleHigh, SpeakerSimpleSlash, Drop, Eye, PersonSimpleWalk, Timer, X } from '@phosphor-icons/react/dist/ssr'
-import { raining } from '@guildboard/guildbot'
 import { Button } from '@/components/ui/Button'
 import { PageHeader, StatStrip, StatChip } from '@/components/ui/Section'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import { cn } from '@/lib/utils/cn'
 import { botSays } from '@/lib/guildbot-host/voice'
 import { BREAKS, PLANS, ROUTINES, focus, formatClock, stepAt, useFocusState, useRemaining, useTodayStats, type BreakKind, type Plan } from '@/lib/focus/store'
-import { breakParty, browserKey, seat, useRoom, type Person } from '@/lib/focus/presence'
+import { breakParty, useRoom, type Person } from '@/lib/focus/presence'
 import { playAmbience, saveAmbience, savedAmbience, type Ambience } from '@/lib/focus/sound'
 import { isChimeMuted, setChimeMuted } from '@/components/focus/FocusAlerts'
-import { GuildBuilding, STREET } from '@/components/hours/GuildBuilding'
-import { useWeather } from '@/components/guildbot/useWeather'
-import { sceneAt } from '@/lib/hours/scenes'
+import { CREW_TINTS, PlushBot } from '@/components/guildbot/PlushBot'
 
 /**
- * The focus room is the guild building. Every lit window is a member whose
- * focus timer is running right now, anywhere in the app: warm while they
- * focus, TV-blue on a break. Nobody is named; your own window is marked
- * "you", on your screen only. GuildBot works from his shop window
- * downstairs (GuildBotStage sits in the building's slot) and mirrors you:
- * he codes while you focus and leads the break routines.
- *
- * The sky is your clock (the /hours scenes) and your city's weather. When
- * three or more windows go blue together it's a break party; when they go
- * blue while you're mid-block, a quiet nudge offers to join them.
- *
- * Your timer and numbers live in this browser (lib/focus/store.ts); the
- * windows are anonymous presence (lib/focus/presence.ts, members only).
+ * The focus page: work in blocks next to GuildBot. He leaves his corner for
+ * the slot on this page (GuildBotStage): while you focus he codes; when the
+ * block ends he picks a break and leads it, step by step. Underneath the
+ * timer, a little crowd: how many members are focusing right now, as
+ * anonymous plushes (lib/focus/presence.ts, members only). Your timer and
+ * numbers live in this browser (lib/focus/store.ts).
  */
 export function FocusRoom() {
   const state = useFocusState()
@@ -37,9 +27,6 @@ export function FocusRoom() {
   const guideLeft = useRemaining(state.guideEndsAt)
   const stats = useTodayStats()
   const room = useRoom()
-  const weather = useWeather()
-  const hour = useHour()
-  const narrow = useNarrow()
   const [muted, setMuted] = useState(false)
   const [notify, setNotify] = useState<NotificationPermission | 'unsupported'>('default')
   const [ambience, setAmbience] = useState<Ambience>('off')
@@ -60,7 +47,7 @@ export function FocusRoom() {
     return playAmbience(ambience)
   }, [ambience])
 
-  // He says what's happening now: at the start of a block and in breaks, never mid-block.
+  // He says what's happening now: the one GuildBot, sitting in the slot below.
   const breakKind = state.phase === 'break' ? state.breakKind : null
   useEffect(() => {
     const key = state.phase === 'focus' ? 'focus.start' : breakKind ? `break.${breakKind}` : null
@@ -69,7 +56,7 @@ export function FocusRoom() {
     return () => clearTimeout(id)
   }, [state.phase, breakKind])
 
-  const running = state.phase !== 'idle' && state.endsAt !== null
+  const running = state.endsAt !== null
   const paused = state.pausedLeft !== null
   const plan = PLANS[state.plan]
   const total = (state.phase === 'break' ? plan.rest : plan.focus) * 60_000
@@ -77,20 +64,11 @@ export function FocusRoom() {
   const guiding = state.phase === 'break' && !!state.guideEndsAt && guideLeft > 0
   const guided = state.phase === 'break' && !!state.guideEndsAt && guideLeft <= 0
 
-  // The windows: everyone's, and yours even before the channel says so (or
-  // if it never will: guests, or the migration not applied yet).
-  const people: Person[] = room.connected ? [...room.people] : []
-  if (running && !people.some(p => p.you)) {
-    people.push({ key: 'you', you: true, s: state.phase === 'break' ? 'break' : 'focus', since: (state.endsAt ?? 0) - total, look: lookOf() })
-  }
-  const ordered = [...people].sort((a, b) => Number(b.you) - Number(a.you))
-  const drawn = narrow ? ordered.slice(0, 8) : ordered
-  const seats = seat(drawn, 16)
-  const overflow = seats.overflow + (people.length - drawn.length)
-  const party = breakParty(people)
-  const othersOnBreak = people.filter(p => !p.you && p.s === 'break').length
+  const others = room.connected ? room.people.filter(p => !p.you) : []
+  const onBreak = others.filter(p => p.s === 'break').length
 
-  // A break party, announced once.
+  // A break party (three or more breaks begun within a minute), announced once.
+  const party = breakParty(room.people)
   const partied = useRef(false)
   useEffect(() => {
     if (!party) { partied.current = false; return }
@@ -99,98 +77,76 @@ export function FocusRoom() {
     window.dispatchEvent(new CustomEvent('gb:say', { detail: { key: 'focus.party', vars: { n: party } } }))
   }, [party, state.phase])
 
-  // Windows going blue while you're mid-block: a quiet offer, once a block.
-  const nudge = state.phase === 'focus' && running && othersOnBreak >= 3 && nudgeGone !== state.endsAt
-    ? botSays('focus.nudge', String(state.endsAt), 'ui', { n: othersOnBreak })
+  // Others going on a break while you're mid-block: a quiet offer, once a block.
+  const nudge = state.phase === 'focus' && running && onBreak >= 3 && nudgeGone !== state.endsAt
+    ? botSays('focus.nudge', String(state.endsAt), 'ui', { n: onBreak })
     : null
-
-  const scene = sceneAt(hour ?? 12)
-  const w = weather.weather
-  const night = scene.tone === 'light'
-  const street = night ? STREET.night : STREET.day
 
   return (
     <>
       <PageHeader
         title="Focus"
-        subtitle="The guild building. Every lit window is someone focusing right now, anonymously. Start a timer and yours lights up, on any page."
+        subtitle="Work in blocks with GuildBot. He codes next to you, then makes you take a proper break. It all stays in this browser."
       />
 
-      {/* The building, under your sky, with the timer floating on it. */}
-      <section
-        className="relative overflow-hidden rounded-(--radius-card) border border-border shadow-[0_30px_60px_-30px_rgba(0,0,0,0.5)]"
-        style={{ background: `linear-gradient(to bottom, ${scene.sky[0]}, ${scene.sky[1]})`, ['--sky-top' as string]: scene.sky[0] }}
-      >
-        {/* The street runs on past the drawing (desktop). */}
-        <div aria-hidden className="hidden md:block absolute inset-x-0 bottom-0 h-[12.73%]">
-          <div className="h-[32%]" style={{ background: street.pavement }} />
-          <div className="h-[68%]" style={{ background: street.road }} />
+      <div className="rounded-(--radius-card) border border-border bg-paper p-(--pad-card) md:p-6 grid gap-6 md:grid-cols-[1fr_1.1fr] md:items-center">
+        {/* GuildBot's spot: he leaves his corner and works from here (GuildBotStage). */}
+        <div className="flex justify-center pt-16">
+          <div id="gb-focus-slot" aria-hidden className="w-[260px] h-[195px]" />
         </div>
 
-        <div className="relative md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] md:items-center">
-          <div className="p-4 md:p-6 bg-(--sky-top) md:bg-transparent md:self-start md:pt-10">
-            <div className="rounded-2xl border border-border bg-paper/90 backdrop-blur-md p-4 md:p-5 shadow-[0_16px_40px_-16px_rgba(0,0,0,0.45)] flex flex-col gap-4">
-              <div>
-                <p className="text-footnote text-ink-soft">
-                  {state.phase === 'idle' ? 'Ready when you are' : state.phase === 'focus' ? (paused ? 'Focus, paused' : 'Focusing') : paused ? 'Break, paused' : 'Break'}
-                </p>
-                <p className="font-mono tabular-nums text-[48px] md:text-[56px] leading-none tracking-tight text-ink mt-1" aria-live="off">
-                  {formatClock(shown)}
-                </p>
-                <p className="mt-1.5 text-caption text-cha">
-                  {hour !== null && <ClockNow />}
-                  {w && <> · {w.city} {w.temperature}°C</>}
-                </p>
-              </div>
-
-              {state.phase === 'idle' ? (
-                <SegmentedControl<Plan>
-                  label="Plan"
-                  value={state.plan}
-                  onChange={focus.setPlan}
-                  options={(Object.keys(PLANS) as Plan[]).map(k => ({ key: k, label: `${PLANS[k].focus}/${PLANS[k].rest}` }))}
-                />
-              ) : (
-                <p className="text-caption text-cha">{plan.label}: {plan.focus} minutes on, {plan.rest} off</p>
-              )}
-
-              <div className="flex flex-wrap items-center gap-2">
-                {state.phase === 'idle' ? (
-                  <Button icon={Play} onClick={focus.start}>Start focus</Button>
-                ) : running ? (
-                  <Button variant="tinted" icon={Pause} onClick={focus.pause}>Pause</Button>
-                ) : (
-                  <Button icon={Play} onClick={focus.resume}>Resume</Button>
-                )}
-                {state.phase !== 'idle' && (
-                  <>
-                    <Button variant="ghost" icon={SkipForward} onClick={focus.skip}>{state.phase === 'focus' ? 'Break now' : 'End break'}</Button>
-                    <Button variant="ghost" icon={ArrowCounterClockwise} onClick={focus.reset} aria-label="Reset" />
-                  </>
-                )}
-              </div>
-
-              {state.phase === 'break' && breakKind && (
-                <BreakGuide kind={breakKind} guiding={guiding} guided={guided} left={guideLeft} />
-              )}
-            </div>
+        {/* The timer. */}
+        <div className="flex flex-col gap-4">
+          <div>
+            <p className="text-footnote text-ink-soft">
+              {state.phase === 'idle' ? 'Ready when you are' : state.phase === 'focus' ? (paused ? 'Focus, paused' : 'Focusing') : paused ? 'Break, paused' : 'Break'}
+            </p>
+            <p className="font-mono tabular-nums text-[56px] leading-none tracking-tight text-ink mt-1" aria-live="off">
+              {formatClock(shown)}
+            </p>
           </div>
 
-          <div className="relative">
-            <GuildBuilding
-              scene={scene}
-              people={seats.windows}
-              overflow={overflow}
-              slot
-              rain={!!w && raining(w.code)}
-              party={party > 0}
-              className="gb-building block w-full h-auto"
+          {state.phase === 'idle' ? (
+            <SegmentedControl<Plan>
+              label="Plan"
+              value={state.plan}
+              onChange={focus.setPlan}
+              options={(Object.keys(PLANS) as Plan[]).map(k => ({ key: k, label: `${PLANS[k].label} ${PLANS[k].focus}/${PLANS[k].rest}` }))}
             />
-          </div>
-        </div>
-      </section>
+          ) : (
+            <p className="text-caption text-cha">{plan.label}: {plan.focus} minutes on, {plan.rest} off</p>
+          )}
 
-      {/* A nudge: windows going blue while you're mid-block. */}
+          <div className="flex flex-wrap items-center gap-2">
+            {state.phase === 'idle' ? (
+              <Button icon={Play} onClick={focus.start}>Start focus</Button>
+            ) : running ? (
+              <Button variant="tinted" icon={Pause} onClick={focus.pause}>Pause</Button>
+            ) : (
+              <Button icon={Play} onClick={focus.resume}>Resume</Button>
+            )}
+            {state.phase !== 'idle' && (
+              <>
+                <Button variant="ghost" icon={SkipForward} onClick={focus.skip}>{state.phase === 'focus' ? 'Break now' : 'End break'}</Button>
+                <Button variant="ghost" icon={ArrowCounterClockwise} onClick={focus.reset}>Reset</Button>
+              </>
+            )}
+          </div>
+
+          {state.phase === 'break' && breakKind && (
+            <BreakGuide kind={breakKind} guiding={guiding} guided={guided} left={guideLeft} />
+          )}
+
+          <Crowd
+            member={room.member}
+            others={others}
+            you={running ? (state.phase === 'break' ? 'break' : 'focus') : null}
+            yourLook={room.people.find(p => p.you)?.look ?? 0}
+          />
+        </div>
+      </div>
+
+      {/* Others going on a break while you're mid-block. */}
       {nudge && (
         <div role="status" className="mt-3 flex items-center gap-3 rounded-(--radius-card) border border-border bg-paper px-4 py-2.5 shadow-sm animate-fade-up">
           <p className="flex-1 text-footnote text-ink">{nudge}</p>
@@ -199,11 +155,7 @@ export function FocusRoom() {
         </div>
       )}
 
-      {!room.member && (
-        <p className="mt-3 text-caption text-cha">Sign in to see the guild&rsquo;s windows. Yours lights up either way.</p>
-      )}
-
-      {/* Today, and the room's settings. */}
+      {/* Today. */}
       <div className="mt-(--gap-section) flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
         <StatStrip>
           <StatChip icon={Timer} value={stats?.focusMinutes ?? 0} label="min focused" />
@@ -234,9 +186,60 @@ export function FocusRoom() {
         </div>
       </div>
       <p className="mt-3 text-caption text-cha">
-        Your numbers stay in this browser and reset each day. The windows are anonymous: no names, just a plush at a laptop.
+        Your numbers stay in this browser and reset each day. Nobody else sees them, GuildBot included. The crowd is anonymous: a count, never names.
       </p>
     </>
+  )
+}
+
+const SHOWN = 6
+
+/**
+ * Who's focusing right now, as a little crowd of anonymous plushes: one per
+ * member with a timer running (yours in front, saffron-ringed), heads down
+ * at work or dancing on a break, and the count in words.
+ */
+function Crowd({ member, others, you, yourLook }: { member: boolean; others: Person[]; you: 'focus' | 'break' | null; yourLook: number }) {
+  if (!member) {
+    return <p className="text-caption text-cha">Sign in to see how many of the guild are focusing with you.</p>
+  }
+  const focusing = others.filter(p => p.s === 'focus').length
+  const breaking = others.length - focusing
+  const shown = [...others].sort((a, b) => a.since - b.since).slice(0, SHOWN)
+  const words = others.length === 0
+    ? you ? 'Just you and GuildBot right now. Quality over quantity.' : 'Nobody focusing right now. First one in gets the good chair.'
+    : [
+        focusing ? `${focusing} focusing${you ? ' with you' : ''}` : null,
+        breaking ? `${breaking} on a break` : null,
+      ].filter(Boolean).join(', ') + ' right now.'
+
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-sumi px-3 py-2">
+      <div className="flex items-end -space-x-1.5 shrink-0" aria-hidden>
+        {you && (
+          <span className="relative z-10 rounded-full ring-2 ring-saffron/70 bg-paper">
+            <PlushBot size={30} tint={CREW_TINTS[yourLook % CREW_TINTS.length]} expression={you === 'break' ? 'relieved' : 'nosy'} motion={you === 'break' ? 'hop' : 'idle'} limbs={false} />
+          </span>
+        )}
+        {shown.map(p => (
+          <span key={p.key} className="relative rounded-full bg-paper ring-2 ring-paper">
+            <PlushBot
+              size={30}
+              tint={CREW_TINTS[p.look % CREW_TINTS.length]}
+              expression={p.s === 'break' ? 'relieved' : 'nosy'}
+              motion={p.s === 'break' ? 'dance' : 'idle'}
+              limbs={false}
+            />
+          </span>
+        ))}
+        {others.length > SHOWN && (
+          <span className="relative grid place-items-center h-[30px] min-w-[30px] px-1 rounded-full bg-kinu ring-2 ring-paper text-[11px] font-semibold text-ink-soft tabular-nums">
+            +{others.length - SHOWN}
+          </span>
+        )}
+      </div>
+      <p className="text-footnote text-ink-soft leading-snug">{words}</p>
+    </div>
   )
 }
 
@@ -246,13 +249,13 @@ function BreakGuide({ kind, guiding, guided, left }: { kind: BreakKind; guiding:
   const steps = ROUTINES[kind].steps
   const progress = guiding ? 1 - left / (BREAKS[kind].seconds * 1000) : guided ? 1 : 0
   return (
-    <div className="rounded-xl border border-border bg-sumi p-3 space-y-3">
+    <div className="rounded-(--radius-card) border border-border bg-sumi p-3 space-y-2.5">
       {now ? (
         <div className="flex items-start gap-3">
           {kind === 'water' && <Glass fill={progress} />}
           <div className="flex-1 min-w-0">
             <p className="text-caption text-cha">Step {now.index + 1} of {steps.length} · <span className="tabular-nums">{formatClock(now.left)}</span></p>
-            <p className="mt-0.5 text-callout text-ink leading-snug">{now.step.cue}</p>
+            <p className="mt-0.5 text-footnote text-ink leading-snug">{now.step.cue}</p>
             <div className="mt-2 flex gap-1" aria-hidden>
               {steps.map((_, i) => (
                 <span key={i} className={cn('h-1 flex-1 rounded-full', i < now.index ? 'bg-ink-soft' : i === now.index ? 'bg-saffron' : 'bg-border')} />
@@ -268,7 +271,7 @@ function BreakGuide({ kind, guiding, guided, left }: { kind: BreakKind; guiding:
           {!guided && <Button onClick={() => focus.pickBreak(kind)}>Start</Button>}
         </div>
       )}
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-2">
         {(Object.keys(BREAKS) as BreakKind[]).map(k => (
           <button
             key={k}
@@ -276,7 +279,7 @@ function BreakGuide({ kind, guiding, guided, left }: { kind: BreakKind; guiding:
             onClick={() => focus.pickBreak(k)}
             aria-pressed={kind === k}
             className={cn(
-              'press inline-flex items-center h-7 px-2.5 rounded-full border text-[12px] transition-colors',
+              'press inline-flex items-center gap-1.5 h-8 px-3 rounded-full border text-footnote transition-colors',
               kind === k ? 'border-border-strong bg-paper text-ink' : 'border-border bg-transparent text-ink-soft hover:text-ink',
             )}
           >
@@ -298,33 +301,4 @@ function Glass({ fill }: { fill: number }) {
       <path d="M4 4h20l-2.5 32h-15Z" fill="none" stroke="currentColor" strokeWidth={1.6} className="text-ink-soft" strokeLinejoin="round" />
     </svg>
   )
-}
-
-/** The time where you are, ticking by the minute. */
-function ClockNow() {
-  const minute = useSyncExternalStore(subscribeMinute, () => Math.floor(Date.now() / 60_000), () => 0)
-  return <>{new Date(minute * 60_000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</>
-}
-
-function subscribeMinute(cb: () => void) {
-  const id = setInterval(cb, 15_000)
-  return () => clearInterval(id)
-}
-
-/** Your hour (null until mounted, so the server never guesses your clock). */
-function useHour(): number | null {
-  return useSyncExternalStore(subscribeMinute, () => new Date().getHours(), () => null)
-}
-
-function useNarrow(): boolean {
-  return useSyncExternalStore(
-    cb => { const m = window.matchMedia('(max-width: 640px)'); m.addEventListener('change', cb); return () => m.removeEventListener('change', cb) },
-    () => window.matchMedia('(max-width: 640px)').matches,
-    () => false,
-  )
-}
-
-/** Your plush's look, before the channel has it. */
-function lookOf(): number {
-  try { return browserKey().look } catch { return 0 }
 }

@@ -271,7 +271,7 @@ export const LINES = {
   'doing.focus': ["Focusing with you. No talking. Okay, a little.", "Heads down. Mine's already down. It's a diamond."],
   'doing.break': ["On a break with you. Stretching, badly.", "Break time. Doing it properly, unlike you."],
 
-  'focus.nudge': ["{n} windows just went blue. Break together?", "{n} people are on a break right now. Join them, I won't tell."],
+  'focus.nudge': ["{n} people just went on a break. Break together?", "{n} people are on a break right now. Join them, I won't tell."],
   'focus.party': ["Break party. {n} of you, same minute. I'm dancing.", "{n} breaks at once. This is a party now. Hydrate."],
   'break.done': ["Welcome back. Your spine says thanks.", "Break done. Back to it, champion."],
 

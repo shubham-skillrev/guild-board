@@ -8,10 +8,10 @@ import { PLANS, useFocusState } from '@/lib/focus/store'
 import { FOCUS_CHANNEL, browserKey, setRoom, type Lit, type Person, type WindowState } from '@/lib/focus/presence'
 
 /**
- * Your window in the guild building: lit while your focus timer runs, on any
- * page, dark when it stops or pauses. Members only. Mounted once in the
- * layout; joins the channel while your timer runs or while you're looking at
- * the building (/focus), and leaves otherwise.
+ * You, in the focus room's count: there while your focus timer runs, on any
+ * page, gone when it stops or pauses. Members only. Mounted once in the
+ * layout; joins the channel while your timer runs or while you're on /focus
+ * (to see the others), and leaves otherwise.
  */
 export function FocusPresence({ member }: { member: boolean }) {
   const state = useFocusState()
@@ -21,7 +21,7 @@ export function FocusPresence({ member }: { member: boolean }) {
   const channelRef = useRef<RealtimeChannel | null>(null)
   const joined = useRef(false)
 
-  // What your window shows: focusing or on a break, and since when.
+  // What you share: focusing or on a break, and since when.
   const litKey = running && state.endsAt
     ? `${state.phase === 'break' ? 'break' : 'focus'}:${round(state.endsAt - (state.phase === 'break' ? PLANS[state.plan].rest : PLANS[state.plan].focus) * 60_000)}`
     : null
@@ -63,7 +63,7 @@ export function FocusPresence({ member }: { member: boolean }) {
     }
   }, [join])
 
-  // Light or darken your window as the timer changes (and once joined).
+  // Join or leave the count as the timer changes (and once joined).
   useEffect(() => {
     if (!join) return
     const send = () => {
