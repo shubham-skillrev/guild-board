@@ -31,3 +31,25 @@ export function droughtTier(stats: BoardStats): DroughtTier | null {
   if (stats.daysSinceOpen >= 3) return 'drought.smug'
   return null
 }
+
+/**
+ * The mood he wears today (and so his colour). The board's mood leads, but
+ * a quiet month shouldn't mean the same face every day:
+ *
+ *  - someone posted today: proud, all day
+ *  - otherwise the board's mood most days, and on others he swings: decides
+ *    not to care (smug), or the bored and dramatic swap places
+ *
+ * `seed` is 0 to 99 and stable for the day (daySeed in schedule.ts).
+ */
+export function moodOfDay(board: Mood, postedToday: boolean, seed: number): Mood {
+  if (postedToday) return 'proud'
+  if (board === 'bored' || board === 'dramatic') {
+    if (seed < 55) return board
+    if (seed < 80) return 'smug'
+    return board === 'bored' ? 'dramatic' : 'bored'
+  }
+  if (seed < 70) return board
+  if (seed < 85) return board === 'proud' ? 'smug' : 'proud'
+  return 'bored'
+}

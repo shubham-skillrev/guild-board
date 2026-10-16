@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import type { Expression } from '@guildboard/guildbot'
+import type { Expression, Variant } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
-import { GuildBotAvatar } from '@/components/guildbot/GuildBotAvatar'
+import { PlushBot, type PlushColour } from '@/components/guildbot/PlushBot'
 import { GuildBotScene, type Asks, type Scene, type Trick as SceneTrick } from '@/components/guildbot/GuildBotScene'
 import type { Bubble, Chip, Trick } from '@/components/guildbot/useGuildBotLife'
 
@@ -38,6 +38,7 @@ const STROLL_MS = 1100
  */
 export function GuildBotStage({
   scene,
+  colour,
   asks,
   left,
   expression,
@@ -52,6 +53,7 @@ export function GuildBotStage({
   open,
   desktop,
   trick,
+  variant = null,
   onTrick,
   patrol,
   onPatrolEnd,
@@ -67,6 +69,8 @@ export function GuildBotStage({
   onTalk,
 }: {
   scene: Scene
+  /** His felt colour (the chat works it out: mood, genie, meeting). */
+  colour: PlushColour
   asks: Asks
   left: number | null
   expression: Expression
@@ -82,6 +86,8 @@ export function GuildBotStage({
   desktop: boolean
   trick: SceneTrick
   onTrick: (t: Trick) => void
+  /** Today's take on his activity (iced coffee, a tiffin, the guitar). */
+  variant?: Variant
   /** A walk across the screen is on (its id), and when it's done. */
   patrol: number | null
   onPatrolEnd: () => void
@@ -100,7 +106,6 @@ export function GuildBotStage({
   /** Talk to him: the knock, then the chat. */
   onTalk: (e: React.MouseEvent) => void
 }) {
-  const genie = asks === 'genie'
   const atHouse = scene === 'sleeping'
   const slot = useSlot(usePathname() === '/focus' ? 'gb-focus-slot' : null)
   // On the focus page he stays at his spot in the card: no strolls, no walks across the screen.
@@ -185,7 +190,7 @@ export function GuildBotStage({
             transition={{ transform: { duration: STROLL_MS / 1000, ease: [0.77, 0, 0.175, 1] }, opacity: { duration: 0.2 } }}
           >
             <span key={hop} className="gb-hop block">
-              <GuildBotAvatar expression={expression} size={56} genie={genie} walking={stroll === 'walking-out' || stroll === 'walking-in'} follow />
+              <PlushBot colour={colour} expression={expression} size={50} motion={stroll === 'walking-out' || stroll === 'walking-in' ? 'walk' : 'idle'} follow />
             </span>
           </motion.div>
         )}
@@ -193,7 +198,7 @@ export function GuildBotStage({
         {/* Tricks he stands up for: in front of the desk, whole body. */}
         {dancing && (
           <span className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[5] pointer-events-none">
-            <GuildBotAvatar expression={expression} size={Math.round(width * 0.62)} genie={genie} pose="dance" />
+            <PlushBot colour={colour} expression={expression} size={Math.round(width * 0.5)} motion="dance" />
           </span>
         )}
 
@@ -206,7 +211,7 @@ export function GuildBotStage({
             transition={{ duration: walk.seconds, ease: 'linear', times: walk.times }}
             onAnimationComplete={onPatrolEnd}
           >
-            <GuildBotAvatar expression={expression} size={desktop ? 60 : 48} genie={genie} pose="walk" />
+            <PlushBot colour={colour} expression={expression} size={desktop ? 54 : 44} motion="walk" />
           </motion.div>
         )}
 
@@ -307,15 +312,17 @@ export function GuildBotStage({
               left={slot ? null : left}
               mug={!slot}
               expression={expression}
+              colour={colour}
               reacting={reacting}
               knocking={knock !== 'idle'}
               away={strolling || open || dancing || !!walk}
               trick={trick}
+              variant={variant}
               doorOpen={knock === 'door' || peek || !!lightsOut}
               doorway={
                 hidden ? null : (
                   <span key={hop} className="gb-hop block">
-                    <GuildBotAvatar expression={lightsOut ? 'sleepy' : expression} size={22} feet={false} genie={genie} />
+                    <PlushBot colour={colour} expression={lightsOut ? 'sleepy' : expression} size={18} motion="still" limbs={false} />
                   </span>
                 )
               }

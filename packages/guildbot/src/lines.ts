@@ -211,6 +211,8 @@ export const LINES = {
   'home.knock.lunch': ["Mouth full. Fine. What?", "Noodles can wait. They can't, but I'll pretend."],
   'home.knock.walking': ["You caught me mid-walk. Walk and talk?", "Steps paused. For you. What's up?"],
   'home.knock.learning': ["Bookmarking this page. For you, anything.", "I was learning something. Teach me something instead?"],
+  'home.knock.garden': ["Too hot to walk. I'm in the garden being a responsible houseplant.", "Shade, grass, lemonade. This is the walk now."],
+  'home.knock.rainwatch': ["Watching the rain with chai. Make it quick, it's very cosy in here."],
   'home.knock.music': ["Headphones off. This had better be good.", "Pausing the playlist. Dramatically. Go."],
   'home.knock.meditating': ["Inner peace, interrupted. It's fine. I'm fine.", "Om. Om. Oh, hi. Still calm. Mostly."],
 
@@ -225,6 +227,7 @@ export const LINES = {
   'trick.coffee.too_much': ["Another coffee? My hands are vibrating at 60Hz. No."],
   'trick.pat': ["Pat accepted. Morale up 3%.", "Okay, that was nice. Don't tell anyone."],
   'trick.walk': ["Walk? Love that. One lap, back before anyone notices.", "Stretching the legs. Hold the board for me."],
+  'trick.walk.already': ["Already walking. Look down, I'm the one doing laps.", "I'm on my walk. Keep up."],
   'walk.start': ["Walk time. Don't touch anything while I'm gone.", "Off for my walk. If anyone posts, I want to hear about it."],
   'trick.meditate': ["Breathe in. Breathe out. That's it, that's the whole tip."],
   'trick.tired': ["I have actual work to do. Also, I'm tired. Come back later.", "Out of energy. Even I need a breather. Coffee helps."],
