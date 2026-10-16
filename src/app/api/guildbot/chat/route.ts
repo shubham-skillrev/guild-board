@@ -42,11 +42,12 @@ export async function GET() {
 
   const { data } = await createAdminClient()
     .from('guildbot_messages')
-    .select('id, role, body, draft, cites, created_at')
+    .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
     .limit(HISTORY_SHOWN)
-  return NextResponse.json((data ?? []).reverse())
+  // Every column (so it works before and after migration 035), minus the owner.
+  return NextResponse.json((data ?? []).reverse().map(({ user_id: _owner, ...m }) => m))
 }
 
 export async function DELETE() {
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
     message,
     history: (earlier ?? []).reverse().map(m => ({ role: m.role as 'user' | 'bot', text: m.body })),
     context,
-  })) ?? { reply: "My brain timed out. Try again in a minute.", draft: null, cites: [] }
+  })) ?? { reply: "My brain timed out. Try again in a minute.", draft: null, cites: [], reaction: null }
 
   const draft = validDraft(answer.draft)
   const titles = new Map<string, Cite>([
@@ -100,10 +101,13 @@ export async function POST(request: Request) {
   ])
   const cites = answer.cites.map(id => titles.get(id)).filter((c): c is Cite => !!c)
 
-  await admin.from('guildbot_messages').insert({ user_id: user.id, role: 'bot', body: answer.reply, draft, cites })
+  const row = { user_id: user.id, role: 'bot', body: answer.reply, draft, cites }
+  const saved = await admin.from('guildbot_messages').insert({ ...row, reaction: answer.reaction })
+  // Before migration 035 there's no reaction column: keep the reply, drop the sticker.
+  if (saved.error) await admin.from('guildbot_messages').insert(row)
   // This ask is already saved, so the window now counts it.
   const asks = await asksFor(admin, user.id)
-  return NextResponse.json({ reply: answer.reply, draft, cites, fallback: answer.reply === CHAT_FALLBACK, asks })
+  return NextResponse.json({ reply: answer.reply, draft, cites, reaction: answer.reaction, fallback: answer.reply === CHAT_FALLBACK, asks })
 }
 
 const DOING = new Set(['sleeping', 'waking up', 'brushing his teeth', 'having coffee', 'coding', 'having lunch', 'out for a walk', 'reading a book', 'listening to music', 'meditating', 'sulking about the meeting', 'focusing with this person', 'on a break with this person'])

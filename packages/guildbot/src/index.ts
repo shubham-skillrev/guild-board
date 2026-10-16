@@ -14,6 +14,6 @@ export { dressFor, seasonOf, describeWeather, type Season, type WeatherLook, typ
 export { reactTo, BURST, type Reaction, type Expression, type BoardEvent, type ReactContext, type Reacting } from './react.ts'
 export { PERSONA, CHARACTER, LANGUAGE, STYLE, HARD_RULES, REVIEW_CHECKS, MEMES, EXAMPLES, REPLY_EXAMPLES } from './persona.ts'
 export { writeComment, writeReply, BIT_CHANCE } from './comments.ts'
-export { chat, CHAT_RULES, CHAT_FALLBACK, type ChatContext, type ChatTopic, type ChatByte, type ChatTurn, type ChatDraft, type ChatAnswer } from './chat.ts'
+export { chat, CHAT_RULES, CHAT_FALLBACK, CHAT_REACTIONS, type ChatReaction, type ChatContext, type ChatTopic, type ChatByte, type ChatTurn, type ChatDraft, type ChatAnswer } from './chat.ts'
 export { summariseLearnings, type AskedQuestion, type Learnings } from './learnings.ts'
 export { welcomeKey, meetingWhen, isoWeek, type WelcomeFacts } from './welcome.ts'
