@@ -178,7 +178,7 @@ export function GuildBotScene({
       {/* In front of him. */}
       <svg viewBox="0 0 120 90" className="absolute inset-0 w-full h-full overflow-visible pointer-events-none" aria-hidden>
         {/* His desk stays put while he's off on a walk or dancing; only what he's holding goes with him. */}
-        {atDesk ? <DeskFront scene={scene} variant={variant} away={away} /> : !away && <Foreground scene={scene} variant={variant} guitar={guitar} />}
+        {atDesk ? <DeskFront scene={scene} variant={variant} away={away} /> : !away && <Foreground scene={scene} guitar={guitar} />}
         {trick === 'pat' && !away && <Hearts />}
         {mug && (genie ? <GenieLamp x={atDesk ? 96 : 98} y={atDesk ? 57.5 : 86} /> : out ? <OutSign y={atDesk ? 62 : 86} /> : null)}
       </svg>
@@ -265,7 +265,7 @@ function Backdrop({ scene }: { scene: Scene }) {
 }
 
 /** What's in front of him: his desk and what's on it, the guitar, lemonade. */
-function Foreground({ scene, variant, guitar }: { scene: Scene; variant: Variant; guitar: boolean }) {
+function Foreground({ scene, guitar }: { scene: Scene; guitar: boolean }) {
   if (guitar) {
     return (
       <g transform="translate(-4 4)">
