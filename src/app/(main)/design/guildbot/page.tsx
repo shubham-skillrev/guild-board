@@ -11,6 +11,8 @@ import { PlushBot, type EarClick, type PlushColour, type PlushHands, type PlushM
 import { WearContext } from '@/components/guildbot/useWeather'
 import type { Variant, Wear } from '@guildboard/guildbot'
 import { GuildBotScene, type Scene } from '@/components/guildbot/GuildBotScene'
+import { Kers, type KersState } from '@/components/kers/Kers'
+import { KERS_POSES, type KersPose } from '@/components/kers/poses'
 
 const COLOURS: { colour: PlushColour; face: Expression; label: string }[] = [
   { colour: 'smug', face: 'smug', label: 'Smug · kuchiba' },
@@ -20,6 +22,49 @@ const COLOURS: { colour: PlushColour; face: Expression; label: string }[] = [
   { colour: 'genie', face: 'excited', label: 'Genie · ruri' },
   { colour: 'meeting', face: 'grumpy', label: 'Meeting sulk · budo' },
 ]
+const KERS_STATES: { state: KersState; label: string }[] = [
+  { state: 'thinking', label: 'Thinking: loader ring' },
+  { state: 'writing', label: 'Writing: I-beam caret' },
+  { state: 'pleased', label: 'Pleased: click ripple' },
+  { state: 'refusing', label: 'Refusing: not allowed' },
+]
+
+/** Kers, the next character, while his renders are made: placeholders until each pose is processed. */
+function KersSheet() {
+  return (
+    <div className="space-y-8">
+      <section>
+        <h2 className="text-footnote font-semibold text-ink mb-1">Poses</h2>
+        <p className="text-caption text-cha mb-4">Grey poses are stand-ins until the renders are in (docs/kers/prompts.md).</p>
+        <div className="flex flex-wrap gap-6 items-end">
+          {(Object.keys(KERS_POSES) as KersPose[]).map(p => (
+            <Cell key={p} label={`${p}${KERS_POSES[p].ready ? '' : ' (stand-in)'}`}><Kers pose={p} size={110} /></Cell>
+          ))}
+          <Cell label="walking (live)"><Kers motion="walk" size={110} /></Cell>
+        </div>
+      </section>
+      <section>
+        <h2 className="text-footnote font-semibold text-ink mb-4">Piping takes his mood (sumi on an ordinary day)</h2>
+        <div className="flex flex-wrap gap-6 items-end">
+          {COLOURS.map(c => <Cell key={c.colour} label={c.label}><Kers colour={c.colour} expression={c.face} size={110} follow /></Cell>)}
+        </div>
+      </section>
+      <section>
+        <h2 className="text-footnote font-semibold text-ink mb-4">Googly eyes, stitched brows</h2>
+        <div className="flex flex-wrap gap-6 items-end">
+          {FACES.map(f => <Cell key={f} label={f}><Kers expression={f} size={96} /></Cell>)}
+        </div>
+      </section>
+      <section>
+        <h2 className="text-footnote font-semibold text-ink mb-4">Cursor states</h2>
+        <div className="flex flex-wrap gap-10 items-end">
+          {KERS_STATES.map(s => <Cell key={s.label} label={s.label}><Kers state={s.state} size={96} /></Cell>)}
+        </div>
+      </section>
+    </div>
+  )
+}
+
 const CLICKS: { click: EarClick; face: Expression; label: string }[] = [
   { click: null, face: 'smug', label: 'At rest' },
   { click: 'right', face: 'smug', label: 'Click (pleased)' },
@@ -135,6 +180,10 @@ export default function GuildBotSheet() {
       <h1 className="text-title-1 text-label">Nibble <span className="text-label-2">· GuildBot</span></h1>
       <p className="text-callout text-label-2 mt-1.5 max-w-prose">A crocheted computer mouse who is also a mouse. Character sheet for sign-off; not linked from the app.</p>
       <div className="mt-8 grid gap-6">
+        <h2 className="text-title-3 text-label mt-2">Kers, in progress <span className="text-label-2">· a plush cursor</span></h2>
+        <div className="rounded-(--radius-card) border border-border bg-paper p-6"><KersSheet /></div>
+        <div className="dark rounded-(--radius-card) border border-border bg-parchment p-6"><KersSheet /></div>
+        <h2 className="text-title-3 text-label mt-6">Nibble <span className="text-label-2">· live now</span></h2>
         <div className="rounded-(--radius-card) border border-border bg-paper p-6"><Sheet /></div>
         <div className="dark rounded-(--radius-card) border border-border bg-parchment p-6"><Sheet /></div>
       </div>

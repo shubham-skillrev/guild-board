@@ -325,7 +325,7 @@ export function Mitten({ x, y, colour = 'smug', flip = false, rot = 0, scale = 0
   )
 }
 
-type EyeShape = {
+export type EyeShape = {
   /** Eye white radius. */
   r: number
   /** Lid coverage from the top, 0 open to 1 shut, per eye. */
@@ -339,7 +339,7 @@ type EyeShape = {
   sparkle?: boolean
 }
 
-function eyeShape(e: Expression): EyeShape {
+export function eyeShape(e: Expression): EyeShape {
   const open: EyeShape = { r: 12, lid: [0, 0], tilt: [0, 0], pupil: { dx: 0, dy: 1, r: 5.4 } }
   switch (e) {
     case 'smug': return { ...open, lid: [0.1, 0.45], tilt: [0, -8], pupil: { dx: 2.8, dy: 1, r: 5.2 } }
@@ -356,7 +356,7 @@ function eyeShape(e: Expression): EyeShape {
   }
 }
 
-function Eye({ cx, cy, shape, side, look, lid }: { cx: number; cy: number; shape: EyeShape; side: 0 | 1; look: { x: number; y: number }; lid: string }) {
+export function Eye({ cx, cy, shape, side, look, lid }: { cx: number; cy: number; shape: EyeShape; side: 0 | 1; look: { x: number; y: number }; lid: string }) {
   const clip = useId().replace(/:/g, '')
   if (shape.arcs) {
     const d = shape.arcs === 'up' ? `M${cx - 9.5} ${cy + 3.5}q9.5 -12 19 0` : `M${cx - 9.5} ${cy - 2.5}q9.5 10 19 0`
@@ -492,14 +492,14 @@ export const CREW_TINTS = ['#68BE8D', '#F09199', '#00A3AF', '#AACF53', '#A0D8EF'
 export const plushEdge = (colour: PlushColour) => mix(PLUSH_COLOURS[colour], '#000000', 0.3)
 
 /** Mix two hex colours: t = 0 gives a, 1 gives b. */
-function mix(a: string, b: string, t: number): string {
+export function mix(a: string, b: string, t: number): string {
   const p = (h: string) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16))
   const [x, y] = [p(a), p(b)]
   return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('')
 }
 
 /** A small offset towards the pointer, for the pupils; zero when off or reduced motion. */
-function useLookAt(on: boolean): { x: number; y: number } {
+export function useLookAt(on: boolean): { x: number; y: number } {
   const [look, setLook] = useState({ x: 0, y: 0 })
   const frame = useRef(0)
   useEffect(() => {

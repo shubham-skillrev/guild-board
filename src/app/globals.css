@@ -1071,6 +1071,26 @@ body {
 }
 .gb-plush [data-eye] { transform-origin: 50% 50%; animation: gb-plush-blink 5.4s infinite; }
 @keyframes gb-plush-blink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
+/* Kers (components/kers): breathes, bobs as he walks, hops; his cursor
+   states spin, blink and ripple. Transform and opacity only. */
+.gb-kers .gb-kers-body { transform-origin: 50% 100%; }
+.gb-kers[data-motion='idle'] .gb-kers-body { animation: gb-kers-breathe 3.6s ease-in-out infinite; }
+@keyframes gb-kers-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, 0.98); } }
+.gb-kers[data-motion='walk'] .gb-kers-body { animation: gb-kers-bob 260ms ease-in-out infinite alternate; }
+@keyframes gb-kers-bob { from { transform: translateY(0); } to { transform: translateY(-3%); } }
+.gb-kers[data-motion='hop'] .gb-kers-body { animation: gb-plush-hop 620ms var(--motion-out); }
+.gb-kers [data-eye] { transform-box: fill-box; transform-origin: 50% 50%; animation: gb-plush-blink 5.4s infinite; }
+.gb-kers .gb-kers-spin { transform-box: fill-box; transform-origin: center; animation: gb-kers-spin 1.1s linear infinite; }
+@keyframes gb-kers-spin { to { transform: rotate(360deg); } }
+.gb-kers .gb-kers-caret { animation: gb-kers-blink 1s steps(1) infinite; }
+@keyframes gb-kers-blink { 50% { opacity: 0; } }
+.gb-kers .gb-kers-ripple circle { transform-box: fill-box; transform-origin: center; animation: gb-kers-ripple 1.4s var(--motion-out) infinite; }
+.gb-kers .gb-kers-ripple circle + circle { animation-delay: 0.35s; }
+@keyframes gb-kers-ripple { from { transform: scale(0.4); opacity: 0.8; } to { transform: scale(2.8); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .gb-kers *, .gb-kers .gb-kers-body { animation: none !important; }
+}
+
 /* Nibble's clicky ears: a button presses down and darkens for a moment. */
 .gb-plush .gb-ear { transition: transform 90ms var(--motion-out), filter 90ms var(--motion-out); }
 .gb-plush .gb-ear[data-pressed] { transform: translateY(1.8px); filter: brightness(0.86); }
