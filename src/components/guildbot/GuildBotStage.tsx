@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Sparkle } from '@phosphor-icons/react/dist/ssr'
@@ -28,8 +29,12 @@ const STROLL_MS = 1100
  *    help. On desktop he stands at the dock's edge, on phones on top of the
  *    sheet, and what he's doing for you shows on him. His spot stays empty
  *    until you close the chat.
- *  - The ✦ beside him: his menu. Tricks (he gets tired), focus with him,
- *    quiet for today, shoo.
+ *  - The ✦ beside him: his menu. Tricks (he gets tired), a walk, focus with
+ *    him, quiet for today, shoo. He dances standing in front of his desk, and
+ *    walks across the bottom of the screen and back (once on a wide screen,
+ *    twice on a phone).
+ *  - On the focus page he moves out of the corner into the page itself (the
+ *    #gb-focus-slot element), bigger, and does the breaks there.
  */
 export function GuildBotStage({
   scene,
@@ -51,6 +56,11 @@ export function GuildBotStage({
   status,
   trick,
   onTrick,
+  patrol,
+  onPatrolEnd,
+  city,
+  weatherLabel,
+  onCity,
   energy,
   hidden,
   quiet,
@@ -81,6 +91,13 @@ export function GuildBotStage({
   status: AvatarStatus | null
   trick: SceneTrick
   onTrick: (t: Trick) => void
+  /** A walk across the screen is on (its id), and when it's done. */
+  patrol: number | null
+  onPatrolEnd: () => void
+  /** The city he dresses for, from the viewer's browser, and how it's going there. */
+  city: string | null
+  weatherLabel: string | null
+  onCity: (city: string | null) => void
   /** Energy left (0 to max), read when the menu opens. */
   energy: () => { now: number; max: number }
   hidden: boolean
@@ -94,8 +111,12 @@ export function GuildBotStage({
 }) {
   const genie = asks === 'genie'
   const atHouse = scene === 'sleeping'
-  const stroll = useStroll(bubble, desktop && !open && !hidden && !reduce && !atHouse)
+  const stroll = useStroll(bubble, desktop && !open && !hidden && !reduce && !atHouse && !patrol)
+  const slot = useSlot(usePathname() === '/focus' ? 'gb-focus-slot' : null)
+  const walk = usePatrol(patrol, !open && !hidden && !reduce && !atHouse, onPatrolEnd)
+  const dancing = trick === 'dance' && !open && !atHouse
   const [menu, setMenu] = useState<{ now: number; max: number } | null>(null)
+  const [editingCity, setEditingCity] = useState(false)
   const [peek, setPeek] = useState(false)
 
   // A reaction at night: he leans out of his door for a moment.
@@ -111,7 +132,7 @@ export function GuildBotStage({
 
   const strolling = stroll !== 'home'
   const say = lightsOut ?? (knock === 'door' ? greeting : null) ?? (open ? null : bubble?.text ?? dodge)
-  const width = desktop ? 124 : 100
+  const width = slot ? slot.width : desktop ? 124 : 100
 
   // Over at the chat: where he stands.
   const helper: CSSProperties = desktop ? { right: drawerWidth + 10, bottom: 10 } : { right: 14, bottom: `calc(${phoneSheetBottom} - 10px)` }
@@ -120,9 +141,11 @@ export function GuildBotStage({
     <>
       <div
         className={cn(
-          'fixed right-2 bottom-20 md:right-4 md:bottom-2 flex items-end z-(--z-overlay) transition-transform duration-300 motion-reduce:transition-none',
+          'fixed flex items-end z-(--z-overlay) transition-transform duration-300 motion-reduce:transition-none',
+          !slot && 'right-2 bottom-20 md:right-4 md:bottom-2',
           dodge !== null && '-translate-x-24 -translate-y-16',
         )}
+        style={slot ? { left: slot.left, top: slot.top } : undefined}
       >
         {/* What he says, with answers to tap when he's asking. */}
         {say && !open && (
@@ -165,6 +188,26 @@ export function GuildBotStage({
           </motion.div>
         )}
 
+        {/* Tricks he stands up for: in front of the desk, whole body. */}
+        {dancing && (
+          <span className="absolute bottom-0 left-1/2 -translate-x-1/2 z-[5] pointer-events-none">
+            <GuildBotAvatar expression={expression} size={Math.round(width * 0.62)} genie={genie} pose="dance" />
+          </span>
+        )}
+
+        {/* His walk: across the bottom of the screen and back. */}
+        {walk && (
+          <motion.div
+            className="absolute bottom-0 left-1/4 z-[5] pointer-events-none"
+            initial={{ transform: 'translateX(0px)' }}
+            animate={{ transform: walk.keyframes }}
+            transition={{ duration: walk.seconds, ease: 'linear', times: walk.times }}
+            onAnimationComplete={onPatrolEnd}
+          >
+            <GuildBotAvatar expression={expression} size={desktop ? 60 : 48} genie={genie} pose="walk" />
+          </motion.div>
+        )}
+
         {/* His menu. */}
         {!open && (
           <div className="absolute -top-1 left-0 z-10">
@@ -187,15 +230,34 @@ export function GuildBotStage({
                     ))}
                   </span>
                 </p>
-                {!hidden && (['dance', 'pat', 'coffee', 'meditate'] as const).map(t => (
+                {!hidden && (['dance', 'walk', 'pat', 'coffee', 'meditate'] as const).map(t => (
                   <MenuItem key={t} onClick={() => { onTrick(t); setMenu(null) }}>
-                    {t === 'dance' ? 'Dance' : t === 'pat' ? 'Pat on the head' : t === 'coffee' ? 'Bring him a coffee' : 'Meditate together'}
+                    {t === 'dance' ? 'Dance' : t === 'walk' ? 'Go for a walk' : t === 'pat' ? 'Pat on the head' : t === 'coffee' ? 'Bring him a coffee' : 'Meditate together'}
                   </MenuItem>
                 ))}
                 <Link role="menuitem" href="/focus" onClick={() => setMenu(null)} className="block rounded-md px-2.5 leading-8 hover:bg-kinu/60 text-ink">
                   Focus with me
                 </Link>
                 <div className="my-1 border-t border-border" />
+                {/* The weather he dresses for: your city, kept in this browser. */}
+                {editingCity ? (
+                  <form
+                    className="px-1.5 py-1 flex items-center gap-1"
+                    onSubmit={e => {
+                      e.preventDefault()
+                      onCity(new FormData(e.currentTarget).get('city') as string)
+                      setEditingCity(false)
+                      setMenu(null)
+                    }}
+                  >
+                    <input name="city" defaultValue={city ?? ''} autoFocus maxLength={60} placeholder="Your city" aria-label="Your city" className="min-w-0 flex-1 h-8 rounded-md border border-border bg-sumi px-2 text-[13px] text-ink focus:outline-none focus:border-border-strong" />
+                    <button type="submit" className="h-8 px-2 rounded-md text-[13px] text-ink hover:bg-kinu/60">Save</button>
+                  </form>
+                ) : (
+                  <MenuItem onClick={() => setEditingCity(true)}>
+                    {city ? <>Weather: <span className="text-ink-soft">{weatherLabel ?? city}</span></> : 'Dress for my weather'}
+                  </MenuItem>
+                )}
                 {!hidden && <MenuItem onClick={() => { onQuiet(); setMenu(null) }}>{quiet ? 'Talk again' : 'Quiet for today'}</MenuItem>}
                 <MenuItem onClick={() => { onHide(!hidden); setMenu(null) }}>{hidden ? 'Bring back the antics' : 'Shoo, no antics'}</MenuItem>
               </div>
@@ -219,7 +281,7 @@ export function GuildBotStage({
               expression={expression}
               reacting={reacting}
               knocking={knock !== 'idle'}
-              away={strolling || open}
+              away={strolling || open || dancing || !!walk}
               trick={trick}
               doorOpen={knock === 'door' || peek || !!lightsOut}
               doorway={
@@ -265,10 +327,10 @@ type Stroll = 'home' | 'walking-out' | 'out' | 'walking-in'
 function useStroll(bubble: Bubble | null, enabled: boolean): Stroll {
   const [stroll, setStroll] = useState<Stroll>('home')
   const id = bubble?.id
-  const chips = !!bubble?.chips
+  const stay = !!bubble?.stay
   useEffect(() => {
-    // Small talk waits for your answer at his spot: no stroll for that.
-    if (!id || !enabled || chips) return
+    // Tricks, walks and small talk happen where he is: no stroll for those.
+    if (!id || !enabled || stay) return
     const t = [
       setTimeout(() => setStroll('walking-out'), 200),
       setTimeout(() => setStroll('out'), 200 + STROLL_MS),
@@ -276,6 +338,59 @@ function useStroll(bubble: Bubble | null, enabled: boolean): Stroll {
       setTimeout(() => setStroll('home'), 6000 + STROLL_MS),
     ]
     return () => t.forEach(clearTimeout)
-  }, [id, enabled, chips])
+  }, [id, enabled, stay])
   return enabled ? stroll : 'home'
+}
+
+/** Where an element is on screen, kept current through scroll and resize. Null when it's absent. */
+function useSlot(id: string | null): DOMRect | null {
+  const [rect, setRect] = useState<DOMRect | null>(null)
+  useEffect(() => {
+    if (!id) { const t = setTimeout(() => setRect(null), 0); return () => clearTimeout(t) }
+    let frame = 0
+    const measure = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        const el = document.getElementById(id)
+        setRect(el ? el.getBoundingClientRect() : null)
+      })
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    const el = document.getElementById(id)
+    if (el) observer.observe(el)
+    window.addEventListener('scroll', measure, { passive: true })
+    window.addEventListener('resize', measure)
+    const late = setTimeout(measure, 300) // the page may mount after us
+    return () => {
+      cancelAnimationFrame(frame)
+      clearTimeout(late)
+      observer.disconnect()
+      window.removeEventListener('scroll', measure)
+      window.removeEventListener('resize', measure)
+    }
+  }, [id])
+  return rect
+}
+
+/**
+ * A walk across the bottom of the screen and back, at a stroll (150 px/s):
+ * one lap where the screen is wide, two on a phone.
+ */
+function usePatrol(id: number | null, enabled: boolean, onEnd: () => void) {
+  const [walk, setWalk] = useState<{ keyframes: string[]; times: number[]; seconds: number } | null>(null)
+  useEffect(() => {
+    if (!id) { const t = setTimeout(() => setWalk(null), 0); return () => clearTimeout(t) }
+    if (!enabled) { onEnd(); return }
+    const distance = Math.max(120, window.innerWidth - 220)
+    const laps = distance > 700 ? 1 : 2
+    const stops = Array.from({ length: laps * 2 + 1 }, (_, i) => (i % 2 ? -distance : 0))
+    const t = setTimeout(() => setWalk({
+      keyframes: stops.map(x => `translateX(${x}px)`),
+      times: stops.map((_, i) => i / (stops.length - 1)),
+      seconds: (distance * laps * 2) / 150,
+    }), 0)
+    return () => clearTimeout(t)
+  }, [id, enabled, onEnd])
+  return walk
 }

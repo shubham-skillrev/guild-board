@@ -22,9 +22,10 @@ const ENERGY_MAX = 5
 const ENERGY_REGEN_MS = 15 * 60_000
 const COFFEES_PER_DAY = 2
 
-export type Trick = 'dance' | 'pat' | 'coffee' | 'meditate'
+export type Trick = 'dance' | 'pat' | 'coffee' | 'meditate' | 'walk'
 export interface Chip { label: string; reply: LineKey }
-export interface Bubble { id: number; text: string; chips?: Chip[] }
+/** `stay`: he says it where he is (no stroll out for it). */
+export interface Bubble { id: number; text: string; chips?: Chip[]; stay?: boolean }
 
 /* Small talk, one question a day. He asks, you tap, he forgets at once. */
 const TALK: { q: LineKey; chips: Chip[] }[] = [
@@ -61,6 +62,8 @@ export function useGuildBotLife() {
   const [bubble, setBubble] = useState<Bubble | null>(null)
   const [hop, setHop] = useState(0)
   const [trick, setTrick] = useState<'dance' | 'pat' | null>(null)
+  /** A walk across the bottom of the screen and back; the id restarts it. */
+  const [patrol, setPatrol] = useState<number | null>(null)
   const [meeting, setMeeting] = useState(false)
   const [prefs, setPrefs] = useState({ quiet: false, hidden: false })
 
@@ -96,7 +99,7 @@ export function useGuildBotLife() {
    * Say a line in a bubble. Unprompted lines wait out the two-minute gap;
    * answers to something you did (`asked`) never wait.
    */
-  const speak = useCallback((key: LineKey, opts: { asked?: boolean; chips?: Chip[]; vars?: Record<string, string | number>; ms?: number } = {}) => {
+  const speak = useCallback((key: LineKey, opts: { asked?: boolean; chips?: Chip[]; vars?: Record<string, string | number>; ms?: number; stay?: boolean } = {}) => {
     if (!SASS || prefsRef.current.hidden) return false
     if (!opts.asked && prefsRef.current.quiet) return false
     const now = Date.now()
@@ -104,7 +107,7 @@ export function useGuildBotLife() {
     const text = botSays(key, `${key}:${Math.floor(now / 60_000)}`, 'ui', { present: present.current, ...opts.vars })
     if (!text) return false
     sessionStorage.setItem(LAST_BUBBLE, String(now))
-    setBubble({ id: now, text, chips: opts.chips })
+    setBubble({ id: now, text, chips: opts.chips, stay: opts.stay || !!opts.chips })
     later('bubble', opts.ms ?? (opts.chips ? 20_000 : BUBBLE_MS), () => setBubble(null))
     return true
   }, [])
@@ -246,18 +249,19 @@ export function useGuildBotLife() {
       pullFace('sleepy')
     } else {
       e -= 1
-      key = kind === 'dance' ? 'trick.dance' : kind === 'pat' ? 'trick.pat' : 'trick.meditate'
+      key = kind === 'dance' ? 'trick.dance' : kind === 'pat' ? 'trick.pat' : kind === 'walk' ? 'trick.walk' : 'trick.meditate'
       pullFace(kind === 'dance' ? 'excited' : kind === 'pat' ? 'proud' : 'relieved')
       if (kind === 'dance' || kind === 'pat') {
         setTrick(kind)
-        later('trick', kind === 'dance' ? 2200 : 1500, () => setTrick(null))
+        later('trick', kind === 'dance' ? 3200 : 1500, () => setTrick(null))
       }
+      if (kind === 'walk') setPatrol(now)
     }
     localStorage.setItem(ENERGY, JSON.stringify({ e, at: now, coffees, day: today }))
     const text = botSays(key, `${key}:${now}`, 'ui')
     if (text) {
       sessionStorage.setItem(LAST_BUBBLE, String(now))
-      setBubble({ id: now, text })
+      setBubble({ id: now, text, stay: true })
       later('bubble', BUBBLE_MS, () => setBubble(null))
     }
     return text
@@ -269,7 +273,26 @@ export function useGuildBotLife() {
     return saved ? Math.min(ENERGY_MAX, saved.e + Math.floor((Date.now() - saved.at) / ENERGY_REGEN_MS)) : ENERGY_MAX
   }
 
-  const answer = (chip: Chip) => speak(chip.reply, { asked: true })
+  const answer = (chip: Chip) => speak(chip.reply, { asked: true, stay: true })
+
+  const endPatrol = useCallback(() => setPatrol(null), [])
+
+  /** Say a line now (the weather, say), with a face to go with it. */
+  const say = useCallback((key: LineKey, vars: Record<string, string | number>, face?: Expression) => {
+    if (!speak(key, { asked: true, vars, stay: true })) return false
+    if (face) pullFace(face)
+    return true
+  }, [speak, pullFace])
+
+  /** His own walk, when the schedule says so: once an hour at most, and he says so. */
+  const startWalk = useCallback(() => {
+    if (prefsRef.current.hidden) return
+    const key = `guildbot:walked:${new Date().toDateString()}:${new Date().getHours()}`
+    if (sessionStorage.getItem(key)) return
+    sessionStorage.setItem(key, '1')
+    speak('walk.start', { stay: true })
+    setPatrol(Date.now())
+  }, [speak])
 
   const setQuiet = (on: boolean) => {
     if (on) localStorage.setItem(QUIET, new Date().toDateString()); else localStorage.removeItem(QUIET)
@@ -295,6 +318,11 @@ export function useGuildBotLife() {
     hop,
     trick,
     doTrick,
+    patrol,
+    endPatrol,
+    /** Say a line now (the weather, say), with a face to go with it. */
+    say,
+    startWalk,
     energy,
     energyMax: ENERGY_MAX,
     meeting,

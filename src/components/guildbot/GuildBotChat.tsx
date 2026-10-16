@@ -13,7 +13,7 @@ import { SASS, botSays } from '@/lib/guildbot-host/voice'
 import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
 import { useActivity, type Asks as AsksState, type Scene } from '@/components/guildbot/GuildBotScene'
 import { useFocusState, type BreakKind } from '@/lib/focus/store'
-import { useRouter } from 'next/navigation'
+import { useWeather, WearContext } from '@/components/guildbot/useWeather'
 import type { AvatarStatus } from '@/components/guildbot/GuildBotAvatar'
 import { GuildBotStamp } from '@/components/guildbot/GuildBotStamp'
 import { GuildBotStage, type Knock } from '@/components/guildbot/GuildBotStage'
@@ -59,7 +59,8 @@ type Message = { id: string; role: 'user' | 'bot'; body: string; draft?: Draft |
 function pageOf(path: string): { kind: 'board' } | { kind: 'topic'; topicId: string } | { kind: 'bytes'; byteId?: string } | null {
   const topic = path.match(/^\/board\/([0-9a-f-]{36})/i)
   if (topic) return { kind: 'topic', topicId: topic[1] }
-  if (path === '/board') return { kind: 'board' }
+  // The focus page talks about the board too: he's just working there.
+  if (path === '/board' || path === '/focus') return { kind: 'board' }
   const byte = path.match(/^\/bytes(?:\/([0-9a-f-]{36}))?/i)
   if (byte) return { kind: 'bytes', byteId: byte[1] }
   return null
@@ -107,7 +108,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   const { asks, setAsks } = useAsks(signedIn)
   const activity = useActivity() ?? 'coding'
   const focusState = useFocusState()
-  const router = useRouter()
+  const weather = useWeather()
   const welcome = useWelcome(pathname === '/board' && !open, signedIn)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -166,6 +167,28 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, thinking])
 
+  // The weather where you are, once a day: a remark, and a face to match.
+  const sayWeather = life.say
+  useEffect(() => {
+    const w = weather.weather
+    if (!w || !weather.line) return
+    const key = `guildbot:weather:${new Date().toDateString()}:${w.city}`
+    if (localStorage.getItem(key)) return
+    const line = weather.line
+    const t = setTimeout(() => {
+      if (sayWeather(line, { city: w.city, temp: w.temperature }, w.temperature >= 30 ? 'dramatic' : 'nosy')) localStorage.setItem(key, '1')
+    }, 12_000)
+    return () => clearTimeout(t)
+  }, [weather.weather, weather.line, sayWeather])
+
+  // His own walk, when the schedule says it's time (once an hour at most).
+  const startWalk = life.startWalk
+  useEffect(() => {
+    if (activity !== 'walking' || open) return
+    const t = setTimeout(startWalk, 4000)
+    return () => clearTimeout(t)
+  }, [activity, open, startWalk])
+
   if (!SASS || !page) return null
 
   const send = async (preset?: string) => {
@@ -180,9 +203,10 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     // tricks and breaks. Not saved; gone on reload, like he promised.
     const local = localCommand(text)
     if (local) {
-      const said = local === 'walk' ? botSays('break.walk', String(Date.now()), 'ui') : life.doTrick(local)
+      const said = life.doTrick(local)
       setMessages(m => [...m, { id: `local-bot-${Date.now()}`, role: 'bot', body: said ?? 'Done.' }])
-      if (local === 'walk') timers.current.push(setTimeout(() => router.push('/focus'), 900))
+      // A walk happens on the page, not in here.
+      if (local === 'walk') timers.current.push(setTimeout(() => setOpen(false), 900))
       return
     }
     setThinking(true)
@@ -264,6 +288,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
 
   return (
     <BodyPortal>
+      <WearContext.Provider value={weather.wear}>
       {SASS && (
         <GuildBotStage
           scene={scene}
@@ -277,6 +302,11 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
           onChip={life.answer}
           trick={life.trick}
           onTrick={t => life.doTrick(t)}
+          patrol={life.patrol}
+          onPatrolEnd={life.endPatrol}
+          city={weather.city}
+          weatherLabel={weather.weather ? `${weather.weather.city} · ${weather.weather.temperature}°C` : weather.error}
+          onCity={weather.setCity}
           energy={() => ({ now: life.energy(), max: life.energyMax })}
           knock={knock}
           greeting={greeting}
@@ -485,6 +515,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
           </motion.section>
         </>
       )}
+      </WearContext.Provider>
     </BodyPortal>
   )
 }

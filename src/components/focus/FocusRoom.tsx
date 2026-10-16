@@ -2,36 +2,27 @@
 
 import { useEffect, useState } from 'react'
 import { Pause, Play, ArrowCounterClockwise, SkipForward, Bell, SpeakerSimpleHigh, SpeakerSimpleSlash, Drop, Eye, PersonSimpleWalk, Timer } from '@phosphor-icons/react/dist/ssr'
-import type { Expression } from '@guildboard/guildbot'
 import { Button } from '@/components/ui/Button'
 import { PageHeader, StatStrip, StatChip } from '@/components/ui/Section'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
-import { GuildBotScene, useActivity, type Scene } from '@/components/guildbot/GuildBotScene'
-import { botSays } from '@/lib/guildbot-host/voice'
 import { cn } from '@/lib/utils/cn'
 import { BREAKS, PLANS, focus, formatClock, useFocusState, useRemaining, useTodayStats, type BreakKind, type Plan } from '@/lib/focus/store'
 import { isChimeMuted, setChimeMuted } from '@/components/focus/FocusAlerts'
 
-/** What he does on screen during each break. */
-const BREAK_SCENE: Record<BreakKind, Scene> = { water: 'coffee', eyes: 'meditating', stretch: 'waking', walk: 'walking' }
-const BREAK_FACE: Record<BreakKind, Expression> = { water: 'relieved', eyes: 'relieved', stretch: 'excited', walk: 'proud' }
-
 /**
- * The focus page: work in blocks next to GuildBot. While you focus he codes
- * at his desk; when the block ends he picks a break (water, eyes, stretch,
- * walk), does it on screen, and asks you to join, with a timer for the
- * guided bit. Today's numbers sit underneath. All of it lives in this
- * browser (lib/focus/store.ts).
+ * The focus page: work in blocks next to GuildBot. He leaves his corner for
+ * the slot on this page (GuildBotStage): while you focus he codes; when the
+ * block ends he picks a break (water, eyes, stretch, walk), does it, and asks
+ * you to join, with a timer for the guided bit. Today's numbers sit
+ * underneath. All of it lives in this browser (lib/focus/store.ts).
  */
 export function FocusRoom() {
   const state = useFocusState()
   const left = useRemaining(state.endsAt, state.pausedLeft)
   const guideLeft = useRemaining(state.guideEndsAt)
   const stats = useTodayStats()
-  const schedule = useActivity() ?? 'coding'
   const [muted, setMuted] = useState(false)
   const [notify, setNotify] = useState<NotificationPermission | 'unsupported'>('default')
-  const [line, setLine] = useState<string | null>(null)
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -41,20 +32,20 @@ export function FocusRoom() {
     return () => clearTimeout(id)
   }, [])
 
-  // His line for what's happening now.
+  // He says what's happening now: the one GuildBot, sitting in the slot below.
   const breakKind = state.phase === 'break' ? state.breakKind : null
   useEffect(() => {
-    const key = state.phase === 'focus' ? 'focus.start' : breakKind ? (`break.${breakKind}` as const) : null
-    const id = setTimeout(() => setLine(key ? botSays(key, `${key}:${state.endsAt ?? state.pausedLeft}`, 'ui') : null), 0)
+    const key = state.phase === 'focus' ? 'focus.start' : breakKind ? `break.${breakKind}` : null
+    if (!key) return
+    const id = setTimeout(() => window.dispatchEvent(new CustomEvent('gb:say', { detail: { key } })), 300)
     return () => clearTimeout(id)
-  }, [state.phase, breakKind, state.endsAt, state.pausedLeft])
+  }, [state.phase, breakKind])
 
   const running = state.endsAt !== null
   const paused = state.pausedLeft !== null
   const plan = PLANS[state.plan]
   const total = (state.phase === 'break' ? plan.rest : plan.focus) * 60_000
   const shown = state.phase === 'idle' ? total : left
-  const scene: Scene = state.phase === 'focus' ? 'coding' : breakKind ? BREAK_SCENE[breakKind] : schedule
   const guiding = !!state.guideEndsAt && guideLeft > 0
 
   return (
@@ -65,23 +56,9 @@ export function FocusRoom() {
       />
 
       <div className="rounded-(--radius-card) border border-border bg-paper p-(--pad-card) md:p-6 grid gap-6 md:grid-cols-[1fr_1.1fr] md:items-center">
-        {/* GuildBot, doing what you're doing. */}
-        <div className="flex flex-col items-center gap-3">
-          {line && (
-            <p role="status" className="relative max-w-xs rounded-2xl border border-border-strong bg-paper px-3.5 py-2.5 text-[13px] leading-snug text-ink shadow-sm">
-              {line}
-              <span aria-hidden className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-3 w-3 rotate-45 border-r border-b border-border-strong bg-paper" />
-            </p>
-          )}
-          <GuildBotScene
-            scene={scene}
-            asks="normal"
-            left={null}
-            expression={breakKind ? BREAK_FACE[breakKind] : 'smug'}
-            reacting={!!breakKind}
-            status={state.phase === 'focus' && running ? 'writing' : null}
-            width={260}
-          />
+        {/* GuildBot's spot: he leaves his corner and works from here (GuildBotStage). */}
+        <div className="flex justify-center pt-16">
+          <div id="gb-focus-slot" aria-hidden className="w-[260px] h-[195px]" />
         </div>
 
         {/* The timer. */}

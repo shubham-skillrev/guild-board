@@ -781,16 +781,6 @@ body {
 .gb-scene [data-part='note'] { animation: gb-note 2.4s var(--motion-out) infinite; opacity: 0; }
 .gb-scene [data-part='note'] + [data-part='note'] { animation-delay: 1.2s; }
 @keyframes gb-note { 0% { opacity: 0; transform: translateY(4px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px); } }
-.gb-scene [data-part='stretch'] { animation: gb-stretch 2.6s ease-in-out infinite; }
-@keyframes gb-stretch { 0%, 100% { transform: translateY(6px); } 50% { transform: translateY(-2px); } }
-.gb-scene [data-part='brush'] { animation: gb-brush 0.5s ease-in-out infinite; }
-@keyframes gb-brush { 0%, 100% { transform: translateX(-1.5px); } 50% { transform: translateX(1.5px); } }
-.gb-scene [data-walking] [data-foot='l'] { animation: gb-step 420ms ease-in-out infinite; }
-.gb-scene [data-walking] [data-foot='r'] { animation: gb-step 420ms ease-in-out infinite 210ms; }
-.gb-scene [data-walking] .gb-body { animation: gb-bob 420ms ease-in-out infinite; }
-.gb-scene [data-walking] [data-hand='l'] { animation: gb-swing 840ms ease-in-out infinite; }
-.gb-scene [data-walking] [data-hand='r'] { animation: gb-swing 840ms ease-in-out infinite 420ms; }
-@keyframes gb-swing { 0%, 100% { transform: translateX(-2px); } 50% { transform: translateX(2px); } }
 .gb-scene [data-part='path'] { animation: gb-path 1.2s linear infinite; }
 @keyframes gb-path { to { transform: translateX(-22px); } }
 .gb-fumes [data-fume] { animation: gb-fume 1.8s var(--motion-out) infinite; opacity: 0; }
@@ -821,6 +811,15 @@ body {
 .gb-stamp-ink { fill: #5A4A38; }
 .gb-stamp-postmark { stroke: #4A4D55; opacity: 0.5; }
 .dark .gb-stamp { filter: brightness(0.9); }
+
+.gb-beanie { fill: var(--color-saffron); stroke: var(--color-ink); }
+.gb-beanie-rim { fill: color-mix(in oklab, var(--color-saffron) 70%, var(--color-ink)); stroke: var(--color-ink); }
+.gb-scarf { fill: var(--color-matcha); stroke: var(--color-ink); }
+.gb-umbrella { fill: var(--color-indigo-jp); stroke: var(--color-ink); }
+.gb-sweat { fill: #8EC2FF; }
+.gb-sweat [data-drop] { transform-box: fill-box; animation: gb-drip 1.8s ease-in infinite; }
+.gb-sweat [data-drop] + [data-drop] { animation-delay: 0.9s; }
+@keyframes gb-drip { 0% { opacity: 0; transform: translateY(-2px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(6px); } }
 
 /* Blinks now and then. */
 [data-eye] { transform-origin: 50% 50%; animation: gb-blink 5.2s infinite; }
@@ -873,12 +872,6 @@ body {
 @keyframes gb-exclaim { 0% { opacity: 0; transform: translateY(4px) scale(0.6); } 30% { opacity: 1; transform: translateY(0) scale(1.15); } 100% { opacity: 1; transform: scale(1); } }
 
 /* Walking: feet step, body bobs. A small hop when a reaction lands. */
-.gb-bot[data-walking] [data-foot='l'] { animation: gb-step 360ms ease-in-out infinite; }
-.gb-bot[data-walking] [data-foot='r'] { animation: gb-step 360ms ease-in-out infinite 180ms; }
-.gb-bot[data-walking] .gb-body { animation: gb-bob 360ms ease-in-out infinite; }
-.gb-bot svg [data-foot], .gb-bot .gb-body { transform-box: fill-box; }
-@keyframes gb-step { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
-@keyframes gb-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
 .gb-hop { animation: gb-hop 520ms var(--motion-out); }
 @keyframes gb-hop {
   0%, 100% { transform: translateY(0) scale(1, 1); }
@@ -886,6 +879,50 @@ body {
   50% { transform: translateY(-9px) scale(0.96, 1.05); }
   80% { transform: translateY(0) scale(1.03, 0.97); }
 }
+
+/* His body (BotFigure): limbs turn at the joint. Shoulders sit at the top
+   inner corner of each arm, hips at the top of each leg. */
+.gb-figure [data-limb], .gb-figure .gb-body { transform-box: fill-box; }
+.gb-figure [data-limb^='leg'] { transform-origin: 50% 0%; }
+.gb-figure [data-limb='arm-l'] { transform-origin: 100% 0%; }
+.gb-figure [data-limb='arm-r'] { transform-origin: 0% 0%; }
+.gb-figure .gb-body { transform-origin: 50% 100%; }
+
+/* Walk: a stride, arms swinging against the legs, a bob in each step. */
+.gb-figure[data-pose='walk'] [data-limb='leg-l'] { animation: gb-leg 640ms ease-in-out infinite; }
+.gb-figure[data-pose='walk'] [data-limb='leg-r'] { animation: gb-leg 640ms ease-in-out infinite -320ms; }
+.gb-figure[data-pose='walk'] [data-limb='arm-l'] { animation: gb-arm-swing 640ms ease-in-out infinite -320ms; }
+.gb-figure[data-pose='walk'] [data-limb='arm-r'] { animation: gb-arm-swing 640ms ease-in-out infinite; }
+.gb-figure[data-pose='walk'] .gb-body { animation: gb-bob 320ms ease-in-out infinite; }
+@keyframes gb-leg { 0%, 100% { transform: rotate(18deg); } 50% { transform: rotate(-18deg); } }
+@keyframes gb-arm-swing { 0%, 100% { transform: rotate(22deg); } 50% { transform: rotate(-22deg); } }
+@keyframes gb-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+
+/* Dance: arms up in turn, a kick each side, a bounce and a sway. */
+.gb-figure[data-pose='dance'] [data-limb='arm-l'] { animation: gb-dance-arm-l 800ms ease-in-out infinite; }
+.gb-figure[data-pose='dance'] [data-limb='arm-r'] { animation: gb-dance-arm-r 800ms ease-in-out infinite; }
+.gb-figure[data-pose='dance'] [data-limb='leg-l'] { animation: gb-kick-l 800ms ease-in-out infinite; }
+.gb-figure[data-pose='dance'] [data-limb='leg-r'] { animation: gb-kick-r 800ms ease-in-out infinite; }
+.gb-figure[data-pose='dance'] .gb-body { animation: gb-groove-body 400ms ease-in-out infinite alternate; }
+@keyframes gb-dance-arm-l { 0%, 50%, 100% { transform: rotate(10deg); } 25% { transform: rotate(105deg); } }
+@keyframes gb-dance-arm-r { 0%, 100% { transform: rotate(-105deg); } 25%, 75% { transform: rotate(-10deg); } 50% { transform: rotate(-105deg); } }
+@keyframes gb-kick-l { 0%, 50%, 100% { transform: rotate(0deg); } 25% { transform: rotate(28deg); } }
+@keyframes gb-kick-r { 0%, 50%, 100% { transform: rotate(0deg); } 75% { transform: rotate(-28deg); } }
+@keyframes gb-groove-body { from { transform: translateY(0) rotate(-6deg); } to { transform: translateY(-4px) rotate(6deg); } }
+
+/* Stretch: both arms reach right up, he gets a little taller, then lets go. */
+.gb-figure[data-pose='stretch'] [data-limb='arm-l'] { animation: gb-reach-l 3.2s ease-in-out infinite; }
+.gb-figure[data-pose='stretch'] [data-limb='arm-r'] { animation: gb-reach-r 3.2s ease-in-out infinite; }
+.gb-figure[data-pose='stretch'] .gb-body { animation: gb-tall 3.2s ease-in-out infinite; }
+@keyframes gb-reach-l { 0%, 100% { transform: rotate(5deg); } 35%, 65% { transform: rotate(100deg); } }
+@keyframes gb-reach-r { 0%, 100% { transform: rotate(-5deg); } 35%, 65% { transform: rotate(-100deg); } }
+@keyframes gb-tall { 0%, 100% { transform: scaleY(1); } 35%, 65% { transform: translateY(-2px) scaleY(1.05); } }
+
+/* Wave, and brushing (the brush hand goes to his mouth and scrubs). */
+.gb-figure[data-pose='wave'] [data-limb='arm-r'] { animation: gb-wave-arm 520ms ease-in-out infinite alternate; }
+@keyframes gb-wave-arm { from { transform: rotate(-80deg); } to { transform: rotate(-112deg); } }
+.gb-figure[data-pose='brush'] [data-limb='arm-r'] { animation: gb-scrub 260ms ease-in-out infinite alternate; }
+@keyframes gb-scrub { from { transform: rotate(-92deg); } to { transform: rotate(-104deg); } }
 
 /* Status, on him: antenna pulses (listening), eyes scan (searching),
    thought dots rise (thinking), typing dots (writing), sound lines (talking). */
@@ -913,13 +950,11 @@ body {
   .gb-scene [data-part='code'] > *,
   .gb-scene [data-part='float'],
   .gb-scene[data-knock] [data-part='bot'],
-  .gb-bot[data-walking] [data-foot],
-  .gb-bot[data-walking] .gb-body,
   .gb-bot-head [data-part],
   .gb-status [data-dot],
   .gb-scene [data-part='sip'], .gb-scene [data-part='chopsticks'], .gb-scene [data-part='book'],
-  .gb-scene [data-part='groove'], .gb-scene [data-part='stretch'], .gb-scene [data-part='brush'],
-  .gb-scene [data-walking] *, .gb-scene [data-part='path'],
+  .gb-scene [data-part='groove'], .gb-scene [data-part='path'],
+  .gb-figure [data-limb], .gb-figure .gb-body, .gb-sweat [data-drop],
   .gb-scene[data-trick='dance'] [data-part='bot'],
   .gb-hop { animation: none; }
   .gb-scene [data-part='note'], .gb-fumes [data-fume], .gb-hearts [data-heart] { animation: none; opacity: 0.8; }

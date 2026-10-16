@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { activityAt, type Activity, type Expression } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
-import { BotHead, type AvatarStatus } from '@/components/guildbot/GuildBotAvatar'
+import { BotFigure, BotHead, type AvatarStatus } from '@/components/guildbot/GuildBotAvatar'
 import { GuildBotHome } from '@/components/guildbot/GuildBotHome'
 
 /**
@@ -342,33 +342,15 @@ function Floor({ scene, face, genie, away, status }: Part & { scene: Scene }) {
       <path d="M2 80h86" className="gb-line" strokeOpacity={0.15} strokeWidth={1.2} />
 
       {!away && (
-        <g data-part="bot" data-walking={scene === 'walking' ? '' : undefined}>
-          <g transform="translate(35 26) scale(0.78)">
-            <rect data-foot="l" x={19} y={57} width={10} height={9} rx={4.5} className="gb-foot" />
-            <rect data-foot="r" x={35} y={57} width={10} height={9} rx={4.5} className="gb-foot" />
-            <g className="gb-body">
-              <BotHead expression={face} genie={genie} status={status} />
-            </g>
+        <g data-part="bot">
+          <g transform="translate(36 17) scale(0.8)">
+            <BotFigure
+              expression={face}
+              genie={genie}
+              status={status}
+              pose={scene === 'walking' ? 'walk' : scene === 'waking' ? 'stretch' : 'brush'}
+            />
           </g>
-          {scene === 'waking' && (
-            <g data-part="stretch">
-              <ellipse cx={30} cy={30} rx={3.6} ry={2.6} className="gb-shell" strokeWidth={1.3} />
-              <ellipse cx={90} cy={30} rx={3.6} ry={2.6} className="gb-shell" strokeWidth={1.3} />
-            </g>
-          )}
-          {scene === 'brushing' && (
-            <g data-part="brush">
-              <path d="M62 64h14" className="gb-brush" strokeWidth={2.4} strokeLinecap="round" />
-              <path d="M61 61.5v5" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
-              <ellipse cx={78} cy={64} rx={3.6} ry={2.6} className="gb-shell" strokeWidth={1.3} />
-              <circle cx={57} cy={61} r={1.6} className="gb-foam" />
-              <circle cx={55} cy={65} r={1.2} className="gb-foam" />
-            </g>
-          )}
-          {(scene === 'walking' || scene === 'brushing') && (
-            <ellipse data-hand="l" cx={31} cy={62} rx={3.4} ry={2.4} className="gb-shell" strokeWidth={1.3} />
-          )}
-          {scene === 'walking' && <ellipse data-hand="r" cx={89} cy={62} rx={3.4} ry={2.4} className="gb-shell" strokeWidth={1.3} />}
           <path data-part="exclaim" d="M90 12v8M90 24.5v.5" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
         </g>
       )}

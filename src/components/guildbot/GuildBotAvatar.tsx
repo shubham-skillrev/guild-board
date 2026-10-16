@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import type { Expression } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
+import { WearContext } from '@/components/guildbot/useWeather'
 
 /**
  * GuildBot himself, in the board's colours: a soft squircle head in the
@@ -24,6 +25,8 @@ import { cn } from '@/lib/utils/cn'
  */
 export type AvatarStatus = 'idle' | 'listening' | 'searching' | 'thinking' | 'writing' | 'talking'
 
+export type Pose = 'stand' | 'walk' | 'dance' | 'stretch' | 'wave' | 'brush'
+
 export function GuildBotAvatar({
   expression = 'smug',
   status,
@@ -31,6 +34,7 @@ export function GuildBotAvatar({
   genie = false,
   feet = true,
   walking = false,
+  pose,
   follow = false,
   className,
 }: {
@@ -39,33 +43,86 @@ export function GuildBotAvatar({
   /** Height in px. */
   size?: number
   genie?: boolean
+  /** Whole body (arms, legs, feet); false for just the head. */
   feet?: boolean
   walking?: boolean
+  pose?: Pose
   /** Eyes drift towards the pointer (fine pointers only, never under reduced motion). */
   follow?: boolean
   className?: string
 }) {
   const look = useLookAt(follow)
-  const box = feet ? { w: 64, h: 72, y: 0 } : { w: 64, h: 58, y: 0 }
+  const box = feet ? { w: 64, h: 80 } : { w: 64, h: 58 }
   return (
-    <span
-      className={cn('gb-bot relative inline-block shrink-0', className)}
-      data-walking={walking ? '' : undefined}
-      style={{ width: (size * box.w) / box.h, height: size }}
-    >
-      <svg viewBox={`0 ${box.y} ${box.w} ${box.h}`} width="100%" height="100%" aria-hidden className="overflow-visible">
-        {feet && (
-          <g>
-            <ellipse cx={32} cy={69} rx={17} ry={2.4} fill="#000" opacity={0.14} />
-            <rect data-foot="l" x={19} y={57} width={10} height={9} rx={4.5} className="gb-foot" />
-            <rect data-foot="r" x={35} y={57} width={10} height={9} rx={4.5} className="gb-foot" />
-          </g>
-        )}
-        <g className="gb-body">
+    <span className={cn('gb-bot relative inline-block shrink-0', className)} style={{ width: (size * box.w) / box.h, height: size }}>
+      <svg viewBox={`0 0 ${box.w} ${box.h}`} width="100%" height="100%" aria-hidden className="overflow-visible">
+        {feet ? (
+          <BotFigure expression={expression} genie={genie} status={status ?? null} look={look} pose={pose ?? (walking ? 'walk' : 'stand')} />
+        ) : (
           <BotHead expression={expression} genie={genie} status={status ?? null} look={look} />
-        </g>
+        )}
       </svg>
     </span>
+  )
+}
+
+/**
+ * His whole body, as SVG, 64 × 80 user units: the head on two short legs,
+ * with arms from the sides of the head. Each limb turns at its joint, and
+ * the pose (globals.css, [data-pose]) moves them: a stride with arms swinging,
+ * a dance with arms up and kicks, a long stretch, a wave, toothbrushing.
+ */
+export function BotFigure({
+  expression,
+  genie = false,
+  status = null,
+  look,
+  pose = 'stand',
+}: {
+  expression: Expression
+  genie?: boolean
+  status?: AvatarStatus | null
+  look?: { x: number; y: number }
+  pose?: Pose
+}) {
+  const limb = { strokeWidth: 3, strokeLinecap: 'round' as const, fill: 'none' }
+  return (
+    <g className="gb-figure" data-pose={pose}>
+      <ellipse cx={32} cy={78} rx={17} ry={2.4} fill="#000" opacity={0.14} />
+      {/* Legs, turning at the hip. */}
+      <g data-limb="leg-l">
+        <path d="M25 54v9" className="gb-line" {...limb} />
+        <rect x={17.5} y={62} width={12} height={8.5} rx={4.2} className="gb-foot" />
+      </g>
+      <g data-limb="leg-r">
+        <path d="M39 54v9" className="gb-line" {...limb} />
+        <rect x={34.5} y={62} width={12} height={8.5} rx={4.2} className="gb-foot" />
+      </g>
+      {/* Arms, behind the head, turning at the shoulder. */}
+      <g data-limb="arm-l">
+        <path d="M9 40-4.5 51" className="gb-line" {...limb} />
+        <circle cx={-5.5} cy={52} r={3.8} className="gb-shell" strokeWidth={1.6} />
+      </g>
+      <g data-limb="arm-r">
+        <path d="M55 40l13.5 11" className="gb-line" {...limb} />
+        <circle cx={69.5} cy={52} r={3.8} className="gb-shell" strokeWidth={1.6} />
+        {pose === 'brush' && (
+          <g>
+            <path d="M69.5 52 61 45" className="gb-brush" strokeWidth={2.4} strokeLinecap="round" />
+            <path d="M59.4 46.4l3-3" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
+          </g>
+        )}
+      </g>
+      <g className="gb-body">
+        <BotHead expression={expression} genie={genie} status={status} look={look} />
+      </g>
+      {pose === 'brush' && (
+        <g>
+          <circle cx={22} cy={47} r={1.8} className="gb-foam" />
+          <circle cx={19} cy={50} r={1.3} className="gb-foam" />
+        </g>
+      )}
+    </g>
   )
 }
 
@@ -83,6 +140,8 @@ export function BotHead({
   look?: { x: number; y: number }
   headphones?: boolean
 }) {
+  // Dressed for the weather in the viewer's city (useWeather).
+  const wear = useContext(WearContext)
   return (
     <g className="gb-bot-head" data-status={status ?? undefined} style={{ ['--gb-eye' as string]: genie ? '#8EC2FF' : '#F7A851' }}>
       {/* Antenna: the board's ◈. Pulses while he's listening. */}
@@ -112,6 +171,44 @@ export function BotHead({
           <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
       </defs>
+
+      {/* Weather: shades up on his forehead, a beanie (the antenna pokes
+          through), a scarf, sweat, an umbrella over the lot. */}
+      {wear.sunglasses && !wear.beanie && (
+        <g>
+          <rect x={15} y={15} width={14} height={7} rx={3.5} fill="#121318" className="gb-line" strokeWidth={1.4} />
+          <rect x={35} y={15} width={14} height={7} rx={3.5} fill="#121318" className="gb-line" strokeWidth={1.4} />
+          <path d="M29 18.5h6" className="gb-line" strokeWidth={1.6} />
+          <path d="M18 17l4-1" stroke="#fff" strokeOpacity={0.5} strokeWidth={1.2} strokeLinecap="round" />
+        </g>
+      )}
+      {wear.beanie && (
+        <g>
+          <path d="M7.5 27C7.5 8 56.5 8 56.5 27Z" className="gb-beanie" strokeWidth={2} strokeLinejoin="round" />
+          <path d="M7 24h50v5H7Z" className="gb-beanie-rim" strokeWidth={1.6} strokeLinejoin="round" />
+          <path d="M18 13v10M26 10.5v12.5M34 10v13M42 11v12M49 14.5v8.5" className="gb-line" strokeOpacity={0.25} strokeWidth={1} />
+          <path d="M32 6.5v6" className="gb-line" strokeWidth={2} strokeLinecap="round" />
+          <path d="M32 1 35.5 4.5 32 8 28.5 4.5Z" className="gb-antenna" strokeWidth={1} strokeLinejoin="round" />
+        </g>
+      )}
+      {wear.scarf && (
+        <g>
+          <path d="M7 50q25 10 50 0v6q-25 10-50 0Z" className="gb-scarf" strokeWidth={1.6} strokeLinejoin="round" />
+          <path d="M43 57l2 11h6l-1-12" className="gb-scarf" strokeWidth={1.6} strokeLinejoin="round" />
+        </g>
+      )}
+      {wear.sweat && (
+        <g className="gb-sweat">
+          <path data-drop d="M3 24c1.8 2.4 2.4 3.6 2.4 4.6a2.4 2.4 0 0 1-4.8 0c0-1 .6-2.2 2.4-4.6Z" />
+          <path data-drop d="M61 30c1.5 2 2 3 2 3.9a2 2 0 0 1-4 0c0-.9.5-1.9 2-3.9Z" />
+        </g>
+      )}
+      {wear.umbrella && (
+        <g>
+          <path d="M32 -2v12" className="gb-line" strokeWidth={1.8} strokeLinecap="round" />
+          <path d="M0 -2Q32 -30 64 -2q-8-4-16 0-8-4-16 0-8-4-16 0-8-4-16 0Z" className="gb-umbrella" strokeWidth={1.6} strokeLinejoin="round" />
+        </g>
+      )}
 
       {headphones && (
         <g>

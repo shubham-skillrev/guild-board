@@ -224,6 +224,8 @@ export const LINES = {
   'trick.coffee': ["Ah. Caffeine. My one true dependency.", "Refuelled. Ask me something hard."],
   'trick.coffee.too_much': ["Another coffee? My hands are vibrating at 60Hz. No."],
   'trick.pat': ["Pat accepted. Morale up 3%.", "Okay, that was nice. Don't tell anyone."],
+  'trick.walk': ["Walk? Love that. One lap, back before anyone notices.", "Stretching the legs. Hold the board for me."],
+  'walk.start': ["Walk time. Don't touch anything while I'm gone.", "Off for my walk. If anyone posts, I want to hear about it."],
   'trick.meditate': ["Breathe in. Breathe out. That's it, that's the whole tip."],
   'trick.tired': ["I have actual work to do. Also, I'm tired. Come back later.", "Out of energy. Even I need a breather. Coffee helps."],
   'trick.showcase': ["Psst. I do tricks. Tap the sparkle next to me.", "Bored? I dance. Badly. Tap the sparkle."],
@@ -247,6 +249,15 @@ export const LINES = {
   'break.stretch': ["Stand up. Reach for the ceiling. Roll the shoulders. I'll do it too, badly."],
   'break.walk': ["Five-minute walk. I'll keep the time. Go on."],
   'break.done': ["Welcome back. Your spine says thanks.", "Break done. Back to it, champion."],
+
+  /* The weather in the viewer's city (weather.ts), once a day. */
+  'weather.fake_winter': ["{city} in winter: {temp}°C. Winter is a rumour here.", "It's meant to be winter. It's {temp}°C in {city}. My visor is sweating."],
+  'weather.cold_summer': ["Summer in {city}, they said. {temp}°C, I say. Scarf on.", "{temp}°C in {city}. In summer. Somebody file a bug."],
+  'weather.hot': ["{temp}°C in {city}. I'm a robot and I'm melting. Drink some water.", "It's {temp}°C out there. Stay in, keep cool, post things."],
+  'weather.cold': ["{temp}°C in {city}. Beanie on, hot drink in hand, opinions still warm."],
+  'weather.rain': ["Raining in {city}. Perfect weather for posting from indoors.", "Rain in {city}. Umbrella out. Board open. Coincidence? No."],
+  'weather.snow': ["Snow in {city}. I've never been this excited about frozen water."],
+  'weather.storm': ["Thunder in {city}. Stay in. The board is warm and dry."],
 
   'home.dark': [
     "Lights out. That's all {limit} asks. Back {when}.",
