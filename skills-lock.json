@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "skills": {
+    "animate": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/animate/SKILL.md",
+      "computedHash": "7598d33e7f60dd5c24531eaaa897621cc3bdb48e8050324211627973bc59c4ce"
+    },
+    "animation-performance": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/animation-performance/SKILL.md",
+      "computedHash": "b68ba704106e27b1f83df0cb817e09ec947abb76825d86eabdee2954b6c1bb84"
+    },
+    "better-accessibility": {
+      "source": "jakubkrehel/skills",
+      "sourceType": "github",
+      "skillPath": "skills/better-accessibility/SKILL.md",
+      "computedHash": "b7fffd77b6ac087d72e081c1b0afa312edc7b6c82bb3c863dd454937d4900cb3"
+    },
+    "hairline-adopt": {
+      "source": "lucasmarkes/hairline",
+      "sourceType": "github",
+      "skillPath": "skills/hairline-adopt/SKILL.md",
+      "computedHash": "b637cec02d6073b9b19cfcb2a45e0b9ec0ab074646314e5880b001de2cb56d9d"
+    },
+    "hairline-create": {
+      "source": "lucasmarkes/hairline",
+      "sourceType": "github",
+      "skillPath": "skills/hairline-create/SKILL.md",
+      "computedHash": "97dc77430c05a87e0e1e985f7952938b02147040742ec88095ccfe6f1abe11b5"
+    },
+    "impeccable": {
+      "source": "pbakaus/impeccable",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/impeccable/SKILL.md",
+      "computedHash": "2b16bd26632e294094da7e6d2352dce4c1efec66d3b90c88f0e059b28e2d6e04"
+    },
+    "review-animations": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/review-animations/SKILL.md",
+      "computedHash": "b4e5f0f4fe3e2743c85bf7354108f48a0b9d502cb20ef5c4a9c195da91f93736"
+    }
+  }
+}
