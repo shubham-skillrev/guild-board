@@ -362,6 +362,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
           variant={variant}
           doing={doing}
           cursor={life.cursor}
+          onPoke={() => life.flash('pleased')}
           patrol={life.patrol}
           onPatrolEnd={life.endPatrol}
           city={weather.city}

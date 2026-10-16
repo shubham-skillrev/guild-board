@@ -8,6 +8,7 @@ import type { Expression, Variant } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
 import type { KersColour } from '@/components/kers/look'
 import { Kers, type KersState } from '@/components/kers/Kers'
+import { useCursorPlay } from '@/components/kers/useCursorPlay'
 import { GuildBotScene, type Asks, type Scene, type Trick as SceneTrick } from '@/components/guildbot/GuildBotScene'
 import type { Bubble, Chip, Trick } from '@/components/guildbot/useGuildBotLife'
 
@@ -69,6 +70,7 @@ export function GuildBotStage({
   label,
   onPress,
   onTalk,
+  onPoke,
 }: {
   scene: Scene
   /** His felt colour (the chat works it out: mood, genie, meeting). */
@@ -110,6 +112,8 @@ export function GuildBotStage({
   onPress: (e: React.MouseEvent) => void
   /** Talk to him: the knock, then the chat. */
   onTalk: (e: React.MouseEvent) => void
+  /** You clicked him: a click ripple. */
+  onPoke?: () => void
 }) {
   const asleep = scene === 'sleeping'
   const slot = useSlot(usePathname() === '/focus' ? 'gb-focus-slot' : null)
@@ -117,6 +121,9 @@ export function GuildBotStage({
   const stroll = useStroll(bubble, desktop && !open && !hidden && !reduce && !asleep && !patrol && !slot && !trick)
   const walk = usePatrol(patrol, !open && !hidden && !reduce && !asleep && !slot, onPatrolEnd)
   const dancing = trick === 'dance' && !open && !asleep
+  // He notices your cursor (desktop only): points at what you hover nearby, leans in at a still pointer, flinches when you hover him.
+  const corner = useRef<HTMLButtonElement>(null)
+  const play = useCursorPlay(corner, desktop && !open && !hidden && !reduce && !asleep && !slot && !walk && !dancing && knock === 'idle')
   // Tap him: he asks what you want. "Do something" opens his actions panel,
   // which stays open while he performs; "Let's talk" is the knock.
   const [choice, setChoice] = useState(false)
@@ -316,10 +323,12 @@ export function GuildBotStage({
 
         {/* The scene: the chat button. */}
         <button
+          ref={corner}
           type="button"
           onClick={e => {
             // On the focus page he's working with you: not a chat, no tricks.
             if (slot) return
+            onPoke?.()
             if (open || knock !== 'idle') { onPress(e); return }
             setPanel(null)
             setChoice(c => !c)
@@ -342,6 +351,7 @@ export function GuildBotStage({
               colour={colour}
               reacting={reacting}
               cursor={cursor}
+              play={play}
               knocking={knock !== 'idle'}
               away={strolling || open || dancing || !!walk}
               trick={trick}

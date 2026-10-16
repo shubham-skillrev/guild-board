@@ -5,6 +5,7 @@ import { activityAt, type Activity, type Expression, type Variant } from '@guild
 import type { AvatarStatus, KersColour } from '@/components/kers/look'
 import { Kers, type KersState } from '@/components/kers/Kers'
 import type { KersPose } from '@/components/kers/poses'
+import type { CursorPlay } from '@/components/kers/useCursorPlay'
 
 /**
  * GuildBot's corner, as a little scene of whatever Kers is doing: his day
@@ -95,6 +96,7 @@ export function GuildBotScene({
   variant = null,
   mug = true,
   cursor = null,
+  play = null,
   width = 120,
 }: {
   scene: Scene
@@ -118,6 +120,8 @@ export function GuildBotScene({
   mug?: boolean
   /** A cursor state for a moment (click ripple, ⊘), over whatever he's doing. */
   cursor?: KersState
+  /** Reacting to your cursor: pointing, leaning in, flinching. */
+  play?: CursorPlay
   width?: number
 }) {
   const genie = asks === 'genie'
@@ -157,6 +161,7 @@ export function GuildBotScene({
             colour={paint}
             expression={awake ? 'sleepy' : face}
             state={cursor ?? kersState(status)}
+            play={play}
             wear={scene === 'music' && !guitar ? 'headphones' : null}
             size={Math.round(height * stage.h)}
           />

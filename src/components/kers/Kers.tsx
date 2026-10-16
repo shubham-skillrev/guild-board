@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils/cn'
 import { Eye, KERS_COLOURS, eyeShape, mix, useLookAt, type KersColour } from '@/components/kers/look'
 import { WearContext } from '@/components/guildbot/useWeather'
 import { HIPS, RIGS, SHOULDERS, type KersPose, type Point, type Rig } from '@/components/kers/poses'
+import type { CursorPlay } from '@/components/kers/useCursorPlay'
 
 /**
  * Kers, GuildBot's character: the mouse cursor (↖) come to life as a
@@ -63,6 +64,7 @@ export function Kers({
   follow = false,
   tint,
   wear = null,
+  play = null,
   className,
 }: {
   pose?: KersPose
@@ -76,13 +78,17 @@ export function Kers({
   /** Any fill colour, for the anonymous cursors in the focus crowd. */
   tint?: string
   wear?: KersWear
+  /** Reacting to your cursor (useCursorPlay): pointing, leaning in, flinching. */
+  play?: CursorPlay
   className?: string
 }) {
   const look = useLookAt(follow)
   const weather = useContext(WearContext)
   const walking = motion === 'walk' || pose === 'walk-a' || pose === 'walk-b'
   const jiggle = useJiggle(walking ? 'walk' : motion)
-  const rig = RIGS[motion === 'dance' ? 'arms-up' : pose]
+  const base = RIGS[motion === 'dance' ? 'arms-up' : pose]
+  // Pointing: his left arm swings up toward whatever you're hovering.
+  const rig = play === 'point' && !base.lying ? { ...base, hands: [[14, 112], base.hands[1]] as [Point, Point], wave: undefined } : base
   const dye = tint ?? fillDye(colour)
   const face = rig.lying ? 'relieved' : expression
 
@@ -92,6 +98,7 @@ export function Kers({
       style={{ width: (size * W) / H, height: size }}
       data-motion={walking ? 'walk' : motion}
       data-jiggle={jiggle ? '' : undefined}
+      data-play={play ?? undefined}
     >
       <span className="gb-kers-body absolute inset-0">
         <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 w-full h-full overflow-visible" aria-hidden>
