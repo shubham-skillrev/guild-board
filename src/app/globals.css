@@ -657,73 +657,205 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════
-   GuildBot's home (src/components/guildbot/GuildBotHome.tsx)
-   The chat button is a little house. Night, genie and dark are fixed
-   colours, not theme tokens: night is night in either theme.
-   Every loop is a CSS animation on transform/opacity, so it stays smooth
-   while the board loads, and stops under reduced motion.
+   GuildBot: his scenes, his house and himself
+   (GuildBotScene.tsx, GuildBotHome.tsx, GuildBotAvatar.tsx). Loops are CSS on transform and
+   opacity, so they keep running smoothly while the board loads; every one of
+   them stops under reduced motion, which keeps fades and colour only.
    ═══════════════════════════════════════════════════════ */
-.gb-home {
-  --gb-night: #141A2B;
-  --gb-night-line: #E9E4DA;
-  --gb-flame: #F0A04B;
-  --gb-window: #F5C26B;
-  --gb-genie: #7FA5F5;
-}
 .gb-home svg [data-part] { transform-box: fill-box; }
 
-/* Knock: the house rocks on its base, then the door swings in. */
-.gb-home[data-knock] .gb-house { animation: gb-knock 320ms var(--ease-in-out); transform-origin: 50% 100%; }
-@keyframes gb-knock {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-4deg); }
-  55% { transform: rotate(3deg); }
-  80% { transform: rotate(-1.5deg); }
+/* The knock: two raps that rattle the house, then the door swings in slowly
+   on its hinge and GuildBot leans into the doorway. */
+.gb-home[data-knock] .gb-house { animation: gb-rap 460ms var(--ease-out); transform-origin: 50% 100%; }
+@keyframes gb-rap {
+  0%, 44%, 100% { transform: translateX(0) rotate(0deg); }
+  10% { transform: translateX(-1.5px) rotate(-1.2deg); }
+  22% { transform: translateX(1.2px) rotate(0.8deg); }
+  56% { transform: translateX(-1.5px) rotate(-1.2deg); }
+  70% { transform: translateX(1.2px) rotate(0.8deg); }
 }
-.gb-home [data-part='door'] { transform-origin: 0% 50%; transition: transform 180ms var(--ease-out); }
-.gb-home[data-door='open'] [data-part='door'] { transform: scaleX(0.18); }
-.gb-home [data-part='eyes'] { opacity: 0; transform: translateX(-2px); transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out); }
-.gb-home[data-door='open'] [data-part='eyes'] { opacity: 1; transform: translateX(0); transition-delay: 90ms; }
+.gb-home [data-part='door'] { transform-origin: 0% 50%; transition: transform 560ms var(--ease-in-out); }
+.gb-home[data-door='open'] [data-part='door'] { transform: scaleX(0.14) skewY(-10deg); }
+.gb-home [data-part='doorway'] { opacity: 0; transform: translateY(8px); transition: opacity 260ms var(--ease-out), transform 420ms var(--ease-out); }
+.gb-home[data-door='open'] [data-part='doorway'] { opacity: 1; transform: translateY(0); transition-delay: 300ms; }
 
 /* Night: the torch burns. */
 .gb-home [data-part='flame'] { transform-origin: 50% 100%; animation: gb-flame 1.6s ease-in-out infinite; }
 .gb-home [data-part='glow'] { transform-origin: 50% 50%; animation: gb-glow 2.4s ease-in-out infinite; }
 @keyframes gb-flame {
   0%, 100% { transform: scale(1, 1) rotate(0deg); }
-  30% { transform: scale(0.92, 1.08) rotate(-3deg); }
-  60% { transform: scale(1.05, 0.95) rotate(2deg); }
+  30% { transform: scale(0.9, 1.1) rotate(-4deg); }
+  60% { transform: scale(1.06, 0.94) rotate(3deg); }
 }
 @keyframes gb-glow {
   0%, 100% { opacity: 0.55; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.08); }
+  50% { opacity: 0.85; transform: scale(1.1); }
 }
 
-/* Genie: smoke curls up from the spout, two wisps out of step. */
-.gb-home [data-part='smoke'] { animation: gb-smoke 2.8s var(--ease-out) infinite; opacity: 0; }
-.gb-home [data-part='smoke'] + [data-part='smoke'] { animation-delay: 1.4s; }
+/* Genie: smoke curls up, sparkles twinkle. */
+.gb-home [data-part='smoke'] { animation: gb-smoke 3s var(--ease-out) infinite; opacity: 0; }
+.gb-home [data-part='smoke'] + [data-part='smoke'] { animation-delay: 1.5s; }
+.gb-home [data-part='sparkle'] { transform-origin: 50% 50%; animation: gb-twinkle 1.8s ease-in-out infinite; }
+.gb-home [data-part='sparkle'] + [data-part='sparkle'] { animation-delay: 0.9s; }
 @keyframes gb-smoke {
-  0% { opacity: 0; transform: translateY(2px) scale(0.9); }
-  25% { opacity: 0.9; }
-  100% { opacity: 0; transform: translateY(-7px) scale(1.1); }
+  0% { opacity: 0; transform: translateY(4px) scale(0.9); }
+  25% { opacity: 0.95; }
+  100% { opacity: 0; transform: translateY(-10px) scale(1.12); }
+}
+@keyframes gb-twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1.1); }
 }
 
 /* Out of asks and knocked anyway: the window sputters, then stays dark. */
-.gb-home[data-flicker] [data-part='window'] { animation: gb-flicker 700ms linear; }
+.gb-home[data-flicker] [data-part='window'] { animation: gb-flicker 800ms linear; }
 @keyframes gb-flicker {
   0%, 100% { opacity: 0; }
   10%, 30%, 55% { opacity: 0.9; }
   20%, 40%, 70% { opacity: 0.1; }
 }
 
+/* The character, in the theme's colours: paper shell, ink line, saffron
+   accents. Dark mode lifts the shell so he reads on the graphite ground. */
+.gb-bot, .gb-scene {
+  --gb-shell-hi: #FFFFFF;
+  --gb-shell-lo: #ECE7DE;
+  --gb-wood-top: color-mix(in oklab, var(--color-saffron) 22%, var(--color-paper));
+  --gb-wood-front: color-mix(in oklab, var(--color-saffron) 42%, var(--color-paper));
+}
+.dark .gb-bot, .dark .gb-scene {
+  --gb-shell-hi: #3A3A42;
+  --gb-shell-lo: #24242A;
+  --gb-wood-top: color-mix(in oklab, var(--color-saffron) 30%, var(--color-kinu));
+  --gb-wood-front: color-mix(in oklab, var(--color-saffron) 45%, var(--color-sumi));
+}
+.gb-line { stroke: var(--color-ink); }
+.gb-shell { fill: var(--gb-shell-hi); stroke: var(--color-ink); }
+.gb-bot-head .gb-shell { fill: var(--gb-shell-hi); }
+.gb-antenna { fill: var(--color-saffron); stroke: var(--color-ink); }
+.gb-cheek { fill: var(--color-saffron); opacity: 0.28; }
+.gb-foot { fill: var(--color-ink-soft); stroke: var(--color-ink); stroke-width: 1.2px; }
+.gb-chair { fill: var(--gb-wood-front); stroke: var(--color-ink); }
+.gb-wood-top { fill: var(--gb-wood-top); stroke: var(--color-ink); }
+.gb-wood-front { fill: var(--gb-wood-front); stroke: var(--color-ink); }
+.gb-laptop { fill: #121318; stroke: var(--color-ink); }
+.gb-leaf { fill: var(--color-matcha); stroke: var(--color-ink); }
+.gb-pot { fill: var(--color-kinu); stroke: var(--color-ink); }
+.gb-cushion { fill: color-mix(in oklab, var(--color-saffron) 55%, var(--color-paper)); stroke: var(--color-ink); }
+.gb-mug { fill: var(--color-saffron); stroke: var(--color-ink); }
+.gb-steam { stroke: var(--color-ink-muted); opacity: 0; }
+.gb-sparkle { fill: var(--color-saffron); }
+.gb-sign-text { fill: var(--color-ink); letter-spacing: 0.04em; }
+.gb-lamp-light { fill: #FFD47A; opacity: 0.22; }
+.gb-zzz { stroke: var(--color-ink-muted); }
+.gb-house .gb-zzz { stroke: #E9E4DA; }
+.gb-status { fill: var(--color-saffron); stroke: var(--color-saffron); }
+
+.gb-scene svg [data-part], .gb-scene svg [data-hand], .gb-scene svg [data-z],
+.gb-bot svg [data-part], .gb-bot svg [data-dot], .gb-bot svg [data-wave],
+.gb-scene svg [data-dot], .gb-scene svg [data-wave] { transform-box: fill-box; }
+
+/* Blinks now and then. */
+[data-eye] { transform-origin: 50% 50%; animation: gb-blink 5.2s infinite; }
+@keyframes gb-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.12); } }
+
+/* Coding: hands tap the keys, the code on screen ticks over. Faster while
+   he's writing a reply for you. */
+.gb-scene [data-hand='l'] { animation: gb-tap 420ms ease-in-out infinite; }
+.gb-scene [data-hand='r'] { animation: gb-tap 420ms ease-in-out infinite 210ms; }
+.gb-scene[data-status='writing'] [data-hand] { animation-duration: 200ms; }
+@keyframes gb-tap { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.6px); } }
+.gb-scene [data-part='code'] > * { animation: gb-code 2.4s steps(1) infinite; }
+.gb-scene [data-part='code'] > :nth-child(2) { animation-delay: 0.6s; }
+.gb-scene [data-part='code'] > :nth-child(3) { animation-delay: 1.2s; }
+.gb-scene [data-part='code'] > :nth-child(4) { animation-delay: 1.8s; }
+@keyframes gb-code { 0% { opacity: 0.35; } 50% { opacity: 1; } }
+
+/* Meditating: he floats, slowly. */
+.gb-scene [data-part='float'] { animation: gb-float 4s ease-in-out infinite; }
+@keyframes gb-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.gb-scene [data-part='sparkle'], .gb-home [data-part='sparkle'] { transform-origin: 50% 50%; animation: gb-twinkle 2.2s ease-in-out infinite; }
+.gb-scene [data-part='sparkle'] + [data-part='sparkle'] { animation-delay: 1.1s; }
+@keyframes gb-twinkle { 0%, 100% { opacity: 0.15; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1.1); } }
+
+/* Steam off the mug (or smoke off the genie lamp). */
+.gb-scene [data-part='steam'] { animation: gb-steam 3s var(--ease-out) infinite; }
+.gb-scene [data-part='steam'] + [data-part='steam'] { animation-delay: 1.5s; }
+@keyframes gb-steam {
+  0% { opacity: 0; transform: translateY(3px); }
+  30% { opacity: 0.8; }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+
+/* Asleep: z's drift up. */
+.gb-zzz [data-z] { animation: gb-z 2.8s var(--ease-out) infinite; opacity: 0; }
+.gb-zzz [data-z] + [data-z] { animation-delay: 1.4s; }
+.gb-home[data-door='open'] .gb-house-zzz { display: none; }
+@keyframes gb-z { 0% { opacity: 0; transform: translate(0, 3px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(3px, -6px); } }
+
+/* You tapped him: a startled hop and a "!". */
+.gb-scene [data-part='exclaim'] { opacity: 0; }
+.gb-scene[data-knock] [data-part='bot'] { animation: gb-startle 640ms var(--ease-out); transform-origin: 50% 100%; }
+.gb-scene[data-knock] [data-part='exclaim'] { animation: gb-exclaim 900ms var(--ease-out) forwards; }
+@keyframes gb-startle {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  18% { transform: translateY(0) scale(1.05, 0.93); }
+  45% { transform: translateY(-7px) scale(0.97, 1.04); }
+  75% { transform: translateY(0) scale(1.02, 0.98); }
+}
+@keyframes gb-exclaim { 0% { opacity: 0; transform: translateY(4px) scale(0.6); } 30% { opacity: 1; transform: translateY(0) scale(1.15); } 100% { opacity: 1; transform: scale(1); } }
+
+/* Walking: feet step, body bobs. A small hop when a reaction lands. */
+.gb-bot[data-walking] [data-foot='l'] { animation: gb-step 360ms ease-in-out infinite; }
+.gb-bot[data-walking] [data-foot='r'] { animation: gb-step 360ms ease-in-out infinite 180ms; }
+.gb-bot[data-walking] .gb-body { animation: gb-bob 360ms ease-in-out infinite; }
+.gb-bot svg [data-foot], .gb-bot .gb-body { transform-box: fill-box; }
+@keyframes gb-step { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes gb-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+.gb-hop { animation: gb-hop 520ms var(--ease-out); }
+@keyframes gb-hop {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  20% { transform: translateY(0) scale(1.06, 0.92); }
+  50% { transform: translateY(-9px) scale(0.96, 1.05); }
+  80% { transform: translateY(0) scale(1.03, 0.97); }
+}
+
+/* Status, on him: antenna pulses (listening), eyes scan (searching),
+   thought dots rise (thinking), typing dots (writing), sound lines (talking). */
+.gb-bot-head[data-status='listening'] [data-part='antenna'] { transform-origin: 50% 50%; animation: gb-antenna 1s ease-in-out infinite; }
+@keyframes gb-antenna { 0%, 100% { transform: scale(1); filter: none; } 50% { transform: scale(1.35); filter: drop-shadow(0 0 3px var(--color-saffron)); } }
+.gb-bot-head[data-status='searching'] [data-part='eyes'] { animation: gb-scan 1.3s ease-in-out infinite; }
+@keyframes gb-scan { 0%, 100% { transform: translateX(-3px); } 50% { transform: translateX(3px); } }
+.gb-status [data-dot] { transform-origin: 50% 50%; animation: gb-dot 1.2s ease-in-out infinite; }
+.gb-status [data-dot]:nth-child(2) { animation-delay: 0.2s; }
+.gb-status [data-dot]:nth-child(3) { animation-delay: 0.4s; }
+@keyframes gb-dot { 0%, 100% { opacity: 0.3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
+.gb-status [data-wave] { animation: gb-wave 1s var(--ease-out) infinite; }
+.gb-status [data-wave] + [data-wave] { animation-delay: 0.25s; }
+@keyframes gb-wave { 0% { opacity: 0; transform: translateX(-2px); } 40% { opacity: 1; } 100% { opacity: 0; transform: translateX(2px); } }
+
 @media (prefers-reduced-motion: reduce) {
-  /* No rocking, no travel, no loops; the door still opens as a fade. */
+  /* No rattling, travel, loops or hops: things fade and change colour only. */
   .gb-home[data-knock] .gb-house,
   .gb-home [data-part='flame'],
-  .gb-home [data-part='glow'] { animation: none; }
-  .gb-home [data-part='smoke'] { animation: none; opacity: 0.6; }
-  .gb-home[data-flicker] [data-part='window'] { animation: gb-flicker-calm 700ms ease; }
+  .gb-home [data-part='glow'],
+  .gb-home [data-part='sparkle'],
+  .gb-scene [data-part='sparkle'],
+  [data-eye],
+  .gb-scene [data-hand],
+  .gb-scene [data-part='code'] > *,
+  .gb-scene [data-part='float'],
+  .gb-scene[data-knock] [data-part='bot'],
+  .gb-bot[data-walking] [data-foot],
+  .gb-bot[data-walking] .gb-body,
+  .gb-bot-head [data-part],
+  .gb-status [data-dot],
+  .gb-hop { animation: none; }
+  .gb-home [data-part='smoke'], .gb-scene [data-part='steam'], .gb-zzz [data-z], .gb-status [data-wave] { animation: none; opacity: 0.7; }
+  .gb-scene[data-knock] [data-part='exclaim'] { animation: none; opacity: 1; }
+  .gb-home[data-flicker] [data-part='window'] { animation: gb-flicker-calm 800ms ease; }
   .gb-home [data-part='door'],
-  .gb-home [data-part='eyes'] { transition: opacity 160ms ease; transform: none; }
+  .gb-home [data-part='doorway'] { transition: opacity 200ms ease; transform: none; }
   .gb-home[data-door='open'] [data-part='door'] { transform: none; opacity: 0; }
 }
 @keyframes gb-flicker-calm {

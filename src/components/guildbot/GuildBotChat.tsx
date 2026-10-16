@@ -11,15 +11,19 @@ import { Button } from '@/components/ui/Button'
 import { KINDS, composeDescription } from '@/lib/kinds'
 import { SASS, botSays } from '@/lib/guildbot-host/voice'
 import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
-import { GuildBotHome, homeLook, useIsNight } from '@/components/guildbot/GuildBotHome'
+import { useActivity, type Asks as AsksState } from '@/components/guildbot/GuildBotScene'
+import { GuildBotAvatar, type AvatarStatus } from '@/components/guildbot/GuildBotAvatar'
+import { GuildBotStage, type Knock } from '@/components/guildbot/GuildBotStage'
 import { BodyPortal } from '@/components/ui/BodyPortal'
-import { useGuildBotMood } from '@/components/guildbot/useGuildBotMood'
-import { welcomeKey, meetingWhen, isoWeek, type Mood } from '@guildboard/guildbot'
+import { useGuildBotLife } from '@/components/guildbot/useGuildBotLife'
+import { announceSelf } from '@/lib/guildbot-host/live-bus'
+import { welcomeKey, meetingWhen, isoWeek, type Expression } from '@guildboard/guildbot'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useUserTokens } from '@/hooks/useUserTokens'
 import { TOKEN_LIMITS } from '@/lib/constants'
 
 const APRIL_KEY = 'guildbot:april-dodged'
+const PHASE_LABEL = { searching: 'Reading the board…', thinking: 'Thinking…', writing: 'Writing…' } as const
 const DRAWER_W = 400
 
 /** April 1st in India, once per browser session. */
@@ -74,23 +78,30 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   // April 1st: the button hops away from the first click, once. The chat is
   // not a real action, so nothing anyone needs is ever in the way.
   const [dodge, setDodge] = useState<string | null>(null)
-  // The knock: rocking house, then the door swings in, then the chat opens.
-  const [knock, setKnock] = useState<'idle' | 'knocking' | 'door'>('idle')
+  // The knock: two raps, the door swings in, GuildBot answers in the doorway,
+  // then he pulls the chat open. A second tap skips the rest.
+  const [knock, setKnock] = useState<Knock>('idle')
   const [greeting, setGreeting] = useState<string | null>(null)
   // Out of asks: the window sputters and GuildBot says when it's back.
   const [lightsOut, setLightsOut] = useState<string | null>(null)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
   const { asks, setAsks } = useAsks(signedIn)
-  const night = useIsNight()
+  const activity = useActivity() ?? 'coding'
   const welcome = useWelcome(pathname === '/board' && !open, signedIn)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const toast = useToast()
-  const { mood, line: moodLine } = useGuildBotMood()
-  const look = homeLook(signedIn ? (asks?.left ?? null) : null, night)
-  const genie = look === 'genie'
-  const outOfAsks = look === 'dark'
+  const life = useGuildBotLife()
+  const { mood, moodLine } = life
+  // What GuildBot is doing while you chat: the rings round him say it.
+  const [focused, setFocused] = useState(false)
+  const [phase, setPhase] = useState<'searching' | 'thinking' | 'writing'>('searching')
+  const [talking, setTalking] = useState(false)
+  const left = signedIn ? (asks?.left ?? null) : null
+  const asksState: AsksState = left === 0 ? 'out' : left !== null && left <= 3 ? 'genie' : 'normal'
+  const genie = asksState === 'genie'
+  const outOfAsks = asksState === 'out'
   const desktop = useMediaQuery('(min-width: 768px)')
   // From 1280px the drawer docks: the page narrows by its width instead of
   // being covered, so nothing (like the share button) hides underneath it.
@@ -146,6 +157,10 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     }
     setMessages(m => [...m, { id: `local-${Date.now()}`, role: 'user', body: text }])
     setThinking(true)
+    // The server reads the board, then asks a model, then writes: the rings
+    // follow roughly those steps while we wait.
+    setPhase('searching')
+    const steps = [setTimeout(() => setPhase('thinking'), 1200), setTimeout(() => setPhase('writing'), 4500)]
     try {
       const res = await fetch('/api/guildbot/chat', {
         method: 'POST',
@@ -159,11 +174,48 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
       }
       setMessages(m => [...m, { id: `bot-${Date.now()}`, role: 'bot', body: data.reply, draft: data.draft, cites: data.cites }])
       if (data.asks) setAsks(data.asks)
+      setTalking(true)
+      timers.current.push(setTimeout(() => setTalking(false), 1800))
     } catch {
       toast('GuildBot did not answer, check your connection', 'error')
     } finally {
+      steps.forEach(clearTimeout)
       setThinking(false)
     }
+  }
+
+  const status: AvatarStatus = thinking ? phase : talking ? 'talking' : focused && input.trim() ? 'listening' : 'idle'
+  const expression: Expression = life.expression
+
+  const press = (e: React.MouseEvent) => {
+    if (open) { setOpen(false); return }
+    // Impatient? A second tap during the knock skips straight to the chat.
+    if (knock !== 'idle') { timers.current.forEach(clearTimeout); setKnock('idle'); setOpen(true); return }
+    if (dodgeToday()) {
+      sessionStorage.setItem(APRIL_KEY, '1')
+      setDodge(botSays('egg.april', String(Date.now()), 'ui') ?? '')
+      setTimeout(() => setDodge(null), 4000)
+      return
+    }
+    if (outOfAsks) {
+      const when = asks?.nextAt ? whenBack(asks.nextAt) : 'next week'
+      setLightsOut(botSays('home.dark', `${asks?.nextAt}`, 'ui', { limit: asks?.limit ?? 15, when }) ?? `No asks left this week. Back ${when}.`)
+      timers.current.push(setTimeout(() => setLightsOut(null), 5000))
+      return
+    }
+    const left = asks?.left
+    setGreeting(
+      genie && left
+        ? botSays(`home.genie.${left as 1 | 2 | 3}`, String(left), 'ui')
+        : botSays(`home.knock.${mood}`, String(Date.now()), 'ui'),
+    )
+    // A keyboard press (detail 0) or reduced motion skips the knock.
+    if (reduce || e.detail === 0) { setOpen(true); return }
+    setKnock('knocking')
+    timers.current.push(
+      setTimeout(() => setKnock('door'), 480),
+      setTimeout(() => { setKnock('idle'); setOpen(true) }, 1500),
+    )
   }
 
   const clear = async () => {
@@ -174,66 +226,37 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
 
   return (
     <BodyPortal>
-      <button
-        type="button"
-        onClick={e => {
-          if (open || knock !== 'idle') return
-          if (dodgeToday()) {
-            sessionStorage.setItem(APRIL_KEY, '1')
-            setDodge(botSays('egg.april', String(Date.now()), 'ui') ?? '')
-            setTimeout(() => setDodge(null), 4000)
-            return
-          }
-          if (outOfAsks) {
-            const when = asks?.nextAt ? whenBack(asks.nextAt) : 'next week'
-            setLightsOut(botSays('home.dark', `${asks?.nextAt}`, 'ui', { limit: asks?.limit ?? 15, when }) ?? `No asks left this week. Back ${when}.`)
-            timers.current.push(setTimeout(() => setLightsOut(null), 5000))
-            return
-          }
-          const greet = () => {
-            const left = asks?.left
-            setGreeting(
-              genie && left
-                ? botSays(`home.genie.${left as 1 | 2 | 3}`, String(left), 'ui')
-                : botSays(`home.knock.${mood}`, String(Date.now()), 'ui'),
-            )
-            setOpen(true)
-          }
-          // A keyboard press (detail 0) or reduced motion skips the knock.
-          if (reduce || e.detail === 0) { greet(); return }
-          setKnock('knocking')
-          timers.current.push(
-            setTimeout(() => setKnock('door'), 300),
-            setTimeout(() => { setKnock('idle'); greet() }, 620),
-          )
-        }}
-        aria-expanded={open}
-        aria-label={homeLabel(signedIn ? asks : null)}
-        className={cn(
-          'press fixed right-4 bottom-24 md:right-6 md:bottom-6 z-(--z-overlay) rounded-[18px] focus-visible:outline-2 focus-visible:outline-offset-2 transition-transform duration-300 motion-reduce:transition-none',
-          dodge !== null && '-translate-x-24 -translate-y-16',
-          // The drawer or sheet has its own close; the button would only sit on top of it.
-          open && 'hidden',
-        )}
-      >
-        <GuildBotHome
-          look={look}
-          mood={mood}
-          left={signedIn ? (asks?.left ?? null) : null}
-          knocking={knock !== 'idle'}
-          door={knock === 'door' ? 'open' : 'closed'}
-          flicker={!!lightsOut}
+      {SASS && (
+        <GuildBotStage
+          activity={activity}
+          night={activity === 'night'}
+          asks={asksState}
+          left={left}
+          expression={expression}
+          hop={life.hop}
+          bubble={life.bubble}
+          onDismissBubble={life.dismissBubble}
+          knock={knock}
+          greeting={greeting}
+          lightsOut={lightsOut}
+          open={open}
+          desktop={desktop}
+          drawerWidth={DRAWER_W}
+          phoneSheetBottom={`calc(${keyboard.height} + ${keyboard.inset}px - 6px)`}
+          status={status}
+          hidden={life.hidden}
+          quiet={life.quiet}
+          onQuiet={() => life.setQuiet(!life.quiet)}
+          onHide={() => life.setHidden(true)}
+          reduce={!!reduce}
+          dodge={dodge}
+          label={homeLabel(signedIn ? asks : null)}
+          onPress={press}
         />
-      </button>
-
-      {welcome.text && !open && !dodge && !lightsOut && (
-        <WelcomeCard text={welcome.text} onOpen={() => { welcome.dismiss(); setOpen(true) }} onDismiss={welcome.dismiss} />
       )}
 
-      {(dodge || lightsOut) && (
-        <p role="status" className="fixed right-4 bottom-[10.5rem] md:right-6 md:bottom-[6rem] z-50 max-w-xs inline-flex items-start gap-1.5 rounded-(--radius-card) border border-border-strong bg-paper px-3 py-2 text-[12px] text-ink shadow-lg animate-fade-up">
-          <GuildBotMark size={16} mood={lightsOut ? 'bored' : mood} className="text-ink mt-px shrink-0" />{dodge ?? lightsOut}
-        </p>
+      {welcome.text && !open && !dodge && !lightsOut && !life.bubble && knock === 'idle' && (
+        <WelcomeCard text={welcome.text} onOpen={() => { welcome.dismiss(); setOpen(true) }} onDismiss={welcome.dismiss} />
       )}
 
       {open && (
@@ -288,9 +311,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
               onPointerDown={e => { if (!desktop) drag.start(e) }}
               className={cn('flex items-center gap-3 px-4 border-b border-border', desktop ? 'h-16' : 'pb-3 touch-none')}
             >
-              <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-sumi border border-border text-ink shrink-0">
-                <GuildBotMark size={22} mood={mood} />
-              </span>
+              <GuildBotAvatar expression={expression} status={status} size={38} feet={false} genie={genie} className="mx-1" />
               <div className="min-w-0">
                 <h2 className="text-footnote font-semibold text-ink">
                   GuildBot
@@ -300,9 +321,14 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                     </span>
                   )}
                 </h2>
-                <p className="text-caption text-cha truncate">{greeting ?? moodLine ?? 'Knows the board and Bytes'}</p>
+                <p className="text-caption text-cha truncate">{thinking ? PHASE_LABEL[phase] : greeting ?? moodLine ?? 'Knows the board and Bytes'}</p>
               </div>
               <div className="ml-auto flex items-center gap-1">
+                {life.hidden && (
+                  <button type="button" onClick={() => life.setHidden(false)} className="px-2 h-8 rounded-full text-caption text-cha hover:text-ink hover:bg-kinu/60">
+                    Bring back antics
+                  </button>
+                )}
                 {signedIn && messages.length > 0 && (
                   <button type="button" onClick={clear} aria-label="Clear chat" title="Clear chat" className="p-2 rounded-full text-cha hover:text-ink hover:bg-kinu/60">
                     <Trash className="w-4 h-4" />
@@ -326,7 +352,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                 <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 space-y-5 bg-sumi" aria-live="polite">
                   {loaded && messages.length === 0 && (
                     <div className="space-y-4">
-                      <BotRow mood={mood}>
+                      <BotRow mood={expression}>
                         <p className="rounded-2xl rounded-tl-md border border-border bg-paper px-3.5 py-2.5 text-footnote leading-relaxed text-ink">
                           Ask me about this month&apos;s topics or Bytes, or give me an idea and I&apos;ll draft the post. You press Post.
                         </p>
@@ -344,7 +370,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                         ))}
                       </div>
                       <p className="pl-9 text-caption text-cha leading-relaxed">
-                        {asks?.limit ?? 15} asks a week. On meeting day I share anonymous themes from everyone&apos;s chats in Slack, never who asked what, then delete every chat.
+                        {`${asks?.limit ?? 15} asks a week. On meeting day I share anonymous themes from everyone's chats in Slack, never who asked what, then delete every chat.`}
                       </p>
                     </div>
                   )}
@@ -352,14 +378,14 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                     <ChatBubble
                       key={m.id}
                       message={m}
-                      mood={mood}
+                      mood={expression}
                       onPosted={() => setMessages(list => list.map(x => (x.id === m.id ? { ...x, posted: true } : x)))}
                     />
                   ))}
                   {thinking && (
-                    <BotRow mood={mood}>
+                    <BotRow mood={expression}>
                       <p role="status" className="inline-flex items-center gap-1 rounded-2xl rounded-tl-md border border-border bg-paper px-3.5 h-9 text-caption text-cha">
-                        GuildBot is typing<span className="animate-pulse">…</span>
+                        {PHASE_LABEL[phase]}
                       </p>
                     </BotRow>
                   )}
@@ -378,6 +404,8 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                     <textarea
                       ref={inputRef}
                       disabled={outOfAsks}
+                      onFocus={() => setFocused(true)}
+                      onBlur={() => setFocused(false)}
                       value={input}
                       onChange={e => {
                         setInput(e.target.value)
@@ -419,18 +447,16 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
 }
 
 /** A bot turn: GuildBot's face beside whatever it said. */
-function BotRow({ mood, children }: { mood: Mood; children: React.ReactNode }) {
+function BotRow({ mood, children }: { mood: Expression; children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-2">
-      <span className="mt-0.5 inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-full bg-paper border border-border text-ink">
-        <GuildBotMark size={18} mood={mood} />
-      </span>
+      <GuildBotAvatar expression={mood} size={28} feet={false} className="mt-0.5" />
       <div className="min-w-0 flex-1 flex flex-col items-start gap-2">{children}</div>
     </div>
   )
 }
 
-function ChatBubble({ message, mood, onPosted }: { message: Message; mood: Mood; onPosted: () => void }) {
+function ChatBubble({ message, mood, onPosted }: { message: Message; mood: Expression; onPosted: () => void }) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -497,6 +523,7 @@ function DraftCard({ draft, posted, onPosted }: { draft: Draft; posted: boolean;
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { toast(data.error ?? 'Could not post. Try again.', 'error'); return }
       setTopicId(data.id ?? null)
+      announceSelf({ kind: 'posted', anonymous: ghost })
       onPosted()
       toast('Posted to the board', 'success')
     } catch {
@@ -620,8 +647,8 @@ function WelcomeCard({ text, onOpen, onDismiss }: { text: string; onOpen: () => 
     <div
       ref={ref}
       role="status"
-      // Just above the home: 6rem + its 4rem on a phone, 1.5rem + 4rem on md.
-      className="fixed right-4 bottom-[10.5rem] md:right-6 md:bottom-[6rem] z-(--z-overlay) w-[min(18rem,calc(100vw-2rem))] animate-fade-up"
+      // Just above the house: 5.25rem + ~4.4rem on a phone, 0.75rem + ~5rem on md.
+      className="fixed right-4 bottom-[10.25rem] md:right-6 md:bottom-[6.5rem] z-(--z-overlay) w-[min(18rem,calc(100vw-2rem))] animate-fade-up"
     >
       <div className="relative rounded-(--radius-card) border border-border bg-paper shadow-lg">
         <button type="button" onClick={onOpen} className="block w-full text-left px-3.5 pt-3 pb-3">

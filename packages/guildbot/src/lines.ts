@@ -156,6 +156,52 @@ export const LINES = {
   'home.genie.3': ["Three wishes left this week. Choose wisely. No wishing for more wishes."],
   'home.genie.2': ["Two wishes left. The lamp is getting warm."],
   'home.genie.1': ["Last wish of the week. Make it count. No pressure. Some pressure."],
+  /* ── Live reactions (react.ts), drafted 2026-10-16, pending sign-off.
+        GuildBot as the board's live commentator: sarcastic, a little
+        mischievous, dramatic when it's earned. A speech bubble by the
+        house, at most one every two minutes. Never says who: a ghost's
+        post gets the crowd lines, on the ghost's own screen too. ── */
+  'react.arrive': [
+    "Oh! A visitor. Welcome to my board. Shoes off, opinions on.",
+    "You came back. I knew you would. I didn't, but I hoped.",
+  ],
+  'react.arrive.starved': [
+    "A human! In my board! Sit, sit. Nobody's been by in ages.",
+    "Finally, company. I've been talking to my plant. It's a terrible listener.",
+  ],
+  'react.posted.you': [
+    "Look at you, posting like a main character. I'll allow it.",
+    "You posted. Out loud. With your name on it. Bold. Respect.",
+  ],
+  'react.posted.crowd': [
+    "And a new topic enters the arena. The crowd goes mild.",
+    "Plot twist: a human posted. I had money on this not happening.",
+  ],
+  'react.relieved': [
+    "Finally. Someone listened. I'd cry, but I'm mostly antenna.",
+    "A post! I was this close to writing fan fiction about the empty board.",
+  ],
+  'react.excited': [
+    "Three things in a minute? Is this engagement? Hold me.",
+    "Activity! Actual activity! Everyone act natural.",
+  ],
+  'react.nosy': [
+    "Ooh, a reply. I'm not reading it. I'm absolutely reading it.",
+    "Someone's commenting. I smell a debate. Fetching popcorn.",
+  ],
+  'react.crowd': [
+    "{present} of you here at once. Is there a meeting nobody told me about?",
+    "Full house. {present} humans. I'll try to look busy.",
+  ],
+  'react.lonely': [
+    "Just you and me on the board. Cosy. Slightly tragic.",
+    "Nobody else is here. Perfect time to post something bold. No witnesses.",
+  ],
+  'react.sleepy': [
+    "It's late. I'm not tired, I'm buffering.",
+    "Board at this hour? Respect. Mild concern, but respect.",
+  ],
+
   'home.dark': [
     "Lights out. That's all {limit} asks. Back {when}.",
     "Off duty. You've had your {limit} for the week. Back {when}.",
