@@ -6,20 +6,20 @@ import { cn } from '@/lib/utils/cn'
 import { WearContext } from '@/components/guildbot/useWeather'
 
 /**
- * GuildBot as a plush toy: the board's ◈ as a soft, bottom-heavy felt
- * diamond that sits, with googly eyes and nothing else on his face.
+ * GuildBot as a plush toy: one soft stuffed shape (see SHAPES), sewn and
+ * furry like the real thing, with googly eyes and nothing else on his face.
  *
  * - Colour is his mood for the month (smug saffron, bored lilac, dramatic
  *   tomato, proud gold), with two moments of their own: genie blue for the
  *   last three asks, plum while he sulks about the meeting. It changes
  *   slowly; quick reactions show in his eyes and squash, never his colour.
- * - No limbs. He moves like a toy (squash, hop, wiggle, stretch tall), and
- *   when a job needs hands, two felt mittens float in: typing, a mug, a
- *   wave, the toothbrush.
+ * - Floating hands and feet on faint lines (Rayman rules): they swing when
+ *   he walks and dances, and do the jobs (typing, a mug, a wave, a brush).
  * - Dressed by the weather in your city and by what he's doing (headphones,
  *   a sleep mask); there is no outfit he always wears.
- * - Felt is drawn in SVG: soft shading, a fuzzy edge and grain. The fuzz is
- *   skipped when he's small, where it would only cost frames.
+ * - The toy is drawn in SVG: soft shading that sags at the bottom, a furry
+ *   edge, the nap of the fur, a stitched seam, a fabric tag. Fur and tag are
+ *   skipped when he's small, where they'd only cost frames.
  *
  * Motion lives in globals.css (.gb-plush) and stops under reduced motion.
  */
@@ -38,14 +38,52 @@ export const PLUSH_COLOURS: Record<PlushColour, string> = {
   meeting: '#7D3F7D',
 }
 
-/** The diamond: soft corners, the bottom rounder and wider so he sits. */
-// A plush cut gem (the board's diamond): a flat, rounded table on top,
-// wide shoulders, tapering to a soft point below. Wide at the top and
-// narrow at the bottom on purpose: the other way round reads as a dollop.
-// His floating feet sit under the point.
-const BODY = 'M33 11H67C73 11 76 13 79 17L92 32C96 37 96 43 92 48C84 61 70 78 58 90C54 95 46 95 42 90C30 78 16 61 8 48C4 43 4 37 8 32L21 17C24 13 27 11 33 11Z'
-/** The gem's facets: the crown's top edge and the girdle, faint seams in the felt. */
-const FACETS = 'M24 18L36 32M76 18L64 32M7 32H93M36 32L50 89M64 32L50 89'
+/**
+ * His silhouette. Three concepts for sign-off on the character sheet; the
+ * app draws PLUSH_SHAPE. Each is one soft shape plus one quirk (the dots
+ * way), sewn like a real toy: a stitched seam, fur, a fabric tag.
+ *
+ *   cushion  the board's ◈ as a puffed-up pillow: bulging sides, pinched
+ *            corners with little tassels
+ *   critter  a round bean of a creature with two felt ◈ ears
+ *   mochi    a squishy round mochi with a stitched ◈ patch on his tummy
+ */
+export type PlushShape = 'cushion' | 'critter' | 'mochi'
+
+interface ShapeSpec {
+  body: string
+  /** The middle of the body, for the inset seam. */
+  centre: [number, number]
+  /** Top of the head (hats), the eye line, and where a scarf sits. */
+  top: number
+  eyes: number
+  neck: number
+  shoulders: [[number, number], [number, number]]
+  hips: [[number, number], [number, number]]
+  /** Where the fabric tag pokes out of the seam, and its angle. */
+  tag: [number, number, number]
+}
+
+const SHAPES: Record<PlushShape, ShapeSpec> = {
+  cushion: {
+    body: 'M45 13Q50 8 55 13C70 16 86 29 91 45Q96 52 91 59C86 75 70 88 55 92Q50 97 45 92C30 88 14 75 9 59Q4 52 9 45C14 29 30 16 45 13Z',
+    centre: [50, 52], top: 12, eyes: 48, neck: 64,
+    shoulders: [[14, 50], [86, 50]], hips: [[44, 88], [56, 88]], tag: [80, 76, -38],
+  },
+  critter: {
+    body: 'M50 26C77 26 91 37 91 60C91 84 75 95 50 95C25 95 9 84 9 60C9 37 23 26 50 26Z',
+    centre: [50, 61], top: 26, eyes: 56, neck: 72,
+    shoulders: [[13, 64], [87, 64]], hips: [[42, 92], [58, 92]], tag: [88, 76, -20],
+  },
+  mochi: {
+    body: 'M50 16C80 16 93 30 93 56C93 83 77 95 50 95C23 95 7 83 7 56C7 30 20 16 50 16Z',
+    centre: [50, 56], top: 16, eyes: 48, neck: 66,
+    shoulders: [[12, 56], [88, 56]], hips: [[42, 92], [58, 92]], tag: [90, 70, -15],
+  },
+}
+
+/** The shape the app uses. */
+export const PLUSH_SHAPE: PlushShape = 'critter'
 
 export type PlushStatus = 'thinking' | 'talking' | null
 /** What he's up to while you chat or work: some of it shows on him. */
@@ -65,6 +103,8 @@ type FigureProps = {
   limbs?: boolean
   /** Any felt colour, for the anonymous plushes in the focus crowd. */
   tint?: string
+  /** For the character sheet's comparison; the app uses PLUSH_SHAPE. */
+  shape?: PlushShape
   look?: { x: number; y: number }
 }
 
@@ -107,36 +147,51 @@ export function PlushFigure({
   fuzzy = true,
   limbs: withLimbs = true,
   tint,
+  shape = PLUSH_SHAPE,
   look = { x: 0, y: 0 },
 }: FigureProps) {
   const id = useId().replace(/:/g, '')
   const base = tint ?? PLUSH_COLOURS[colour]
   const weather = useContext(WearContext)
   const eyes = eyeShape(expression)
-  const limbs = withLimbs ? limbsFor(hands) : []
+  const spec = SHAPES[shape]
+  const limbs = withLimbs ? limbsFor(hands, spec) : []
+  // Costumes were drawn for a head at y 11 and eyes at y 42; move them to this shape.
+  const atTop = `translate(0 ${spec.top - 11})`
+  const atEyes = `translate(0 ${spec.eyes - 42})`
+  const atNeck = `translate(0 ${spec.neck - 55})`
+  const seam = `translate(${spec.centre[0]} ${spec.centre[1]}) scale(0.86) translate(${-spec.centre[0]} ${-spec.centre[1]})`
+  const edge = mix(base, '#000000', 0.3)
 
   return (
     <g>
         <defs>
-          <radialGradient id={`${id}-felt`} cx="40%" cy="26%" r="80%">
-            <stop offset="0%" stopColor={mix(base, '#FFFFFF', 0.38)} />
-            <stop offset="50%" stopColor={base} />
-            <stop offset="100%" stopColor={mix(base, '#000000', 0.14)} />
+          <radialGradient id={`${id}-felt`} cx="40%" cy="30%" r="78%">
+            <stop offset="0%" stopColor={mix(base, '#FFFFFF', 0.4)} />
+            <stop offset="48%" stopColor={base} />
+            <stop offset="100%" stopColor={mix(base, '#000000', 0.12)} />
           </radialGradient>
+          {/* Soft shadow pooling at the bottom, where a stuffed toy sags. */}
+          <linearGradient id={`${id}-sag`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="55%" stopColor="#000000" stopOpacity={0} />
+            <stop offset="100%" stopColor="#000000" stopOpacity={0.16} />
+          </linearGradient>
           <radialGradient id={`${id}-sheen`}>
             <stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.45} />
             <stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
           </radialGradient>
           {fuzzy && (
-            <filter id={`${id}-fuzz`} x="-10%" y="-10%" width="120%" height="120%">
-              {/* A ragged, furry edge... */}
-              <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise" />
-              <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="furry" />
-              {/* ...and fine felt grain on the surface. */}
-              <feTurbulence type="fractalNoise" baseFrequency="2.2" numOctaves="1" seed="3" result="grain" />
-              <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.16 0" result="grainAlpha" />
-              <feComposite in="grainAlpha" in2="furry" operator="in" result="grainOnBody" />
-              <feMerge><feMergeNode in="furry" /><feMergeNode in="grainOnBody" /></feMerge>
+            <filter id={`${id}-fuzz`} x="-15%" y="-15%" width="130%" height="130%">
+              {/* A soft, furry edge... */}
+              <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="2" seed="7" result="noise" />
+              <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" result="furry" />
+              {/* ...and the nap of the fur: stretched noise, dark and light flecks. */}
+              <feTurbulence type="fractalNoise" baseFrequency="2.6 0.8" numOctaves="2" seed="3" result="nap" />
+              <feColorMatrix in="nap" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.55 0 0 0 -0.16" result="napDark" />
+              <feColorMatrix in="nap" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0.5 0 0 -0.17" result="napLight" />
+              <feComposite in="napDark" in2="furry" operator="in" result="darkOnBody" />
+              <feComposite in="napLight" in2="furry" operator="in" result="lightOnBody" />
+              <feMerge><feMergeNode in="furry" /><feMergeNode in="darkOnBody" /><feMergeNode in="lightOnBody" /></feMerge>
             </filter>
           )}
         </defs>
@@ -154,20 +209,25 @@ export function PlushFigure({
         <g className="gb-plush-body">
           {/* Limb lines go behind him, so they seem to come out of the felt. */}
           <Limbs limbs={limbs} colour={base} layer="lines" />
-          <path d={BODY} fill={`url(#${id}-felt)`} filter={fuzzy ? `url(#${id}-fuzz)` : undefined} />
-          {/* Faint facet seams, and a soft patch of light on the table. */}
-          <path d={FACETS} stroke="#FFFFFF" strokeOpacity={0.22} strokeWidth={1.2} strokeLinecap="round" fill="none" />
-          <ellipse cx={44} cy={19} rx={13} ry={4.5} fill={`url(#${id}-sheen)`} />
+          {shape === 'critter' && <Ears colour={base} fuzz={fuzzy ? `url(#${id}-fuzz)` : undefined} />}
+          {shape === 'cushion' && <Tassels colour={base} />}
+          <path d={spec.body} fill={`url(#${id}-felt)`} filter={fuzzy ? `url(#${id}-fuzz)` : undefined} />
+          <path d={spec.body} fill={`url(#${id}-sag)`} />
+          {/* The seam it was sewn along, and a soft patch of light. */}
+          <path d={spec.body} transform={seam} fill="none" stroke={edge} strokeOpacity={0.4} strokeWidth={1.1} strokeDasharray="2.4 2" strokeLinecap="round" />
+          <ellipse cx={40} cy={spec.top + 12} rx={14} ry={6} fill={`url(#${id}-sheen)`} transform={`rotate(-20 40 ${spec.top + 12})`} />
+          {shape === 'mochi' && <Patch />}
+          {fuzzy && <Tag at={spec.tag} />}
 
           {weather.beanie && (
-            <g>
+            <g transform={atTop}>
               <path d="M28 20C32 0 68 0 72 20Z" fill="#2F3A56" />
               <path d="M25 18h50v7H25Z" fill="#46557A" />
               <circle cx={50} cy={-1} r={5} fill="#E9E4DA" />
             </g>
           )}
           {wear === 'headphones' && (
-            <g>
+            <g transform={atEyes}>
               <path d="M17 36C17 2 83 2 83 36" fill="none" stroke="#2A2F3D" strokeWidth={4.5} strokeLinecap="round" />
               <rect x={6} y={30} width={12} height={20} rx={6} fill="#2A2F3D" />
               <rect x={82} y={30} width={12} height={20} rx={6} fill="#2A2F3D" />
@@ -177,18 +237,18 @@ export function PlushFigure({
           {/* Googly eyes: white, a black pupil that wanders, a felt lid. */}
           <g className="gb-plush-eyes">
             {[34, 66].map((cx, side) => (
-              <Eye key={cx} cx={cx} cy={42} shape={eyes} side={side as 0 | 1} look={look} lid={base} />
+              <Eye key={cx} cx={cx} cy={spec.eyes} shape={eyes} side={side as 0 | 1} look={look} lid={base} />
             ))}
           </g>
 
           {wear === 'sleepmask' && (
-            <g>
+            <g transform={atEyes}>
               <rect x={14} y={33} width={72} height={18} rx={9} fill="#3B4A7A" />
               <path d="M27 43q7 4 14 0M59 43q7 4 14 0" stroke="#E9E4DA" strokeWidth={2} fill="none" strokeLinecap="round" />
             </g>
           )}
           {weather.sunglasses && !weather.beanie && wear !== 'sleepmask' && (
-            <g>
+            <g transform={atEyes}>
               <circle cx={34} cy={42} r={13.5} fill="#121318" />
               <circle cx={66} cy={42} r={13.5} fill="#121318" />
               <path d="M47 41h6M20.5 39l-12-4M79.5 39l12-4" stroke="#121318" strokeWidth={2.6} strokeLinecap="round" />
@@ -196,7 +256,7 @@ export function PlushFigure({
             </g>
           )}
           {weather.scarf && (
-            <g>
+            <g transform={atNeck}>
               <path d="M11 55q39 15 78 0l-4 8q-35 13-70 0Z" fill="#16774F" />
               <path d="M62 64l2 16h7l-2-17Z" fill="#16774F" />
             </g>
@@ -205,7 +265,7 @@ export function PlushFigure({
         </g>
 
         {weather.sweat && (
-          <g className="gb-plush-sweat" fill="#8EC2FF">
+          <g className="gb-plush-sweat" fill="#8EC2FF" transform={atTop}>
             <path data-drop d="M12 20c2 2.8 2.8 4.2 2.8 5.4a2.8 2.8 0 0 1-5.6 0c0-1.2.8-2.6 2.8-5.4Z" />
             <path data-drop d="M90 24c1.8 2.4 2.4 3.6 2.4 4.6a2.4 2.4 0 0 1-4.8 0c0-1 .6-2.2 2.4-4.6Z" />
           </g>
@@ -225,6 +285,52 @@ export function PlushFigure({
             <path data-wave d="M103 34q6 14 0 28" />
           </g>
         )}
+    </g>
+  )
+}
+
+/** Critter: two felt ◈ ears, behind the head, a lighter felt inside. */
+function Ears({ colour, fuzz }: { colour: string; fuzz?: string }) {
+  const inner = mix(colour, '#FFFFFF', 0.45)
+  return (
+    <g>
+      {[[28, 26, -14], [72, 26, 14]].map(([x, y, r]) => (
+        <g key={x} transform={`translate(${x} ${y}) rotate(${r})`}>
+          <rect x={-10} y={-10} width={20} height={20} rx={6} transform="rotate(45)" fill={colour} filter={fuzz} />
+          <rect x={-5} y={-5} width={10} height={10} rx={3} transform="translate(0 -2) rotate(45)" fill={inner} />
+        </g>
+      ))}
+    </g>
+  )
+}
+
+/** Cushion: little tassels where the pillow's side corners are pinched. */
+function Tassels({ colour }: { colour: string }) {
+  const thread = mix(colour, '#000000', 0.2)
+  return (
+    <g stroke={thread} strokeWidth={1.6} strokeLinecap="round" fill="none">
+      <path d="M6 52l-6-3M6 52l-6 1M6 52l-5 5" />
+      <path d="M94 52l6-3M94 52l6 1M94 52l5 5" />
+    </g>
+  )
+}
+
+/** Mochi: a stitched ◈ patch, sewn on low at one side (never under the eyes, where it would read as a mouth). */
+function Patch() {
+  return (
+    <g transform="translate(30 80) rotate(-14) scale(0.85)">
+      <rect x={-7.5} y={-7.5} width={15} height={15} rx={3} transform="rotate(45)" fill="#FFF4E2" />
+      <rect x={-6} y={-6} width={12} height={12} rx={2.4} transform="rotate(45)" fill="none" stroke="#C9822F" strokeWidth={0.9} strokeDasharray="1.6 1.4" />
+    </g>
+  )
+}
+
+/** The fabric care tag every plush has, poking out of a seam. */
+function Tag({ at: [x, y, r] }: { at: [number, number, number] }) {
+  return (
+    <g transform={`translate(${x} ${y}) rotate(${r})`}>
+      <path d="M0 -3.5h9a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5H0Z" fill="#FBF6EC" stroke="#000000" strokeOpacity={0.15} strokeWidth={0.6} />
+      <path d="M3 -1h5M3 1.2h3.5" stroke="#E8913A" strokeWidth={0.9} strokeLinecap="round" />
     </g>
   )
 }
@@ -313,20 +419,21 @@ type Limb = {
   holding?: React.ReactNode
 }
 
-/** Where the arms come from: just inside the gem's shoulders. Exported for scenes. */
-export const SHOULDER_L: [number, number] = [14, 44]
-export const SHOULDER_R: [number, number] = [86, 44]
+/** Where the arms come from, for scenes that draw his hands themselves. */
+export const SHOULDER_L: [number, number] = SHAPES[PLUSH_SHAPE].shoulders[0]
+export const SHOULDER_R: [number, number] = SHAPES[PLUSH_SHAPE].shoulders[1]
 
 /**
  * Rayman rules: hands and feet float off the body, joined by the faintest
  * line, so walking and dancing read as walking and dancing.
  */
-function limbsFor(hands: PlushHands): Limb[] {
-  const restL: Limb = { at: SHOULDER_L, to: [-16, 18], kind: 'hand', cls: 'gb-arm-l' }
-  const restR: Limb = { at: SHOULDER_R, to: [16, 18], kind: 'hand', cls: 'gb-arm-r' }
+function limbsFor(hands: PlushHands, spec: ShapeSpec): Limb[] {
+  const [SL, SR] = spec.shoulders
+  const restL: Limb = { at: SL, to: [-16, 18], kind: 'hand', cls: 'gb-arm-l' }
+  const restR: Limb = { at: SR, to: [16, 18], kind: 'hand', cls: 'gb-arm-r' }
   const feet: Limb[] = [
-    { at: [45, 86], to: [-10, 14], kind: 'foot', cls: 'gb-leg-l' },
-    { at: [55, 86], to: [10, 14], kind: 'foot', cls: 'gb-leg-r' },
+    { at: spec.hips[0], to: [-8, 104 - 4.5 - spec.hips[0][1]], kind: 'foot', cls: 'gb-leg-l' },
+    { at: spec.hips[1], to: [8, 104 - 4.5 - spec.hips[1][1]], kind: 'foot', cls: 'gb-leg-r' },
   ]
   const arms: Limb[] = (() => {
     switch (hands) {
@@ -335,13 +442,13 @@ function limbsFor(hands: PlushHands): Limb[] {
       case 'rest': return [restL, restR]
       case 'typing':
         return [
-          { at: SHOULDER_L, to: [22, 34], kind: 'hand', cls: 'gb-mitten-l' },
-          { at: SHOULDER_R, to: [-22, 34], kind: 'hand', cls: 'gb-mitten-r' },
+          { at: SL, to: [20, 24], kind: 'hand', cls: 'gb-mitten-l' },
+          { at: SR, to: [-20, 24], kind: 'hand', cls: 'gb-mitten-r' },
         ]
-      case 'wave': return [restL, { at: SHOULDER_R, to: [14, -28], kind: 'hand', cls: 'gb-mitten-wave' }]
+      case 'wave': return [restL, { at: SR, to: [14, -28], kind: 'hand', cls: 'gb-mitten-wave' }]
       case 'mug':
         return [restL, {
-          at: SHOULDER_R, to: [10, 16], kind: 'hand', cls: 'gb-mitten-mug',
+          at: SR, to: [10, 16], kind: 'hand', cls: 'gb-mitten-mug',
           holding: (
             <g transform="translate(-93 -74)">
               <path d="M90 58h14v13a4 4 0 0 1-4 4h-6a4 4 0 0 1-4-4Z" fill="#E8913A" stroke="#3A2E22" strokeWidth={1.4} />
@@ -352,7 +459,7 @@ function limbsFor(hands: PlushHands): Limb[] {
         }]
       case 'brush':
         return [restL, {
-          at: SHOULDER_R, to: [6, 12], kind: 'hand', cls: 'gb-mitten-brush',
+          at: SR, to: [6, 12], kind: 'hand', cls: 'gb-mitten-brush',
           holding: (
             <g transform="translate(-90 -72)">
               <path d="M64 70h22" stroke="#3E7BFA" strokeWidth={3} strokeLinecap="round" />
