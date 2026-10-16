@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { activityAt, type Activity, type Expression, type Variant } from '@guildboard/guildbot'
-import { Mitten, PlushFigure, plushEdge, type AvatarStatus, type PlushColour } from '@/components/guildbot/PlushBot'
+import { Mitten, PlushFigure, SHOULDER_L, SHOULDER_R, plushEdge, type AvatarStatus, type PlushColour } from '@/components/guildbot/PlushBot'
 import { GuildBotHome } from '@/components/guildbot/GuildBotHome'
 
 /**
@@ -184,8 +184,8 @@ function Arms({ from, to, colour }: { from: { x: number; y: number; s: number };
   return (
     <g stroke={plushEdge(colour)} strokeOpacity={0.45} strokeWidth={1.8 * from.s} strokeLinecap="round" fill="none">
       {to.map(h => {
-        const sx = from.x + from.s * (h.side === 'l' ? 18 : 82)
-        const sy = from.y + from.s * 62
+        const sx = from.x + from.s * (h.side === 'l' ? SHOULDER_L[0] : SHOULDER_R[0])
+        const sy = from.y + from.s * SHOULDER_L[1]
         return <path key={`${h.x}-${h.y}`} d={`M${sx} ${sy}L${h.x} ${h.y}`} />
       })}
     </g>

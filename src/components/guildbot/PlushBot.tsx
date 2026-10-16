@@ -30,7 +30,7 @@ export type PlushHands = 'rest' | 'one' | 'none' | 'typing' | 'mug' | 'wave' | '
 export type PlushWear = 'headphones' | 'sleepmask'
 
 export const PLUSH_COLOURS: Record<PlushColour, string> = {
-  smug: '#F2913A',
+  smug: '#FF9A3C',
   bored: '#B6A2E6',
   dramatic: '#EE5440',
   proud: '#F6C431',
@@ -39,9 +39,13 @@ export const PLUSH_COLOURS: Record<PlushColour, string> = {
 }
 
 /** The diamond: soft corners, the bottom rounder and wider so he sits. */
-// A soft kite: rounded peak, wide low shoulders, a short soft point below.
-// Bottom-heavy, so he sits.
-const BODY = 'M50 8C57 8 62 14 69 25C79 40 93 54 93 67C93 79 70 89 50 94C30 89 7 79 7 67C7 54 21 40 31 25C38 14 43 8 50 8Z'
+// A plush cut gem (the board's diamond): a flat, rounded table on top,
+// wide shoulders, tapering to a soft point below. Wide at the top and
+// narrow at the bottom on purpose: the other way round reads as a dollop.
+// His floating feet sit under the point.
+const BODY = 'M33 11H67C73 11 76 13 79 17L92 32C96 37 96 43 92 48C84 61 70 78 58 90C54 95 46 95 42 90C30 78 16 61 8 48C4 43 4 37 8 32L21 17C24 13 27 11 33 11Z'
+/** The gem's facets: the crown's top edge and the girdle, faint seams in the felt. */
+const FACETS = 'M24 18L36 32M76 18L64 32M7 32H93M36 32L50 89M64 32L50 89'
 
 export type PlushStatus = 'thinking' | 'talking' | null
 /** What he's up to while you chat or work: some of it shows on him. */
@@ -91,7 +95,7 @@ export function PlushBot({
 
 /**
  * The plush as SVG, for scenes to place: drawn in a -10 -14 120 120 box,
- * body from about (8, 9) to (92, 94), sitting on y 96. Wrap it in a <g>
+ * body from about (5, 11) to (95, 94), feet on y 104. Wrap it in a <g>
  * with `.gb-plush` and `data-motion` on an ancestor to animate it.
  */
 export function PlushFigure({
@@ -114,10 +118,10 @@ export function PlushFigure({
   return (
     <g>
         <defs>
-          <radialGradient id={`${id}-felt`} cx="38%" cy="30%" r="78%">
-            <stop offset="0%" stopColor={mix(base, '#FFFFFF', 0.32)} />
-            <stop offset="55%" stopColor={base} />
-            <stop offset="100%" stopColor={mix(base, '#000000', 0.28)} />
+          <radialGradient id={`${id}-felt`} cx="40%" cy="26%" r="80%">
+            <stop offset="0%" stopColor={mix(base, '#FFFFFF', 0.38)} />
+            <stop offset="50%" stopColor={base} />
+            <stop offset="100%" stopColor={mix(base, '#000000', 0.14)} />
           </radialGradient>
           <radialGradient id={`${id}-sheen`}>
             <stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.45} />
@@ -127,7 +131,7 @@ export function PlushFigure({
             <filter id={`${id}-fuzz`} x="-10%" y="-10%" width="120%" height="120%">
               {/* A ragged, furry edge... */}
               <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="noise" />
-              <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G" result="furry" />
+              <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="furry" />
               {/* ...and fine felt grain on the surface. */}
               <feTurbulence type="fractalNoise" baseFrequency="2.2" numOctaves="1" seed="3" result="grain" />
               <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.16 0" result="grainAlpha" />
@@ -138,7 +142,7 @@ export function PlushFigure({
         </defs>
 
         {/* Shadow on whatever he sits on. */}
-        <ellipse className="gb-plush-shadow" cx={50} cy={101} rx={30} ry={4} fill="#000" opacity={0.18} />
+        <ellipse className="gb-plush-shadow" cx={50} cy={104} rx={26} ry={3.6} fill="#000" opacity={0.18} />
 
         {weather.umbrella && (
           <g className="gb-plush-float-prop">
@@ -151,49 +155,50 @@ export function PlushFigure({
           {/* Limb lines go behind him, so they seem to come out of the felt. */}
           <Limbs limbs={limbs} colour={base} layer="lines" />
           <path d={BODY} fill={`url(#${id}-felt)`} filter={fuzzy ? `url(#${id}-fuzz)` : undefined} />
-          {/* A soft patch of light on the top facet, like a lamp on felt. */}
-          <ellipse cx={40} cy={27} rx={11} ry={6} fill={`url(#${id}-sheen)`} transform="rotate(-38 40 27)" />
+          {/* Faint facet seams, and a soft patch of light on the table. */}
+          <path d={FACETS} stroke="#FFFFFF" strokeOpacity={0.22} strokeWidth={1.2} strokeLinecap="round" fill="none" />
+          <ellipse cx={44} cy={19} rx={13} ry={4.5} fill={`url(#${id}-sheen)`} />
 
           {weather.beanie && (
             <g>
-              <path d="M30 30C34 12 66 12 70 30Z" fill="#2F3A56" />
-              <path d="M28 28h44v6H28Z" fill="#46557A" rx={3} />
-              <circle cx={50} cy={10} r={5} fill="#E9E4DA" />
+              <path d="M28 20C32 0 68 0 72 20Z" fill="#2F3A56" />
+              <path d="M25 18h50v7H25Z" fill="#46557A" />
+              <circle cx={50} cy={-1} r={5} fill="#E9E4DA" />
             </g>
           )}
           {wear === 'headphones' && (
             <g>
-              <path d="M24 46C24 18 76 18 76 46" fill="none" stroke="#2A2F3D" strokeWidth={4.5} strokeLinecap="round" />
-              <rect x={16} y={40} width={12} height={20} rx={6} fill="#2A2F3D" />
-              <rect x={72} y={40} width={12} height={20} rx={6} fill="#2A2F3D" />
+              <path d="M17 36C17 2 83 2 83 36" fill="none" stroke="#2A2F3D" strokeWidth={4.5} strokeLinecap="round" />
+              <rect x={6} y={30} width={12} height={20} rx={6} fill="#2A2F3D" />
+              <rect x={82} y={30} width={12} height={20} rx={6} fill="#2A2F3D" />
             </g>
           )}
 
           {/* Googly eyes: white, a black pupil that wanders, a felt lid. */}
           <g className="gb-plush-eyes">
             {[34, 66].map((cx, side) => (
-              <Eye key={cx} cx={cx} cy={51} shape={eyes} side={side as 0 | 1} look={look} lid={base} />
+              <Eye key={cx} cx={cx} cy={42} shape={eyes} side={side as 0 | 1} look={look} lid={base} />
             ))}
           </g>
 
           {wear === 'sleepmask' && (
             <g>
-              <rect x={17} y={42} width={66} height={18} rx={9} fill="#3B4A7A" />
-              <path d="M27 52q7 4 14 0M59 52q7 4 14 0" stroke="#E9E4DA" strokeWidth={2} fill="none" strokeLinecap="round" />
+              <rect x={14} y={33} width={72} height={18} rx={9} fill="#3B4A7A" />
+              <path d="M27 43q7 4 14 0M59 43q7 4 14 0" stroke="#E9E4DA" strokeWidth={2} fill="none" strokeLinecap="round" />
             </g>
           )}
           {weather.sunglasses && !weather.beanie && wear !== 'sleepmask' && (
             <g>
-              <circle cx={34} cy={51} r={13.5} fill="#121318" />
-              <circle cx={66} cy={51} r={13.5} fill="#121318" />
-              <path d="M47 50h6M20.5 48l-7-3M79.5 48l7-3" stroke="#121318" strokeWidth={2.6} strokeLinecap="round" />
-              <path d="M28 45l5-2.5M60 45l5-2.5" stroke="#FFFFFF" strokeOpacity={0.5} strokeWidth={1.8} strokeLinecap="round" />
+              <circle cx={34} cy={42} r={13.5} fill="#121318" />
+              <circle cx={66} cy={42} r={13.5} fill="#121318" />
+              <path d="M47 41h6M20.5 39l-12-4M79.5 39l12-4" stroke="#121318" strokeWidth={2.6} strokeLinecap="round" />
+              <path d="M28 36l5-2.5M60 36l5-2.5" stroke="#FFFFFF" strokeOpacity={0.5} strokeWidth={1.8} strokeLinecap="round" />
             </g>
           )}
           {weather.scarf && (
             <g>
-              <path d="M20 66q30 14 60 0l3 7q-33 15-66 0Z" fill="#16774F" />
-              <path d="M62 76l2 14h7l-2-15Z" fill="#16774F" />
+              <path d="M11 55q39 15 78 0l-4 8q-35 13-70 0Z" fill="#16774F" />
+              <path d="M62 64l2 16h7l-2-17Z" fill="#16774F" />
             </g>
           )}
           <Limbs limbs={limbs} colour={base} layer="ends" />
@@ -201,8 +206,8 @@ export function PlushFigure({
 
         {weather.sweat && (
           <g className="gb-plush-sweat" fill="#8EC2FF">
-            <path data-drop d="M16 30c2 2.8 2.8 4.2 2.8 5.4a2.8 2.8 0 0 1-5.6 0c0-1.2.8-2.6 2.8-5.4Z" />
-            <path data-drop d="M86 36c1.8 2.4 2.4 3.6 2.4 4.6a2.4 2.4 0 0 1-4.8 0c0-1 .6-2.2 2.4-4.6Z" />
+            <path data-drop d="M12 20c2 2.8 2.8 4.2 2.8 5.4a2.8 2.8 0 0 1-5.6 0c0-1.2.8-2.6 2.8-5.4Z" />
+            <path data-drop d="M90 24c1.8 2.4 2.4 3.6 2.4 4.6a2.4 2.4 0 0 1-4.8 0c0-1 .6-2.2 2.4-4.6Z" />
           </g>
         )}
 
@@ -308,19 +313,20 @@ type Limb = {
   holding?: React.ReactNode
 }
 
-const SHOULDER_L: [number, number] = [18, 62]
-const SHOULDER_R: [number, number] = [82, 62]
+/** Where the arms come from: just inside the gem's shoulders. Exported for scenes. */
+export const SHOULDER_L: [number, number] = [14, 44]
+export const SHOULDER_R: [number, number] = [86, 44]
 
 /**
  * Rayman rules: hands and feet float off the body, joined by the faintest
  * line, so walking and dancing read as walking and dancing.
  */
 function limbsFor(hands: PlushHands): Limb[] {
-  const restL: Limb = { at: SHOULDER_L, to: [-18, 14], kind: 'hand', cls: 'gb-arm-l' }
-  const restR: Limb = { at: SHOULDER_R, to: [18, 14], kind: 'hand', cls: 'gb-arm-r' }
+  const restL: Limb = { at: SHOULDER_L, to: [-16, 18], kind: 'hand', cls: 'gb-arm-l' }
+  const restR: Limb = { at: SHOULDER_R, to: [16, 18], kind: 'hand', cls: 'gb-arm-r' }
   const feet: Limb[] = [
-    { at: [38, 84], to: [-8, 15], kind: 'foot', cls: 'gb-leg-l' },
-    { at: [62, 84], to: [8, 15], kind: 'foot', cls: 'gb-leg-r' },
+    { at: [45, 86], to: [-10, 14], kind: 'foot', cls: 'gb-leg-l' },
+    { at: [55, 86], to: [10, 14], kind: 'foot', cls: 'gb-leg-r' },
   ]
   const arms: Limb[] = (() => {
     switch (hands) {
@@ -329,13 +335,13 @@ function limbsFor(hands: PlushHands): Limb[] {
       case 'rest': return [restL, restR]
       case 'typing':
         return [
-          { at: SHOULDER_L, to: [16, 30], kind: 'hand', cls: 'gb-mitten-l' },
-          { at: SHOULDER_R, to: [-16, 30], kind: 'hand', cls: 'gb-mitten-r' },
+          { at: SHOULDER_L, to: [22, 34], kind: 'hand', cls: 'gb-mitten-l' },
+          { at: SHOULDER_R, to: [-22, 34], kind: 'hand', cls: 'gb-mitten-r' },
         ]
       case 'wave': return [restL, { at: SHOULDER_R, to: [14, -28], kind: 'hand', cls: 'gb-mitten-wave' }]
       case 'mug':
         return [restL, {
-          at: SHOULDER_R, to: [11, 12], kind: 'hand', cls: 'gb-mitten-mug',
+          at: SHOULDER_R, to: [10, 16], kind: 'hand', cls: 'gb-mitten-mug',
           holding: (
             <g transform="translate(-93 -74)">
               <path d="M90 58h14v13a4 4 0 0 1-4 4h-6a4 4 0 0 1-4-4Z" fill="#E8913A" stroke="#3A2E22" strokeWidth={1.4} />
@@ -346,7 +352,7 @@ function limbsFor(hands: PlushHands): Limb[] {
         }]
       case 'brush':
         return [restL, {
-          at: SHOULDER_R, to: [8, 10], kind: 'hand', cls: 'gb-mitten-brush',
+          at: SHOULDER_R, to: [6, 12], kind: 'hand', cls: 'gb-mitten-brush',
           holding: (
             <g transform="translate(-90 -72)">
               <path d="M64 70h22" stroke="#3E7BFA" strokeWidth={3} strokeLinecap="round" />
