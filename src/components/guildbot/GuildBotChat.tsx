@@ -85,13 +85,13 @@ function pageOf(path: string): { kind: 'board' } | { kind: 'topic'; topicId: str
  * only. The bot can answer from the board and Bytes, and draft a post, which
  * shows here as a card: nothing is posted until you press Post.
  *
- * The button is GuildBot's home (GuildBotHome), in the bottom-right corner
- * with the meeting pill stacked above it. The plate on the door is asks left
- * this week; in the last three the house becomes a genie's lamp and the chat
- * turns blue; with none left the lights are out and knocking only gets you a
- * line saying when they come back on. Tap it and you knock: the house rocks,
- * the door swings in, GuildBot peeks out, and the chat rolls open with a
- * greeting for its mood. From the keyboard, or with reduced motion, it just
+ * The button is Kers's corner scene (GuildBotScene), bottom-right, with the
+ * meeting pill stacked above it. Asks left this week show in the chat
+ * header; in the last three a genie's lamp sits beside him and he turns
+ * blue; with none left, knocking shows a not-allowed sign over him and a
+ * line saying when they come back. Tap it and you knock (at night he wakes,
+ * sits up and rubs an eye) and the chat rolls open with a greeting for his
+ * mood. From the keyboard, or with reduced motion, it just
  * opens. It opens:
  *  - on desktop, a full-height drawer on the right, next to the button. No
  *    dimming: the page stays scrollable and clickable, and moving to another
@@ -351,7 +351,6 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
           scene={scene}
           colour={colour}
           asks={asksState}
-          left={left}
           expression={expression}
           reacting={life.reacting}
           hop={life.hop}
@@ -837,7 +836,7 @@ function WelcomeCard({ text, onOpen, onDismiss }: { text: string; onOpen: () => 
     <div
       ref={ref}
       role="status"
-      // Just above the house: 5.25rem + ~4.4rem on a phone, 0.75rem + ~5rem on md.
+      // Just above his corner: 5.25rem + ~4.4rem on a phone, 0.75rem + ~5rem on md.
       className="fixed right-4 bottom-[10.25rem] md:right-6 md:bottom-[6.5rem] z-(--z-overlay) w-[min(18rem,calc(100vw-2rem))] animate-fade-up"
     >
       <div className="relative rounded-(--radius-card) border border-border bg-paper shadow-lg">

@@ -98,7 +98,7 @@ function Sheet() {
       <Section title="His day, and today's take on it">
         {DAY.map(d => (
           <Cell key={d.label} label={d.label}>
-            <GuildBotScene scene={d.scene} variant={d.variant ?? null} asks="normal" left={null} expression="smug" colour="smug" width={150} />
+            <GuildBotScene scene={d.scene} variant={d.variant ?? null} asks="normal" expression="smug" colour="smug" width={150} />
           </Cell>
         ))}
       </Section>

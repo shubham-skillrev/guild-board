@@ -658,15 +658,13 @@ body {
 
 /* ═══════════════════════════════════════════════════════
    GuildBot: his scenes, his house and himself
-   (GuildBotScene.tsx, GuildBotHome.tsx, GuildBotAvatar.tsx). Loops are CSS on transform and
+   (GuildBotScene.tsx). Loops are CSS on transform and
    opacity, so they keep running smoothly while the board loads; every one of
    them stops under reduced motion, which keeps fades and colour only.
    ═══════════════════════════════════════════════════════ */
-.gb-home svg [data-part] { transform-box: fill-box; }
 
 /* The knock: two raps that rattle the house, then the door swings in slowly
    on its hinge and GuildBot leans into the doorway. */
-.gb-home[data-knock] .gb-house { animation: gb-rap 460ms var(--motion-out); transform-origin: 50% 100%; }
 @keyframes gb-rap {
   0%, 44%, 100% { transform: translateX(0) rotate(0deg); }
   10% { transform: translateX(-1.5px) rotate(-1.2deg); }
@@ -674,14 +672,8 @@ body {
   56% { transform: translateX(-1.5px) rotate(-1.2deg); }
   70% { transform: translateX(1.2px) rotate(0.8deg); }
 }
-.gb-home [data-part='door'] { transform-origin: 0% 50%; transition: transform 560ms var(--motion-in-out); }
-.gb-home[data-door='open'] [data-part='door'] { transform: scaleX(0.14) skewY(-10deg); }
-.gb-home [data-part='doorway'] { opacity: 0; transform: translateY(8px); transition: opacity 260ms var(--motion-out), transform 420ms var(--motion-out); }
-.gb-home[data-door='open'] [data-part='doorway'] { opacity: 1; transform: translateY(0); transition-delay: 300ms; }
 
 /* Night: the torch burns. */
-.gb-home [data-part='flame'] { transform-origin: 50% 100%; animation: gb-flame 1.6s ease-in-out infinite; }
-.gb-home [data-part='glow'] { transform-origin: 50% 50%; animation: gb-glow 2.4s ease-in-out infinite; }
 @keyframes gb-flame {
   0%, 100% { transform: scale(1, 1) rotate(0deg); }
   30% { transform: scale(0.9, 1.1) rotate(-4deg); }
@@ -693,10 +685,6 @@ body {
 }
 
 /* Genie: smoke curls up, sparkles twinkle. */
-.gb-home [data-part='smoke'] { animation: gb-smoke 3s var(--motion-out) infinite; opacity: 0; }
-.gb-home [data-part='smoke'] + [data-part='smoke'] { animation-delay: 1.5s; }
-.gb-home [data-part='sparkle'] { transform-origin: 50% 50%; animation: gb-twinkle 1.8s ease-in-out infinite; }
-.gb-home [data-part='sparkle'] + [data-part='sparkle'] { animation-delay: 0.9s; }
 @keyframes gb-smoke {
   0% { opacity: 0; transform: translateY(4px) scale(0.9); }
   25% { opacity: 0.95; }
@@ -708,7 +696,6 @@ body {
 }
 
 /* Out of asks and knocked anyway: the window sputters, then stays dark. */
-.gb-home[data-flicker] [data-part='window'] { animation: gb-flicker 800ms linear; }
 @keyframes gb-flicker {
   0%, 100% { opacity: 0; }
   10%, 30%, 55% { opacity: 0.9; }
@@ -748,7 +735,6 @@ body {
 .gb-sign-text { fill: var(--color-ink); letter-spacing: 0.04em; }
 .gb-lamp-light { fill: #FFD47A; opacity: 0.22; }
 .gb-zzz { stroke: var(--color-ink-muted); }
-.gb-house .gb-zzz { stroke: #E9E4DA; }
 .gb-status { fill: var(--color-saffron); stroke: var(--color-saffron); }
 
 .gb-scene svg [data-part], .gb-scene svg [data-hand], .gb-scene svg [data-z],
@@ -900,7 +886,6 @@ body {
 /* Asleep: z's drift up. */
 .gb-zzz [data-z] { animation: gb-z 2.8s var(--motion-out) infinite; opacity: 0; }
 .gb-zzz [data-z] + [data-z] { animation-delay: 1.4s; }
-.gb-home[data-door='open'] .gb-house-zzz { display: none; }
 @keyframes gb-z { 0% { opacity: 0; transform: translate(0, 3px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(3px, -6px); } }
 
 /* You tapped him: a startled hop and a "!". */
@@ -1002,12 +987,8 @@ body {
   .gb-scene[data-trick='dance'] [data-part='bot'],
   .gb-hop { animation: none; }
   .gb-scene [data-part='note'], .gb-fumes [data-fume], .gb-hearts [data-heart] { animation: none; opacity: 0.8; }
-  .gb-home [data-part='smoke'], .gb-scene [data-part='steam'], .gb-zzz [data-z], .gb-status [data-wave] { animation: none; opacity: 0.7; }
   .gb-scene[data-knock] [data-part='exclaim'] { animation: none; opacity: 1; }
-  .gb-home[data-flicker] [data-part='window'] { animation: gb-flicker-calm 800ms ease; }
   .gb-home [data-part='door'],
-  .gb-home [data-part='doorway'] { transition: opacity 200ms ease; transform: none; }
-  .gb-home[data-door='open'] [data-part='door'] { transform: none; opacity: 0; }
 }
 @keyframes gb-flicker-calm {
   0%, 100% { opacity: 0; }

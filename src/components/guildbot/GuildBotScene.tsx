@@ -1,9 +1,8 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { activityAt, type Activity, type Expression, type Variant } from '@guildboard/guildbot'
 import type { AvatarStatus, KersColour } from '@/components/kers/look'
-import { GuildBotHome } from '@/components/guildbot/GuildBotHome'
 import { Kers, type KersState } from '@/components/kers/Kers'
 import type { KersPose } from '@/components/kers/poses'
 
@@ -11,7 +10,8 @@ import type { KersPose } from '@/components/kers/poses'
  * GuildBot's corner, as a little scene of whatever Kers is doing: his day
  * runs on the viewer's clock (schedule.ts in the package), so it's coffee in
  * the morning, the laptop through the day, lunch, a walk, a book, music,
- * meditation, and asleep in his house at night.
+ * meditation, and curled up asleep under a blanket at night (a knock or a
+ * reaction wakes him: he sits up and rubs an eye).
  *
  * Each scene is three layers: the room behind him (SVG), Kers himself (a
  * rendered pose, components/kers), and what's in front of him (SVG props:
@@ -65,7 +65,8 @@ export function kersState(status: AvatarStatus | null): KersState {
  * scene's, and where his middle sits (percent across) and his feet (percent
  * up from the bottom).
  */
-const STAGING: Record<Exclude<Scene, 'sleeping'>, { pose: KersPose; h: number; x: number; y: number }> = {
+const STAGING: Record<Scene, { pose: KersPose; h: number; x: number; y: number }> = {
+  sleeping: { pose: 'asleep', h: 0.92, x: 52, y: 2 },
   coding: { pose: 'laptop', h: 0.9, x: 52, y: 2 },
   coffee: { pose: 'mug', h: 0.9, x: 52, y: 2 },
   lunch: { pose: 'sitting', h: 0.86, x: 50, y: 4 },
@@ -83,7 +84,6 @@ const STAGING: Record<Exclude<Scene, 'sleeping'>, { pose: KersPose; h: number; x
 export function GuildBotScene({
   scene,
   asks,
-  left,
   expression,
   colour = 'smug',
   reacting = false,
@@ -91,7 +91,6 @@ export function GuildBotScene({
   knocking = false,
   away = false,
   doorOpen = false,
-  doorway,
   trick = null,
   variant = null,
   mug = true,
@@ -100,8 +99,6 @@ export function GuildBotScene({
 }: {
   scene: Scene
   asks: Asks
-  /** Asks left this week, for the sign at his house; null for guests. */
-  left: number | null
   /** His mood, or a live reaction. */
   expression: Expression
   /** His fill: the month's mood, genie blue, or meeting plum. */
@@ -112,9 +109,8 @@ export function GuildBotScene({
   knocking?: boolean
   /** He's out (strolling, or over at the chat): an empty spot. */
   away?: boolean
-  /** Asleep in the house: its door, and who stands in it. */
+  /** Asleep, and woken for a moment (a knock, or a reaction): he sits up rubbing an eye. */
   doorOpen?: boolean
-  doorway?: ReactNode
   trick?: Trick
   /** Today's version of the activity: iced coffee, a tiffin lunch, the guitar. */
   variant?: Variant
@@ -124,26 +120,14 @@ export function GuildBotScene({
   cursor?: KersState
   width?: number
 }) {
-  if (scene === 'sleeping') {
-    return (
-      <GuildBotHome
-        look="night"
-        left={left}
-        width={width * 0.8}
-        knocking={knocking}
-        door={doorOpen ? 'open' : 'closed'}
-        doorway={doorway}
-        genie={asks === 'genie'}
-      />
-    )
-  }
   const genie = asks === 'genie'
   const out = asks === 'out'
   const paint: KersColour = genie ? 'genie' : scene === 'meeting' ? 'meeting' : colour
   const face: Expression = reacting || trick ? expression : restingFace(scene, expression)
   const height = (width * 90) / 120
   const stage = STAGING[scene]
-  const pose: KersPose = scene === 'coffee' && variant === 'iced' ? 'sitting' : stage.pose
+  const awake = scene === 'sleeping' && (knocking || doorOpen)
+  const pose: KersPose = awake ? 'rubbing' : scene === 'coffee' && variant === 'iced' ? 'sitting' : stage.pose
   const guitar = scene === 'music' && variant === 'guitar'
 
   return (
@@ -169,9 +153,9 @@ export function GuildBotScene({
         >
           <Kers
             pose={trick === 'dance' ? 'arms-up' : pose}
-            motion={trick === 'dance' ? 'dance' : scene === 'walking' ? 'walk' : 'idle'}
+            motion={trick === 'dance' ? 'dance' : scene === 'walking' ? 'walk' : awake ? 'hop' : 'idle'}
             colour={paint}
-            expression={face}
+            expression={awake ? 'sleepy' : face}
             state={cursor ?? kersState(status)}
             wear={scene === 'music' && !guitar ? 'headphones' : null}
             size={Math.round(height * stage.h)}
@@ -231,6 +215,16 @@ function Backdrop({ scene }: { scene: Scene }) {
           <circle cx={9} cy={52} r={8} className="gb-leaf" strokeWidth={1.4} />
           <path d="M0 86h120" stroke="#16774F" strokeWidth={3} strokeOpacity={0.5} />
           <path d="M40 86l2-4 2 4M92 86l2-4 2 4M108 86l2-4 2 4" stroke="#16774F" strokeWidth={1.2} fill="none" strokeOpacity={0.7} />
+        </g>
+      )
+    case 'sleeping':
+      // Night: a moon, a few stars.
+      return (
+        <g>
+          <path d="M100 8a10 10 0 1 0 8 16 8 8 0 1 1-8-16Z" fill="#F4E7B8" />
+          <circle cx={22} cy={14} r={1.2} fill="#F4E7B8" />
+          <circle cx={40} cy={6} r={0.9} fill="#F4E7B8" />
+          <circle cx={84} cy={30} r={1} fill="#F4E7B8" />
         </g>
       )
     case 'rainwatch':
@@ -294,6 +288,14 @@ function Foreground({ scene, variant, guitar }: { scene: Scene; variant: Variant
         <path d="M0 0h9l-1 14h-7Z" fill="#F6E27A" fillOpacity={0.9} className="gb-line" strokeWidth={1.2} strokeLinejoin="round" />
         <path d="M6 0l3-6" className="gb-line" strokeWidth={1.2} strokeLinecap="round" />
         <circle cx={2} cy={0} r={2.4} fill="#9BCB4C" />
+      </g>
+    )
+  }
+  if (scene === 'sleeping') {
+    return (
+      <g className="gb-zzz" fill="#8A8F9C">
+        <text data-z x={84} y={50} fontSize={10} fontWeight={700}>z</text>
+        <text data-z x={92} y={40} fontSize={7} fontWeight={700}>z</text>
       </g>
     )
   }

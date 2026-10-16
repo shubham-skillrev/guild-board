@@ -11,13 +11,15 @@ export type KersPose =
   | 'standing' | 'sitting' | 'walk-a' | 'walk-b' | 'arms-up' | 'waving' | 'asleep'
   // His day: at the laptop, coffee, a book, meditating, brushing his teeth.
   | 'laptop' | 'mug' | 'reading' | 'meditating' | 'brushing'
+  // Woken at night: sitting up, rubbing an eye.
+  | 'rubbing'
 
 export type Point = [number, number]
 
 export interface Rig {
   /** Body moved down (sitting). */
   dy: number
-  /** Asleep: on his side. */
+  /** Asleep: slumped over under a blanket, eyes shut. */
   lying?: boolean
   /** Where his hands end up (body coordinates). */
   hands: [Point, Point]
@@ -25,7 +27,7 @@ export interface Rig {
   feet: [Point, Point]
   /** Arms in front of his body (holding things) rather than at his sides. */
   front?: boolean
-  prop?: 'laptop' | 'mug' | 'book' | 'cushion' | 'toothbrush'
+  prop?: 'laptop' | 'mug' | 'book' | 'cushion' | 'toothbrush' | 'blanket'
   /** The arm that waves. */
   wave?: 'left' | 'right'
 }
@@ -45,7 +47,8 @@ export const RIGS: Record<KersPose, Rig> = {
   sitting: { dy: 12, hands: [[40, 186], [138, 190]], feet: SIT_FEET },
   'arms-up': { dy: -2, hands: [[30, 130], [148, 136]], feet: FEET },
   waving: { dy: 0, hands: [[28, 132], REST[1]], feet: FEET, wave: 'left' },
-  asleep: { dy: 12, lying: true, hands: [[66, 182], [112, 184]], feet: SIT_FEET },
+  asleep: { dy: 18, lying: true, hands: [[66, 182], [112, 184]], feet: SIT_FEET, prop: 'blanket' },
+  rubbing: { dy: 12, hands: [[40, 186], [112, 132]], feet: SIT_FEET, front: true },
   laptop: { dy: 12, hands: [[76, 178], [112, 178]], feet: SIT_FEET, prop: 'laptop' },
   mug: { dy: 12, hands: [[78, 178], [112, 178]], feet: SIT_FEET, front: true, prop: 'mug' },
   reading: { dy: 12, hands: [[48, 178], [138, 176]], feet: SIT_FEET, front: true, prop: 'book' },

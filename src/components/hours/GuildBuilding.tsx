@@ -141,7 +141,7 @@ export function GuildBuilding({
       ) : (
         <foreignObject x={124} y={324} width={104} height={56}>
           <div className="w-full h-full flex items-end justify-center">
-            <GuildBotScene scene={scene.activity} asks="normal" left={null} expression="smug" mug={false} width={74} />
+            <GuildBotScene scene={scene.activity} asks="normal" expression="smug" mug={false} width={74} />
           </div>
         </foreignObject>
       )}

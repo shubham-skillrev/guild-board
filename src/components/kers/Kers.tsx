@@ -140,7 +140,7 @@ function Figure({ rig, dye, face, look, weather, wear }: {
   const hip = (i: 0 | 1): Point => [HIPS[i][0], HIPS[i][1] + rig.dy]
 
   return (
-    <g transform={rig.lying ? 'translate(4 236) rotate(-90) scale(0.9)' : undefined}>
+    <g>
       <defs>
         <linearGradient id={`${id}-face`} gradientUnits="userSpaceOnUse" x1={52} y1={20} x2={150} y2={200}>
           <stop offset="0%" stopColor={mix(dye, '#FFFFFF', 0.35)} />
@@ -163,8 +163,8 @@ function Figure({ rig, dye, face, look, weather, wear }: {
       <ellipse cx={86} cy={231} rx={rig.dy > 0 ? 62 : 48} ry={5.5} fill="#000" opacity={0.2} filter={`url(#${id}-ground)`} />
       {rig.prop === 'cushion' && <Cushion />}
 
-      {/* Legs: thin lines down to round feet, behind the cursor's bottom edge. */}
-      {HIPS.map((_, i) => {
+      {/* Legs: thin lines down to round feet, behind the cursor's bottom edge. Tucked under the blanket when he's asleep. */}
+      {!rig.lying && HIPS.map((_, i) => {
         const h = hip(i as 0 | 1)
         const f = rig.feet[i]
         return (
@@ -176,8 +176,8 @@ function Figure({ rig, dye, face, look, weather, wear }: {
         )
       })}
 
-      <g className="kx-body" transform={rig.dy ? `translate(0 ${rig.dy})` : undefined}>
-        {!rig.front && <Arms rig={rig} ink={ink} />}
+      <g className="kx-body" transform={rig.lying ? `translate(0 ${rig.dy}) rotate(-16 100 200)` : rig.dy ? `translate(0 ${rig.dy})` : undefined}>
+        {!rig.front && !rig.lying && <Arms rig={rig} ink={ink} />}
 
         {/* A soft drop shadow behind him for depth, then a thin white edge round his outline (so he reads on any background), then him. */}
         <path d={BODY} transform="translate(7 9)" fill="#000" stroke="#000" strokeWidth={OUTLINE} strokeLinejoin="round" opacity={0.16} filter={`url(#${id}-blur)`} />
@@ -196,6 +196,7 @@ function Figure({ rig, dye, face, look, weather, wear }: {
         {rig.front && <Arms rig={rig} ink={ink} />}
         {rig.prop === 'toothbrush' && <Toothbrush hand={rig.hands[1]} />}
       </g>
+      {rig.prop === 'blanket' && <Blanket />}
     </g>
   )
 }
@@ -369,6 +370,16 @@ function Mug() {
       <rect x={82} y={164} width={26} height={26} rx={5} fill="#4A6A8A" stroke="#33506B" strokeWidth={1.5} />
       <ellipse cx={95} cy={166} rx={11} ry={2.8} fill="#5A3A22" />
       <path d="M86 170v14" stroke="#FFFFFF" strokeOpacity={0.3} strokeWidth={3} strokeLinecap="round" />
+    </g>
+  )
+}
+
+/** Asleep: a striped blanket pulled up over his lap, on the ground. */
+function Blanket() {
+  return (
+    <g>
+      <path d="M22 192Q100 172 182 186L186 228Q100 238 18 228Z" fill="#6E86B8" stroke="#2B2B2B" strokeWidth={3} strokeLinejoin="round" />
+      <path d="M22 204Q100 186 183 199M20 217Q100 202 185 213" stroke="#9AB0DA" strokeWidth={5} fill="none" strokeLinecap="round" />
     </g>
   )
 }

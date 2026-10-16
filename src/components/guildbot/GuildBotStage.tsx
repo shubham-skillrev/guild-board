@@ -41,7 +41,6 @@ export function GuildBotStage({
   scene,
   colour,
   asks,
-  left,
   expression,
   reacting,
   hop,
@@ -75,7 +74,6 @@ export function GuildBotStage({
   /** His felt colour (the chat works it out: mood, genie, meeting). */
   colour: KersColour
   asks: Asks
-  left: number | null
   expression: Expression
   reacting: boolean
   hop: number
@@ -113,12 +111,12 @@ export function GuildBotStage({
   /** Talk to him: the knock, then the chat. */
   onTalk: (e: React.MouseEvent) => void
 }) {
-  const atHouse = scene === 'sleeping'
+  const asleep = scene === 'sleeping'
   const slot = useSlot(usePathname() === '/focus' ? 'gb-focus-slot' : null)
   // On the focus page he stays at his spot in the card: no strolls, no walks across the screen.
-  const stroll = useStroll(bubble, desktop && !open && !hidden && !reduce && !atHouse && !patrol && !slot && !trick)
-  const walk = usePatrol(patrol, !open && !hidden && !reduce && !atHouse && !slot, onPatrolEnd)
-  const dancing = trick === 'dance' && !open && !atHouse
+  const stroll = useStroll(bubble, desktop && !open && !hidden && !reduce && !asleep && !patrol && !slot && !trick)
+  const walk = usePatrol(patrol, !open && !hidden && !reduce && !asleep && !slot, onPatrolEnd)
+  const dancing = trick === 'dance' && !open && !asleep
   // Tap him: he asks what you want. "Do something" opens his actions panel,
   // which stays open while he performs; "Let's talk" is the knock.
   const [choice, setChoice] = useState(false)
@@ -133,16 +131,16 @@ export function GuildBotStage({
   const act = (t: Trick) => { onTrick(t); setPanel(energy()) }
   const [peek, setPeek] = useState(false)
 
-  // A reaction at night: he leans out of his door for a moment.
+  // A reaction at night: he wakes and sits up for a moment.
   const lastHop = useRef(hop)
   useEffect(() => {
     if (hop === lastHop.current) return
     lastHop.current = hop
-    if (hidden || open || !atHouse) return
+    if (hidden || open || !asleep) return
     const on = setTimeout(() => setPeek(true), 0)
     const off = setTimeout(() => setPeek(false), 2600)
     return () => { clearTimeout(on); clearTimeout(off) }
-  }, [hop, hidden, open, atHouse])
+  }, [hop, hidden, open, asleep])
 
   const strolling = stroll !== 'home'
   const [hiddenDoing, hideDoing] = useHiddenDoing()
@@ -333,13 +331,12 @@ export function GuildBotStage({
           aria-label={label}
           className={cn('relative rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4', slot && 'cursor-default')}
         >
-          <span key={atHouse ? 'house' : hop} className={cn('block', !atHouse && !strolling && hop > 0 && 'gb-hop')}>
+          <span key={asleep ? 'asleep' : hop} className={cn('block', !asleep && !strolling && hop > 0 && 'gb-hop')}>
             <GuildBotScene
               scene={scene}
               // On the focus page he's working with you: nothing about chat asks
               // (no mug count, genie lamp, or napping behind an OUT sign).
               asks={slot ? 'normal' : asks}
-              left={slot ? null : left}
               mug={!slot}
               expression={expression}
               colour={colour}
@@ -350,13 +347,6 @@ export function GuildBotStage({
               trick={trick}
               variant={variant}
               doorOpen={knock === 'door' || peek || !!lightsOut}
-              doorway={
-                hidden ? null : (
-                  <span key={hop} className="gb-hop block">
-                    <Kers colour={colour} expression={lightsOut ? 'sleepy' : expression} size={22} motion="still" />
-                  </span>
-                )
-              }
               width={width}
             />
           </span>
