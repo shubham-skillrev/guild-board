@@ -138,7 +138,7 @@ export function Kers({
             <Mark dye={dye} />
           ) : (
             <>
-              <Figure rig={rig} dye={dye} face={face} eyes={eyes} look={look} weather={weather} wear={wear} />
+              <Figure rig={rig} dye={dye} face={face} eyes={eyes} look={look} weather={weather} wear={wear} fur={size >= 40} />
               <States rig={rig} state={state} />
             </>
           )}
@@ -177,10 +177,12 @@ function useJiggle(motion: KersMotion): boolean {
   return on
 }
 
-type Ink = { line: string; fill: string }
+type Ink = { line: string; fill: string; fur?: string }
 
 /** Him, layered back to front for depth. */
-function Figure({ rig, dye, face, eyes, look, weather, wear }: {
+function Figure({ rig, dye, face, eyes, look, weather, wear, fur }: {
+  /** Fuzzy edge and fur grain (skipped when he's small). */
+  fur: boolean
   rig: Rig
   dye: string
   face: Expression
@@ -190,25 +192,36 @@ function Figure({ rig, dye, face, eyes, look, weather, wear }: {
   wear: KersWear
 }) {
   const id = useId().replace(/:/g, '')
-  const ink: Ink = { line: `url(#${id}-ink)`, fill: `url(#${id}-ball)` }
+  const ink: Ink = { line: mix(dye, '#2A1A10', 0.62), fill: `url(#${id}-ball)`, fur: fur ? `url(#${id}-fur)` : undefined }
   const hip = (i: 0 | 1): Point => [HIPS[i][0], HIPS[i][1] + rig.dy]
 
   return (
     <g>
       <defs>
-        <linearGradient id={`${id}-face`} gradientUnits="userSpaceOnUse" x1={52} y1={20} x2={150} y2={200}>
-          <stop offset="0%" stopColor={mix(dye, '#FFFFFF', 0.35)} />
-          <stop offset="60%" stopColor={mix(dye, '#F2EFEA', 0.06)} />
-          <stop offset="100%" stopColor={mix(dye, '#5A5048', 0.16)} />
-        </linearGradient>
-        <linearGradient id={`${id}-ink`} gradientUnits="userSpaceOnUse" x1={30} y1={10} x2={170} y2={230}>
-          <stop offset="0%" stopColor="#4A4A4A" />
-          <stop offset="100%" stopColor="#1A1A1A" />
-        </linearGradient>
-        <radialGradient id={`${id}-ball`} cx="38%" cy="32%" r="70%">
-          <stop offset="0%" stopColor={WHITE} />
-          <stop offset="100%" stopColor="#DCD8D0" />
+        {/* Lit from the top left, falling into shadow toward the bottom right: depth without an outline. */}
+        <radialGradient id={`${id}-face`} gradientUnits="userSpaceOnUse" cx={78} cy={72} r={175}>
+          <stop offset="0%" stopColor={mix(dye, '#FFFFFF', 0.5)} />
+          <stop offset="42%" stopColor={dye} />
+          <stop offset="100%" stopColor={mix(dye, '#7A4A2E', 0.24)} />
         </radialGradient>
+        <radialGradient id={`${id}-ball`} cx="36%" cy="30%" r="75%">
+          <stop offset="0%" stopColor={mix(dye, '#FFFFFF', 0.55)} />
+          <stop offset="100%" stopColor={mix(dye, '#4A2E1E', 0.28)} />
+        </radialGradient>
+        <clipPath id={`${id}-clip`}><path d={BODY} /></clipPath>
+        {fur && (
+          // Fur: a softly ragged edge and a fine grain of dark and light flecks.
+          <filter id={`${id}-fur`} x="-10%" y="-10%" width="120%" height="120%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="5" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G" result="fuzzy" />
+            <feTurbulence type="fractalNoise" baseFrequency="2.1" numOctaves="1" seed="9" result="grain" />
+            <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0.3  0 0 0 0 0.18  0 0 0 0 0.1  0 0 0 0.2 -0.06" result="dark" />
+            <feComposite in="dark" in2="fuzzy" operator="in" result="darkFur" />
+            <feColorMatrix in="grain" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0.45 0 0 0 -0.16" result="light" />
+            <feComposite in="light" in2="fuzzy" operator="in" result="lightFur" />
+            <feMerge><feMergeNode in="fuzzy" /><feMergeNode in="darkFur" /><feMergeNode in="lightFur" /></feMerge>
+          </filter>
+        )}
         <filter id={`${id}-blur`} x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5" /></filter>
         <filter id={`${id}-ground`} x="-30%" y="-200%" width="160%" height="500%"><feGaussianBlur stdDeviation="3.5" /></filter>
       </defs>
@@ -232,13 +245,17 @@ function Figure({ rig, dye, face, eyes, look, weather, wear }: {
       <g className="kx-body" data-typing={rig.typing ? '' : undefined} transform={rig.lying ? `translate(0 ${rig.dy}) rotate(-16 100 200)` : `translate(0 ${rig.dy})${rig.tilt ? ` rotate(${rig.tilt} 100 205)` : ''}`}>
         {!rig.front && !rig.lying && <Arms rig={rig} ink={ink} />}
 
-        {/* A soft drop shadow behind him for depth, then a thin white edge round his outline (so he reads on any background), then him. */}
-        <path d={BODY} transform="translate(7 9)" fill="#000" stroke="#000" strokeWidth={OUTLINE} strokeLinejoin="round" opacity={0.16} filter={`url(#${id}-blur)`} />
-        <path d={BODY} fill={WHITE} stroke={WHITE} strokeOpacity={0.85} strokeWidth={OUTLINE + 5} strokeLinejoin="round" />
-        <path d={BODY} fill={`url(#${id}-face)`} stroke={ink.line} strokeWidth={OUTLINE} strokeLinejoin="round" />
-        {/* Light on his puffy top: a soft glow and a shine along his straight edge. */}
-        <ellipse cx={76} cy={90} rx={14} ry={26} fill={WHITE} opacity={0.4} filter={`url(#${id}-blur)`} />
-        <path d="M62 74V184M68 64l50 50" stroke={WHITE} strokeWidth={3.2} strokeLinecap="round" fill="none" opacity={0.6} />
+        {/* No outline: a soft shadow behind him, then him, shaded like a plush toy (lit top left, shadow
+            gathering inside his bottom-right edges, a soft glow on top), all through a fuzzy fur filter. */}
+        <path d={BODY} transform="translate(6 9)" fill="#000" stroke="#000" strokeWidth={OUTLINE} strokeLinejoin="round" opacity={0.2} filter={`url(#${id}-blur)`} />
+        <g filter={ink.fur}>
+          <path d={BODY} fill={`url(#${id}-face)`} stroke={`url(#${id}-face)`} strokeWidth={5} strokeLinejoin="round" />
+          <g clipPath={`url(#${id}-clip)`}>
+            <path d={BODY} transform="translate(-8 -9)" fill="none" stroke="#6A3A1E" strokeOpacity={0.22} strokeWidth={22} filter={`url(#${id}-blur)`} />
+            <path d={BODY} transform="translate(7 8)" fill="none" stroke={WHITE} strokeOpacity={0.6} strokeWidth={18} filter={`url(#${id}-blur)`} />
+            <ellipse cx={78} cy={92} rx={18} ry={30} fill={WHITE} opacity={0.35} filter={`url(#${id}-blur)`} />
+          </g>
+        </g>
 
         <Face face={face} eyes={eyes} look={look} lid={dye} />
         {!rig.lying && !rig.sleep && <Mark4 face={face} />}
@@ -255,26 +272,26 @@ function Figure({ rig, dye, face, eyes, look, weather, wear }: {
   )
 }
 
-/** A bendy noodle limb: a thin curved line (rubber-hose style), with a white edge so it reads on dark backgrounds. */
+/** A bendy noodle limb: a thin curved line (rubber-hose style) in a deep shade of his colour, with a faint light edge so it reads on dark backgrounds. */
 function Noodle({ a, b, bend, ink }: { a: Point; b: Point; bend: number; ink: Ink }) {
   const [mx, my] = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
   const [dx, dy] = [b[0] - a[0], b[1] - a[1]]
   const d = `M${a[0]} ${a[1]}Q${mx - dy * bend} ${my + dx * bend} ${b[0]} ${b[1]}`
   return (
     <>
-      <path d={d} stroke={WHITE} strokeOpacity={0.85} strokeWidth={7.5} strokeLinecap="round" fill="none" />
+      <path d={d} stroke={WHITE} strokeOpacity={0.4} strokeWidth={6.5} strokeLinecap="round" fill="none" />
       <path d={d} stroke={ink.line} strokeWidth={4} strokeLinecap="round" fill="none" />
     </>
   )
 }
 
-/** A round hand or foot: white, outlined, lit from the top left. */
+/** A round hand or foot: a fuzzy ball in his colour, lit from the top left, with a soft shadow. */
 function Ball({ x, y, rx, ry, ink }: { x: number; y: number; rx: number; ry: number; ink: Ink }) {
   return (
     <g>
-      <ellipse cx={x} cy={y} rx={rx + 2} ry={ry + 2} fill={WHITE} opacity={0.85} />
-      <ellipse cx={x} cy={y} rx={rx} ry={ry} fill={ink.fill} stroke={ink.line} strokeWidth={3} />
-      <ellipse cx={x - rx * 0.35} cy={y - ry * 0.4} rx={rx * 0.32} ry={ry * 0.26} fill={WHITE} opacity={0.9} />
+      <ellipse cx={x + 1.5} cy={y + 2.5} rx={rx} ry={ry} fill="#000" opacity={0.16} />
+      <ellipse cx={x} cy={y} rx={rx} ry={ry} fill={ink.fill} filter={ink.fur} />
+      <ellipse cx={x - rx * 0.35} cy={y - ry * 0.4} rx={rx * 0.3} ry={ry * 0.24} fill={WHITE} opacity={0.55} />
     </g>
   )
 }
@@ -301,7 +318,7 @@ function Arms({ rig, ink }: { rig: Rig; ink: Ink }) {
 function Mark({ dye }: { dye: string }) {
   return (
     <g>
-      <path d={BODY} fill={dye} stroke={SUMI} strokeWidth={OUTLINE + 4} strokeLinejoin="round" />
+      <path d={BODY} fill={dye} stroke={mix(dye, '#4A2E1E', 0.3)} strokeWidth={OUTLINE} strokeLinejoin="round" />
       <circle cx={EYES[0][0]} cy={EYES[0][1]} r={11} fill={SUMI} />
       <circle cx={EYES[1][0]} cy={EYES[1][1]} r={11} fill={SUMI} />
     </g>
