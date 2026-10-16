@@ -104,7 +104,7 @@ export function GuildBotStage({
   const atHouse = scene === 'sleeping'
   const slot = useSlot(usePathname() === '/focus' ? 'gb-focus-slot' : null)
   // On the focus page he stays at his spot in the card: no strolls, no walks across the screen.
-  const stroll = useStroll(bubble, desktop && !open && !hidden && !reduce && !atHouse && !patrol && !slot)
+  const stroll = useStroll(bubble, desktop && !open && !hidden && !reduce && !atHouse && !patrol && !slot && !trick)
   const walk = usePatrol(patrol, !open && !hidden && !reduce && !atHouse && !slot, onPatrolEnd)
   const dancing = trick === 'dance' && !open && !atHouse
   // Tap him: he asks what you want. "Do something" opens his actions panel,
@@ -342,7 +342,9 @@ function useStroll(bubble: Bubble | null, enabled: boolean): Stroll {
       setTimeout(() => setStroll('walking-in'), 6000),
       setTimeout(() => setStroll('home'), 6000 + STROLL_MS),
     ]
-    return () => t.forEach(clearTimeout)
+    // Cut short (a trick, a walk, the chat): he's back at his spot, not left
+    // standing outside while the next thing draws him again at his desk.
+    return () => { t.forEach(clearTimeout); setStroll('home') }
   }, [id, enabled, stay])
   return enabled ? stroll : 'home'
 }
