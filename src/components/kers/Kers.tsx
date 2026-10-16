@@ -293,7 +293,7 @@ function Noodle({ a, b, bend, ink }: { a: Point; b: Point; bend: number; ink: In
   const d = `M${a[0]} ${a[1]}Q${mx - dy * bend} ${my + dx * bend} ${b[0]} ${b[1]}`
   return (
     <>
-      <path d={d} stroke={WHITE} strokeOpacity={0.4} strokeWidth={6.5} strokeLinecap="round" fill="none" />
+      <path d={d} className="kx-halo" strokeWidth={7} strokeLinecap="round" fill="none" />
       <path d={d} stroke={ink.line} strokeWidth={4} strokeLinecap="round" fill="none" />
     </>
   )
@@ -361,11 +361,19 @@ function Face({ face, eyes, look, lid }: { face: Expression; eyes: KersEyes; loo
             </>
           )}
           <g className={side ? 'kx-brow-r' : 'kx-brow-l'}>
-            {/* Short brows, a clear gap between them and a little above each eye. */}
+            {/* Short brows, a clear gap between them and a little above each eye. A light halo
+                under them in dark mode, for when a brow pokes past his outline onto black. */}
             <path
               d="M-6.5 0H6.5"
               transform={`translate(${side ? 1.5 : -1.5} ${-shape.r - 9 - brow.lift[side]}) rotate(${brow.tilt[side]})`}
-              stroke={SUMI}
+              className="kx-halo"
+              strokeWidth={6}
+              strokeLinecap="round"
+            />
+            <path
+              d="M-6.5 0H6.5"
+              transform={`translate(${side ? 1.5 : -1.5} ${-shape.r - 9 - brow.lift[side]}) rotate(${brow.tilt[side]})`}
+              className="kx-ink"
               strokeWidth={3}
               strokeDasharray="2.8 1.8"
               strokeLinecap="round"
@@ -416,7 +424,7 @@ function Mark4({ face }: { face: Expression }) {
         </g>
       )
     case 'nosy':
-      return <text x={116} y={92} fontSize={22} fontWeight={800} fill="#1A1A1F" className="kx-mark">?</text>
+      return <text x={116} y={92} fontSize={22} fontWeight={800} className="kx-mark kx-ink-fill">?</text>
     case 'lonely':
       return <path className="kx-mark" d="M118 78c4 6 6 9 6 11.5a6 6 0 0 1-12 0c0-2.5 2-5.5 6-11.5Z" fill="#8EC2FF" stroke="#4A7FC0" strokeWidth={1.2} />
     default:
@@ -564,14 +572,14 @@ function States({ rig, state }: { rig: Rig; state: KersState }) {
   if (state === 'thinking') {
     const r = 112
     const c = 2 * Math.PI * r
-    return <circle className="gb-kers-spin" cx={CENTRE[0]} cy={CENTRE[1] + rig.dy} r={r} fill="none" stroke={SUMI} strokeOpacity={0.3} strokeWidth={5} strokeLinecap="round" strokeDasharray={`${c * 0.22} ${c * 0.78}`} />
+    return <circle className="gb-kers-spin kx-ink" cx={CENTRE[0]} cy={CENTRE[1] + rig.dy} r={r} fill="none" strokeOpacity={0.35} strokeWidth={5} strokeLinecap="round" strokeDasharray={`${c * 0.22} ${c * 0.78}`} />
   }
   if (state === 'writing') {
-    return <path className="gb-kers-caret" d="M176 96v40M169 96h14M169 136h14" stroke={SUMI} strokeWidth={4} strokeLinecap="round" fill="none" />
+    return <path className="gb-kers-caret kx-ink" d="M176 96v40M169 96h14M169 136h14" strokeWidth={4} strokeLinecap="round" fill="none" />
   }
   if (state === 'pleased') {
     return (
-      <g className="gb-kers-ripple" fill="none" stroke={SUMI} strokeWidth={3}>
+      <g className="gb-kers-ripple kx-ink" fill="none" strokeWidth={3}>
         <circle cx={tx} cy={ty} r={12} />
         <circle cx={tx} cy={ty} r={12} />
       </g>

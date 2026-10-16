@@ -722,12 +722,12 @@ body {
 .dark .gb-bot, .dark .gb-scene {
   --gb-shell-hi: #3A3A42;
   --gb-shell-lo: #24242A;
-  --gb-wood-top: color-mix(in oklab, var(--color-saffron) 34%, #3A3530);
-  --gb-wood-front: color-mix(in oklab, var(--color-saffron) 40%, #2A2622);
+  --gb-wood-top: color-mix(in oklab, var(--color-saffron) 38%, #5A5048);
+  --gb-wood-front: color-mix(in oklab, var(--color-saffron) 42%, #463E36);
   --gb-line: #7C746B;
   --gb-edge: rgba(0, 0, 0, 0.45);
   --gb-laptop: #3A3E48;
-  --gb-pot: #4A4640;
+  --gb-pot: #6A6258;
   --gb-page: #D9D2C6;
   --gb-shadow: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55)) drop-shadow(0 8px 10px rgba(0, 0, 0, 0.45));
 }
@@ -1061,6 +1061,16 @@ body {
 /* Kers (components/kers): breathes, bobs as he walks, hops; his cursor
    states spin, blink and ripple. Transform and opacity only. */
 .gb-kers .gb-kers-body { transform-origin: 50% 100%; }
+/* His dark lines (brows, limbs, marks, cursor states) per theme: near-black
+   on light; on dark the same ink with a soft light halo underneath, so
+   anything that pokes past his body onto black still shows. */
+.gb-kers .kx-ink { stroke: #1F1D24; }
+.gb-kers .kx-ink-fill { fill: #1F1D24; }
+.gb-kers .kx-halo { stroke: transparent; }
+.dark .gb-kers .kx-ink { stroke: #24212B; }
+.dark .gb-kers .kx-ink-fill { fill: #EDE8E1; }
+.dark .gb-kers .kx-halo { stroke: rgba(237, 232, 225, 0.55); }
+.dark .gb-kers .gb-kers-spin, .dark .gb-kers .gb-kers-caret, .dark .gb-kers .gb-kers-ripple { stroke: #EDE8E1; }
 /* Dark mode: his colour lifted a touch, with a faint glow in it, so he pops on black. */
 .dark .gb-kers .gb-kers-body > svg { filter: brightness(1.08) saturate(1.05) drop-shadow(0 0 7px var(--kers-glow)); }
 .gb-kers[data-motion='idle'] .gb-kers-body { animation: gb-kers-breathe 4.2s ease-in-out infinite; }
