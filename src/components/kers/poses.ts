@@ -11,7 +11,10 @@
  * shows a rough placeholder in its place (KersPlaceholder) so everything
  * around him can be built and checked first.
  */
-export type KersPose = 'standing' | 'sitting' | 'walk-a' | 'walk-b' | 'arms-up' | 'waving' | 'asleep'
+export type KersPose =
+  | 'standing' | 'sitting' | 'walk-a' | 'walk-b' | 'arms-up' | 'waving' | 'asleep'
+  // His day: at the laptop, coffee, a book, meditating, brushing his teeth.
+  | 'laptop' | 'mug' | 'reading' | 'meditating' | 'brushing'
 
 type Point = [number, number]
 
@@ -46,4 +49,10 @@ export const KERS_POSES: Record<KersPose, PoseSpec> = {
   'arms-up': { w: 497, h: 640, ready: true, eyes: [[175, 232], [275, 232]], eyeR: 42, tip: [115, 35], centre: [240, 330], hand: [440, 240], arms: [[-34, -96], [40, -96]] },
   waving: { w: 481, h: 640, ready: true, eyes: [[178, 232], [278, 232]], eyeR: 42, tip: [120, 30], centre: [240, 330], hand: [45, 205], arms: [[-58, 70], [52, -100]] },
   asleep: { w: 1046, h: 640, ready: true, eyes: [[330, 248], [450, 262]], eyeR: 44, tip: [60, 110], centre: [480, 330], hand: [870, 400], arms: [[-40, 60], [40, 60]] },
+  // Still to render (docs/kers/prompts.md, prompts 9 to 13).
+  laptop: { ...frame, arms: [[60, 40], [-10, 60]] },
+  mug: { ...frame, arms: [[54, -20], [-20, 40]] },
+  reading: { ...frame, arms: [[50, 30], [-10, 40]] },
+  meditating: { ...frame, arms: [[-30, 80], [30, 80]] },
+  brushing: { ...frame, arms: [[-58, 70], [-40, -40]] },
 }

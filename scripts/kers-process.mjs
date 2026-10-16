@@ -5,7 +5,7 @@
 //   node scripts/kers-process.mjs <folder of PNGs>
 //
 // Each <pose>.png (standing, sitting, walk-a, walk-b, arms-up, waving,
-// asleep) becomes public/kers/<pose>/body.webp and piping.webp, trimmed to
+// asleep, laptop, mug, reading, meditating, brushing) becomes public/kers/<pose>/body.webp and piping.webp, trimmed to
 // the character, 640px tall. The white background (and the generator's
 // floor shadow) is cut away; the chroma-green piping is split off, keeping
 // its shading as grey. Prints each pose's size for src/components/kers/poses.ts.
@@ -13,7 +13,7 @@ import sharp from 'sharp'
 import { mkdirSync, readdirSync } from 'node:fs'
 import { basename, join } from 'node:path'
 
-const POSES = ['standing', 'sitting', 'walk-a', 'walk-b', 'arms-up', 'waving', 'asleep']
+const POSES = ['standing', 'sitting', 'walk-a', 'walk-b', 'arms-up', 'waving', 'asleep', 'laptop', 'mug', 'reading', 'meditating', 'brushing']
 const HEIGHT = 640
 const PAD = 12
 
