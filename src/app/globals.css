@@ -156,6 +156,14 @@
   --z-scrim: 50;     /* sheets, modals, their backdrop */
   --z-toast: 60;     /* transient confirmations, never blocking */
 
+  /* ─── Motion curves ───
+     Strong curves for UI (Emil Kowalski's set): the built-in ease-out is too
+     weak to read as deliberate. ease-out for anything entering or leaving,
+     ease-in-out for things moving on screen, drawer for sheets. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
   /* ─── Shape lock ───
      Three shapes: inputs and small controls are 8, surfaces are 12, and
      buttons and chips are pills. Anything else is a bug. */
@@ -646,4 +654,79 @@ body {
     border-color: var(--color-ink-muted);
   }
   .type-caption { font-weight: 600; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   GuildBot's home (src/components/guildbot/GuildBotHome.tsx)
+   The chat button is a little house. Night, genie and dark are fixed
+   colours, not theme tokens: night is night in either theme.
+   Every loop is a CSS animation on transform/opacity, so it stays smooth
+   while the board loads, and stops under reduced motion.
+   ═══════════════════════════════════════════════════════ */
+.gb-home {
+  --gb-night: #141A2B;
+  --gb-night-line: #E9E4DA;
+  --gb-flame: #F0A04B;
+  --gb-window: #F5C26B;
+  --gb-genie: #7FA5F5;
+}
+.gb-home svg [data-part] { transform-box: fill-box; }
+
+/* Knock: the house rocks on its base, then the door swings in. */
+.gb-home[data-knock] .gb-house { animation: gb-knock 320ms var(--ease-in-out); transform-origin: 50% 100%; }
+@keyframes gb-knock {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-4deg); }
+  55% { transform: rotate(3deg); }
+  80% { transform: rotate(-1.5deg); }
+}
+.gb-home [data-part='door'] { transform-origin: 0% 50%; transition: transform 180ms var(--ease-out); }
+.gb-home[data-door='open'] [data-part='door'] { transform: scaleX(0.18); }
+.gb-home [data-part='eyes'] { opacity: 0; transform: translateX(-2px); transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out); }
+.gb-home[data-door='open'] [data-part='eyes'] { opacity: 1; transform: translateX(0); transition-delay: 90ms; }
+
+/* Night: the torch burns. */
+.gb-home [data-part='flame'] { transform-origin: 50% 100%; animation: gb-flame 1.6s ease-in-out infinite; }
+.gb-home [data-part='glow'] { transform-origin: 50% 50%; animation: gb-glow 2.4s ease-in-out infinite; }
+@keyframes gb-flame {
+  0%, 100% { transform: scale(1, 1) rotate(0deg); }
+  30% { transform: scale(0.92, 1.08) rotate(-3deg); }
+  60% { transform: scale(1.05, 0.95) rotate(2deg); }
+}
+@keyframes gb-glow {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.08); }
+}
+
+/* Genie: smoke curls up from the spout, two wisps out of step. */
+.gb-home [data-part='smoke'] { animation: gb-smoke 2.8s var(--ease-out) infinite; opacity: 0; }
+.gb-home [data-part='smoke'] + [data-part='smoke'] { animation-delay: 1.4s; }
+@keyframes gb-smoke {
+  0% { opacity: 0; transform: translateY(2px) scale(0.9); }
+  25% { opacity: 0.9; }
+  100% { opacity: 0; transform: translateY(-7px) scale(1.1); }
+}
+
+/* Out of asks and knocked anyway: the window sputters, then stays dark. */
+.gb-home[data-flicker] [data-part='window'] { animation: gb-flicker 700ms linear; }
+@keyframes gb-flicker {
+  0%, 100% { opacity: 0; }
+  10%, 30%, 55% { opacity: 0.9; }
+  20%, 40%, 70% { opacity: 0.1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* No rocking, no travel, no loops; the door still opens as a fade. */
+  .gb-home[data-knock] .gb-house,
+  .gb-home [data-part='flame'],
+  .gb-home [data-part='glow'] { animation: none; }
+  .gb-home [data-part='smoke'] { animation: none; opacity: 0.6; }
+  .gb-home[data-flicker] [data-part='window'] { animation: gb-flicker-calm 700ms ease; }
+  .gb-home [data-part='door'],
+  .gb-home [data-part='eyes'] { transition: opacity 160ms ease; transform: none; }
+  .gb-home[data-door='open'] [data-part='door'] { transform: none; opacity: 0; }
+}
+@keyframes gb-flicker-calm {
+  0%, 100% { opacity: 0; }
+  40% { opacity: 0.5; }
 }

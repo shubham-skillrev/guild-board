@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { KINDS, composeDescription } from '@/lib/kinds'
 import { SASS, botSays } from '@/lib/guildbot-host/voice'
 import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
+import { GuildBotHome, homeLook, useIsNight } from '@/components/guildbot/GuildBotHome'
 import { BodyPortal } from '@/components/ui/BodyPortal'
 import { useGuildBotMood } from '@/components/guildbot/useGuildBotMood'
 import { welcomeKey, meetingWhen, isoWeek, type Mood } from '@guildboard/guildbot'
@@ -47,8 +48,14 @@ function pageOf(path: string): { kind: 'board' } | { kind: 'topic'; topicId: str
  * only. The bot can answer from the board and Bytes, and draft a post, which
  * shows here as a card: nothing is posted until you press Post.
  *
- * The button sits in the bottom-right corner (the meeting pill stacks above
- * it) and wears the bot's current mood. It opens:
+ * The button is GuildBot's home (GuildBotHome), in the bottom-right corner
+ * with the meeting pill stacked above it. The plate on the door is asks left
+ * this week; in the last three the house becomes a genie's lamp and the chat
+ * turns blue; with none left the lights are out and knocking only gets you a
+ * line saying when they come back on. Tap it and you knock: the house rocks,
+ * the door swings in, GuildBot peeks out, and the chat rolls open with a
+ * greeting for its mood. From the keyboard, or with reduced motion, it just
+ * opens. It opens:
  *  - on desktop, a full-height drawer on the right, next to the button. No
  *    dimming: the page stays scrollable and clickable, and moving to another
  *    topic keeps the chat open with the new topic as context.
@@ -67,11 +74,23 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   // April 1st: the button hops away from the first click, once. The chat is
   // not a real action, so nothing anyone needs is ever in the way.
   const [dodge, setDodge] = useState<string | null>(null)
+  // The knock: rocking house, then the door swings in, then the chat opens.
+  const [knock, setKnock] = useState<'idle' | 'knocking' | 'door'>('idle')
+  const [greeting, setGreeting] = useState<string | null>(null)
+  // Out of asks: the window sputters and GuildBot says when it's back.
+  const [lightsOut, setLightsOut] = useState<string | null>(null)
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
+  useEffect(() => () => timers.current.forEach(clearTimeout), [])
+  const { asks, setAsks } = useAsks(signedIn)
+  const night = useIsNight()
   const welcome = useWelcome(pathname === '/board' && !open, signedIn)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const toast = useToast()
   const { mood, line: moodLine } = useGuildBotMood()
+  const look = homeLook(signedIn ? (asks?.left ?? null) : null, night)
+  const genie = look === 'genie'
+  const outOfAsks = look === 'dark'
   const desktop = useMediaQuery('(min-width: 768px)')
   // From 1280px the drawer docks: the page narrows by its width instead of
   // being covered, so nothing (like the share button) hides underneath it.
@@ -139,6 +158,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
         return
       }
       setMessages(m => [...m, { id: `bot-${Date.now()}`, role: 'bot', body: data.reply, draft: data.draft, cites: data.cites }])
+      if (data.asks) setAsks(data.asks)
     } catch {
       toast('GuildBot did not answer, check your connection', 'error')
     } finally {
@@ -156,36 +176,63 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     <BodyPortal>
       <button
         type="button"
-        onClick={() => {
-          if (!open && dodgeToday()) {
+        onClick={e => {
+          if (open || knock !== 'idle') return
+          if (dodgeToday()) {
             sessionStorage.setItem(APRIL_KEY, '1')
             setDodge(botSays('egg.april', String(Date.now()), 'ui') ?? '')
             setTimeout(() => setDodge(null), 4000)
             return
           }
-          setOpen(o => !o)
+          if (outOfAsks) {
+            const when = asks?.nextAt ? whenBack(asks.nextAt) : 'next week'
+            setLightsOut(botSays('home.dark', `${asks?.nextAt}`, 'ui', { limit: asks?.limit ?? 15, when }) ?? `No asks left this week. Back ${when}.`)
+            timers.current.push(setTimeout(() => setLightsOut(null), 5000))
+            return
+          }
+          const greet = () => {
+            const left = asks?.left
+            setGreeting(
+              genie && left
+                ? botSays(`home.genie.${left as 1 | 2 | 3}`, String(left), 'ui')
+                : botSays(`home.knock.${mood}`, String(Date.now()), 'ui'),
+            )
+            setOpen(true)
+          }
+          // A keyboard press (detail 0) or reduced motion skips the knock.
+          if (reduce || e.detail === 0) { greet(); return }
+          setKnock('knocking')
+          timers.current.push(
+            setTimeout(() => setKnock('door'), 300),
+            setTimeout(() => { setKnock('idle'); greet() }, 620),
+          )
         }}
         aria-expanded={open}
-        aria-label="Chat with GuildBot"
+        aria-label={homeLabel(signedIn ? asks : null)}
         className={cn(
-          'press fixed right-4 bottom-24 md:right-6 md:bottom-6 z-(--z-overlay) inline-flex items-center justify-center gap-2 h-12 w-12 md:h-11 md:w-auto md:pl-3 md:pr-4 rounded-full bg-ink text-parchment shadow-lg hover:bg-ink/90 transition-[transform,background-color] duration-300 motion-reduce:transition-none',
+          'press fixed right-4 bottom-24 md:right-6 md:bottom-6 z-(--z-overlay) rounded-[18px] focus-visible:outline-2 focus-visible:outline-offset-2 transition-transform duration-300 motion-reduce:transition-none',
           dodge !== null && '-translate-x-24 -translate-y-16',
           // The drawer or sheet has its own close; the button would only sit on top of it.
           open && 'hidden',
         )}
       >
-        <GuildBotMark size={22} mood={mood} />
-        {/* Just the face on a phone: the full pill would cover the cards. */}
-        <span className="hidden md:inline text-[13px] font-medium">Ask GuildBot</span>
+        <GuildBotHome
+          look={look}
+          mood={mood}
+          left={signedIn ? (asks?.left ?? null) : null}
+          knocking={knock !== 'idle'}
+          door={knock === 'door' ? 'open' : 'closed'}
+          flicker={!!lightsOut}
+        />
       </button>
 
-      {welcome.text && !open && !dodge && (
+      {welcome.text && !open && !dodge && !lightsOut && (
         <WelcomeCard text={welcome.text} onOpen={() => { welcome.dismiss(); setOpen(true) }} onDismiss={welcome.dismiss} />
       )}
 
-      {dodge && (
-        <p role="status" className="fixed right-4 bottom-38 md:right-6 md:bottom-20 z-50 max-w-xs inline-flex items-start gap-1.5 rounded-(--radius-card) border border-border-strong bg-paper px-3 py-2 text-[12px] text-ink shadow-lg animate-fade-up">
-          <GuildBotMark size={16} className="text-ink mt-px" />{dodge}
+      {(dodge || lightsOut) && (
+        <p role="status" className="fixed right-4 bottom-[10.5rem] md:right-6 md:bottom-[6rem] z-50 max-w-xs inline-flex items-start gap-1.5 rounded-(--radius-card) border border-border-strong bg-paper px-3 py-2 text-[12px] text-ink shadow-lg animate-fade-up">
+          <GuildBotMark size={16} mood={lightsOut ? 'bored' : mood} className="text-ink mt-px shrink-0" />{dodge ?? lightsOut}
         </p>
       )}
 
@@ -216,6 +263,21 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                 : 'inset-x-0 rounded-t-2xl border-t shadow-[0_-12px_40px_-8px_rgba(0,0,0,0.4)]',
             )}
           >
+            {!reduce && (
+              // The roller shutter: slats over the panel that roll away as it
+              // arrives, sideways into the dock on desktop, up on phones.
+              <motion.div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-10"
+                style={{
+                  background: `repeating-linear-gradient(${desktop ? '90deg' : '180deg'}, ${genie ? 'var(--color-indigo-light)' : 'var(--color-kinu)'} 0 9px, ${genie ? 'var(--color-indigo-jp)' : 'var(--color-border-strong)'} 9px 10px)`,
+                  transformOrigin: desktop ? '100% 50%' : '50% 0%',
+                }}
+                initial={{ transform: desktop ? 'scaleX(1)' : 'scaleY(1)' }}
+                animate={{ transform: desktop ? 'scaleX(0)' : 'scaleY(0)' }}
+                transition={{ duration: 0.28, delay: 0.14, ease: [0.32, 0.72, 0, 1] }}
+              />
+            )}
             {!desktop && (
               // Grab handle: drag the sheet down to close it.
               <div onPointerDown={e => drag.start(e)} className="flex justify-center pt-2.5 pb-1 touch-none cursor-grab">
@@ -230,8 +292,15 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                 <GuildBotMark size={22} mood={mood} />
               </span>
               <div className="min-w-0">
-                <h2 className="text-footnote font-semibold text-ink">GuildBot</h2>
-                <p className="text-caption text-cha truncate">{moodLine ?? 'Knows the board and Bytes'}</p>
+                <h2 className="text-footnote font-semibold text-ink">
+                  GuildBot
+                  {signedIn && asks && (
+                    <span className={cn('ml-2 font-normal text-caption tabular-nums', genie ? 'text-indigo-jp' : 'text-cha')}>
+                      {genie ? `${asks.left} ${asks.left === 1 ? 'wish' : 'wishes'} left` : `${asks.left} ${asks.left === 1 ? 'ask' : 'asks'} left`}
+                    </span>
+                  )}
+                </h2>
+                <p className="text-caption text-cha truncate">{greeting ?? moodLine ?? 'Knows the board and Bytes'}</p>
               </div>
               <div className="ml-auto flex items-center gap-1">
                 {signedIn && messages.length > 0 && (
@@ -275,7 +344,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                         ))}
                       </div>
                       <p className="pl-9 text-caption text-cha leading-relaxed">
-                        15 asks a week. On meeting day I share anonymous themes from everyone&apos;s chats in Slack, never who asked what, then delete every chat.
+                        {asks?.limit ?? 15} asks a week. On meeting day I share anonymous themes from everyone&apos;s chats in Slack, never who asked what, then delete every chat.
                       </p>
                     </div>
                   )}
@@ -308,6 +377,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                   <div className="flex items-end gap-2 rounded-2xl border border-border bg-sumi pl-3.5 pr-1.5 py-1.5 transition-colors focus-within:border-border-strong focus-within:bg-paper">
                     <textarea
                       ref={inputRef}
+                      disabled={outOfAsks}
                       value={input}
                       onChange={e => {
                         setInput(e.target.value)
@@ -318,7 +388,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                       rows={1}
                       maxLength={1500}
-                      placeholder="Ask GuildBot…"
+                      placeholder={outOfAsks ? `Out of asks. Back ${asks?.nextAt ? whenBack(asks.nextAt) : 'next week'}.` : genie ? 'Make a wish…' : 'Ask GuildBot…'}
                       aria-label="Message GuildBot"
                       // 16px on phones: smaller text makes iOS zoom the page on focus.
                       className="flex-1 min-w-0 resize-none bg-transparent py-1 min-h-8 text-[16px] leading-6 md:text-[14px] text-ink placeholder:text-cha focus:outline-none"
@@ -329,7 +399,9 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                       aria-label="Send"
                       className={cn(
                         'press shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full transition-colors',
-                        input.trim() && !thinking ? 'bg-saffron text-parchment hover:bg-saffron/90' : 'bg-fill text-cha',
+                        input.trim() && !thinking
+                          ? genie ? 'bg-indigo-jp text-white hover:bg-indigo-jp/90' : 'bg-saffron text-parchment hover:bg-saffron/90'
+                          : 'bg-fill text-cha',
                       )}
                     >
                       <ArrowUp className="w-4 h-4" weight="bold" />
@@ -548,8 +620,8 @@ function WelcomeCard({ text, onOpen, onDismiss }: { text: string; onOpen: () => 
     <div
       ref={ref}
       role="status"
-      // Just above the button: 6rem + 3rem button on a phone, 1.5rem + 2.75rem on md.
-      className="fixed right-4 bottom-[9.5rem] md:right-6 md:bottom-[5rem] z-(--z-overlay) w-[min(18rem,calc(100vw-2rem))] animate-fade-up"
+      // Just above the home: 6rem + its 4rem on a phone, 1.5rem + 4rem on md.
+      className="fixed right-4 bottom-[10.5rem] md:right-6 md:bottom-[6rem] z-(--z-overlay) w-[min(18rem,calc(100vw-2rem))] animate-fade-up"
     >
       <div className="relative rounded-(--radius-card) border border-border bg-paper shadow-lg">
         <button type="button" onClick={onOpen} className="block w-full text-left px-3.5 pt-3 pb-3">
@@ -569,8 +641,8 @@ function WelcomeCard({ text, onOpen, onDismiss }: { text: string; onOpen: () => 
         >
           <X className="w-3 h-3" />
         </button>
-        {/* Tail, pointing down at the button. */}
-        <span aria-hidden className="absolute -bottom-1.5 right-5 h-3 w-3 rotate-45 border-r border-b border-border bg-paper" />
+        {/* Tail, pointing down at the middle of the home. */}
+        <span aria-hidden className="absolute -bottom-1.5 right-[26px] h-3 w-3 rotate-45 border-r border-b border-border bg-paper" />
       </div>
     </div>
   )
@@ -612,4 +684,44 @@ function useKeyboardInset(active: boolean): { inset: number; height: string } {
     }
   }, [active])
   return active ? state : { inset: 0, height: '92dvh' }
+}
+
+type Asks = { left: number; limit: number; nextAt: string | null }
+
+/**
+ * Asks left this week, for the door plate. Fetched on load and whenever the
+ * tab comes back into focus (an old ask may have aged out meanwhile); the chat
+ * replaces it with the count each reply comes back with.
+ */
+function useAsks(signedIn: boolean) {
+  const [asks, setAsks] = useState<Asks | null>(null)
+  useEffect(() => {
+    if (!SASS || !signedIn) return
+    let cancelled = false
+    const load = () =>
+      fetch('/api/guildbot/asks')
+        .then(r => (r.ok ? r.json() : null))
+        .then((a: Asks | null) => { if (!cancelled && a) setAsks(a) })
+        .catch(() => {})
+    load()
+    window.addEventListener('focus', load)
+    return () => { cancelled = true; window.removeEventListener('focus', load) }
+  }, [signedIn])
+  return { asks, setAsks }
+}
+
+/** "today at 2 pm", "tomorrow at 9 am", "on Thursday at 2 pm", in the viewer's time zone. */
+function whenBack(iso: string): string {
+  const at = new Date(iso)
+  const days = Math.round((new Date(at).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86_400_000)
+  const time = at.toLocaleTimeString('en-GB', { hour: 'numeric', minute: at.getMinutes() ? '2-digit' : undefined, hour12: true })
+  const day = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `on ${at.toLocaleDateString('en-GB', { weekday: 'long' })}`
+  return `${day} at ${time}`
+}
+
+/** What a screen reader hears for the home, including the plate. */
+function homeLabel(asks: Asks | null): string {
+  if (!asks) return 'Chat with GuildBot'
+  if (asks.left === 0) return 'GuildBot, no asks left this week'
+  return `Chat with GuildBot, ${asks.left} ${asks.left === 1 ? 'ask' : 'asks'} left this week`
 }

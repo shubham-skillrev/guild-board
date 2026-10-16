@@ -15,15 +15,14 @@ import { buildChatContext, type ChatPage } from '@/lib/guildbot-host/chat-contex
 import { KINDS } from '@/lib/kinds'
 import { DESCRIPTION_MAX_LENGTH, TITLE_MAX_LENGTH } from '@/lib/constants'
 import { parsePollInput } from '@/lib/polls'
+import { asksFor, WEEKLY_LIMIT } from '@/lib/guildbot-host/asks'
 
-// One model call, ~20s, plus up to 45s of retry on a busy model.
+// One model call, ~20s; up to three models when the first is busy (src/lib/ai).
 // Chat uses the bulk tier (see chat() in the package): the quality model's
 // free quota is 20 requests a day, which GuildBot's comments need.
 export const maxDuration = 120
 
 const MESSAGE_MAX = 1500
-/** Asks per member per rolling week. Keeps the chat a tool, not a hangout. */
-const WEEKLY_LIMIT = 15
 const HISTORY_SHOWN = 40
 /** Same split as the share form: two answers and their headings share the description. */
 const SECTION_MAX = Math.floor((DESCRIPTION_MAX_LENGTH - 60) / 2)
@@ -71,16 +70,10 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
-  const since = new Date(Date.now() - 7 * 86_400_000).toISOString()
-  const { count: thisWeek } = await admin
-    .from('guildbot_messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .eq('role', 'user')
-    .gte('created_at', since)
-  if ((thisWeek ?? 0) >= WEEKLY_LIMIT) {
+  const before = await asksFor(admin, user.id)
+  if (before.left === 0) {
     const reply = botSays('chat.limit', user.id, 'chat', { limit: WEEKLY_LIMIT }) ?? `That's ${WEEKLY_LIMIT} asks this week. Back next week.`
-    return NextResponse.json({ reply, draft: null, cites: [], limited: true })
+    return NextResponse.json({ reply, draft: null, cites: [], limited: true, asks: before })
   }
 
   const { data: earlier } = await admin
@@ -108,7 +101,9 @@ export async function POST(request: Request) {
   const cites = answer.cites.map(id => titles.get(id)).filter((c): c is Cite => !!c)
 
   await admin.from('guildbot_messages').insert({ user_id: user.id, role: 'bot', body: answer.reply, draft, cites })
-  return NextResponse.json({ reply: answer.reply, draft, cites, fallback: answer.reply === CHAT_FALLBACK })
+  // This ask is already saved, so the window now counts it.
+  const asks = await asksFor(admin, user.id)
+  return NextResponse.json({ reply: answer.reply, draft, cites, fallback: answer.reply === CHAT_FALLBACK, asks })
 }
 
 function parsePage(raw: unknown): ChatPage {

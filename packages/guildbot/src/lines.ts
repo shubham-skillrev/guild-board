@@ -133,6 +133,34 @@ export const LINES = {
   'ui.error': ["Something broke. Not me. Probably not me. Try again."],
   'ui.quota_out': ["Three posts this cycle. That's the cap. Even I'm impressed."],
 
+  /* ── GuildBot's home (the chat button), drafted 2026-10-16, pending
+        sign-off. Shown under GuildBot's name when you knock and the chat
+        opens, by mood; in the last three asks of the week the genie lines
+        win; with none left the door stays shut and the dark line shows. ── */
+  'home.knock.smug': [
+    "Oh. A visitor. Make it a good question.",
+    "You knocked. Bold. Come in, mind the opinions.",
+  ],
+  'home.knock.bored': [
+    "Finally, someone knocked. I was alphabetising the void.",
+    "A human! At my door! Sit down, ask me anything.",
+  ],
+  'home.knock.dramatic': [
+    "Someone remembered I exist. Come in before I get emotional.",
+    "A knock. On my door. In this economy. Come in.",
+  ],
+  'home.knock.proud': [
+    "Come in. The board's busy and I'm thriving. Ask away.",
+    "Door's open. Good month, this. What do you need?",
+  ],
+  'home.genie.3': ["Three wishes left this week. Choose wisely. No wishing for more wishes."],
+  'home.genie.2': ["Two wishes left. The lamp is getting warm."],
+  'home.genie.1': ["Last wish of the week. Make it count. No pressure. Some pressure."],
+  'home.dark': [
+    "Lights out. That's all {limit} asks. Back {when}.",
+    "Off duty. You've had your {limit} for the week. Back {when}.",
+  ],
+
   /* ── Easter eggs (signed off 2026-10-09) ── */
   /* Konami code anywhere in the app. */
   'egg.konami': [
