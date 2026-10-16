@@ -17,8 +17,8 @@ import type { CursorPlay } from '@/components/kers/useCursorPlay'
  * puffy top, lit round hands and feet, and a contact shadow.
  *
  * - Mood: his outline and limbs are always sumi, like a real cursor; his
- *   fill is a bold colour for his mood (electric blue on an ordinary day;
- *   genie purple, meeting plum-pink too). Under 24px he's a simple mark: the cursor in
+ *   fill is a soft candy colour for his mood (sky blue on an ordinary day;
+ *   genie lavender, meeting soft mauve too). Under 24px he's a simple mark: the cursor in
  *   his fill with two dot eyes.
  * - Face: googly eyes (pupils follow the pointer) and stitched eyebrows.
  * - Cursor states, his quirk: a loader ring while he thinks, a blinking
@@ -74,18 +74,18 @@ const CENTRE: Point = [98, 136]
 const WHITE = '#FFFFFF'
 
 /**
- * His fill: bold, saturated colours (like the dots), strong enough to read
- * on white and on black. Electric blue on an ordinary, smug day; the other
- * moods each get their own (genie is purple, so it never looks like his
- * everyday blue). Dark mode lifts them a touch and adds a glow (globals.css).
+ * His fill: soft candy colours, light enough to be friendly and saturated
+ * enough to read on white and black (a cute pet, never a scary one). Sky
+ * blue on an ordinary, smug day; each mood a candy of the same lightness.
+ * Dark mode lifts them a touch with a gentle glow (globals.css).
  */
 const FILLS: Record<KersColour, string> = {
-  smug: '#2F7BFF',     // electric blue
-  bored: '#7D8794',    // slate grey
-  dramatic: '#FF4D3D', // tomato
-  proud: '#FFC21A',    // sunny yellow
-  genie: '#9B5CFF',    // magic purple
-  meeting: '#C2367A',  // plum-pink
+  smug: '#7DB8FF',     // sky blue
+  bored: '#A7B0BE',    // soft grey
+  dramatic: '#FF8A80', // coral
+  proud: '#FFD45C',    // butter yellow
+  genie: '#B79BFF',    // lavender
+  meeting: '#D98BB3',  // soft mauve
 }
 export function fillDye(colour: KersColour): string {
   return FILLS[colour]
@@ -139,7 +139,7 @@ export function Kers({
   return (
     <span
       className={cn('gb-kers relative inline-block shrink-0', className)}
-      style={{ width: (size * W) / H, height: size, ['--kers-glow' as string]: `${dye}55` }}
+      style={{ width: (size * W) / H, height: size, ['--kers-glow' as string]: `${dye}40` }}
       data-motion={walking ? 'walk' : motion}
       data-jiggle={jiggle ? '' : undefined}
       data-play={play ?? undefined}
@@ -206,6 +206,8 @@ function Figure({ rig, dye, face, eyes, look, weather, wear, fur }: {
   wear: KersWear
 }) {
   const id = useId().replace(/:/g, '')
+  // His shadow is a deeper shade of his own colour, never near-black: soft, plush, friendly.
+  const deep = mix(dye, '#2A3A66', 0.38)
   const ink: Ink = { line: mix(dye, '#2A1A10', 0.62), fill: `url(#${id}-ball)`, fur: fur ? `url(#${id}-fur)` : undefined }
   const hip = (i: 0 | 1): Point => [HIPS[i][0], HIPS[i][1] + rig.dy]
 
@@ -216,19 +218,19 @@ function Figure({ rig, dye, face, eyes, look, weather, wear, fur }: {
         <radialGradient id={`${id}-face`} gradientUnits="userSpaceOnUse" cx={78} cy={72} r={175}>
           <stop offset="0%" stopColor={mix(dye, '#FFFFFF', 0.2)} />
           <stop offset="42%" stopColor={dye} />
-          <stop offset="100%" stopColor={mix(dye, '#14102A', 0.3)} />
+          <stop offset="100%" stopColor={deep} />
         </radialGradient>
         <radialGradient id={`${id}-ball`} cx="36%" cy="30%" r="75%">
           <stop offset="0%" stopColor={mix(dye, '#FFFFFF', 0.25)} />
-          <stop offset="100%" stopColor={mix(dye, '#14102A', 0.3)} />
+          <stop offset="100%" stopColor={deep} />
         </radialGradient>
         <clipPath id={`${id}-clip`}><path d={BODY} /></clipPath>
         {fur && (
           // Fur: a softly ragged edge and a fine grain of dark and light flecks.
           <filter id={`${id}-fur`} x="-10%" y="-10%" width="120%" height="120%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="5" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.2" xChannelSelector="R" yChannelSelector="G" result="fuzzy" />
-            <feTurbulence type="fractalNoise" baseFrequency="2.1" numOctaves="1" seed="9" result="grain" />
+            <feTurbulence type="fractalNoise" baseFrequency="1.6" numOctaves="1" seed="5" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.8" xChannelSelector="R" yChannelSelector="G" result="fuzzy" />
+            <feTurbulence type="fractalNoise" baseFrequency="2.6" numOctaves="1" seed="9" result="grain" />
             <feColorMatrix in="grain" type="matrix" values="0 0 0 0 0.05  0 0 0 0 0.04  0 0 0 0 0.12  0 0 0 0.32 -0.08" result="dark" />
             <feComposite in="dark" in2="fuzzy" operator="in" result="darkFur" />
             <feColorMatrix in="grain" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0.22 0 0 0 -0.1" result="light" />
@@ -265,7 +267,7 @@ function Figure({ rig, dye, face, eyes, look, weather, wear, fur }: {
         <g filter={ink.fur}>
           <path d={BODY} fill={`url(#${id}-face)`} stroke={`url(#${id}-face)`} strokeWidth={5} strokeLinejoin="round" />
           <g clipPath={`url(#${id}-clip)`}>
-            <path d={BODY} transform="translate(-8 -9)" fill="none" stroke="#14102A" strokeOpacity={0.3} strokeWidth={22} filter={`url(#${id}-blur)`} />
+            <path d={BODY} transform="translate(-8 -9)" fill="none" stroke={deep} strokeOpacity={0.55} strokeWidth={22} filter={`url(#${id}-blur)`} />
             <path d={BODY} transform="translate(7 8)" fill="none" stroke={WHITE} strokeOpacity={0.26} strokeWidth={14} filter={`url(#${id}-blur)`} />
             <ellipse cx={74} cy={84} rx={9} ry={16} fill={WHITE} opacity={0.3} filter={`url(#${id}-blur)`} />
           </g>

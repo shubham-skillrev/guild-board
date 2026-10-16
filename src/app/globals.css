@@ -1072,7 +1072,7 @@ body {
 .dark .gb-kers .kx-halo { stroke: rgba(237, 232, 225, 0.55); }
 .dark .gb-kers .gb-kers-spin, .dark .gb-kers .gb-kers-caret, .dark .gb-kers .gb-kers-ripple { stroke: #EDE8E1; }
 /* Dark mode: his colour lifted a touch, with a faint glow in it, so he pops on black. */
-.dark .gb-kers .gb-kers-body > svg { filter: brightness(1.08) saturate(1.05) drop-shadow(0 0 7px var(--kers-glow)); }
+.dark .gb-kers .gb-kers-body > svg { filter: brightness(1.04) drop-shadow(0 0 6px var(--kers-glow)); }
 .gb-kers[data-motion='idle'] .gb-kers-body { animation: gb-kers-breathe 4.2s ease-in-out infinite; }
 @keyframes gb-kers-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1%); } }
 .gb-kers[data-motion='walk'] .gb-kers-body { animation: gb-kers-bob 340ms ease-in-out infinite alternate; }

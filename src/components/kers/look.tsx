@@ -40,10 +40,11 @@ export type EyeShape = {
 }
 
 export function eyeShape(e: Expression): EyeShape {
-  const open: EyeShape = { r: 12, lid: [0, 0], tilt: [0, 0], pupil: { dx: 0, dy: 1, r: 5.4 } }
+  // Puppy eyes: big pupils with a big shine.
+  const open: EyeShape = { r: 12, lid: [0, 0], tilt: [0, 0], pupil: { dx: 0, dy: 1, r: 6.6 } }
   switch (e) {
     // His everyday face: friendly, both eyes open, a sly sideways glance (the wit is in the brow, not a squint).
-    case 'smug': return { ...open, lid: [0.08, 0.08], pupil: { dx: 2.6, dy: 0.5, r: 5.6 } }
+    case 'smug': return { ...open, lid: [0.05, 0.05], pupil: { dx: 2.2, dy: 0.5, r: 6.6 } }
     case 'bored': return { ...open, lid: [0.6, 0.6], pupil: { dx: 0, dy: 4, r: 5 } }
     case 'dramatic': return { ...open, r: 15.5, pupil: { dx: 0, dy: 0, r: 3.4 } }
     case 'proud': return { ...open, arcs: 'up' }
@@ -75,7 +76,7 @@ export function Eye({ cx, cy, shape, side, look, lid }: { cx: number; cy: number
       <circle cx={cx} cy={cy} r={r} fill="#FFFFFF" stroke="#1A1A1F" strokeOpacity={0.15} strokeWidth={1} />
       <g className="kx-pupil">
       <circle cx={cx + px} cy={cy + py} r={pupil.r} fill="#1A1A1F" style={{ transition: 'cx 160ms ease-out, cy 160ms ease-out' }} />
-      <circle cx={cx + px + pupil.r * 0.35} cy={cy + py - pupil.r * 0.4} r={pupil.r * 0.32} fill="#FFFFFF" />
+      <circle cx={cx + px + pupil.r * 0.32} cy={cy + py - pupil.r * 0.36} r={pupil.r * 0.4} fill="#FFFFFF" />
       {/* A second, smaller sparkle: big shiny eyes. */}
       <circle cx={cx + px - pupil.r * 0.38} cy={cy + py + pupil.r * 0.36} r={pupil.r * 0.16} fill="#FFFFFF" opacity={0.85} />
       </g>
