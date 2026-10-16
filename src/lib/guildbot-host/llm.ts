@@ -1,8 +1,8 @@
 import 'server-only'
 import type { LlmClient } from '@guildboard/guildbot'
-import { geminiJson } from '@/lib/ai/gemini'
+import { aiJson } from '@/lib/ai'
 
-/** GuildBot's model, through the app's one Gemini wrapper. Null on any failure. */
+/** GuildBot's model, through the app's one AI wrapper (Gemini first, OpenAI last). Null on any failure. */
 export const llm: LlmClient = {
-  json: args => geminiJson(args),
+  json: args => aiJson(args),
 }

@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { generateDigest, monthStart } from '@/lib/bytes/generate'
+import { isAiConfigured } from '@/lib/ai'
 import { notifyOnBytesPublished, notifyAfterResponse } from '@/lib/push/notify'
 
 export const maxDuration = 300
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
       summarized: result.summarized,
       mix: result.mix,
       // Surfaced so the admin knows to write summaries by hand.
-      llm_available: !!process.env.GEMINI_API_KEY,
+      llm_available: isAiConfigured(),
     },
     { status: 201 },
   )

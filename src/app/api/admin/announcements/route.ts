@@ -2,7 +2,7 @@
 // AUTH: admin only
 // PURPOSE: The admin announcement composer.
 //            GET                              -> the last 10 sent
-//            POST { action: 'draft', brief }  -> a Gemini draft, nothing sent
+//            POST { action: 'draft', brief }  -> an AI draft, nothing sent
 //            POST { action: 'send', title, body, slack_text, url?, channels }
 //                                             -> Slack and/or push, then a
 //                                                history row with the result
@@ -12,12 +12,12 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isGeminiConfigured } from '@/lib/ai/gemini'
+import { isAiConfigured } from '@/lib/ai'
 import { draftAnnouncement } from '@/lib/announce/draft'
 import { ANNOUNCE_LIMITS, type AnnouncementChannel } from '@/lib/announce'
 import { notifyAnnouncement } from '@/lib/push/notify'
 
-// A Gemini draft, with retries on rate limits.
+// An AI draft: Gemini, then its fallback model, then OpenAI.
 export const maxDuration = 120
 
 /** The same message again inside this window is refused as a double press. */
@@ -56,13 +56,13 @@ export async function POST(request: Request) {
   if (body.action === 'draft') {
     const brief = typeof body.brief === 'string' ? body.brief.trim() : ''
     if (!brief) return NextResponse.json({ error: 'Say what to announce first.' }, { status: 400 })
-    if (!isGeminiConfigured()) {
-      return NextResponse.json({ error: 'GEMINI_API_KEY is not set on the server.' }, { status: 400 })
+    if (!isAiConfigured()) {
+      return NextResponse.json({ error: 'No AI key (GEMINI_API_KEY or OPENAI_API_KEY) is set on the server.' }, { status: 400 })
     }
     const draft = await draftAnnouncement({ brief })
     if (!draft) {
       return NextResponse.json(
-        { error: 'Gemini did not return a usable draft (often a rate limit). Try again in a minute.' },
+        { error: 'No model returned a usable draft (all rate limited or down). Try again in a few minutes, or write it yourself.' },
         { status: 502 },
       )
     }

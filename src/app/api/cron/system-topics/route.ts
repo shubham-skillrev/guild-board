@@ -27,7 +27,7 @@ import { introduceOnce, runDaily, shareLearningsOnce } from '@/lib/guildbot-host
    week's fetched news, the first fitting the month's theme. ?dry=1 skips both guards and returns Gemini's picks without
    posting or notifying, for checking the output. */
 
-// Fetching the pool plus one Gemini call, with retries on rate limits.
+// Fetching the pool plus one AI call (Gemini, its fallback, then OpenAI).
 export const maxDuration = 300
 
 const SUGGESTIONS_PER_CYCLE = 3

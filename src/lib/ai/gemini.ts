@@ -1,33 +1,24 @@
 import 'server-only'
 import { GoogleGenAI } from '@google/genai'
+import { AiCallError, type AiJsonArgs } from './types'
 
 /**
- * The one place GuildBoard talks to an AI model: Google Gemini, through the
- * Interactions API.
+ * Google Gemini, through the Interactions API: the first choice for every
+ * model call. Callers go through aiJson (src/lib/ai/index.ts), which falls
+ * back to another Gemini model and then to OpenAI.
  *
- * Used for three jobs, all on material we fetched ourselves (engineering
- * feeds, Google News search, Hacker News): curating the Bytes pool, writing
- * its summaries, and suggesting the month's board topics. Each asks for JSON
- * against a schema. The model never searches the web itself (grounding needs
- * a billed project), and never supplies a headline or a link: callers only
- * accept ids that point back at items they sent.
- *
- * GEMINI_API_KEY unset means off. Every caller has a path that works without
- * it, so a missing key degrades the feature rather than breaking a cron.
+ * GEMINI_API_KEY unset means this provider is skipped.
  */
 
-/* Two tiers. Judgement-heavy work (picking the month's topics) gets the best
-   Flash model; bulk mechanical work (scoring and summarising dozens of items)
-   gets Flash-Lite, which is fast and has far more free-tier headroom. Each
-   falls back to gemini-3.5-flash when overloaded (503) or out of quota (429):
-   free-tier limits are per model, so another model is another allowance. */
-const MODELS = {
+/* Two tiers. Judgement-heavy work (picking the month's topics, announcements)
+   gets the best Flash model; bulk mechanical work (scoring and summarising
+   dozens of items) gets Flash-Lite, which has far more free-tier headroom.
+   Free-tier limits are per model, so the fallback is another allowance. */
+export const GEMINI_MODELS = {
   quality: 'gemini-3.8-flash',
   bulk: 'gemini-3.5-flash-lite',
 } as const
-const FALLBACK_MODEL = 'gemini-3.5-flash'
-/** Longest suggested wait worth honouring before moving to the fallback. */
-const MAX_WAIT_MS = 45_000
+export const GEMINI_FALLBACK_MODEL = 'gemini-3.5-flash'
 
 export function isGeminiConfigured(): boolean {
   return !!process.env.GEMINI_API_KEY
@@ -42,58 +33,40 @@ function client(): GoogleGenAI | null {
 }
 
 /**
- * Ask for JSON matching `schema`.
- * Returns null on any failure (no key, API error, unparsable output) and logs
- * why, never the key.
+ * One attempt on one model. Throws AiCallError on failure (transient when
+ * another model might do better), never logs the key.
+ *
+ * The SDK's own retries are off: it otherwise retries a 429 four times with
+ * backoff (about 36s) before we see it, and a daily quota will not reset in
+ * that time. Moving to the next model is the retry.
  */
-export async function geminiJson<T>(args: {
-  system: string
-  prompt: string
-  schema: Record<string, unknown>
-  label: string
-  /** 'quality' for judgement, 'bulk' for many small mechanical items. */
-  tier?: keyof typeof MODELS
-}): Promise<T | null> {
+export async function geminiJsonOnce<T>(model: string, args: AiJsonArgs, timeoutMs: number): Promise<T> {
   const ai = client()
-  if (!ai) {
-    console.warn(`${args.label}: GEMINI_API_KEY is not set, skipping`)
-    return null
-  }
-  // One retry on the primary when Google names a short wait, then the
-  // fallback model once. Anything else fails fast.
-  const primary = MODELS[args.tier ?? 'quality']
-  const attempts: string[] = [primary, primary, FALLBACK_MODEL]
-  for (let i = 0; i < attempts.length; i++) {
-    const model = attempts[i]
-    try {
-      const interaction = await ai.interactions.create({
+  if (!ai) throw new AiCallError('GEMINI_API_KEY is not set', false)
+  let text: string | undefined
+  try {
+    const interaction = await ai.interactions.create(
+      {
         model,
         system_instruction: args.system,
         input: args.prompt,
         response_format: { type: 'text', mime_type: 'application/json', schema: args.schema },
-      })
-      const text = interaction.output_text?.trim()
-      if (!text) {
-        console.warn(`${args.label}: empty response from ${model}`)
-        return null
-      }
-      return JSON.parse(text) as T
-    } catch (err) {
-      const status = (err as { status?: number }).status
-      const message = err instanceof Error ? err.message : String(err)
-      const transient = status === 429 || status === 503
-      console.warn(`${args.label}: ${model} failed (${status ?? 'error'})`, message.slice(0, 200))
-      if (!transient || i === attempts.length - 1) return null
-
-      if (attempts[i + 1] === model) {
-        // A daily quota will not reset in seconds: go straight to the fallback.
-        if (/per day/i.test(message)) { i++; continue }
-        // Same model again: only if Google suggested a wait we can afford.
-        const waitS = Number(message.match(/retry in (\d+(?:\.\d+)?)s/i)?.[1] ?? (status === 503 ? 5 : NaN))
-        if (!Number.isFinite(waitS) || waitS * 1000 > MAX_WAIT_MS) { i++; continue }
-        await new Promise(res => setTimeout(res, waitS * 1000 + 500))
-      }
-    }
+      },
+      { maxRetries: 0, timeout: timeoutMs },
+    )
+    text = interaction.output_text?.trim()
+  } catch (err) {
+    const status = (err as { status?: number }).status
+    const message = err instanceof Error ? err.message : String(err)
+    // Rate limits, overload and timeouts are worth another model; a bad
+    // request or a bad key is not.
+    const transient = status === undefined || status === 408 || status === 429 || status >= 500
+    throw new AiCallError(`${status ?? 'error'}: ${message.slice(0, 200)}`, transient)
   }
-  return null
+  if (!text) throw new AiCallError('empty response', true)
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new AiCallError('unparsable JSON', true)
+  }
 }

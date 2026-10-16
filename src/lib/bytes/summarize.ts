@@ -1,5 +1,5 @@
 import 'server-only'
-import { geminiJson } from '@/lib/ai/gemini'
+import { aiJson } from '@/lib/ai'
 import type { Candidate } from '@/lib/bytes/sources'
 
 /**
@@ -86,7 +86,7 @@ export async function curateCandidates(candidates: Candidate[]): Promise<Map<str
   if (!candidates.length) return out
   const valid = new Set(candidates.map(c => c.source_id))
 
-  const result = await geminiJson<{ items?: { source_id?: unknown; relevance?: unknown }[] }>({
+  const result = await aiJson<{ items?: { source_id?: unknown; relevance?: unknown }[] }>({
     label: 'bytes: curation',
     tier: 'bulk',
     system: CURATE_SYSTEM,
@@ -160,7 +160,7 @@ export async function summarizeCandidates(candidates: Candidate[]): Promise<Map<
   if (!candidates.length) return out
   const valid = new Set(candidates.map(c => c.source_id))
 
-  const result = await geminiJson<{ items?: Partial<Summary>[] }>({
+  const result = await aiJson<{ items?: Partial<Summary>[] }>({
     label: 'bytes: summaries',
     tier: 'bulk',
     system: SUMMARY_SYSTEM,

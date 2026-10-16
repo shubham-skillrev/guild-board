@@ -14,10 +14,10 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { suggestSystemTopics } from '@/lib/system/suggest'
 import { publishSystemTopics, sanitizeDrafts } from '@/lib/system/topics'
-import { isGeminiConfigured } from '@/lib/ai/gemini'
+import { isAiConfigured } from '@/lib/ai'
 import { sanitizeTheme } from '@/lib/themes'
 
-// Fetching the news pool plus one Gemini call, with retries on rate limits.
+// Fetching the news pool plus one AI call (Gemini, its fallback, then OpenAI).
 export const maxDuration = 300
 
 export async function POST(request: Request) {
@@ -43,8 +43,8 @@ export async function POST(request: Request) {
   if (!cycle) return NextResponse.json({ error: 'No open cycle to post into.' }, { status: 400 })
 
   if (body.action === 'preview') {
-    if (!isGeminiConfigured()) {
-      return NextResponse.json({ error: 'GEMINI_API_KEY is not set on the server.' }, { status: 400 })
+    if (!isAiConfigured()) {
+      return NextResponse.json({ error: 'No AI key (GEMINI_API_KEY or OPENAI_API_KEY) is set on the server.' }, { status: 400 })
     }
     const { data: topics } = await admin
       .from('topics').select('title').eq('cycle_id', cycle.id).eq('is_deleted', false)
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     })
     if (drafts.length === 0) {
       return NextResponse.json(
-        { error: 'Gemini did not return usable suggestions this time (often a rate limit). Try again in a minute.' },
+        { error: 'No model returned usable suggestions (all rate limited or down). Try again in a few minutes.' },
         { status: 502 },
       )
     }
