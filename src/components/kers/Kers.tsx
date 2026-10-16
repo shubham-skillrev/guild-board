@@ -3,7 +3,7 @@
 import { useContext, useEffect, useId, useRef, useState } from 'react'
 import type { Expression, Wear } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
-import { Eye, KERS_COLOURS, eyeShape, mix, useLookAt, type KersColour } from '@/components/kers/look'
+import { Eye, eyeShape, mix, useLookAt, type KersColour } from '@/components/kers/look'
 import { WearContext } from '@/components/guildbot/useWeather'
 import { HIPS, RIGS, SHOULDERS, type KersPose, type Point, type Rig } from '@/components/kers/poses'
 import type { CursorPlay } from '@/components/kers/useCursorPlay'
@@ -17,8 +17,8 @@ import type { CursorPlay } from '@/components/kers/useCursorPlay'
  * puffy top, lit round hands and feet, and a contact shadow.
  *
  * - Mood: his outline and limbs are always sumi, like a real cursor; his
- *   fill is the mood's Japanese dye (kuchiba on an ordinary day; genie
- *   ruri, meeting budo too). Under 24px he's a simple mark: the cursor in
+ *   fill is a mid-tone of the GuildBoard palette for his mood (the theme's
+ *   saffron on an ordinary day; genie indigo, meeting plum too). Under 24px he's a simple mark: the cursor in
  *   his fill with two dot eyes.
  * - Face: googly eyes (pupils follow the pointer) and stitched eyebrows.
  * - Cursor states, his quirk: a loader ring while he thinks, a blinking
@@ -73,11 +73,24 @@ const TIP: Point = [57, 52]
 const CENTRE: Point = [98, 136]
 const WHITE = '#FFFFFF'
 
-/** His fill: the mood's dye as a soft pastel (kuchiba becomes a light peach on an ordinary, smug day). */
-export function fillDye(colour: KersColour): string {
-  return pastel(KERS_COLOURS[colour])
+/**
+ * His fill: mid-tones of GuildBoard's own palette, light enough to glow on
+ * the dark theme and deep enough to stand off a white page. Warm saffron
+ * (the theme's accent) on an ordinary, smug day.
+ */
+const FILLS: Record<KersColour, string> = {
+  smug: '#EC9542',     // saffron, the theme's accent
+  bored: '#A39C93',    // cha, warm grey
+  dramatic: '#E2624F', // beni red
+  proud: '#F0B33A',    // amber
+  genie: '#5B8DEF',    // the theme's indigo
+  meeting: '#9A6E9C',  // soft plum
 }
-const pastel = (hex: string) => mix(hex, '#FFFBF5', 0.6)
+export function fillDye(colour: KersColour): string {
+  return FILLS[colour]
+}
+/** Anonymous cursors (the focus crowd): any tint, softened a little toward the same mid-tones. */
+const midTone = (hex: string) => mix(hex, '#FFFFFF', 0.12)
 
 export function Kers({
   pose = 'standing',
@@ -117,7 +130,7 @@ export function Kers({
   const base = RIGS[motion === 'dance' ? 'arms-up' : pose]
   // Pointing: his left arm swings up toward whatever you're hovering.
   const rig = play === 'point' && !base.lying ? { ...base, hands: [[14, 112], base.hands[1]] as [Point, Point], wave: undefined } : base
-  const dye = tint ? pastel(tint) : fillDye(colour)
+  const dye = tint ? midTone(tint) : fillDye(colour)
   const face = rig.lying || rig.sleep ? 'relieved' : expression
   const eyes: KersEyes = rig.lying || rig.sleep ? null : special ?? (state === 'pleased' ? 'happy' : null)
   const take = useDoubleTake(expression)
@@ -257,7 +270,7 @@ function Figure({ rig, dye, face, eyes, look, weather, wear, fur }: {
           </g>
         </g>
 
-        <Face face={face} eyes={eyes} look={look} lid={dye} />
+        <Face face={face} eyes={eyes} look={look} lid={mix(dye, '#FFFFFF', 0.3)} />
         {!rig.lying && !rig.sleep && <Mark4 face={face} />}
         <Gear weather={weather} wear={wear} asleep={!!rig.lying} />
 
