@@ -35,7 +35,7 @@ function KersSheet() {
     <div className="space-y-8">
       <section>
         <h2 className="text-footnote font-semibold text-ink mb-1">Poses</h2>
-        <p className="text-caption text-cha mb-4">Grey poses are stand-ins until the renders are in (docs/kers/prompts.md).</p>
+        <p className="text-caption text-cha mb-4">Rendered from docs/kers/prompts.md; stand-ins mark poses still to render.</p>
         <div className="flex flex-wrap gap-6 items-end">
           {(Object.keys(KERS_POSES) as KersPose[]).map(p => (
             <Cell key={p} label={`${p}${KERS_POSES[p].ready ? '' : ' (stand-in)'}`}><Kers pose={p} size={110} /></Cell>

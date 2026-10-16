@@ -27,6 +27,8 @@ export type KersMotion = 'idle' | 'walk' | 'hop' | 'still'
 
 const SUMI = '#2B2B2B'
 const CREAM = '#F4EDE1'
+/** The rendered fabric around his face, for eyelids that match it. */
+const FABRIC = '#E8DECA'
 
 /** His piping: sumi on a smug (ordinary) day, otherwise the mood's dye. */
 export function pipingDye(colour: PlushColour): string {
@@ -57,7 +59,7 @@ export function Kers({
   const shown = useWalkCycle(pose, motion)
   const spec = KERS_POSES[shown]
   const dye = pipingDye(colour)
-  const face = shown === 'asleep' ? 'sleepy' : expression
+  const face = shown === 'asleep' ? 'relieved' : expression
 
   return (
     <span
@@ -111,7 +113,7 @@ function useWalkCycle(pose: KersPose, motion: KersMotion): KersPose {
     return () => clearInterval(id)
   }, [walking])
   if (!walking) return pose
-  return step ? 'walk-b' : 'walk-a'
+  return step ? (KERS_POSES['walk-b'].ready ? 'walk-b' : 'standing') : 'walk-a'
 }
 
 /** Stitched eyebrows: how high each sits and how it tilts (inner end up for sad, down for cross). */
@@ -137,12 +139,15 @@ function Face({ spec, expression, look }: { spec: PoseSpec; expression: Expressi
     <g>
       {spec.eyes.map(([x, y], side) => (
         <g key={side} transform={`translate(${x} ${y}) scale(${k})`}>
-          <Eye cx={0} cy={0} shape={shape} side={side as 0 | 1} look={look} lid={CREAM} />
+          {/* A googly eye is a little plastic dome: a soft shadow under it and a rim, so it reads on cream. */}
+          {!shape.arcs && <circle cx={0.6} cy={1.4} r={shape.r + 0.8} fill="#000000" opacity={0.18} />}
+          {!shape.arcs && <circle r={shape.r + 0.9} fill="#FFFFFF" stroke="#8C8579" strokeWidth={0.9} />}
+          <Eye cx={0} cy={0} shape={shape} side={side as 0 | 1} look={look} lid={FABRIC} />
           <path
-            d="M-9 0H9"
+            d="M-10 0H10"
             transform={`translate(0 ${-shape.r - 7 - brow.lift[side]}) rotate(${brow.tilt[side]})`}
             stroke={SUMI}
-            strokeWidth={2.6}
+            strokeWidth={2.8}
             strokeDasharray="3.2 2.2"
             strokeLinecap="round"
           />

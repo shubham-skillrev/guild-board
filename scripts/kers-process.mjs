@@ -33,11 +33,14 @@ for (const file of readdirSync(dir).filter(f => f.endsWith('.png'))) {
   // Background: near-white or pale grey, unsaturated, connected to the edge
   // (so the cream body, which is never touching the border, survives).
   const bg = new Uint8Array(w * h)
+  // The floor shadow is grey (no tint); the cream fabric always leans yellow.
   const isBg = i => {
     const [r, g, b] = [data[i], data[i + 1], data[i + 2]]
     const max = Math.max(r, g, b), min = Math.min(r, g, b)
-    return data[i + 3] < 10 || (max > 200 && max - min < 18)
+    return data[i + 3] < 10 || (max > 175 && max - min < 12)
   }
+  // Pure white anywhere (gaps the edge fill can't reach, like between his legs).
+  const isWhite = i => Math.min(data[i], data[i + 1], data[i + 2]) > 242 && Math.max(data[i], data[i + 1], data[i + 2]) - Math.min(data[i], data[i + 1], data[i + 2]) < 6
   const stack = []
   for (let x = 0; x < w; x++) stack.push([x, 0], [x, h - 1])
   for (let y = 0; y < h; y++) stack.push([0, y], [w - 1, y])
@@ -55,7 +58,7 @@ for (const file of readdirSync(dir).filter(f => f.endsWith('.png'))) {
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const i = px(x, y)
-      if (bg[y * w + x]) continue
+      if (bg[y * w + x] || isWhite(i)) continue
       const [r, g, b, a] = [data[i], data[i + 1], data[i + 2], data[i + 3]]
       // How green: 0 for cream fabric, 1 for the piping.
       const green = Math.max(0, Math.min(1, (g - Math.max(r, b) - 30) / 90))

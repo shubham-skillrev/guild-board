@@ -34,15 +34,16 @@ export interface PoseSpec {
   lying?: boolean
 }
 
-// Until the renders land, every pose shares the placeholder's frame.
+// The placeholder's frame, for poses still waiting on a render.
 const frame = { w: 600, h: 640, ready: false, eyes: [[232, 292], [328, 292]] as [Point, Point], eyeR: 44, tip: [176, 78] as Point, centre: [290, 330] as Point, hand: [462, 420] as Point }
 
 export const KERS_POSES: Record<KersPose, PoseSpec> = {
-  standing: { ...frame, arms: [[-58, 70], [64, 74]] },
-  sitting: { ...frame, arms: [[40, -10], [-10, 40]], hand: [420, 330] },
-  'walk-a': { ...frame, arms: [[-30, 84], [74, 54]], step: 'left' },
+  standing: { w: 474, h: 640, ready: true, eyes: [[158, 232], [258, 232]], eyeR: 42, tip: [100, 40], centre: [230, 330], hand: [400, 405], arms: [[-58, 70], [64, 74]] },
+  sitting: { w: 525, h: 640, ready: true, eyes: [[148, 252], [250, 252]], eyeR: 44, tip: [72, 40], centre: [220, 330], hand: [350, 410], arms: [[40, -10], [-10, 40]] },
+  'walk-a': { w: 466, h: 640, ready: true, eyes: [[178, 232], [278, 232]], eyeR: 42, tip: [120, 30], centre: [250, 330], hand: [410, 400], arms: [[-30, 84], [74, 54]] },
+  // No second step rendered yet: walking alternates walk-a with standing.
   'walk-b': { ...frame, arms: [[-70, 54], [36, 84]], step: 'right' },
-  'arms-up': { ...frame, arms: [[-34, -96], [40, -96]] },
-  waving: { ...frame, arms: [[-58, 70], [52, -100]], hand: [440, 230] },
-  asleep: { ...frame, arms: [[-40, 60], [40, 60]], lying: true },
+  'arms-up': { w: 497, h: 640, ready: true, eyes: [[175, 232], [275, 232]], eyeR: 42, tip: [115, 35], centre: [240, 330], hand: [440, 240], arms: [[-34, -96], [40, -96]] },
+  waving: { w: 481, h: 640, ready: true, eyes: [[178, 232], [278, 232]], eyeR: 42, tip: [120, 30], centre: [240, 330], hand: [45, 205], arms: [[-58, 70], [52, -100]] },
+  asleep: { w: 1046, h: 640, ready: true, eyes: [[330, 248], [450, 262]], eyeR: 44, tip: [60, 110], centre: [480, 330], hand: [870, 400], arms: [[-40, 60], [40, 60]] },
 }
