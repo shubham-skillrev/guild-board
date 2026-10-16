@@ -74,6 +74,8 @@ export function Eye({ cx, cy, shape, side, look, lid }: { cx: number; cy: number
       <circle cx={cx} cy={cy} r={r} fill="#FFFFFF" stroke="#1A1A1F" strokeOpacity={0.15} strokeWidth={1} />
       <circle cx={cx + px} cy={cy + py} r={pupil.r} fill="#1A1A1F" style={{ transition: 'cx 160ms ease-out, cy 160ms ease-out' }} />
       <circle cx={cx + px + pupil.r * 0.35} cy={cy + py - pupil.r * 0.4} r={pupil.r * 0.32} fill="#FFFFFF" />
+      {/* A second, smaller sparkle: big shiny eyes. */}
+      <circle cx={cx + px - pupil.r * 0.38} cy={cy + py + pupil.r * 0.36} r={pupil.r * 0.16} fill="#FFFFFF" opacity={0.85} />
       {shape.sparkle && <path d={`M${cx + px - 1} ${cy + py - 1.5}l.8 1.5 1.5.8-1.5.8-.8 1.5-.8-1.5-1.5-.8 1.5-.8Z`} fill="#FFFFFF" />}
       {cover > 0 && (
         // A felt lid, in his colour, coming down from the top, with its edge.

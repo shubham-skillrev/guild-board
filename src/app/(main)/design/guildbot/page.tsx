@@ -15,7 +15,7 @@ import { RIGS, type KersPose } from '@/components/kers/poses'
 
 const POSES = (Object.keys(RIGS) as KersPose[]).filter(p => p !== 'walk-b')
 const COLOURS: { colour: KersColour; face: Expression; label: string }[] = [
-  { colour: 'smug', face: 'smug', label: 'Smug · white' },
+  { colour: 'smug', face: 'smug', label: 'Smug · kuchiba' },
   { colour: 'bored', face: 'bored', label: 'Bored · nezumi-iro' },
   { colour: 'dramatic', face: 'dramatic', label: 'Dramatic · akane' },
   { colour: 'proud', face: 'proud', label: 'Proud · yamabuki' },
@@ -79,7 +79,7 @@ function Sheet() {
         {POSES.map(p => <Cell key={p} label={p === 'walk-a' ? 'walking' : p}><Kers pose={p} size={120} /></Cell>)}
         <Cell label="dancing"><Kers motion="dance" expression="excited" size={120} /></Cell>
       </Section>
-      <Section title="His fill takes his mood (classic white on an ordinary day)">
+      <Section title="His fill takes his mood (kuchiba on an ordinary day)">
         {COLOURS.map(c => <Cell key={c.colour} label={c.label}><Kers colour={c.colour} expression={c.face} size={120} follow /></Cell>)}
       </Section>
       <Section title="Googly eyes, stitched brows">
