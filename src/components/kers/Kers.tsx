@@ -204,7 +204,7 @@ function Figure({ rig, dye, face, look, weather, wear }: {
         )
       })}
 
-      <g className="kx-body" data-typing={rig.typing ? '' : undefined} transform={rig.lying ? `translate(0 ${rig.dy}) rotate(-16 100 200)` : `translate(0 ${rig.dy})${rig.tilt ? ` rotate(${rig.tilt} 100 205)` : ''}`}>
+      <g className="kx-body" data-typing={rig.typing ? '' : undefined} transform={rig.lying ? `translate(0 ${rig.dy}) rotate(-16 100 200)` : `translate(0 ${rig.dy})${rig.tilt ? ` rotate(${rig.tilt} 100 205)` : ''}${rig.squash ? ` translate(100 205) scale(${rig.squash[0]} ${rig.squash[1]}) translate(-100 -205)` : ''}`}>
         {!rig.front && !rig.lying && <Arms rig={rig} ink={ink} />}
 
         {/* A soft drop shadow behind him for depth, then a thin white edge round his outline (so he reads on any background), then him. */}
@@ -438,10 +438,10 @@ function Cushion() {
 function Toothbrush({ hand }: { hand: Point }) {
   return (
     <g className="gb-kers-brush">
-      <path d={`M${hand[0]} ${hand[1]}L102 162`} stroke="#3E7BFA" strokeWidth={4.5} strokeLinecap="round" />
-      <rect x={92} y={157} width={11} height={7} rx={2} fill="#F3F1EC" stroke="#C9CED6" strokeWidth={1.2} />
-      <circle cx={89} cy={161} r={3.2} fill="#FFFFFF" stroke="#E2E2E2" strokeWidth={0.8} />
-      <circle cx={85} cy={166} r={2.3} fill="#FFFFFF" stroke="#E2E2E2" strokeWidth={0.8} />
+      <path d={`M${hand[0]} ${hand[1]}L92 152`} stroke="#3E7BFA" strokeWidth={4.5} strokeLinecap="round" />
+      <rect x={81} y={147} width={12} height={7} rx={2} fill="#F3F1EC" stroke="#C9CED6" strokeWidth={1.2} />
+      <circle cx={78} cy={151} r={3.4} fill="#FFFFFF" stroke="#E2E2E2" strokeWidth={0.8} />
+      <circle cx={74} cy={156} r={2.4} fill="#FFFFFF" stroke="#E2E2E2" strokeWidth={0.8} />
     </g>
   )
 }
