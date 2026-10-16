@@ -1071,6 +1071,16 @@ body {
 }
 .gb-plush [data-eye] { transform-origin: 50% 50%; animation: gb-plush-blink 5.4s infinite; }
 @keyframes gb-plush-blink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
+/* Nibble's clicky ears: a button presses down and darkens for a moment. */
+.gb-plush .gb-ear { transition: transform 90ms var(--motion-out), filter 90ms var(--motion-out); }
+.gb-plush .gb-ear[data-pressed] { transform: translateY(1.8px); filter: brightness(0.86); }
+/* His cable tail wags, slowly, from where it leaves his back. */
+.gb-plush .gb-tail { transform-origin: 80px 91px; animation: gb-tail 2.6s ease-in-out infinite alternate; }
+@keyframes gb-tail { from { rotate: -5deg; } to { rotate: 6deg; } }
+.gb-plush[data-motion='walk'] .gb-tail, .gb-plush[data-motion='dance'] .gb-tail { animation-duration: 520ms; }
+/* A lamp catches his top edge in dark mode only. */
+.gb-plush .gb-plush-rim { opacity: 0; }
+.dark .gb-plush .gb-plush-rim { opacity: 1; }
 /* Limbs pivot at the shoulder or hip (each limb group's own origin). */
 .gb-plush [class^='gb-arm'], .gb-plush [class^='gb-leg'], .gb-plush [class^='gb-mitten'] { transform-origin: 0 0; }
 .gb-plush[data-motion='idle'] .gb-arm-l { animation: gb-arm-sway 3.6s ease-in-out infinite alternate; }
@@ -1125,5 +1135,5 @@ body {
 .gb-plush .gb-plush-status [data-dot]:nth-child(3) { animation-delay: 0.4s; }
 .gb-plush .gb-plush-status [data-wave] { transform-box: fill-box; animation: gb-wave 1s var(--motion-out) infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .gb-plush *, .gb-plush[data-motion] .gb-plush-body, .gb-scene .gb-rain *, .gb-scene [data-part='strum'] { animation: none !important; }
+  .gb-plush *, .gb-plush[data-motion] .gb-plush-body, .gb-plush .gb-ear, .gb-scene .gb-rain *, .gb-scene [data-part='strum'] { animation: none !important; }
 }

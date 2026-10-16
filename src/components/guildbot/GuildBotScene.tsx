@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { activityAt, type Activity, type Expression, type Variant } from '@guildboard/guildbot'
-import { Mitten, PlushFigure, SHOULDER_L, SHOULDER_R, plushEdge, type AvatarStatus, type PlushColour } from '@/components/guildbot/PlushBot'
+import { Mitten, PlushFigure, PLUSH_COLOURS, SHOULDER_L, SHOULDER_R, plushEdge, type AvatarStatus, type PlushColour } from '@/components/guildbot/PlushBot'
 import { GuildBotHome } from '@/components/guildbot/GuildBotHome'
 
 /**
@@ -175,18 +175,24 @@ function deskHands(scene: Scene): Hand[] {
 }
 
 /**
- * The faint arm lines to the hands a scene draws itself, from the plush's
- * shoulders (it sits at `from`, scaled by s). Drawn before the plush, so
- * they come out from behind the felt like his own.
+ * His stub arms out to the hands a scene draws itself, from where they're
+ * sewn on (he sits at `from`, scaled by s). Drawn before him, so they come
+ * out from behind his sides like his own.
  */
 function Arms({ from, to, colour }: { from: { x: number; y: number; s: number }; to: Hand[]; colour: PlushColour }) {
   if (!to.length) return null
   return (
-    <g stroke={plushEdge(colour)} strokeOpacity={0.45} strokeWidth={1.8 * from.s} strokeLinecap="round" fill="none">
+    <g strokeLinecap="round" fill="none">
       {to.map(h => {
         const sx = from.x + from.s * (h.side === 'l' ? SHOULDER_L[0] : SHOULDER_R[0])
         const sy = from.y + from.s * SHOULDER_L[1]
-        return <path key={`${h.x}-${h.y}`} d={`M${sx} ${sy}L${h.x} ${h.y}`} />
+        const d = `M${sx} ${sy}L${h.x} ${h.y}`
+        return (
+          <g key={`${h.x}-${h.y}`}>
+            <path d={d} stroke={plushEdge(colour)} strokeWidth={10.4 * from.s} />
+            <path d={d} stroke={PLUSH_COLOURS[colour]} strokeWidth={8 * from.s} />
+          </g>
+        )
       })}
     </g>
   )
@@ -220,7 +226,7 @@ function Desk({ scene, face, colour, away, status, variant }: Part & { scene: Sc
           {/* The plush, sat behind his desk (the desk top hides his bottom). */}
           <Arms from={{ x: 27, y: 15, s: 0.46 }} to={deskHands(scene)} colour={colour} />
           <g transform="translate(27 15) scale(0.46)">
-            <PlushFigure colour={colour} expression={face} status={plushStatus(status)} hands="none" fuzzy={false} />
+            <PlushFigure colour={colour} expression={face} status={plushStatus(status)} hands="none" />
           </g>
           {sulking && <Fumes />}
           <path data-part="exclaim" d="M78 8v8M78 20.5v.5" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
@@ -357,7 +363,7 @@ function Cushion({ scene, face, colour, away, status, variant }: Part & { scene:
           <g data-part={music ? 'groove' : 'float'}>
             {/* The plush, floating a little over his cushion. */}
             <g transform="translate(29 25) scale(0.5)" className="gb-plush" data-motion="still">
-              <PlushFigure colour={colour} expression={face} status={plushStatus(status)} wear={music && variant !== 'guitar' ? 'headphones' : null} hands={music && variant === 'guitar' ? 'one' : 'rest'} fuzzy={false} />
+              <PlushFigure colour={colour} expression={face} status={plushStatus(status)} wear={music && variant !== 'guitar' ? 'headphones' : null} hands={music && variant === 'guitar' ? 'one' : 'rest'} />
             </g>
             {music && variant === 'guitar' && (
               // A tiny guitar, strummed by a floating mitten.
@@ -411,7 +417,7 @@ function Floor({ scene, face, colour, away, status }: Part & { scene: Scene }) {
         <g data-part="bot">
           {/* Standing on the floor: stretching tall, scrubbing, or hopping along. */}
           <g transform="translate(34 26) scale(0.55)" className="gb-plush" data-motion={scene === 'walking' ? 'walk' : scene === 'waking' ? 'stretch' : 'idle'}>
-            <PlushFigure colour={colour} expression={face} status={plushStatus(status)} hands={scene === 'brushing' ? 'brush' : 'rest'} fuzzy={false} />
+            <PlushFigure colour={colour} expression={face} status={plushStatus(status)} hands={scene === 'brushing' ? 'brush' : 'rest'} />
           </g>
           <path data-part="exclaim" d="M90 12v8M90 24.5v.5" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
         </g>
@@ -507,7 +513,7 @@ function Outdoors({ scene, face, colour, away, status }: Part & { scene: Scene }
         <g data-part="bot">
           <Arms from={{ x: 36, y: 31, s: 0.5 }} to={[{ x: garden ? 86 : 85, y: garden ? 74 : 72, side: 'r' }]} colour={colour} />
           <g transform="translate(36 31) scale(0.5)" className="gb-plush" data-motion="idle">
-            <PlushFigure colour={colour} expression={face} status={plushStatus(status)} hands="one" fuzzy={false} />
+            <PlushFigure colour={colour} expression={face} status={plushStatus(status)} hands="one" />
           </g>
           {garden ? (
             // Lemonade.

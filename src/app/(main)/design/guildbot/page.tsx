@@ -7,25 +7,24 @@
  */
 import { useState } from 'react'
 import type { Expression } from '@guildboard/guildbot'
-import { PlushBot, type PlushColour, type PlushHands, type PlushMotion, type PlushShape, type PlushWear } from '@/components/guildbot/PlushBot'
+import { PlushBot, type EarClick, type PlushColour, type PlushHands, type PlushMotion, type PlushWear } from '@/components/guildbot/PlushBot'
 import { WearContext } from '@/components/guildbot/useWeather'
 import type { Variant, Wear } from '@guildboard/guildbot'
 import { GuildBotScene, type Scene } from '@/components/guildbot/GuildBotScene'
 
 const COLOURS: { colour: PlushColour; face: Expression; label: string }[] = [
-  { colour: 'smug', face: 'smug', label: 'Smug · saffron' },
-  { colour: 'bored', face: 'bored', label: 'Bored · lilac' },
-  { colour: 'dramatic', face: 'dramatic', label: 'Dramatic · tomato' },
-  { colour: 'proud', face: 'proud', label: 'Proud · gold' },
-  { colour: 'genie', face: 'excited', label: 'Genie · blue' },
-  { colour: 'meeting', face: 'grumpy', label: 'Meeting sulk · plum' },
+  { colour: 'smug', face: 'smug', label: 'Smug · kuchiba' },
+  { colour: 'bored', face: 'bored', label: 'Bored · nezumi-iro' },
+  { colour: 'dramatic', face: 'dramatic', label: 'Dramatic · akane' },
+  { colour: 'proud', face: 'proud', label: 'Proud · yamabuki' },
+  { colour: 'genie', face: 'excited', label: 'Genie · ruri' },
+  { colour: 'meeting', face: 'grumpy', label: 'Meeting sulk · budo' },
 ]
-const SHAPE_OPTIONS: { shape: PlushShape; label: string }[] = [
-  { shape: 'cushion', label: 'Cushion: a puffed-up ◈ pillow with tassels' },
-  { shape: 'critter', label: 'Critter: a round bean with felt ◈ ears' },
-  { shape: 'mochi', label: 'Mochi: squishy, a stitched ◈ patch on the side' },
+const CLICKS: { click: EarClick; face: Expression; label: string }[] = [
+  { click: null, face: 'smug', label: 'At rest' },
+  { click: 'right', face: 'smug', label: 'Click (pleased)' },
+  { click: 'both', face: 'dramatic', label: 'Double click (shocked)' },
 ]
-
 const FACES: Expression[] = ['smug', 'bored', 'dramatic', 'proud', 'relieved', 'excited', 'nosy', 'lonely', 'sleepy', 'grumpy']
 const MOTIONS: PlushMotion[] = ['idle', 'dance', 'stretch', 'walk']
 const HANDS: PlushHands[] = ['rest', 'typing', 'mug', 'wave', 'brush']
@@ -65,32 +64,19 @@ function Sheet() {
   return (
     <div className="space-y-10">
       <section>
-        <h2 className="text-footnote font-semibold text-ink mb-4">Pick a shape</h2>
-        <div className="grid gap-6 sm:grid-cols-3">
-          {SHAPE_OPTIONS.map(o => (
-            <figure key={o.shape} className="flex flex-col items-center gap-3">
-              <div className="flex items-end gap-3">
-                <PlushBot shape={o.shape} size={120} expression="smug" follow />
-                <PlushBot shape={o.shape} size={64} colour="bored" expression="bored" motion="walk" />
-              </div>
-              <div className="flex items-end gap-2">
-                <PlushBot shape={o.shape} size={56} colour="dramatic" expression="dramatic" motion="dance" />
-                <PlushBot shape={o.shape} size={56} colour="proud" expression="proud" />
-                <PlushBot shape={o.shape} size={56} colour="genie" expression="excited" hands="wave" />
-              </div>
-              <figcaption className="text-caption text-cha text-center">{o.label}</figcaption>
-            </figure>
-          ))}
+        <h2 className="text-footnote font-semibold text-ink mb-4">Clicky ears: his buttons press</h2>
+        <div className="flex flex-wrap gap-8 items-end">
+          {CLICKS.map(c => <Cell key={c.label} label={c.label}><PlushBot size={96} click={c.click} expression={c.face} /></Cell>)}
         </div>
       </section>
       <section>
-        <h2 className="text-footnote font-semibold text-ink mb-4">Colour follows his mood (and two moments)</h2>
+        <h2 className="text-footnote font-semibold text-ink mb-4">Yarn follows his mood: Japanese dyes (and two moments)</h2>
         <div className="flex flex-wrap gap-8">
           {COLOURS.map(c => <Cell key={c.colour} label={c.label}><PlushBot colour={c.colour} expression={c.face} size={96} follow /></Cell>)}
         </div>
       </section>
       <section>
-        <h2 className="text-footnote font-semibold text-ink mb-4">Faces: googly eyes, no mouth</h2>
+        <h2 className="text-footnote font-semibold text-ink mb-4">Faces: googly eyes, a scroll-wheel nose</h2>
         <div className="flex flex-wrap gap-6">
           {FACES.map(f => <Cell key={f} label={f}><PlushBot expression={f} size={80} /></Cell>)}
         </div>
@@ -108,7 +94,7 @@ function Sheet() {
         </div>
       </section>
       <section>
-        <h2 className="text-footnote font-semibold text-ink mb-4">Floating hands and feet, on faint lines</h2>
+        <h2 className="text-footnote font-semibold text-ink mb-4">Crocheted stub arms and feet, sewn on</h2>
         <div className="flex flex-wrap gap-10">
           {HANDS.map(h => <Cell key={h} label={h}><PlushBot hands={h} expression={h === 'wave' ? 'excited' : h === 'mug' ? 'relieved' : 'smug'} size={90} /></Cell>)}
         </div>
@@ -134,9 +120,9 @@ function Sheet() {
         </div>
       </section>
       <section>
-        <h2 className="text-footnote font-semibold text-ink mb-4">Sizes (felt fuzz from 56px up)</h2>
+        <h2 className="text-footnote font-semibold text-ink mb-4">Sizes (crochet from 48px; plain below)</h2>
         <div className="flex flex-wrap gap-8 items-end">
-          {[24, 40, 64, 120].map(s => <Cell key={s} label={`${s}px`}><PlushBot size={s} /></Cell>)}
+          {[20, 30, 48, 64, 120].map(s => <Cell key={s} label={`${s}px`}><PlushBot size={s} /></Cell>)}
         </div>
       </section>
     </div>
@@ -146,8 +132,8 @@ function Sheet() {
 export default function GuildBotSheet() {
   return (
     <div className="px-5 md:px-10 py-8 w-full max-w-5xl mx-auto">
-      <h1 className="text-title-1 text-label">GuildBot, the plush</h1>
-      <p className="text-callout text-label-2 mt-1.5 max-w-prose">Character sheet for sign-off. Not linked from the app.</p>
+      <h1 className="text-title-1 text-label">Nibble <span className="text-label-2">· GuildBot</span></h1>
+      <p className="text-callout text-label-2 mt-1.5 max-w-prose">A crocheted computer mouse who is also a mouse. Character sheet for sign-off; not linked from the app.</p>
       <div className="mt-8 grid gap-6">
         <div className="rounded-(--radius-card) border border-border bg-paper p-6"><Sheet /></div>
         <div className="dark rounded-(--radius-card) border border-border bg-parchment p-6"><Sheet /></div>

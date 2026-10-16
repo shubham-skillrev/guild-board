@@ -166,7 +166,7 @@ export function GuildBotStage({
             style={slot ? slotBubble(slot) : { right: strolling ? STROLL - 24 : 8 }}
           >
             <div className="relative rounded-2xl border border-border-strong bg-paper px-3.5 py-2.5 text-[13px] leading-snug text-ink shadow-lg">
-              <span className="block text-caption font-semibold text-ink-soft mb-0.5">GuildBot</span>
+              <span className="block text-caption font-semibold text-ink-soft mb-0.5">Nibble</span>
               {say}
               {bubble?.chips && say === bubble.text && (
                 <span className="mt-2 flex flex-wrap gap-1.5">
@@ -221,9 +221,9 @@ export function GuildBotStage({
 
         {/* What do you want? Talk, or something else. */}
         {choice && !open && (
-          <div role="dialog" aria-label="What should GuildBot do?" className="absolute bottom-full right-2 mb-1 w-[min(16rem,calc(100vw-2rem))] animate-fade-up z-10">
+          <div role="dialog" aria-label="What should Nibble do?" className="absolute bottom-full right-2 mb-1 w-[min(16rem,calc(100vw-2rem))] animate-fade-up z-10">
             <div className="relative rounded-2xl border border-border-strong bg-paper px-3.5 py-3 text-[13px] leading-snug text-ink shadow-lg">
-              <span className="block text-caption font-semibold text-ink-soft mb-0.5">GuildBot</span>
+              <span className="block text-caption font-semibold text-ink-soft mb-0.5">Nibble</span>
               What&apos;ll it be? A chat, or shall I do something?
               <span className="mt-2.5 flex gap-2">
                 <button type="button" autoFocus onClick={e => { setChoice(false); onTalk(e) }} className="press flex-1 h-8 rounded-full bg-ink text-parchment text-[13px] font-medium">
@@ -240,7 +240,7 @@ export function GuildBotStage({
 
         {/* His actions: stays open while he performs, until you close it. */}
         {panel && !open && (
-          <div role="dialog" aria-label="GuildBot's actions" className="absolute bottom-full right-2 mb-1 w-[min(17rem,calc(100vw-1.5rem))] animate-fade-up z-10">
+          <div role="dialog" aria-label="Nibble's actions" className="absolute bottom-full right-2 mb-1 w-[min(17rem,calc(100vw-1.5rem))] animate-fade-up z-10">
             <div className="rounded-2xl border border-border-strong bg-paper p-2 shadow-lg text-[13px]">
               <div className="flex items-center gap-2 px-1.5 pt-0.5 pb-1.5">
                 <span className="font-semibold text-ink">Make me do something</span>
@@ -302,7 +302,7 @@ export function GuildBotStage({
               <button
                 type="button"
                 onClick={() => hideDoing(doing)}
-                aria-label="Hide what GuildBot is doing"
+                aria-label="Hide what Nibble is doing"
                 className="absolute top-1 right-1.5 not-italic text-[13px] leading-none text-cha hover:text-ink"
               >
                 ×

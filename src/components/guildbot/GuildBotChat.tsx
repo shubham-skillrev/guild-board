@@ -258,13 +258,13 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
       })
       const data = await res.json().catch(() => null)
       if (!res.ok || !data) {
-        toast(data?.error ?? 'GuildBot did not answer. Try again.', 'error')
+        toast(data?.error ?? 'Nibble did not answer. Try again.', 'error')
         return
       }
       setMessages(m => [...m, { id: `bot-${Date.now()}`, role: 'bot', body: data.reply, draft: data.draft, cites: data.cites, reaction: data.reaction ?? null, fresh: true }])
       if (data.asks) setAsks(data.asks)
     } catch {
-      toast('GuildBot did not answer, check your connection', 'error')
+      toast('Nibble did not answer, check your connection', 'error')
     } finally {
       steps.forEach(clearTimeout)
       setThinking(false)
@@ -334,7 +334,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   }
 
   const clear = async () => {
-    if (!window.confirm('Clear your chat with GuildBot?')) return
+    if (!window.confirm('Clear your chat with Nibble?')) return
     await fetch('/api/guildbot/chat', { method: 'DELETE' })
     setMessages([])
   }
@@ -436,7 +436,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
             >
               <div className="flex items-center gap-2 min-h-8">
                 <h2 className="text-footnote font-semibold text-ink">
-                  GuildBot
+                  Nibble <span className="font-normal text-cha">· GuildBot</span>
                   {signedIn && asks && (
                     <span className={cn('ml-2 font-normal text-caption tabular-nums', genie ? 'text-indigo-jp' : 'text-cha')}>
                       {genie ? `${asks.left} ${asks.left === 1 ? 'wish' : 'wishes'} left` : `${asks.left} ${asks.left === 1 ? 'ask' : 'asks'} left`}
@@ -472,7 +472,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
 
             {!signedIn ? (
               <div className="flex-1 flex flex-col items-center justify-center gap-3 px-6 text-center">
-                <p className="text-footnote text-ink-soft">Sign in to chat with GuildBot.</p>
+                <p className="text-footnote text-ink-soft">Sign in to chat with Nibble.</p>
                 <Link href="/login" className="text-footnote text-saffron hover:underline">Sign in</Link>
               </div>
             ) : (
@@ -547,8 +547,8 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                       rows={1}
                       maxLength={1500}
-                      placeholder={outOfAsks ? `Out of asks. Back ${asks?.nextAt ? whenBack(asks.nextAt) : 'next week'}.` : genie ? 'Make a wish…' : 'Ask GuildBot…'}
-                      aria-label="Message GuildBot"
+                      placeholder={outOfAsks ? `Out of asks. Back ${asks?.nextAt ? whenBack(asks.nextAt) : 'next week'}.` : genie ? 'Make a wish…' : 'Ask Nibble…'}
+                      aria-label="Message Nibble (GuildBot)"
                       // 16px on phones: smaller text makes iOS zoom the page on focus.
                       className="flex-1 min-w-0 resize-none bg-transparent py-1 min-h-8 text-[16px] leading-6 md:text-[14px] text-ink placeholder:text-cha focus:outline-none"
                     />
@@ -609,8 +609,8 @@ function ChatBubble({ message, sticker, mood, onPosted }: { message: Message; st
           {reaction && (
             <span
               role="img"
-              aria-label={`GuildBot reacted: ${reaction.label}`}
-              title={`GuildBot: ${reaction.label}`}
+              aria-label={`Nibble reacted: ${reaction.label}`}
+              title={`Nibble: ${reaction.label}`}
               className={cn('gb-sticker absolute -bottom-3 -left-3 inline-flex items-center justify-center w-7 h-7 rounded-full bg-paper border border-border-strong text-[14px] leading-none shadow-sm -rotate-12', sticker?.fresh && 'gb-sticker-pop')}
             >
               {reaction.emoji}
@@ -841,7 +841,7 @@ function WelcomeCard({ text, onOpen, onDismiss }: { text: string; onOpen: () => 
             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sumi border border-border text-ink">
               <GuildBotMark size={16} />
             </span>
-            <span className="text-footnote text-ink">GuildBot</span>
+            <span className="text-footnote text-ink">Nibble <span className="text-cha">· GuildBot</span></span>
           </span>
           <span className="mt-1.5 block text-[13px] leading-snug text-ink-soft">{text}</span>
         </button>
