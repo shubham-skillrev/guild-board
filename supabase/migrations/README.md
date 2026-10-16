@@ -46,6 +46,7 @@ run, or the repo stops describing the database.
 | 033 | `033_ai_usage.sql` | `ai_usage` and `ai_usage_take()`: a per-day count of paid OpenAI calls, so the fallback stops at `OPENAI_DAILY_CAP` (service role only) | Yes — additive only; until it is applied the app never falls back to OpenAI |
 | 034 | `034_board_presence.sql` | presence allowed on `board:*` channels as well as `topic:*` (anonymous tab counts, for GuildBot noticing a crowd) | Yes — replaces one policy; until applied the board just has no presence |
 | 035 | `035_guildbot_reactions.sql` | `guildbot_messages.reaction`: GuildBot's sticker on the message his reply answers (fixed set) | Yes — additive; until applied, stickers show live but aren't kept |
+| 036 | `036_focus_presence.sql` | members-only presence on `focus:guild`: an anonymous count of running focus timers (`{ s, since, look }`, no ids) | Yes — additive; until applied /focus counts only you |
 
 > **028 and its code ship in the same deploy.** Apply 028 right after the code
 > goes live; never before. The old code reads `topics.user_id` and

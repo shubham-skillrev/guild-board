@@ -251,6 +251,28 @@ export const LINES = {
   'break.eyes': ["Look at something 20 feet away for 20 seconds. Not your phone. I'll count."],
   'break.stretch': ["Stand up. Reach for the ceiling. Roll the shoulders. I'll do it too, badly."],
   'break.walk': ["Five-minute walk. I'll keep the time. Go on."],
+  /* ── What he's up to, in a small bubble over him ── */
+  'doing.sleeping': ["Asleep. Knock if it's an emergency. It isn't.", "Dreaming of green builds. Do not wake."],
+  'doing.waking': ["Waking up. Do not perceive me yet.", "Rebooting. Coffee not found."],
+  'doing.brushing': ["Brushing. Minty fresh, emotionally stale.", "Two minutes of brushing. I'm counting. Badly."],
+  'doing.coffee': ["Coffee. Cup three. Don't count.", "Coffee break. Productivity is brewing."],
+  'doing.coffee.iced': ["Iced coffee. Too hot for hot drinks or feelings."],
+  'doing.coding': ["Coding. Mostly renaming variables.", "Shipping. Or breaking things faster.", "Writing code. Blaming the compiler in advance."],
+  'doing.lunch': ["Lunch. Talk to me after the last bite.", "Eating. The bugs can wait. They always do."],
+  'doing.lunch.tiffin': ["Tiffin from home. Don't ask for a bite."],
+  'doing.walking': ["On a walk. Calling it a strategy session.", "Walking. My step count is a personal brand."],
+  'doing.garden': ["Too hot to walk. Being a houseplant in the shade."],
+  'doing.rainwatch': ["Watching the rain with chai. Do not disturb the vibe."],
+  'doing.learning': ["Reading the docs. Somebody has to.", "Learning something. Will bring it up at the worst moment."],
+  'doing.music': ["Headphones on. Ignoring you rhythmically.", "Music on. Pretending it's a focus playlist."],
+  'doing.music.guitar': ["Guitar. Three chords, zero shame."],
+  'doing.meditating': ["Meditating. Inner peace, outer judging.", "Breathing. Loudly. On purpose."],
+  'doing.meeting': ["Not invited to the meeting. Fine. Totally fine."],
+  'doing.focus': ["Focusing with you. No talking. Okay, a little.", "Heads down. Mine's already down. It's a diamond."],
+  'doing.break': ["On a break with you. Stretching, badly.", "Break time. Doing it properly, unlike you."],
+
+  'focus.nudge': ["{n} people just went on a break. Break together?", "{n} people are on a break right now. Join them, I won't tell."],
+  'focus.party': ["Break party. {n} of you, same minute. I'm dancing.", "{n} breaks at once. This is a party now. Hydrate."],
   'break.done': ["Welcome back. Your spine says thanks.", "Break done. Back to it, champion."],
 
   /* The weather in the viewer's city (weather.ts), once a day. */

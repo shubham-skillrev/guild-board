@@ -101,7 +101,8 @@ export type Variant =
 
 export interface DayWeather { temperature: number; code: number }
 
-const raining = (code: number) => (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95
+/** Open-Meteo weather codes for drizzle, rain, showers and storms. */
+export const raining = (code: number) => (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95
 
 /** A stable number from 0 to 99 for a day and a salt. */
 export function daySeed(d: Date, salt: string): number {

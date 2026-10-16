@@ -54,6 +54,7 @@ export function GuildBotStage({
   desktop,
   trick,
   variant = null,
+  doing = null,
   onTrick,
   patrol,
   onPatrolEnd,
@@ -88,6 +89,8 @@ export function GuildBotStage({
   onTrick: (t: Trick) => void
   /** Today's take on his activity (iced coffee, a tiffin, the guitar). */
   variant?: Variant
+  /** What he's up to, in a small bubble over him when he isn't saying anything. */
+  doing?: string | null
   /** A walk across the screen is on (its id), and when it's done. */
   patrol: number | null
   onPatrolEnd: () => void
@@ -138,6 +141,7 @@ export function GuildBotStage({
   }, [hop, hidden, open, atHouse])
 
   const strolling = stroll !== 'home'
+  const [hiddenDoing, hideDoing] = useHiddenDoing()
   const say = lightsOut ?? (knock === 'door' ? greeting : null) ?? (open ? null : bubble?.text ?? dodge)
   const width = slot ? slot.width : desktop ? 124 : 100
 
@@ -157,9 +161,9 @@ export function GuildBotStage({
           <div
             role="status"
             className="absolute bottom-full mb-1 w-[min(17rem,calc(100vw-2rem))] animate-fade-up transition-[right] duration-700 ease-(--motion-in-out)"
-            // Exactly over him in the focus card (never across the timer); over
-            // the corner scene, or over him while he strolls, everywhere else.
-            style={slot ? { left: 0, width: slot.width } : { right: strolling ? STROLL - 24 : 8 }}
+            // Centred over him in the focus building (kept on screen); over the
+            // corner scene, or over him while he strolls, everywhere else.
+            style={slot ? slotBubble(slot) : { right: strolling ? STROLL - 24 : 8 }}
           >
             <div className="relative rounded-2xl border border-border-strong bg-paper px-3.5 py-2.5 text-[13px] leading-snug text-ink shadow-lg">
               <span className="block text-caption font-semibold text-ink-soft mb-0.5">GuildBot</span>
@@ -176,7 +180,7 @@ export function GuildBotStage({
               {bubble && say === bubble.text && (
                 <button type="button" onClick={onDismissBubble} aria-label="Dismiss" className="absolute top-1.5 right-2 text-cha hover:text-ink text-[14px] leading-none">×</button>
               )}
-              <span aria-hidden className="absolute -bottom-1.5 right-14 h-3 w-3 rotate-45 border-r border-b border-border-strong bg-paper" />
+              <span aria-hidden className={cn('absolute -bottom-1.5 h-3 w-3 rotate-45 border-r border-b border-border-strong bg-paper', slot ? 'left-1/2 -ml-1.5' : 'right-14')} />
             </div>
           </div>
         )}
@@ -286,6 +290,28 @@ export function GuildBotStage({
           </div>
         )}
 
+        {/* What he's up to: a small bubble, only while he's home and quiet.
+            Hide it and it stays hidden until he moves on to something else. */}
+        {doing && doing !== hiddenDoing && !say && !open && !panel && !choice && !hidden && !strolling && !walk && !dancing && (
+          <div
+            className={cn('absolute bottom-full mb-1 w-max max-w-[min(12.5rem,calc(100vw-2rem))] md:max-w-56', !slot && 'animate-fade-up')}
+            style={slot ? { left: slot.width / 2, transform: 'translateX(-50%)' } : { right: 8 }}
+          >
+            <p className="relative rounded-xl border border-border-strong bg-paper pl-2.5 pr-6 py-1.5 text-[11.5px] leading-snug italic text-ink-soft shadow-[0_8px_24px_-6px_rgba(0,0,0,0.35),0_2px_6px_-2px_rgba(0,0,0,0.2)]">
+              {doing}
+              <button
+                type="button"
+                onClick={() => hideDoing(doing)}
+                aria-label="Hide what GuildBot is doing"
+                className="absolute top-1 right-1.5 not-italic text-[13px] leading-none text-cha hover:text-ink"
+              >
+                ×
+              </button>
+              <span aria-hidden className={cn('absolute -bottom-[5px] h-2.5 w-2.5 rotate-45 border-r border-b border-border-strong bg-paper', slot ? 'left-1/2 -ml-[5px]' : 'right-10')} />
+            </p>
+          </div>
+        )}
+
         {/* The scene: the chat button. */}
         <button
           type="button"
@@ -360,6 +386,29 @@ function useStroll(bubble: Bubble | null, enabled: boolean): Stroll {
 }
 
 /** Where an element is on screen, kept current through scroll and resize. Null when it's absent. */
+/** A speech bubble centred over him in the focus building, never off screen. */
+function slotBubble(slot: DOMRect): React.CSSProperties {
+  const width = Math.min(256, window.innerWidth - 32)
+  const x = Math.min(Math.max(slot.left + slot.width / 2 - width / 2, 16), window.innerWidth - 16 - width)
+  return { left: x - slot.left, width }
+}
+
+const HIDE_DOING = 'guildbot:doing-hidden'
+
+/** The status line the viewer hid (this tab only): it comes back once it changes. */
+function useHiddenDoing(): [string | null, (text: string) => void] {
+  const [hidden, setHidden] = useState<string | null>(null)
+  useEffect(() => {
+    const t = setTimeout(() => setHidden(sessionStorage.getItem(HIDE_DOING)), 0)
+    return () => clearTimeout(t)
+  }, [])
+  const hide = (text: string) => {
+    sessionStorage.setItem(HIDE_DOING, text)
+    setHidden(text)
+  }
+  return [hidden, hide]
+}
+
 function useSlot(id: string | null): DOMRect | null {
   const [rect, setRect] = useState<DOMRect | null>(null)
   useEffect(() => {

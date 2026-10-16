@@ -59,6 +59,8 @@ type FigureProps = {
   fuzzy?: boolean
   /** Floating hands and feet on faint lines. Off for marks too small to read them. */
   limbs?: boolean
+  /** Any felt colour, for the anonymous plushes in the focus crowd. */
+  tint?: string
   look?: { x: number; y: number }
 }
 
@@ -100,10 +102,11 @@ export function PlushFigure({
   status = null,
   fuzzy = true,
   limbs: withLimbs = true,
+  tint,
   look = { x: 0, y: 0 },
 }: FigureProps) {
   const id = useId().replace(/:/g, '')
-  const base = PLUSH_COLOURS[colour]
+  const base = tint ?? PLUSH_COLOURS[colour]
   const weather = useContext(WearContext)
   const eyes = eyeShape(expression)
   const limbs = withLimbs ? limbsFor(hands) : []
@@ -390,6 +393,9 @@ function Limbs({ limbs, colour, layer }: { limbs: Limb[]; colour: string; layer:
     </g>
   )
 }
+
+/** Felt colours for anonymous plushes (the focus crowd): none of them GuildBot's own. */
+export const CREW_TINTS = ['#4FB3A0', '#E58BB0', '#73A9E6', '#9CC55A', '#D9B07A', '#F08A6B', '#8E9BD8', '#58C1D6']
 
 /** The dark felt edge for a colour: outlines and limb lines. */
 export const plushEdge = (colour: PlushColour) => mix(PLUSH_COLOURS[colour], '#000000', 0.3)
