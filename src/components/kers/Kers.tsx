@@ -424,7 +424,7 @@ function Mark4({ face }: { face: Expression }) {
 
 /** Stitched eyebrows: how high each sits and how it tilts (inner end up for sad, down for cross). */
 const BROWS: Partial<Record<Expression, { lift: [number, number]; tilt: [number, number] }>> = {
-  smug: { lift: [0, 6], tilt: [0, -16] },
+  smug: { lift: [2, 6], tilt: [0, -10] },
   bored: { lift: [-5, -5], tilt: [0, 0] },
   dramatic: { lift: [11, 11], tilt: [-10, 10] },
   proud: { lift: [3, 3], tilt: [-6, 6] },

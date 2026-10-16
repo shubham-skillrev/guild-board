@@ -42,7 +42,8 @@ export type EyeShape = {
 export function eyeShape(e: Expression): EyeShape {
   const open: EyeShape = { r: 12, lid: [0, 0], tilt: [0, 0], pupil: { dx: 0, dy: 1, r: 5.4 } }
   switch (e) {
-    case 'smug': return { ...open, lid: [0.15, 0.55], tilt: [0, -12], pupil: { dx: 3, dy: 1, r: 5.2 } }
+    // His everyday face: friendly, both eyes open, a sly sideways glance (the wit is in the brow, not a squint).
+    case 'smug': return { ...open, lid: [0.08, 0.08], pupil: { dx: 2.6, dy: 0.5, r: 5.6 } }
     case 'bored': return { ...open, lid: [0.6, 0.6], pupil: { dx: 0, dy: 4, r: 5 } }
     case 'dramatic': return { ...open, r: 15.5, pupil: { dx: 0, dy: 0, r: 3.4 } }
     case 'proud': return { ...open, arcs: 'up' }

@@ -702,37 +702,53 @@ body {
   20%, 40%, 70% { opacity: 0.1; }
 }
 
-/* The character, in the theme's colours: paper shell, ink line, saffron
-   accents. Dark mode lifts the shell so he reads on the graphite ground. */
+/* The scene around Kers, in the theme's own colours. No outlines: every prop
+   has only a soft edge in a darker shade of itself, and its depth comes
+   from a drop shadow. Light mode: warm brown lines and shadows. Dark mode:
+   deep shadows, muted (never white) lines, props lifted a touch so they
+   read on the graphite ground. */
 .gb-bot, .gb-scene {
   --gb-shell-hi: #FFFFFF;
   --gb-shell-lo: #ECE7DE;
   --gb-wood-top: color-mix(in oklab, var(--color-saffron) 22%, var(--color-paper));
   --gb-wood-front: color-mix(in oklab, var(--color-saffron) 42%, var(--color-paper));
+  --gb-line: #6B5644;
+  --gb-edge: rgba(90, 55, 25, 0.28);
+  --gb-laptop: #2A2D36;
+  --gb-pot: #E4DED3;
+  --gb-page: #FFFDF8;
+  --gb-shadow: drop-shadow(0 2px 2px rgba(110, 70, 30, 0.16)) drop-shadow(0 6px 8px rgba(110, 70, 30, 0.12));
 }
 .dark .gb-bot, .dark .gb-scene {
   --gb-shell-hi: #3A3A42;
   --gb-shell-lo: #24242A;
-  --gb-wood-top: color-mix(in oklab, var(--color-saffron) 30%, var(--color-kinu));
-  --gb-wood-front: color-mix(in oklab, var(--color-saffron) 45%, var(--color-sumi));
+  --gb-wood-top: color-mix(in oklab, var(--color-saffron) 34%, #3A3530);
+  --gb-wood-front: color-mix(in oklab, var(--color-saffron) 40%, #2A2622);
+  --gb-line: #7C746B;
+  --gb-edge: rgba(0, 0, 0, 0.45);
+  --gb-laptop: #3A3E48;
+  --gb-pot: #4A4640;
+  --gb-page: #D9D2C6;
+  --gb-shadow: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55)) drop-shadow(0 8px 10px rgba(0, 0, 0, 0.45));
 }
-.gb-line { stroke: var(--color-ink); }
-.gb-shell { fill: var(--gb-shell-hi); stroke: var(--color-ink); }
+.gb-scene > svg { filter: var(--gb-shadow); }
+.gb-line { stroke: var(--gb-line); }
+.gb-shell { fill: var(--gb-shell-hi); stroke: var(--gb-edge); }
 .gb-bot-head .gb-shell { fill: var(--gb-shell-hi); }
-.gb-antenna { fill: var(--color-saffron); stroke: var(--color-ink); }
+.gb-antenna { fill: var(--color-saffron); stroke: var(--gb-edge); }
 .gb-cheek { fill: var(--color-saffron); opacity: 0.28; }
-.gb-foot { fill: var(--color-ink-soft); stroke: var(--color-ink); stroke-width: 1.2px; }
-.gb-chair { fill: var(--gb-wood-front); stroke: var(--color-ink); }
-.gb-wood-top { fill: var(--gb-wood-top); stroke: var(--color-ink); }
-.gb-wood-front { fill: var(--gb-wood-front); stroke: var(--color-ink); }
-.gb-laptop { fill: #121318; stroke: var(--color-ink); }
-.gb-leaf { fill: var(--color-matcha); stroke: var(--color-ink); }
-.gb-pot { fill: var(--color-kinu); stroke: var(--color-ink); }
-.gb-cushion { fill: color-mix(in oklab, var(--color-saffron) 55%, var(--color-paper)); stroke: var(--color-ink); }
-.gb-mug { fill: var(--color-saffron); stroke: var(--color-ink); }
+.gb-foot { fill: var(--color-ink-soft); stroke: var(--gb-edge); stroke-width: 1.2px; }
+.gb-chair { fill: var(--gb-wood-front); stroke: var(--gb-edge); }
+.gb-wood-top { fill: var(--gb-wood-top); stroke: var(--gb-edge); }
+.gb-wood-front { fill: var(--gb-wood-front); stroke: var(--gb-edge); }
+.gb-laptop { fill: var(--gb-laptop); stroke: var(--gb-edge); }
+.gb-leaf { fill: var(--color-matcha); stroke: var(--gb-edge); }
+.gb-pot { fill: var(--gb-pot); stroke: var(--gb-edge); }
+.gb-cushion { fill: color-mix(in oklab, var(--color-saffron) 55%, var(--color-paper)); stroke: var(--gb-edge); }
+.gb-mug { fill: var(--color-saffron); stroke: var(--gb-edge); }
 .gb-steam { stroke: var(--color-ink-muted); opacity: 0; }
 .gb-sparkle { fill: var(--color-saffron); }
-.gb-sign-text { fill: var(--color-ink); letter-spacing: 0.04em; }
+.gb-sign-text { fill: #2A2622; letter-spacing: 0.04em; }
 .gb-lamp-light { fill: #FFD47A; opacity: 0.22; }
 .gb-zzz { stroke: var(--color-ink-muted); }
 .gb-status { fill: var(--color-saffron); stroke: var(--color-saffron); }
@@ -741,17 +757,17 @@ body {
 .gb-bot svg [data-part], .gb-bot svg [data-dot], .gb-bot svg [data-wave],
 .gb-scene svg [data-dot], .gb-scene svg [data-wave] { transform-box: fill-box; }
 
-.gb-page { fill: var(--color-paper); stroke: var(--color-ink); }
+.gb-page { fill: var(--gb-page); stroke: var(--gb-edge); }
 .gb-noodle { stroke: #E8B64B; }
 .gb-brush { stroke: var(--color-indigo-jp); }
-.gb-foam { fill: #FFFFFF; stroke: var(--color-ink-muted); stroke-width: 0.6px; }
+.gb-foam { fill: #FFFFFF; stroke: var(--gb-edge); stroke-width: 0.6px; }
 .gb-sun { fill: color-mix(in oklab, var(--color-saffron) 45%, transparent); }
 .gb-sun-ray { stroke: var(--color-saffron); opacity: 0.7; }
 .gb-note { fill: var(--color-saffron); }
 .gb-note-line { stroke: var(--color-saffron); }
 .gb-fumes { fill: var(--color-ink-muted); opacity: 0.8; }
 .gb-hearts { fill: var(--color-vermillion); }
-.gb-sign-muted { fill: var(--color-ink-muted); }
+.gb-sign-muted { fill: #6B6158; }
 .gb-steam-on { stroke: var(--color-ink-muted); }
 .gb-scene svg [data-fume], .gb-scene svg [data-heart], .gb-scene svg [data-foot] { transform-box: fill-box; }
 
