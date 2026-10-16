@@ -41,18 +41,17 @@ export interface PoseSpec {
 const frame = { w: 600, h: 640, ready: false, eyes: [[232, 292], [328, 292]] as [Point, Point], eyeR: 44, tip: [176, 78] as Point, centre: [290, 330] as Point, hand: [462, 420] as Point }
 
 export const KERS_POSES: Record<KersPose, PoseSpec> = {
-  standing: { w: 474, h: 640, ready: true, eyes: [[158, 232], [258, 232]], eyeR: 42, tip: [100, 40], centre: [230, 330], hand: [400, 405], arms: [[-58, 70], [64, 74]] },
-  sitting: { w: 525, h: 640, ready: true, eyes: [[148, 252], [250, 252]], eyeR: 44, tip: [72, 40], centre: [220, 330], hand: [350, 410], arms: [[40, -10], [-10, 40]] },
-  'walk-a': { w: 466, h: 640, ready: true, eyes: [[178, 232], [278, 232]], eyeR: 42, tip: [120, 30], centre: [250, 330], hand: [410, 400], arms: [[-30, 84], [74, 54]] },
-  // No second step rendered yet: walking alternates walk-a with standing.
-  'walk-b': { ...frame, arms: [[-70, 54], [36, 84]], step: 'right' },
-  'arms-up': { w: 497, h: 640, ready: true, eyes: [[175, 232], [275, 232]], eyeR: 42, tip: [115, 35], centre: [240, 330], hand: [440, 240], arms: [[-34, -96], [40, -96]] },
-  waving: { w: 481, h: 640, ready: true, eyes: [[178, 232], [278, 232]], eyeR: 42, tip: [120, 30], centre: [240, 330], hand: [45, 205], arms: [[-58, 70], [52, -100]] },
-  asleep: { w: 1046, h: 640, ready: true, eyes: [[330, 248], [450, 262]], eyeR: 44, tip: [60, 110], centre: [480, 330], hand: [870, 400], arms: [[-40, 60], [40, 60]] },
-  // Still to render (docs/kers/prompts.md, prompts 9 to 13).
-  laptop: { ...frame, arms: [[60, 40], [-10, 60]] },
-  mug: { ...frame, arms: [[54, -20], [-20, 40]] },
-  reading: { ...frame, arms: [[50, 30], [-10, 40]] },
-  meditating: { ...frame, arms: [[-30, 80], [30, 80]] },
+  standing: { w: 420, h: 640, ready: true, eyes: [[158, 245], [250, 245]], eyeR: 40, tip: [110, 25], centre: [200, 330], hand: [380, 430], arms: [[-58, 70], [64, 74]] },
+  sitting: { w: 477, h: 640, ready: true, eyes: [[140, 245], [232, 245]], eyeR: 40, tip: [90, 25], centre: [200, 330], hand: [330, 460], arms: [[40, -10], [-10, 40]] },
+  'walk-a': { w: 470, h: 640, ready: true, eyes: [[215, 245], [305, 245]], eyeR: 40, tip: [165, 25], centre: [250, 330], hand: [440, 390], arms: [[-30, 84], [74, 54]] },
+  'walk-b': { w: 462, h: 640, ready: true, eyes: [[195, 245], [285, 245]], eyeR: 40, tip: [150, 22], centre: [240, 330], hand: [420, 400], arms: [[-70, 54], [36, 84]] },
+  'arms-up': { w: 428, h: 640, ready: true, eyes: [[175, 235], [262, 235]], eyeR: 38, tip: [140, 20], centre: [220, 320], hand: [400, 110], arms: [[-34, -96], [40, -96]] },
+  waving: { w: 442, h: 640, ready: true, eyes: [[195, 245], [285, 245]], eyeR: 40, tip: [150, 25], centre: [240, 330], hand: [40, 180], arms: [[-58, 70], [52, -100]] },
+  asleep: { w: 914, h: 640, ready: true, eyes: [[300, 230], [410, 248]], eyeR: 40, tip: [40, 70], centre: [400, 320], hand: [700, 420], arms: [[-40, 60], [40, 60]] },
+  laptop: { w: 603, h: 640, ready: true, eyes: [[195, 225], [285, 225]], eyeR: 40, tip: [150, 25], centre: [240, 300], hand: [400, 440], arms: [[60, 40], [-10, 60]] },
+  mug: { w: 478, h: 640, ready: true, eyes: [[125, 225], [212, 225]], eyeR: 38, tip: [55, 20], centre: [180, 280], hand: [230, 430], arms: [[54, -20], [-20, 40]] },
+  reading: { w: 560, h: 640, ready: true, eyes: [[155, 215], [245, 215]], eyeR: 38, tip: [95, 20], centre: [220, 270], hand: [370, 440], arms: [[50, 30], [-10, 40]] },
+  meditating: { w: 521, h: 640, ready: true, eyes: [[165, 215], [255, 215]], eyeR: 38, tip: [115, 20], centre: [220, 300], hand: [330, 410], arms: [[-30, 80], [30, 80]] },
+  // Still to render (docs/kers/prompts.md, prompt 13).
   brushing: { ...frame, arms: [[-58, 70], [-40, -40]] },
 }
