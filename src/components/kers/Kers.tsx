@@ -361,12 +361,13 @@ function Face({ face, eyes, look, lid }: { face: Expression; eyes: KersEyes; loo
             </>
           )}
           <g className={side ? 'kx-brow-r' : 'kx-brow-l'}>
+            {/* Short brows, a clear gap between them and a little above each eye. */}
             <path
-              d="M-12 0H12"
-              transform={`translate(0 ${-shape.r - 7 - brow.lift[side]}) rotate(${brow.tilt[side]})`}
+              d="M-6.5 0H6.5"
+              transform={`translate(${side ? 1.5 : -1.5} ${-shape.r - 9 - brow.lift[side]}) rotate(${brow.tilt[side]})`}
               stroke={SUMI}
-              strokeWidth={2.6}
-              strokeDasharray="3.4 2.2"
+              strokeWidth={3}
+              strokeDasharray="2.8 1.8"
               strokeLinecap="round"
             />
           </g>
