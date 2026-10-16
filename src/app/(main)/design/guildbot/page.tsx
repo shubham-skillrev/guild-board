@@ -10,7 +10,7 @@ import type { Expression, Variant, Wear } from '@guildboard/guildbot'
 import type { KersColour } from '@/components/kers/look'
 import { WearContext } from '@/components/guildbot/useWeather'
 import { GuildBotScene, type Scene } from '@/components/guildbot/GuildBotScene'
-import { Kers, type KersState, type KersWear } from '@/components/kers/Kers'
+import { Kers, type KersEyes, type KersState, type KersWear } from '@/components/kers/Kers'
 import { RIGS, type KersPose } from '@/components/kers/poses'
 
 const POSES = (Object.keys(RIGS) as KersPose[]).filter(p => p !== 'walk-b')
@@ -23,6 +23,12 @@ const COLOURS: { colour: KersColour; face: Expression; label: string }[] = [
   { colour: 'meeting', face: 'grumpy', label: 'Meeting sulk · budo' },
 ]
 const FACES: Expression[] = ['smug', 'bored', 'dramatic', 'proud', 'relieved', 'excited', 'nosy', 'lonely', 'sleepy', 'grumpy']
+const SPECIAL: { eyes: KersEyes; label: string }[] = [
+  { eyes: 'happy', label: 'Pleased ^^' },
+  { eyes: 'star', label: 'Excited ★' },
+  { eyes: 'swirl', label: 'Shocked @@' },
+  { eyes: 'heart', label: 'Patted ♥' },
+]
 const STATES: { state: KersState; label: string }[] = [
   { state: 'thinking', label: 'Thinking: loader ring' },
   { state: 'writing', label: 'Writing: I-beam caret' },
@@ -84,6 +90,13 @@ function Sheet() {
       </Section>
       <Section title="Googly eyes, stitched brows">
         {FACES.map(f => <Cell key={f} label={f}><Kers expression={f} size={100} /></Cell>)}
+      </Section>
+      <Section title="Eyes for a moment">
+        {SPECIAL.map(e => <Cell key={e.label} label={e.label}><Kers special={e.eyes} expression="excited" size={100} /></Cell>)}
+      </Section>
+      <Section title="Away from his desk (walking or dancing)">
+        <Cell label="Coding, away"><GuildBotScene scene="coding" asks="normal" expression="smug" away width={150} /></Cell>
+        <Cell label="Asleep, away"><GuildBotScene scene="sleeping" asks="normal" expression="smug" away width={150} /></Cell>
       </Section>
       <Section title="Cursor states">
         {STATES.map(s => <Cell key={s.label} label={s.label}><Kers state={s.state} size={100} /></Cell>)}

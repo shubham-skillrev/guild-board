@@ -42,16 +42,16 @@ export type EyeShape = {
 export function eyeShape(e: Expression): EyeShape {
   const open: EyeShape = { r: 12, lid: [0, 0], tilt: [0, 0], pupil: { dx: 0, dy: 1, r: 5.4 } }
   switch (e) {
-    case 'smug': return { ...open, lid: [0.1, 0.45], tilt: [0, -8], pupil: { dx: 2.8, dy: 1, r: 5.2 } }
-    case 'bored': return { ...open, lid: [0.5, 0.5], pupil: { dx: 0, dy: 3.5, r: 5 } }
-    case 'dramatic': return { ...open, r: 14.5, pupil: { dx: 0, dy: 0, r: 3.8 } }
+    case 'smug': return { ...open, lid: [0.15, 0.55], tilt: [0, -12], pupil: { dx: 3, dy: 1, r: 5.2 } }
+    case 'bored': return { ...open, lid: [0.6, 0.6], pupil: { dx: 0, dy: 4, r: 5 } }
+    case 'dramatic': return { ...open, r: 15.5, pupil: { dx: 0, dy: 0, r: 3.4 } }
     case 'proud': return { ...open, arcs: 'up' }
     case 'relieved': return { ...open, arcs: 'down' }
     case 'excited': return { ...open, r: 13, pupil: { dx: 0, dy: 0, r: 6.2 }, sparkle: true }
-    case 'nosy': return { ...open, lid: [0.35, 0.1], pupil: { dx: -5.5, dy: 0, r: 5 } }
-    case 'lonely': return { ...open, lid: [0.25, 0.25], tilt: [10, -10], pupil: { dx: 0, dy: 4, r: 5.2 } }
-    case 'sleepy': return { ...open, lid: [0.85, 0.85], pupil: { dx: 0, dy: 3.5, r: 5 } }
-    case 'grumpy': return { ...open, lid: [0.4, 0.4], tilt: [-18, 18], pupil: { dx: 0, dy: 1.5, r: 5.2 } }
+    case 'nosy': return { ...open, lid: [0.45, 0.08], pupil: { dx: -6, dy: 0, r: 5 } }
+    case 'lonely': return { ...open, lid: [0.3, 0.3], tilt: [14, -14], pupil: { dx: 0, dy: 4.5, r: 5.6 } }
+    case 'sleepy': return { ...open, lid: [0.9, 0.9], pupil: { dx: 0, dy: 3.5, r: 5 } }
+    case 'grumpy': return { ...open, lid: [0.5, 0.5], tilt: [-24, 24], pupil: { dx: 0, dy: 1.5, r: 5.2 } }
     default: return open
   }
 }
@@ -72,10 +72,12 @@ export function Eye({ cx, cy, shape, side, look, lid }: { cx: number; cy: number
     <g data-eye>
       <clipPath id={clip}><circle cx={cx} cy={cy} r={r} /></clipPath>
       <circle cx={cx} cy={cy} r={r} fill="#FFFFFF" stroke="#1A1A1F" strokeOpacity={0.15} strokeWidth={1} />
+      <g className="kx-pupil">
       <circle cx={cx + px} cy={cy + py} r={pupil.r} fill="#1A1A1F" style={{ transition: 'cx 160ms ease-out, cy 160ms ease-out' }} />
       <circle cx={cx + px + pupil.r * 0.35} cy={cy + py - pupil.r * 0.4} r={pupil.r * 0.32} fill="#FFFFFF" />
       {/* A second, smaller sparkle: big shiny eyes. */}
       <circle cx={cx + px - pupil.r * 0.38} cy={cy + py + pupil.r * 0.36} r={pupil.r * 0.16} fill="#FFFFFF" opacity={0.85} />
+      </g>
       {shape.sparkle && <path d={`M${cx + px - 1} ${cy + py - 1.5}l.8 1.5 1.5.8-1.5.8-.8 1.5-.8-1.5-1.5-.8 1.5-.8Z`} fill="#FFFFFF" />}
       {cover > 0 && (
         // A felt lid, in his colour, coming down from the top, with its edge.

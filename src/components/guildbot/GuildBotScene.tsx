@@ -168,6 +168,7 @@ export function GuildBotScene({
             expression={awake ? 'sleepy' : face}
             state={cursor ?? kersState(status)}
             play={play}
+            special={trick === 'pat' ? 'heart' : reacting && expression === 'dramatic' ? 'swirl' : null}
             wear={scene === 'music' && !guitar ? 'headphones' : null}
             size={Math.round(height * stage.h)}
           />
@@ -176,7 +177,8 @@ export function GuildBotScene({
 
       {/* In front of him. */}
       <svg viewBox="0 0 120 90" className="absolute inset-0 w-full h-full overflow-visible pointer-events-none" aria-hidden>
-        {!away && <Foreground scene={scene} variant={variant} guitar={guitar} />}
+        {/* His desk stays put while he's off on a walk or dancing; only what he's holding goes with him. */}
+        {atDesk ? <DeskFront scene={scene} variant={variant} away={away} /> : !away && <Foreground scene={scene} variant={variant} guitar={guitar} />}
         {trick === 'pat' && !away && <Hearts />}
         {mug && (genie ? <GenieLamp x={atDesk ? 96 : 98} y={atDesk ? 57.5 : 86} /> : out ? <OutSign y={atDesk ? 62 : 86} /> : null)}
       </svg>
@@ -264,7 +266,6 @@ function Backdrop({ scene }: { scene: Scene }) {
 
 /** What's in front of him: his desk and what's on it, the guitar, lemonade. */
 function Foreground({ scene, variant, guitar }: { scene: Scene; variant: Variant; guitar: boolean }) {
-  if (DESK_SCENES.has(scene)) return <DeskFront scene={scene} variant={variant} />
   if (guitar) {
     return (
       <g transform="translate(-4 4)">
@@ -289,7 +290,7 @@ function Foreground({ scene, variant, guitar }: { scene: Scene; variant: Variant
 }
 
 /** His desk's front half, and what's on it for the scene. */
-function DeskFront({ scene, variant }: { scene: Scene; variant: Variant }) {
+function DeskFront({ scene, variant, away }: { scene: Scene; variant: Variant; away: boolean }) {
   return (
     <g>
       {/* Desk: top face, front edge, legs. */}
@@ -340,7 +341,7 @@ function DeskFront({ scene, variant }: { scene: Scene; variant: Variant }) {
           <path d="M39 50l8 1.4M39 53l8 1.4M53 51.4l8-1.4M53 54.4l8-1.4" className="gb-line" strokeOpacity={0.35} strokeWidth={1} />
         </g>
       )}
-      {scene === 'meeting' && <Fumes />}
+      {scene === 'meeting' && !away && <Fumes />}
       {scene === 'sleeping' && (
         <g>
           {/* A dim desk lamp, and z's drifting up off him. */}
@@ -348,11 +349,11 @@ function DeskFront({ scene, variant }: { scene: Scene; variant: Variant }) {
           <path d="M104 57.5V40l-8-6" className="gb-line" strokeWidth={1.8} strokeLinecap="round" fill="none" />
           <path d="M90 30l10 8-4 4-9-6Z" fill="#E8B04B" className="gb-line" strokeWidth={1.4} strokeLinejoin="round" />
           <path d="M98 57.5h12" className="gb-line" strokeWidth={2.4} strokeLinecap="round" />
-          <g className="gb-zzz" fill="#8A8F9C">
+          {!away && <g className="gb-zzz" fill="#8A8F9C">
             <text data-z x={66} y={34} fontSize={8} fontWeight={700}>z</text>
             <text data-z x={72} y={26} fontSize={10} fontWeight={700}>z</text>
             <text data-z x={80} y={16} fontSize={12} fontWeight={700}>z</text>
-          </g>
+          </g>}
         </g>
       )}
     </g>

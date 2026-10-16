@@ -1031,7 +1031,16 @@ body {
 .gb-kers[data-jiggle] .gb-kers-body { animation: gb-kers-jiggle 650ms var(--motion-out); }
 @keyframes gb-kers-jiggle { 0% { transform: scale(1.08, 0.92); } 35% { transform: scale(0.95, 1.05); } 65% { transform: scale(1.03, 0.97); } 100% { transform: scale(1, 1); } }
 
-@keyframes gb-kers-eyeblink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
+@keyframes gb-kers-eyeblink { 0%, 90%, 94%, 98%, 100% { transform: scaleY(1); } 92%, 96% { transform: scaleY(0.1); } }
+/* Idle glances: now and then his pupils dart aside and back. */
+.gb-kers[data-motion='idle'] .kx-pupil { animation: kx-glance 7s ease-in-out infinite; }
+@keyframes kx-glance { 0%, 66%, 100% { transform: translate(0, 0); } 70%, 78% { transform: translate(2.6px, 0); } 82%, 88% { transform: translate(-2.4px, 0.6px); } }
+/* A double-take when something happens. */
+.gb-kers[data-take] .gb-kers-body { animation: kx-take 460ms var(--motion-out); }
+@keyframes kx-take { 0% { transform: rotate(0); } 30% { transform: rotate(-7deg) translateX(-2%); } 65% { transform: rotate(5deg); } 100% { transform: rotate(0); } }
+/* Cartoon marks pop and pulse. */
+.gb-kers .kx-mark { transform-box: fill-box; transform-origin: center; animation: kx-mark 1.6s ease-in-out infinite; }
+@keyframes kx-mark { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
 /* Kers (components/kers): breathes, bobs as he walks, hops; his cursor
    states spin, blink and ripple. Transform and opacity only. */
 .gb-kers .gb-kers-body { transform-origin: 50% 100%; }

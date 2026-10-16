@@ -31,6 +31,8 @@ export type KersState = 'thinking' | 'writing' | 'pleased' | 'refusing' | null
 export type KersMotion = 'idle' | 'walk' | 'hop' | 'dance' | 'still'
 /** What he wears for what he's doing (the weather comes from WearContext). */
 export type KersWear = 'headphones' | null
+/** Eyes for a moment: ^^ pleased, stars excited, swirls shocked, hearts when patted. */
+export type KersEyes = 'happy' | 'star' | 'swirl' | 'heart' | null
 
 const SUMI = '#2B2B2B'
 const W = 200
@@ -87,6 +89,7 @@ export function Kers({
   tint,
   wear = null,
   play = null,
+  special = null,
   className,
 }: {
   pose?: KersPose
@@ -102,6 +105,8 @@ export function Kers({
   wear?: KersWear
   /** Reacting to your cursor (useCursorPlay): pointing, leaning in, flinching. */
   play?: CursorPlay
+  /** Eyes for a moment (pleased and excited ones come on their own). */
+  special?: KersEyes
   className?: string
 }) {
   const look = useLookAt(follow)
@@ -113,6 +118,8 @@ export function Kers({
   const rig = play === 'point' && !base.lying ? { ...base, hands: [[14, 112], base.hands[1]] as [Point, Point], wave: undefined } : base
   const dye = tint ? pastel(tint) : fillDye(colour)
   const face = rig.lying || rig.sleep ? 'relieved' : expression
+  const eyes: KersEyes = rig.lying || rig.sleep ? null : special ?? (state === 'pleased' ? 'happy' : expression === 'excited' ? 'star' : null)
+  const take = useDoubleTake(expression)
 
   return (
     <span
@@ -121,6 +128,7 @@ export function Kers({
       data-motion={walking ? 'walk' : motion}
       data-jiggle={jiggle ? '' : undefined}
       data-play={play ?? undefined}
+      data-take={take ? '' : undefined}
     >
       <span className="gb-kers-body absolute inset-0">
         <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 w-full h-full overflow-visible" aria-hidden>
@@ -128,7 +136,7 @@ export function Kers({
             <Mark dye={dye} />
           ) : (
             <>
-              <Figure rig={rig} dye={dye} face={face} look={look} weather={weather} wear={wear} />
+              <Figure rig={rig} dye={dye} face={face} eyes={eyes} look={look} weather={weather} wear={wear} />
               <States rig={rig} state={state} />
             </>
           )}
@@ -136,6 +144,20 @@ export function Kers({
       </span>
     </span>
   )
+}
+
+/** A double-take when his face changes (something just happened). */
+function useDoubleTake(expression: Expression): boolean {
+  const [on, setOn] = useState(false)
+  const last = useRef(expression)
+  useEffect(() => {
+    if (last.current === expression) return
+    last.current = expression
+    const start = setTimeout(() => setOn(true), 0)
+    const stop = setTimeout(() => setOn(false), 460)
+    return () => { clearTimeout(start); clearTimeout(stop) }
+  }, [expression])
+  return on
 }
 
 /** A little jiggle when he stops walking or dancing, like a squishy toy settling. */
@@ -156,10 +178,11 @@ function useJiggle(motion: KersMotion): boolean {
 type Ink = { line: string; fill: string }
 
 /** Him, layered back to front for depth. */
-function Figure({ rig, dye, face, look, weather, wear }: {
+function Figure({ rig, dye, face, eyes, look, weather, wear }: {
   rig: Rig
   dye: string
   face: Expression
+  eyes: KersEyes
   look: { x: number; y: number }
   weather: Wear
   wear: KersWear
@@ -215,7 +238,8 @@ function Figure({ rig, dye, face, look, weather, wear }: {
         <ellipse cx={76} cy={90} rx={14} ry={26} fill={WHITE} opacity={0.4} filter={`url(#${id}-blur)`} />
         <path d="M62 74V184M68 64l50 50" stroke={WHITE} strokeWidth={3.2} strokeLinecap="round" fill="none" opacity={0.6} />
 
-        <Face face={face} look={look} lid={dye} />
+        <Face face={face} eyes={eyes} look={look} lid={dye} />
+        {!rig.lying && !rig.sleep && <Mark4 face={face} />}
         <Gear weather={weather} wear={wear} asleep={!!rig.lying} />
 
         {rig.prop === 'laptop' && <Laptop />}
@@ -283,7 +307,7 @@ function Mark({ dye }: { dye: string }) {
 }
 
 /** His face: big googly eyes set low, stitched brows and blush. No mouth. */
-function Face({ face, look, lid }: { face: Expression; look: { x: number; y: number }; lid: string }) {
+function Face({ face, eyes, look, lid }: { face: Expression; eyes: KersEyes; look: { x: number; y: number }; lid: string }) {
   const shape = eyeShape(face)
   const k = EYE_R / 12
   const brow = BROWS[face] ?? { lift: [0, 0] as [number, number], tilt: [0, 0] as [number, number] }
@@ -295,10 +319,14 @@ function Face({ face, look, lid }: { face: Expression; look: { x: number; y: num
       ))}
       {EYES.map(([x, y], side) => (
         <g key={side} transform={`translate(${x} ${y}) scale(${k})`}>
-          {/* A googly eye is a little plastic dome: a soft shadow under it and a rim. */}
-          {!shape.arcs && <circle cx={0.6} cy={1.6} r={shape.r + 0.8} fill="#000000" opacity={0.18} />}
-          {!shape.arcs && <circle r={shape.r + 0.9} fill={WHITE} stroke="#8C8579" strokeWidth={0.8} />}
-          <Eye cx={0} cy={0} shape={shape} side={side as 0 | 1} look={look} lid={lid} />
+          {eyes ? <SpecialEye kind={eyes} /> : (
+            <>
+              {/* A googly eye is a little plastic dome: a soft shadow under it and a rim. */}
+              {!shape.arcs && <circle cx={0.6} cy={1.6} r={shape.r + 0.8} fill="#000000" opacity={0.18} />}
+              {!shape.arcs && <circle r={shape.r + 0.9} fill={WHITE} stroke="#8C8579" strokeWidth={0.8} />}
+              <Eye cx={0} cy={0} shape={shape} side={side as 0 | 1} look={look} lid={lid} />
+            </>
+          )}
           <path
             d="M-11 0H11"
             transform={`translate(0 ${-shape.r - 7 - brow.lift[side]}) rotate(${brow.tilt[side]})`}
@@ -313,18 +341,72 @@ function Face({ face, look, lid }: { face: Expression; look: { x: number; y: num
   )
 }
 
+/** Eyes for a moment, in an eye's 12-unit space. */
+function SpecialEye({ kind }: { kind: Exclude<KersEyes, null> }) {
+  switch (kind) {
+    case 'happy':
+      return <path d="M-10 4Q0 -10 10 4" stroke="#1A1A1F" strokeWidth={4.4} strokeLinecap="round" fill="none" />
+    case 'star':
+      return (
+        <g>
+          <path d="M0 -13L3.8 -4.2 13 -3.6 6 2.6 8 12 0 7 -8 12 -6 2.6 -13 -3.6 -3.8 -4.2Z" fill="#F6C431" stroke="#1A1A1F" strokeWidth={1.6} strokeLinejoin="round" />
+          <circle cx={-2.5} cy={-3} r={2} fill={WHITE} opacity={0.85} />
+        </g>
+      )
+    case 'heart':
+      return (
+        <g>
+          <path d="M0 11C-14 2-13-10-6-11c3-.4 5 1.4 6 4 1-2.6 3-4.4 6-4 7 1 8 13-6 22Z" fill="#FF6B8A" stroke="#1A1A1F" strokeWidth={1.6} strokeLinejoin="round" />
+          <circle cx={-4.5} cy={-5} r={1.8} fill={WHITE} opacity={0.85} />
+        </g>
+      )
+    case 'swirl':
+      return (
+        <g>
+          <circle r={12.5} fill={WHITE} stroke="#8C8579" strokeWidth={0.8} />
+          <path d="M0 0c2 0 3 1.6 2.4 3.2-.8 2-3.6 2.4-5.2 1.2-2.4-1.6-2.4-5.2-.4-7 2.8-2.6 7.2-1.8 9 1.2 2 3.4.6 8-3 9.6" stroke="#1A1A1F" strokeWidth={2} strokeLinecap="round" fill="none" />
+        </g>
+      )
+  }
+}
+
+/** Cartoon marks by his head: an anger vein when grumpy, sparkles when proud, a ? when nosy, a sweat drop when lonely. */
+function Mark4({ face }: { face: Expression }) {
+  switch (face) {
+    case 'grumpy':
+      return (
+        <g transform="translate(116 82)" stroke="#E04848" strokeWidth={3} strokeLinecap="round" fill="none" className="kx-mark">
+          <path d="M-7 -2q3 0 4-4M2 -7q0 3 4 4M7 2q-3 0-4 4M-2 7q0-3-4-4" />
+        </g>
+      )
+    case 'proud':
+      return (
+        <g fill="#F6C431" stroke="#1A1A1F" strokeWidth={1} strokeLinejoin="round" className="kx-mark">
+          <path d="M112 66l2 5 5 2-5 2-2 5-2-5-5-2 5-2Z" />
+          <path d="M128 86l1.4 3.4 3.4 1.4-3.4 1.4-1.4 3.4-1.4-3.4-3.4-1.4 3.4-1.4Z" />
+        </g>
+      )
+    case 'nosy':
+      return <text x={116} y={92} fontSize={22} fontWeight={800} fill="#1A1A1F" className="kx-mark">?</text>
+    case 'lonely':
+      return <path className="kx-mark" d="M118 78c4 6 6 9 6 11.5a6 6 0 0 1-12 0c0-2.5 2-5.5 6-11.5Z" fill="#8EC2FF" stroke="#4A7FC0" strokeWidth={1.2} />
+    default:
+      return null
+  }
+}
+
 /** Stitched eyebrows: how high each sits and how it tilts (inner end up for sad, down for cross). */
 const BROWS: Partial<Record<Expression, { lift: [number, number]; tilt: [number, number] }>> = {
-  smug: { lift: [0, 4], tilt: [0, -12] },
-  bored: { lift: [-3, -3], tilt: [0, 0] },
-  dramatic: { lift: [7, 7], tilt: [-8, 8] },
+  smug: { lift: [0, 6], tilt: [0, -16] },
+  bored: { lift: [-5, -5], tilt: [0, 0] },
+  dramatic: { lift: [11, 11], tilt: [-10, 10] },
   proud: { lift: [3, 3], tilt: [-6, 6] },
   relieved: { lift: [2, 2], tilt: [6, -6] },
   excited: { lift: [6, 6], tilt: [-6, 6] },
-  nosy: { lift: [0, 6], tilt: [0, -14] },
-  lonely: { lift: [2, 2], tilt: [-14, 14] },
-  sleepy: { lift: [-4, -4], tilt: [0, 0] },
-  grumpy: { lift: [-2, -2], tilt: [16, -16] },
+  nosy: { lift: [0, 9], tilt: [0, -18] },
+  lonely: { lift: [3, 3], tilt: [-20, 20] },
+  sleepy: { lift: [-5, -5], tilt: [0, 0] },
+  grumpy: { lift: [-5, -5], tilt: [24, -24] },
 }
 
 /** Weather and activity gear, placed from his eyes and tip. */
