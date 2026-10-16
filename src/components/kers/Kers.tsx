@@ -36,17 +36,38 @@ const SUMI = '#2B2B2B'
 const W = 200
 const H = 240
 
-// A chubby little cursor: the arrowhead, puffed up (corners well rounded,
-// edges bulging a touch), squat like a pet, with a soft notch under the
-// wing where a real cursor's stem would start. No stem, no tail.
-const BODY = 'M52 70Q52 48 66 62Q122 94 158 150Q175 167 151 170L114 168Q99 167 96 176Q88 197 66 204Q48 209 48 187Q42 128 52 70Z'
+/** A closed path through the points, each corner rounded by its radius (a quadratic curve with the corner as control). */
+function rounded(pts: Point[], radii: number[]): string {
+  const n = pts.length
+  let d = ''
+  for (let i = 0; i < n; i++) {
+    const [px, py] = pts[i]
+    const [ax, ay] = pts[(i - 1 + n) % n]
+    const [bx, by] = pts[(i + 1) % n]
+    const la = Math.hypot(ax - px, ay - py)
+    const lb = Math.hypot(bx - px, by - py)
+    const r = Math.min(radii[i], la / 2, lb / 2)
+    const p1 = [px + ((ax - px) / la) * r, py + ((ay - py) / la) * r]
+    const p2 = [px + ((bx - px) / lb) * r, py + ((by - py) / lb) * r]
+    d += `${i === 0 ? 'M' : 'L'}${p1[0].toFixed(1)} ${p1[1].toFixed(1)}Q${px} ${py} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`
+  }
+  return d + 'Z'
+}
+
+// The cursor, chubby: tip, straight left edge, the bottom, a short stubby
+// stem (part of him, not a tail), the step in under the wing, the wing.
+// Corners puffed (well rounded), edges straight, the tip kept crisp.
+const BODY = rounded(
+  [[54, 48], [54, 200], [92, 162], [113, 210], [139, 201], [113, 152], [160, 152]],
+  [9, 22, 6, 11, 11, 6, 15],
+)
 const OUTLINE = 8
 // Where things sit on him: big eyes set low, and his cheeks.
-const EYES: [Point, Point] = [[78, 138], [114, 138]]
-const EYE_R = 15
-const CHEEKS: [Point, Point] = [[64, 160], [128, 158]]
-const TIP: Point = [56, 62]
-const CENTRE: Point = [100, 138]
+const EYES: [Point, Point] = [[77, 136], [105, 136]]
+const EYE_R = 13
+const CHEEKS: [Point, Point] = [[64, 157], [102, 155]]
+const TIP: Point = [57, 52]
+const CENTRE: Point = [98, 136]
 const WHITE = '#FFFFFF'
 
 /** His fill: the mood's dye (kuchiba on an ordinary, smug day). */
@@ -176,9 +197,8 @@ function Figure({ rig, dye, face, look, weather, wear }: {
         const f = rig.feet[i]
         return (
           <g key={i} className={`kx-leg-${i === 0 ? 'l' : 'r'}`} style={{ transformOrigin: `${h[0]}px ${h[1]}px` }}>
-            <path d={`M${h[0]} ${h[1]}L${f[0]} ${f[1] - 4}`} stroke={WHITE} strokeOpacity={0.85} strokeWidth={7} strokeLinecap="round" />
-            <path d={`M${h[0]} ${h[1]}L${f[0]} ${f[1] - 4}`} stroke={ink.line} strokeWidth={3.6} strokeLinecap="round" />
-            <Ball x={f[0]} y={f[1]} rx={12} ry={7.5} ink={ink} />
+            <Noodle a={h} b={[f[0], f[1] - 4]} bend={i === 0 ? -0.18 : 0.18} ink={ink} />
+            <Ball x={f[0]} y={f[1]} rx={14} ry={8.5} ink={ink} />
           </g>
         )
       })}
@@ -191,8 +211,8 @@ function Figure({ rig, dye, face, look, weather, wear }: {
         <path d={BODY} fill={WHITE} stroke={WHITE} strokeOpacity={0.85} strokeWidth={OUTLINE + 5} strokeLinejoin="round" />
         <path d={BODY} fill={`url(#${id}-face)`} stroke={ink.line} strokeWidth={OUTLINE} strokeLinejoin="round" />
         {/* Light on his puffy top: a soft glow and a shine along his straight edge. */}
-        <ellipse cx={78} cy={92} rx={16} ry={24} fill={WHITE} opacity={0.4} filter={`url(#${id}-blur)`} />
-        <path d="M60 84Q57 120 59 160" stroke={WHITE} strokeWidth={3.4} strokeLinecap="round" fill="none" opacity={0.6} />
+        <ellipse cx={76} cy={90} rx={14} ry={26} fill={WHITE} opacity={0.4} filter={`url(#${id}-blur)`} />
+        <path d="M62 74V184M68 64l50 50" stroke={WHITE} strokeWidth={3.2} strokeLinecap="round" fill="none" opacity={0.6} />
 
         <Face face={face} look={look} lid={dye} />
         <Gear weather={weather} wear={wear} asleep={!!rig.lying} />
@@ -205,6 +225,19 @@ function Figure({ rig, dye, face, look, weather, wear }: {
       </g>
       {rig.prop === 'blanket' && <Blanket />}
     </g>
+  )
+}
+
+/** A bendy noodle limb: a thin curved line (rubber-hose style), with a white edge so it reads on dark backgrounds. */
+function Noodle({ a, b, bend, ink }: { a: Point; b: Point; bend: number; ink: Ink }) {
+  const [mx, my] = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]
+  const [dx, dy] = [b[0] - a[0], b[1] - a[1]]
+  const d = `M${a[0]} ${a[1]}Q${mx - dy * bend} ${my + dx * bend} ${b[0]} ${b[1]}`
+  return (
+    <>
+      <path d={d} stroke={WHITE} strokeOpacity={0.85} strokeWidth={7.5} strokeLinecap="round" fill="none" />
+      <path d={d} stroke={ink.line} strokeWidth={4} strokeLinecap="round" fill="none" />
+    </>
   )
 }
 
@@ -228,9 +261,8 @@ function Arms({ rig, ink }: { rig: Rig; ink: Ink }) {
         const h = rig.hands[i]
         return (
           <g key={side} className={rig.wave === side ? 'kx-wave' : `kx-arm-${side === 'left' ? 'l' : 'r'}`} style={{ transformOrigin: `${s[0]}px ${s[1]}px` }}>
-            <path d={`M${s[0]} ${s[1]}L${h[0]} ${h[1]}`} stroke={WHITE} strokeOpacity={0.85} strokeWidth={7} strokeLinecap="round" />
-            <path d={`M${s[0]} ${s[1]}L${h[0]} ${h[1]}`} stroke={ink.line} strokeWidth={3.6} strokeLinecap="round" />
-            <Ball x={h[0]} y={h[1]} rx={8.5} ry={8.5} ink={ink} />
+            <Noodle a={s} b={h} bend={i === 0 ? 0.22 : -0.22} ink={ink} />
+            <Ball x={h[0]} y={h[1]} rx={10} ry={10} ink={ink} />
           </g>
         )
       })}
@@ -333,8 +365,8 @@ function Gear({ weather, wear, asleep }: { weather: Wear; wear: KersWear; asleep
       )}
       {weather.scarf && (
         <g>
-          <path d="M48 176q30 10 60 0l-2 8q-28 10-56 0Z" fill="#16774F" />
-          <path d="M88 182l3 16h7l-3-17Z" fill="#16774F" />
+          <path d="M50 158q30 10 60 0l-2 8q-28 10-56 0Z" fill="#16774F" />
+          <path d="M88 164l3 16h7l-3-17Z" fill="#16774F" />
         </g>
       )}
       {weather.sweat && !asleep && (

@@ -33,11 +33,11 @@ export interface Rig {
 }
 
 /** Where his short limbs join: the left arm on his straight edge, the right under the wing, the legs along his bottom. */
-export const SHOULDERS: [Point, Point] = [[50, 160], [128, 168]]
-export const HIPS: [Point, Point] = [[66, 200], [88, 188]]
+export const SHOULDERS: [Point, Point] = [[56, 160], [128, 154]]
+export const HIPS: [Point, Point] = [[62, 198], [80, 184]]
 
-const REST: [Point, Point] = [[33, 178], [144, 186]]
-const FEET: [Point, Point] = [[60, 224], [94, 224]]
+const REST: [Point, Point] = [[34, 184], [156, 176]]
+const FEET: [Point, Point] = [[54, 224], [90, 224]]
 const SIT_FEET: [Point, Point] = [[50, 224], [104, 225]]
 
 export const RIGS: Record<KersPose, Rig> = {
