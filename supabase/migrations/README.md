@@ -43,6 +43,7 @@ run, or the repo stops describing the database.
 | 030 | `030_live_channels.sql` | RLS on `realtime.messages`: anyone may listen on `board:*` / `topic:*` private broadcast channels and join presence on `topic:*`; only the service role may send | Yes — the pages poll every 15s until it is applied |
 | 031 | `031_guildbot_events.sql` | `guildbot_events` (what GuildBot said on its own, for idempotency and daily caps; service role only) and `users.roast_me` (opt-in to being teased by name, readable by members, written via the API) | **Ship together with the code** |
 | 032 | `032_guildbot_chat.sql` | `guildbot_messages`: one private chat thread per member, API-only (no member grants), wiped on meeting day after GuildBot shares anonymous themes (35-day backstop delete) | **Ship together with the chat code** |
+| 033 | `033_ai_usage.sql` | `ai_usage` and `ai_usage_take()`: a per-day count of paid OpenAI calls, so the fallback stops at `OPENAI_DAILY_CAP` (service role only) | Yes — additive only; until it is applied the app never falls back to OpenAI |
 
 > **028 and its code ship in the same deploy.** Apply 028 right after the code
 > goes live; never before. The old code reads `topics.user_id` and
@@ -67,6 +68,9 @@ run, or the repo stops describing the database.
 > exactly as before. It only adds policies. It cannot be tested on plain
 > Postgres (the `realtime` schema is Supabase's), so after applying it, open a
 > topic in two browsers and check that a vote shows up in the other one.
+
+> **033 can go in any time.** Gemini works the same without it; only the
+> OpenAI fallback waits for it (calls fail closed when the counter is missing).
 
 > **031 ships with GuildBot's comments.** Without it every bot reaction stays
 > silent (claims fail closed), and the profile page errors on `roast_me`, so

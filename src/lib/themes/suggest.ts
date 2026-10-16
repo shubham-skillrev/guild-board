@@ -1,5 +1,5 @@
 import 'server-only'
-import { geminiJson } from '@/lib/ai/gemini'
+import { aiJson } from '@/lib/ai'
 import { KINDS } from '@/lib/kinds'
 import { sanitizeTheme, THEME_LIMITS, type CycleTheme } from '@/lib/themes'
 
@@ -54,7 +54,7 @@ export async function suggestThemes(args: {
     .map(p => `- ${p.label}: ${p.theme.name} ("${p.theme.title}", features ${p.theme.featured_kind})`)
     .join('\n')
 
-  const result = await geminiJson<{ themes?: unknown[] }>({
+  const result = await aiJson<{ themes?: unknown[] }>({
     label: 'themes',
     system: SYSTEM,
     prompt: `The theme is for ${args.monthLabel}.

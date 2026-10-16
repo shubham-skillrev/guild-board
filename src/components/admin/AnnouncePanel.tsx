@@ -24,6 +24,9 @@ const DOMAIN_BRIEF =
 
 const EMPTY: AnnouncementDraft = { title: '', body: '', slack_text: '' }
 
+/** Longest the composer waits on the server (route maxDuration is 120s). */
+const DRAFT_WAIT_MS = 90_000
+
 /**
  * Tell the whole guild something: Slack and push, in the admins' voice.
  *
@@ -52,13 +55,24 @@ export function AnnouncePanel() {
   useEffect(() => { loadHistory() }, [loadHistory])
 
   const call = async (payload: Record<string, unknown>) => {
-    const res = await fetch('/api/admin/announcements', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+    let res: Response
+    try {
+      res = await fetch('/api/admin/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        // A draft tries up to three models; past this something is stuck.
+        // Sends are never cut off: a retry could post twice.
+        signal: payload.action === 'draft' ? AbortSignal.timeout(DRAFT_WAIT_MS) : undefined,
+      })
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'TimeoutError') {
+        throw new Error('No answer in 90 seconds. Try again, or write it yourself.')
+      }
+      throw err
+    }
     const data = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(data.error ?? 'Something went wrong')
+    if (!res.ok) throw new Error(data.error ?? `Something went wrong (${res.status})`)
     return data
   }
 

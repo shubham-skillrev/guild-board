@@ -1,7 +1,7 @@
 // ROUTE: POST /api/admin/themes
 // AUTH: admin only
 // PURPOSE: Month themes.
-//            { action: 'suggest', month_label, brief? } -> 3 Gemini options
+//            { action: 'suggest', month_label, brief? } -> 3 AI options
 //            { action: 'save', cycle_id, theme | null } -> set or clear the
 //                                                         theme of an open or
 //                                                         upcoming cycle
@@ -13,11 +13,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { isGeminiConfigured } from '@/lib/ai/gemini'
+import { isAiConfigured } from '@/lib/ai'
 import { sanitizeTheme, type CycleTheme } from '@/lib/themes'
 import { suggestThemes } from '@/lib/themes/suggest'
 
-// One Gemini call, with retries on rate limits.
+// One AI call: Gemini, then its fallback model, then OpenAI.
 export const maxDuration = 120
 
 export async function POST(request: Request) {
@@ -35,8 +35,8 @@ export async function POST(request: Request) {
   if (body.action === 'suggest') {
     const monthLabel = typeof body.month_label === 'string' ? body.month_label.trim().slice(0, 40) : ''
     if (!monthLabel) return NextResponse.json({ error: 'month_label is required' }, { status: 400 })
-    if (!isGeminiConfigured()) {
-      return NextResponse.json({ error: 'GEMINI_API_KEY is not set on the server.' }, { status: 400 })
+    if (!isAiConfigured()) {
+      return NextResponse.json({ error: 'No AI key (GEMINI_API_KEY or OPENAI_API_KEY) is set on the server.' }, { status: 400 })
     }
     const { data: recent } = await admin
       .from('cycles')
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     const themes = await suggestThemes({ monthLabel, pastThemes, brief: brief || undefined })
     if (themes.length === 0) {
       return NextResponse.json(
-        { error: 'Gemini did not return usable themes (often a rate limit). Try again in a minute.' },
+        { error: 'No model returned usable themes (all rate limited or down). Try again in a few minutes.' },
         { status: 502 },
       )
     }

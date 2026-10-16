@@ -1,5 +1,5 @@
 import 'server-only'
-import { geminiJson } from '@/lib/ai/gemini'
+import { aiJson } from '@/lib/ai'
 import { ANNOUNCE_LIMITS, type AnnouncementDraft } from '@/lib/announce'
 
 const SCHEMA = {
@@ -32,13 +32,16 @@ Rules:
 - If the brief asks people to do something, say exactly what.
 - No em dashes. No hashtags. No "Hey team" openers.`
 
-/** A first draft from a one-line brief. Null when Gemini is unavailable. */
+/** A first draft from a one-line brief. Null when no model gave a usable one. */
 export async function draftAnnouncement(args: { brief: string }): Promise<AnnouncementDraft | null> {
-  const result = await geminiJson<Partial<AnnouncementDraft>>({
+  const result = await aiJson<Partial<AnnouncementDraft>>({
     label: 'announcement',
     system: SYSTEM,
     prompt: `Brief from the admin:\n${args.brief.slice(0, ANNOUNCE_LIMITS.brief)}`,
     schema: SCHEMA,
+    // An admin is watching the button: three models at 25s each still lands
+    // inside the composer's 90s wait.
+    timeoutMs: 25_000,
   })
   const title = result?.title?.trim().slice(0, ANNOUNCE_LIMITS.title) ?? ''
   const body = result?.body?.trim().slice(0, ANNOUNCE_LIMITS.body) ?? ''

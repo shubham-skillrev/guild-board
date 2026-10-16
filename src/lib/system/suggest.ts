@@ -1,5 +1,5 @@
 import 'server-only'
-import { geminiJson } from '@/lib/ai/gemini'
+import { aiJson } from '@/lib/ai'
 import { fetchCandidates, type Candidate } from '@/lib/bytes/sources'
 import type { SystemTopicDraft } from '@/lib/system/topics'
 import type { CycleTheme } from '@/lib/themes'
@@ -95,7 +95,7 @@ export async function suggestSystemTopics(args: {
     excerpt: c.excerpt?.slice(0, 240) ?? null,
   }))
 
-  const result = await geminiJson<{
+  const result = await aiJson<{
     topics?: { area?: string; kind?: string; title?: string; description?: string; source_ids?: unknown }[]
   }>({
     label: 'system topics',
