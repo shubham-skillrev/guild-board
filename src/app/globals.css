@@ -821,6 +821,13 @@ body {
 .gb-sweat [data-drop] + [data-drop] { animation-delay: 0.9s; }
 @keyframes gb-drip { 0% { opacity: 0; transform: translateY(-2px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(6px); } }
 
+/* The postcard in the chat header: faint ruled lines under the message,
+   one per 24px line. */
+.gb-ruled {
+  background-image: repeating-linear-gradient(to bottom, transparent 0 23px, var(--color-border-strong) 23px 24px);
+  background-attachment: local;
+}
+
 /* Blinks now and then. */
 [data-eye] { transform-origin: 50% 50%; animation: gb-blink 5.2s infinite; }
 @keyframes gb-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.12); } }

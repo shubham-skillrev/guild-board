@@ -20,7 +20,7 @@ export function GuildBotStamp({ expression, genie = false, className }: { expres
       <path d={holes.join('')} className="gb-stamp-hole" />
       <rect x={4.5} y={4.5} width={35} height={43} rx={1.5} className="gb-stamp-field" />
       {/* Him, flat: head, visor, face, antenna. */}
-      <g transform="translate(6 9) scale(0.5)">
+      <g transform="translate(6 13) scale(0.5)">
         <path d="M32 6.5v6" className="gb-stamp-line" strokeWidth={2.6} strokeLinecap="round" />
         <path d="M32 1 35.5 4.5 32 8 28.5 4.5Z" className="gb-stamp-accent" />
         <rect x={6} y={12} width={52} height={45} rx={19} className="gb-stamp-head" strokeWidth={2.6} />
@@ -29,7 +29,6 @@ export function GuildBotStamp({ expression, genie = false, className }: { expres
           <Face expression={expression} />
         </g>
       </g>
-      <text x={22} y={45} textAnchor="middle" fontSize={4.6} fontWeight={800} letterSpacing={0.4} className="gb-stamp-ink">GUILDBOT</text>
       {/* Postmark across the top right. */}
       <g className="gb-stamp-postmark" fill="none" strokeWidth={0.9}>
         <circle cx={37} cy={9} r={6} />

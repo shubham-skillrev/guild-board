@@ -4,7 +4,6 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Sparkle } from '@phosphor-icons/react/dist/ssr'
 import type { Expression } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
 import { GuildBotAvatar, type AvatarStatus } from '@/components/guildbot/GuildBotAvatar'
@@ -29,8 +28,10 @@ const STROLL_MS = 1100
  *    help. On desktop he stands at the dock's edge, on phones on top of the
  *    sheet, and what he's doing for you shows on him. His spot stays empty
  *    until you close the chat.
- *  - The ✦ beside him: his menu. Tricks (he gets tired), a walk, focus with
- *    him, quiet for today, shoo. He dances standing in front of his desk, and
+ *  - Tap him and he asks: talk, or do something? Talking is the knock and the
+ *    chat. Doing something opens his actions panel (it stays open): tricks
+ *    (he gets tired), a walk, the weather he dresses for, focus with him, and
+ *    a way into the chat. He dances standing in front of his desk, and
  *    walks across the bottom of the screen and back (once on a wide screen,
  *    twice on a phone).
  *  - On the focus page he moves out of the corner into the page itself (the
@@ -63,13 +64,11 @@ export function GuildBotStage({
   onCity,
   energy,
   hidden,
-  quiet,
-  onQuiet,
-  onHide,
   reduce,
   dodge,
   label,
   onPress,
+  onTalk,
 }: {
   scene: Scene
   asks: Asks
@@ -101,13 +100,13 @@ export function GuildBotStage({
   /** Energy left (0 to max), read when the menu opens. */
   energy: () => { now: number; max: number }
   hidden: boolean
-  quiet: boolean
-  onQuiet: () => void
-  onHide: (on: boolean) => void
   reduce: boolean
   dodge: string | null
   label: string
+  /** Close the chat, or skip a knock in progress. */
   onPress: (e: React.MouseEvent) => void
+  /** Talk to him: the knock, then the chat. */
+  onTalk: (e: React.MouseEvent) => void
 }) {
   const genie = asks === 'genie'
   const atHouse = scene === 'sleeping'
@@ -115,8 +114,18 @@ export function GuildBotStage({
   const slot = useSlot(usePathname() === '/focus' ? 'gb-focus-slot' : null)
   const walk = usePatrol(patrol, !open && !hidden && !reduce && !atHouse, onPatrolEnd)
   const dancing = trick === 'dance' && !open && !atHouse
-  const [menu, setMenu] = useState<{ now: number; max: number } | null>(null)
+  // Tap him: he asks what you want. "Do something" opens his actions panel,
+  // which stays open while he performs; "Let's talk" is the knock.
+  const [choice, setChoice] = useState(false)
+  const [panel, setPanel] = useState<{ now: number; max: number } | null>(null)
   const [editingCity, setEditingCity] = useState(false)
+  useEffect(() => {
+    if (!choice && !panel) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { setChoice(false); setPanel(null) } }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [choice, panel])
+  const act = (t: Trick) => { onTrick(t); setPanel(energy()) }
   const [peek, setPeek] = useState(false)
 
   // A reaction at night: he leans out of his door for a moment.
@@ -148,7 +157,7 @@ export function GuildBotStage({
         style={slot ? { left: slot.left, top: slot.top } : undefined}
       >
         {/* What he says, with answers to tap when he's asking. */}
-        {say && !open && (
+        {say && !open && !panel && !choice && (
           <div
             role="status"
             className="absolute bottom-full mb-1 w-[min(17rem,calc(100vw-2rem))] animate-fade-up transition-[right] duration-700 ease-(--motion-in-out)"
@@ -208,68 +217,87 @@ export function GuildBotStage({
           </motion.div>
         )}
 
-        {/* His menu. */}
-        {!open && (
-          <div className="absolute -top-1 left-0 z-10">
-            <button
-              type="button"
-              onClick={() => setMenu(m => (m ? null : energy()))}
-              aria-label="GuildBot's menu"
-              aria-expanded={!!menu}
-              className="press inline-flex items-center justify-center w-6 h-6 rounded-full border border-border bg-paper/90 text-ink-soft shadow-sm hover:text-saffron"
-            >
-              <Sparkle className="w-3.5 h-3.5" weight="fill" />
-            </button>
-            {menu && (
-              <div role="menu" className="absolute bottom-full left-0 mb-2 w-52 max-w-[calc(100vw-1rem)] -translate-x-[calc(13rem-124px)] md:-translate-x-[calc(13rem-124px)] rounded-(--radius-card) border border-border-strong bg-paper p-1 shadow-lg text-[13px]">
-                <p className="px-2.5 pt-1.5 pb-1 flex items-center justify-between text-caption text-cha">
-                  Energy
-                  <span aria-label={`${menu.now} of ${menu.max}`} className="inline-flex gap-0.5">
-                    {Array.from({ length: menu.max }, (_, i) => (
-                      <span key={i} className={cn('w-1.5 h-3 rounded-sm', i < menu.now ? 'bg-saffron' : 'bg-fill-strong')} />
-                    ))}
-                  </span>
-                </p>
-                {!hidden && (['dance', 'walk', 'pat', 'coffee', 'meditate'] as const).map(t => (
-                  <MenuItem key={t} onClick={() => { onTrick(t); setMenu(null) }}>
-                    {t === 'dance' ? 'Dance' : t === 'walk' ? 'Go for a walk' : t === 'pat' ? 'Pat on the head' : t === 'coffee' ? 'Bring him a coffee' : 'Meditate together'}
-                  </MenuItem>
+        {/* What do you want? Talk, or something else. */}
+        {choice && !open && (
+          <div role="dialog" aria-label="What should GuildBot do?" className="absolute bottom-full right-2 mb-1 w-[min(16rem,calc(100vw-2rem))] animate-fade-up z-10">
+            <div className="relative rounded-2xl border border-border-strong bg-paper px-3.5 py-3 text-[13px] leading-snug text-ink shadow-lg">
+              <span className="block text-caption font-semibold text-ink-soft mb-0.5">GuildBot</span>
+              What&apos;ll it be? A chat, or shall I do something?
+              <span className="mt-2.5 flex gap-2">
+                <button type="button" autoFocus onClick={e => { setChoice(false); onTalk(e) }} className="press flex-1 h-8 rounded-full bg-ink text-parchment text-[13px] font-medium">
+                  Let&apos;s talk
+                </button>
+                <button type="button" onClick={() => { setChoice(false); setPanel(energy()) }} className="press flex-1 h-8 rounded-full border border-border-strong bg-sumi text-[13px] text-ink hover:bg-kinu">
+                  Do something
+                </button>
+              </span>
+              <span aria-hidden className="absolute -bottom-1.5 right-14 h-3 w-3 rotate-45 border-r border-b border-border-strong bg-paper" />
+            </div>
+          </div>
+        )}
+
+        {/* His actions: stays open while he performs, until you close it. */}
+        {panel && !open && (
+          <div role="dialog" aria-label="GuildBot's actions" className="absolute bottom-full right-2 mb-1 w-[min(17rem,calc(100vw-1.5rem))] animate-fade-up z-10">
+            <div className="rounded-2xl border border-border-strong bg-paper p-2 shadow-lg text-[13px]">
+              <div className="flex items-center gap-2 px-1.5 pt-0.5 pb-1.5">
+                <span className="font-semibold text-ink">Make me do something</span>
+                <span aria-label={`Energy ${panel.now} of ${panel.max}`} title="Energy" className="ml-auto inline-flex gap-0.5">
+                  {Array.from({ length: panel.max }, (_, i) => (
+                    <span key={i} className={cn('w-1.5 h-3 rounded-sm', i < panel.now ? 'bg-saffron' : 'bg-fill-strong')} />
+                  ))}
+                </span>
+                <button type="button" onClick={() => setPanel(null)} aria-label="Close" className="p-1 rounded-full text-cha hover:text-ink hover:bg-kinu/60 leading-none">×</button>
+              </div>
+              {/* What he just said, here instead of over the panel. */}
+              {say && (
+                <p role="status" className="mx-1.5 mb-2 rounded-xl bg-sumi px-2.5 py-2 text-[12px] leading-snug text-ink-soft">{say}</p>
+              )}
+              <div className="grid grid-cols-2 gap-1.5">
+                {(['dance', 'walk', 'pat', 'coffee', 'meditate'] as const).map(t => (
+                  <button key={t} type="button" onClick={() => act(t)} className="press h-9 rounded-xl border border-border bg-sumi px-2.5 text-left text-ink hover:bg-kinu">
+                    {t === 'dance' ? 'Dance' : t === 'walk' ? 'Go for a walk' : t === 'pat' ? 'Pat his head' : t === 'coffee' ? 'Bring coffee' : 'Meditate'}
+                  </button>
                 ))}
-                <Link role="menuitem" href="/focus" onClick={() => setMenu(null)} className="block rounded-md px-2.5 leading-8 hover:bg-kinu/60 text-ink">
+                <Link href="/focus" onClick={() => setPanel(null)} className="press h-9 rounded-xl border border-border bg-sumi px-2.5 leading-9 text-ink hover:bg-kinu">
                   Focus with me
                 </Link>
-                <div className="my-1 border-t border-border" />
-                {/* The weather he dresses for: your city, kept in this browser. */}
-                {editingCity ? (
-                  <form
-                    className="px-1.5 py-1 flex items-center gap-1"
-                    onSubmit={e => {
-                      e.preventDefault()
-                      onCity(new FormData(e.currentTarget).get('city') as string)
-                      setEditingCity(false)
-                      setMenu(null)
-                    }}
-                  >
-                    <input name="city" defaultValue={city ?? ''} autoFocus maxLength={60} placeholder="Your city" aria-label="Your city" className="min-w-0 flex-1 h-8 rounded-md border border-border bg-sumi px-2 text-[13px] text-ink focus:outline-none focus:border-border-strong" />
-                    <button type="submit" className="h-8 px-2 rounded-md text-[13px] text-ink hover:bg-kinu/60">Save</button>
-                  </form>
-                ) : (
-                  <MenuItem onClick={() => setEditingCity(true)}>
-                    {city ? <>Weather: <span className="text-ink-soft">{weatherLabel ?? city}</span></> : 'Dress for my weather'}
-                  </MenuItem>
-                )}
-                {!hidden && <MenuItem onClick={() => { onQuiet(); setMenu(null) }}>{quiet ? 'Talk again' : 'Quiet for today'}</MenuItem>}
-                <MenuItem onClick={() => { onHide(!hidden); setMenu(null) }}>{hidden ? 'Bring back the antics' : 'Shoo, no antics'}</MenuItem>
               </div>
-            )}
+              {/* The weather he dresses for: your city, kept in this browser. */}
+              {editingCity ? (
+                <form
+                  className="mt-1.5 flex items-center gap-1"
+                  onSubmit={e => {
+                    e.preventDefault()
+                    onCity(new FormData(e.currentTarget).get('city') as string)
+                    setEditingCity(false)
+                  }}
+                >
+                  <input name="city" defaultValue={city ?? ''} autoFocus maxLength={60} placeholder="Your city" aria-label="Your city" className="min-w-0 flex-1 h-8 rounded-md border border-border bg-sumi px-2 text-[13px] text-ink focus:outline-none focus:border-border-strong" />
+                  <button type="submit" className="h-8 px-2 rounded-md text-[13px] text-ink hover:bg-kinu/60">Save</button>
+                </form>
+              ) : (
+                <button type="button" onClick={() => setEditingCity(true)} className="mt-1.5 w-full text-left rounded-md px-1.5 h-8 text-ink-soft hover:text-ink hover:bg-kinu/60">
+                  {city ? <>Weather: <span className="text-ink">{weatherLabel ?? city}</span> · change</> : 'Dress me for your weather'}
+                </button>
+              )}
+              <button type="button" onClick={e => { setPanel(null); onTalk(e) }} className="press mt-1 w-full h-9 rounded-xl bg-ink text-parchment font-medium">
+                Chat with me
+              </button>
+            </div>
           </div>
         )}
 
         {/* The scene: the chat button. */}
         <button
           type="button"
-          onClick={onPress}
-          aria-expanded={open}
+          onClick={e => {
+            if (open || knock !== 'idle') { onPress(e); return }
+            setPanel(null)
+            setChoice(c => !c)
+          }}
+          aria-expanded={open || choice || !!panel}
+          aria-haspopup="dialog"
           aria-label={label}
           className="relative rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4"
         >
@@ -306,18 +334,10 @@ export function GuildBotStage({
           animate={reduce ? { opacity: 1 } : { transform: 'translateX(0px)', opacity: 1 }}
           transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
         >
-          <GuildBotAvatar expression={expression} status={status} size={desktop ? 76 : 52} genie={genie} feet={desktop} follow />
+          <GuildBotAvatar expression={expression} status={status} size={desktop ? 76 : 52} genie={genie} feet={desktop} pose={trick === 'dance' ? 'dance' : trick === 'pat' ? 'wave' : 'stand'} follow />
         </motion.div>
       )}
     </>
-  )
-}
-
-function MenuItem({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button role="menuitem" type="button" onClick={onClick} className="w-full text-left rounded-md px-2.5 h-8 hover:bg-kinu/60 text-ink">
-      {children}
-    </button>
   )
 }
 

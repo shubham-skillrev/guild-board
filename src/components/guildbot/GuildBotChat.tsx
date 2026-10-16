@@ -317,13 +317,11 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
           phoneSheetBottom={`calc(${keyboard.height} + ${keyboard.inset}px - 6px)`}
           status={status}
           hidden={life.hidden}
-          quiet={life.quiet}
-          onQuiet={() => life.setQuiet(!life.quiet)}
-          onHide={on => life.setHidden(on)}
           reduce={!!reduce}
           dodge={dodge}
           label={homeLabel(signedIn ? asks : null)}
           onPress={press}
+          onTalk={press}
         />
       )}
 
@@ -381,11 +379,9 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
             )}
             <header
               onPointerDown={e => { if (!desktop) drag.start(e) }}
-              className={cn('flex items-center gap-3 px-4 border-b border-border', desktop ? 'h-16' : 'pb-3 touch-none')}
+              className={cn('px-4 pt-3 pb-3 border-b border-border', !desktop && 'touch-none')}
             >
-              {/* The flat GuildBot: the one in the round is standing by the dock. */}
-              <GuildBotStamp expression={expression} genie={genie} className="-rotate-3" />
-              <div className="min-w-0">
+              <div className="flex items-center gap-2 min-h-8">
                 <h2 className="text-footnote font-semibold text-ink">
                   GuildBot
                   {signedIn && asks && (
@@ -393,23 +389,33 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                       {genie ? `${asks.left} ${asks.left === 1 ? 'wish' : 'wishes'} left` : `${asks.left} ${asks.left === 1 ? 'ask' : 'asks'} left`}
                     </span>
                   )}
+                  {thinking && <span className="ml-2 font-normal text-caption text-cha" role="status">{PHASE_LABEL[phase]}</span>}
                 </h2>
-                <p className="text-caption text-cha truncate">{thinking ? PHASE_LABEL[phase] : greeting ?? moodLine ?? 'Knows the board and Bytes'}</p>
+                <div className="ml-auto flex items-center gap-1">
+                  {life.hidden && (
+                    <button type="button" onClick={() => life.setHidden(false)} className="px-2 h-8 rounded-full text-caption text-cha hover:text-ink hover:bg-kinu/60">
+                      Bring back antics
+                    </button>
+                  )}
+                  {signedIn && messages.length > 0 && (
+                    <button type="button" onClick={clear} aria-label="Clear chat" title="Clear chat" className="p-2 rounded-full text-cha hover:text-ink hover:bg-kinu/60">
+                      <Trash className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setOpen(false)} aria-label="Close chat" className="p-2 rounded-full text-cha hover:text-ink hover:bg-kinu/60">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <div className="ml-auto flex items-center gap-1">
-                {life.hidden && (
-                  <button type="button" onClick={() => life.setHidden(false)} className="px-2 h-8 rounded-full text-caption text-cha hover:text-ink hover:bg-kinu/60">
-                    Bring back antics
-                  </button>
-                )}
-                {signedIn && messages.length > 0 && (
-                  <button type="button" onClick={clear} aria-label="Clear chat" title="Clear chat" className="p-2 rounded-full text-cha hover:text-ink hover:bg-kinu/60">
-                    <Trash className="w-4 h-4" />
-                  </button>
-                )}
-                <button type="button" onClick={() => setOpen(false)} aria-label="Close chat" className="p-2 rounded-full text-cha hover:text-ink hover:bg-kinu/60">
-                  <X className="w-4 h-4" />
-                </button>
+
+              {/* A postcard from him: what he said when you came over, written
+                  out in full on ruled lines, his stamp in the corner. */}
+              <div className="relative mt-2 rounded-(--radius-card) border border-border bg-sumi pl-3.5 pr-15 pt-2 pb-2.5">
+                <p className="gb-ruled font-serif italic text-[15px] leading-6 text-ink line-clamp-3">
+                  {greeting ?? moodLine ?? 'Ask me about the board and Bytes, or tell me to do something.'}
+                </p>
+                <p className="mt-0.5 text-caption text-cha">From GuildBot&apos;s desk</p>
+                <GuildBotStamp expression={expression} genie={genie} className="absolute top-2 right-2 rotate-3" />
               </div>
             </header>
 
@@ -428,10 +434,11 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                       <BotRow mood={expression}>
                         <p className="rounded-2xl rounded-tl-md border border-border bg-paper px-3.5 py-2.5 text-footnote leading-relaxed text-ink">
                           Ask me about this month&apos;s topics or Bytes, or give me an idea and I&apos;ll draft the post. You press Post.
+                          <span className="block mt-1.5 text-ink-soft">New: I take orders. Tell me to dance, take a walk, have a coffee or meditate, and I will. Those don&apos;t use up your asks.</span>
                         </p>
                       </BotRow>
                       <div className="flex flex-wrap gap-2">
-                        {suggestionsFor(page).map(q => (
+                        {['Dance for me', ...suggestionsFor(page)].map(q => (
                           <button
                             key={q}
                             type="button"
@@ -508,7 +515,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                       <ArrowUp className="w-4 h-4" weight="bold" />
                     </button>
                   </div>
-                  <p className="hidden md:block mt-1.5 px-1 text-caption text-cha">Enter to send · Shift + Enter for a new line</p>
+                  <p className="hidden md:block mt-1.5 px-1 text-caption text-cha">Enter to send · Shift + Enter for a new line · try &ldquo;dance&rdquo;</p>
                 </form>
               </>
             )}
