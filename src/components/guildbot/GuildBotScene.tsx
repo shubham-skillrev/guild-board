@@ -409,7 +409,7 @@ function GenieLamp({ x, y }: { x: number; y: number }) {
   const line = { stroke: '#4A3210', strokeWidth: 1.4, strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const }
   return (
     <g transform={`translate(${x} ${y})`}>
-      <path data-part="steam" d="M19 -14c-3-3 3-5 0-8s4-5 1-8" fill="none" stroke="#C7B2FF" strokeWidth={2} strokeLinecap="round" />
+      <path data-part="steam" d="M19 -14c-3-3 3-5 0-8s4-5 1-8" fill="none" stroke="#B98CFF" strokeWidth={2} strokeLinecap="round" />
       <path data-part="sparkle" d="M13 -26l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z" fill="#D9C4FF" />
       <path d="M3 -8c0-4 12-4 12 0" fill="#E0A93B" {...line} />
       <path d="M0 -8h16c3 0 5-2 7-4.5-1.2 4-3.6 7.5-8 8.3C13.6-2.6 11.4-2 9-2s-4.6-.6-6-1.8C1-5 0-6.4 0-8Z" fill="#E7B54A" {...line} />

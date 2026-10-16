@@ -17,8 +17,8 @@ import type { CursorPlay } from '@/components/kers/useCursorPlay'
  * puffy top, lit round hands and feet, and a contact shadow.
  *
  * - Mood: his outline and limbs are always sumi, like a real cursor; his
- *   fill is a soft candy colour for his mood (sky blue on an ordinary day;
- *   genie lavender, meeting soft mauve too). Under 24px he's a simple mark: the cursor in
+ *   fill is a bold candy colour for his mood (tangerine on an ordinary day;
+ *   genie grape, meeting teal too). Under 24px he's a simple mark: the cursor in
  *   his fill with two dot eyes.
  * - Face: googly eyes (pupils follow the pointer) and stitched eyebrows.
  * - Cursor states, his quirk: a loader ring while he thinks, a blinking
@@ -74,18 +74,18 @@ const CENTRE: Point = [98, 136]
 const WHITE = '#FFFFFF'
 
 /**
- * His fill: soft candy colours, light enough to be friendly and saturated
- * enough to read on white and black (a cute pet, never a scary one). Sky
- * blue on an ordinary, smug day; each mood a candy of the same lightness.
- * Dark mode lifts them a touch with a gentle glow (globals.css).
+ * His fill: bold, flat candy colours (after the Grok bots): saturated but
+ * warm, so he reads on white and on black and still looks like a pet.
+ * Tangerine on an ordinary, smug day; each mood its own. Dark mode lifts
+ * them a touch with a gentle glow (globals.css).
  */
 const FILLS: Record<KersColour, string> = {
-  smug: '#7DB8FF',     // sky blue
-  bored: '#A7B0BE',    // soft grey
-  dramatic: '#FF8A80', // coral
-  proud: '#FFD45C',    // butter yellow
-  genie: '#B79BFF',    // lavender
-  meeting: '#D98BB3',  // soft mauve
+  smug: '#F5873A',     // tangerine
+  bored: '#8E8A9E',    // slate lilac
+  dramatic: '#EE4B4B', // cherry red
+  proud: '#F7C23C',    // sunflower
+  genie: '#A06BF0',    // grape purple
+  meeting: '#3FB5C4',  // teal, a sulky cool
 }
 export function fillDye(colour: KersColour): string {
   return FILLS[colour]
@@ -207,7 +207,7 @@ function Figure({ rig, dye, face, eyes, look, weather, wear, fur }: {
 }) {
   const id = useId().replace(/:/g, '')
   // His shadow is a deeper shade of his own colour, never near-black: soft, plush, friendly.
-  const deep = mix(dye, '#2A3A66', 0.38)
+  const deep = mix(dye, '#5A2A1E', 0.36)
   const ink: Ink = { line: mix(dye, '#2A1A10', 0.62), fill: `url(#${id}-ball)`, fur: fur ? `url(#${id}-fur)` : undefined }
   const hip = (i: 0 | 1): Point => [HIPS[i][0], HIPS[i][1] + rig.dy]
 
