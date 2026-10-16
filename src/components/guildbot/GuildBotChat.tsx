@@ -19,7 +19,7 @@ import { GuildBotStage, type Knock } from '@/components/guildbot/GuildBotStage'
 import { BodyPortal } from '@/components/ui/BodyPortal'
 import { useGuildBotLife } from '@/components/guildbot/useGuildBotLife'
 import { announceSelf } from '@/lib/guildbot-host/live-bus'
-import { welcomeKey, meetingWhen, isoWeek, describeWeather, variantOf, type Activity, type ChatReaction, type Expression } from '@guildboard/guildbot'
+import { LINES, welcomeKey, meetingWhen, isoWeek, describeWeather, variantOf, type LineKey, type Activity, type ChatReaction, type Expression } from '@guildboard/guildbot'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useUserTokens } from '@/hooks/useUserTokens'
 import { TOKEN_LIMITS } from '@/lib/constants'
@@ -291,6 +291,15 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   // His felt colour: the meeting's plum, genie blue, else his mood's own.
   const colour: PlushColour = life.meeting ? 'meeting' : genie ? 'genie' : mood
 
+  // What he's up to, in a small bubble over him: a cheeky line per scene
+  // (and today's take on it), the same one all hour.
+  const doingKey = focusState.phase === 'focus' ? 'doing.focus'
+    : focusState.phase === 'break' && !guiding ? 'doing.break'
+    : variant && `doing.${scene}.${variant}` in LINES ? `doing.${scene}.${variant}`
+    : `doing.${scene}`
+  const hourSeed = `${new Date().toDateString()}:${new Date().getHours()}`
+  const doing = doingKey in LINES ? botSays(doingKey as LineKey, hourSeed, 'ui') : null
+
   const press = (e: React.MouseEvent) => {
     if (open) { setOpen(false); return }
     // Impatient? A second tap during the knock skips straight to the chat.
@@ -348,6 +357,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
           trick={life.trick}
           onTrick={t => (t === 'walk' && walkingNow ? life.alreadyWalking() : life.doTrick(t))}
           variant={variant}
+          doing={doing}
           patrol={life.patrol}
           onPatrolEnd={life.endPatrol}
           city={weather.city}

@@ -1,8 +1,16 @@
 'use client'
 
+import type { Expression } from '@guildboard/guildbot'
 import type { HourScene } from '@/lib/hours/scenes'
+import type { Person } from '@/lib/focus/presence'
 import { PlushFigure } from '@/components/guildbot/PlushBot'
 import { GuildBotScene } from '@/components/guildbot/GuildBotScene'
+
+/** The street's colours, for pages that run the street on past the drawing. */
+export const STREET = {
+  night: { pavement: '#2A2B33', road: '#1A1B21' },
+  day: { pavement: '#BDB4A6', road: '#8E877D' },
+}
 
 /**
  * The guild building at one hour of the day: sky, a skyline behind, the
@@ -11,28 +19,42 @@ import { GuildBotScene } from '@/components/guildbot/GuildBotScene'
  * the chai cart, steam off the kettle).
  *
  * On /hours the lit windows are the scene's story. The focus room passes
- * `windows` instead (live, anonymous: '1' focusing, 'b' on a break, '0'
- * empty) and `you` to mark the viewer's own window, on their screen only.
+ * `people` instead: live and anonymous, one per window (seat() in
+ * lib/focus/presence.ts), each a generic plush at a laptop or on a break,
+ * the viewer's own marked "you" on their screen only. It also swaps his
+ * shop window for the slot the real GuildBot sits in (`slot`), so there's
+ * only ever one of him.
  * Motion is CSS (globals.css, .gb-building) and stops under reduced motion.
  */
 export function GuildBuilding({
   scene,
-  windows,
-  you,
+  people,
+  overflow = 0,
+  slot = false,
+  rain = false,
+  party = false,
   className,
 }: {
   scene: HourScene
-  /** Sixteen characters, top floor first: '1' lit, 'b' on a break, '0' dark. */
-  windows?: string
-  /** The viewer's own window (0 to 15), marked for them alone. */
-  you?: number | null
+  /** Sixteen seats, top floor first: who's in each window (null: dark). */
+  people?: (Person | null)[]
+  /** More lit windows than the building has. */
+  overflow?: number
+  /** His shop window is where the real GuildBot sits (#gb-focus-slot). */
+  slot?: boolean
+  rain?: boolean
+  /** A break party: the blue windows turn disco. */
+  party?: boolean
   className?: string
 }) {
   const night = scene.tone === 'light'
-  const pattern = (windows ?? scene.windows).padEnd(16, '0').slice(0, 16)
+  const pattern = people
+    ? Array.from({ length: 16 }, (_, i) => (people[i] ? (people[i]!.s === 'break' ? 'b' : '1') : '0')).join('')
+    : scene.windows.padEnd(16, '0').slice(0, 16)
+  const you = people ? people.findIndex(p => p?.you) : -1
   const c = night
-    ? { facade: '#2A2C3A', facadeSide: '#1E2030', trim: '#11121A', glassOff: '#151A2C', skyline: '#141932', pavement: '#2A2B33', road: '#1A1B21', line: '#3A3B45', sign: '#E8B04B' }
-    : { facade: '#E9DCC6', facadeSide: '#D4C2A6', trim: '#3A2E22', glassOff: '#BFD7EA', skyline: '#9DB5C9', pavement: '#BDB4A6', road: '#8E877D', line: '#F2EEE6', sign: '#A34C07' }
+    ? { facade: '#2A2C3A', facadeSide: '#1E2030', trim: '#11121A', glassOff: '#151A2C', skyline: '#141932', ...STREET.night, line: '#3A3B45', sign: '#E8B04B' }
+    : { facade: '#E9DCC6', facadeSide: '#D4C2A6', trim: '#3A2E22', glassOff: '#BFD7EA', skyline: '#9DB5C9', ...STREET.day, line: '#F2EEE6', sign: '#A34C07' }
   const cols = [108, 158, 208, 258]
   const floors = [104, 152, 200, 248]
 
@@ -81,6 +103,12 @@ export function GuildBuilding({
         />
       )}
 
+      {rain && (
+        <g className="gb-building-rain" stroke={night ? '#9FB4D9' : '#6F8FB8'} strokeWidth={1.4} strokeLinecap="round" opacity={0.55}>
+          {RAIN.map(([x, y], i) => <path key={i} d={`M${x} ${y}l-4 12`} />)}
+        </g>
+      )}
+
       {/* The city behind. */}
       <path d="M0 250h30v-40h24v20h20v-60h26v80h10v40H0ZM330 220h22v-50h30v30h18v100h-70Z" fill={c.skyline} opacity={0.85} />
 
@@ -105,24 +133,38 @@ export function GuildBuilding({
         const i = row * 4 + col
         const state = pattern[i]
         const lit = state === '1' || state === 'b'
+        const person = people?.[i] ?? null
         return (
           <g key={i} data-window={state}>
             {lit && night && <circle cx={x + 17} cy={y + 19} r={30} fill="url(#gb-glow)" />}
-            <rect x={x} y={y} width={34} height={38} rx={2} fill={state === 'b' ? 'url(#gb-break)' : lit ? 'url(#gb-lit)' : c.glassOff} stroke={c.trim} strokeWidth={2} />
-            {/* Someone at a screen: a monitor's glow and a desk. */}
-            {state === '1' && <rect x={x + 10} y={y + 20} width={14} height={9} rx={1} fill="#2C2F48" opacity={0.85} />}
-            {state === 'b' && <path d={`M${x + 12} ${y + 30}h10`} stroke="#1E2B57" strokeWidth={2} strokeLinecap="round" opacity={0.5} />}
+            <rect x={x} y={y} width={34} height={38} rx={2} fill={state === 'b' ? 'url(#gb-break)' : lit ? 'url(#gb-lit)' : c.glassOff} stroke={c.trim} strokeWidth={2} className={party && state === 'b' ? 'gb-disco' : undefined} />
+            {person ? (
+              <Crew x={x} y={y} person={person} party={party} />
+            ) : (
+              <>
+                {/* Someone at a screen: a monitor's glow and a desk. */}
+                {state === '1' && <rect x={x + 10} y={y + 20} width={14} height={9} rx={1} fill="#2C2F48" opacity={0.85} />}
+                {state === 'b' && <path d={`M${x + 12} ${y + 30}h10`} stroke="#1E2B57" strokeWidth={2} strokeLinecap="round" opacity={0.5} />}
+              </>
+            )}
             {!lit && !night && <path d={`M${x + 6} ${y + 30} ${x + 22} ${y + 8}`} stroke="#FFFFFF" strokeOpacity={0.55} strokeWidth={2} />}
             <path d={`M${x - 2} ${y + 40}h38`} stroke={c.trim} strokeWidth={2} strokeLinecap="round" />
-            {you === i && (
-              <g>
-                <path d={`M${x + 17} ${y - 10}l-4-6h8Z`} fill="#E8913A" />
-                <text x={x + 17} y={y - 18} textAnchor="middle" fontSize={8} fontWeight={700} fill={night ? '#FFFFFF' : '#3A2E22'}>you</text>
-              </g>
-            )}
           </g>
         )
       }))}
+
+      {/* Your window, marked for you alone: drawn last so nothing covers it. */}
+      {you >= 0 && (() => {
+        const x = cols[you % 4]
+        const y = floors[Math.floor(you / 4)]
+        return (
+          <g>
+            <rect x={x - 2.5} y={y - 2.5} width={39} height={43} rx={4} fill="none" stroke="#E8913A" strokeWidth={2.5} />
+            <rect x={x + 6} y={y - 7} width={22} height={10} rx={5} fill="#E8913A" />
+            <text x={x + 17} y={y + 0.6} textAnchor="middle" fontSize={7} fontWeight={800} fill="#1F1A14">you</text>
+          </g>
+        )
+      })()}
 
       {/* Ground floor: GuildBot's shop window, the awning, the door. */}
       <path d="M100 306h150l-6 14H106Z" fill="#E8913A" stroke={c.trim} strokeWidth={2} strokeLinejoin="round" />
@@ -136,12 +178,23 @@ export function GuildBuilding({
           <text className="gb-zz" x={196} y={340} fontSize={12} fontWeight={700} fill="#F4E7B8">z</text>
           <text className="gb-zz" x={204} y={330} fontSize={9} fontWeight={700} fill="#F4E7B8">z</text>
         </g>
+      ) : slot ? (
+        // The real GuildBot sits here (GuildBotStage measures this box).
+        <foreignObject x={139} y={324} width={74} height={56}>
+          <div id="gb-focus-slot" className="w-full h-full" />
+        </foreignObject>
       ) : (
         <foreignObject x={124} y={324} width={104} height={56}>
           <div className="w-full h-full flex items-end justify-center">
             <GuildBotScene scene={scene.activity} asks="normal" left={null} expression="smug" mug={false} width={74} />
           </div>
         </foreignObject>
+      )}
+      {overflow > 0 && (
+        <g>
+          <rect x={262} y={304} width={40} height={16} rx={8} fill={c.trim} />
+          <text x={282} y={315.5} textAnchor="middle" fontSize={9} fontWeight={700} fill={c.sign}>+{overflow} more</text>
+        </g>
       )}
       <rect x={262} y={326} width={34} height={58} rx={2} fill={c.facadeSide} stroke={c.trim} strokeWidth={2.5} />
       <circle cx={290} cy={356} r={2} fill="#E8B64B" />
@@ -173,6 +226,34 @@ export function GuildBuilding({
     </svg>
   )
 }
+
+/** Felt colours for the anonymous plushes: none of them GuildBot's own. */
+const CREW = ['#4FB3A0', '#E58BB0', '#73A9E6', '#9CC55A', '#D9B07A', '#F08A6B', '#8E9BD8', '#58C1D6']
+const CREW_FACES: Expression[] = ['nosy', 'smug', 'bored', 'excited']
+
+/** Someone in a window: a generic plush at a laptop, or up and about on a break. */
+function Crew({ x, y, person, party }: { x: number; y: number; person: Person; party: boolean }) {
+  const tint = CREW[person.look % CREW.length]
+  const breaking = person.s === 'break'
+  // Plushes come chubby or tall.
+  const stretch = 0.9 + (person.look % 5) * 0.05
+  return (
+    <g>
+      <g transform={`translate(${x + 3.5} ${y + 7}) scale(${0.24 * stretch} 0.24)`} className="gb-plush" data-motion={party && breaking ? 'dance' : breaking ? 'stretch' : 'idle'}>
+        <PlushFigure tint={tint} expression={breaking ? 'relieved' : CREW_FACES[person.look % CREW_FACES.length]} hands={breaking ? 'rest' : 'typing'} fuzzy={false} />
+      </g>
+      {!breaking && (
+        // The back of their laptop.
+        <g>
+          <rect x={x + 10} y={y + 26} width={14} height={8} rx={1} fill="#2C2F48" />
+          <path d={`M${x + 17} ${y + 28.5}l1.5 1.5-1.5 1.5-1.5-1.5Z`} fill="#E8913A" opacity={0.8} />
+        </g>
+      )}
+    </g>
+  )
+}
+
+const RAIN: [number, number][] = Array.from({ length: 40 }, (_, i) => [(i * 53) % 400, (i * 37) % 300])
 
 const STARS: [number, number, number][] = [
   [24, 30, 1.2], [60, 70, 0.9], [96, 22, 1], [150, 40, 0.8], [176, 18, 1.3], [230, 34, 0.9], [254, 12, 1],

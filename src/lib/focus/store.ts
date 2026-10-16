@@ -23,12 +23,66 @@ export const PLANS: Record<Plan, { label: string; focus: number; rest: number }>
   long: { label: 'Long haul', focus: 90, rest: 20 },
 }
 
-/** The breaks he leads, and how long each guided bit takes (water is a few sips). */
-export const BREAKS: Record<BreakKind, { label: string; seconds: number }> = {
-  water: { label: 'Water', seconds: 10 },
-  eyes: { label: 'Eyes, 20s', seconds: 20 },
-  stretch: { label: 'Stretch, 1 min', seconds: 60 },
-  walk: { label: 'Walk, 5 min', seconds: 300 },
+export interface Step { cue: string; seconds: number }
+
+/** The breaks he leads: short routines, a cue and a countdown per step. */
+export const ROUTINES: Record<BreakKind, { label: string; steps: Step[] }> = {
+  water: {
+    label: 'Water',
+    steps: [
+      { cue: 'Fill a glass. A real one.', seconds: 15 },
+      { cue: 'Sip slowly. It is not a race.', seconds: 20 },
+      { cue: 'Finish it. Glass down.', seconds: 10 },
+    ],
+  },
+  eyes: {
+    label: 'Eyes',
+    steps: [
+      { cue: 'Look at something far away. Out of a window, ideally.', seconds: 20 },
+      { cue: 'Blink slowly, ten times.', seconds: 10 },
+      { cue: 'Rub your palms warm and cup them over your eyes.', seconds: 20 },
+    ],
+  },
+  stretch: {
+    label: 'Stretch',
+    steps: [
+      { cue: 'Roll your neck. Slowly, both ways.', seconds: 15 },
+      { cue: 'Shoulders up to your ears, hold, drop.', seconds: 15 },
+      { cue: 'Stand and reach for the ceiling.', seconds: 15 },
+      { cue: 'Circle your wrists, then shake out your hands.', seconds: 15 },
+    ],
+  },
+  walk: {
+    label: 'Walk',
+    steps: [
+      { cue: 'Stand up. Leave the desk behind.', seconds: 20 },
+      { cue: 'Walk somewhere. Anywhere. Stairs count double.', seconds: 240 },
+      { cue: 'Head back and sit tall.', seconds: 40 },
+    ],
+  },
+}
+
+const total = (k: BreakKind) => ROUTINES[k].steps.reduce((n, st) => n + st.seconds, 0)
+
+/** The breaks he leads, and how long each guided bit takes. */
+export const BREAKS: Record<BreakKind, { label: string; seconds: number }> = Object.fromEntries(
+  (Object.keys(ROUTINES) as BreakKind[]).map(k => {
+    const seconds = total(k)
+    return [k, { label: `${ROUTINES[k].label}, ${seconds < 60 ? `${seconds}s` : `${Math.round(seconds / 60)} min`}`, seconds }]
+  }),
+) as Record<BreakKind, { label: string; seconds: number }>
+
+/** Which step of a routine is on, `left` ms before its end; null once it's done. */
+export function stepAt(kind: BreakKind, left: number): { index: number; step: Step; left: number } | null {
+  if (left <= 0) return null
+  let elapsed = total(kind) * 1000 - left
+  const steps = ROUTINES[kind].steps
+  for (let i = 0; i < steps.length; i++) {
+    const ms = steps[i].seconds * 1000
+    if (elapsed < ms) return { index: i, step: steps[i], left: ms - elapsed }
+    elapsed -= ms
+  }
+  return null
 }
 
 export interface FocusState {
@@ -94,7 +148,13 @@ export function formatClock(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
-const SUGGEST: BreakKind[] = ['water', 'eyes', 'stretch', 'walk']
+const SUGGEST: BreakKind[] = ['water', 'eyes', 'stretch']
+
+/** His pick for the break: a walk after a long block, otherwise the next in rotation. */
+function suggest(plan: Plan): BreakKind {
+  if (PLANS[plan].focus >= 50) return 'walk'
+  return SUGGEST[todayStats().blocks % SUGGEST.length]
+}
 
 export const focus = {
   setPlan(plan: Plan) {
@@ -140,7 +200,7 @@ export const focus = {
     if (s.phase === 'focus') {
       const minutes = early ? Math.round((PLANS[s.plan].focus * 60_000 - Math.max(0, (s.endsAt ?? Date.now()) - Date.now())) / 60_000) : PLANS[s.plan].focus
       bumpFocus(minutes)
-      const kind = SUGGEST[todayStats().blocks % SUGGEST.length]
+      const kind = suggest(s.plan)
       write({ ...s, phase: 'break', endsAt: Date.now() + PLANS[s.plan].rest * 60_000, pausedLeft: null, breakKind: kind, guideEndsAt: null })
       return 'focus'
     }

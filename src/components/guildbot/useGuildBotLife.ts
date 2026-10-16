@@ -226,8 +226,8 @@ export function useGuildBotLife() {
   // Something else wants him to say a line (the focus timer, at the end of a block).
   useEffect(() => {
     const onSay = (e: Event) => {
-      const key = (e as CustomEvent<{ key: LineKey }>).detail.key
-      if (speak(key, { asked: true, ms: 9000, stay: true })) pullFace(key === 'focus.done' ? 'excited' : 'proud')
+      const { key, vars } = (e as CustomEvent<{ key: LineKey; vars?: Record<string, string | number> }>).detail
+      if (speak(key, { asked: true, ms: 9000, stay: true, vars })) pullFace(key === 'focus.done' || key === 'focus.party' ? 'excited' : 'proud')
     }
     window.addEventListener('gb:say', onSay)
     return () => window.removeEventListener('gb:say', onSay)

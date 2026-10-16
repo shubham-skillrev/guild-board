@@ -1116,6 +1116,13 @@ body {
 .gb-plush .gb-plush-sweat [data-drop] { animation: gb-drip 1.8s ease-in infinite; }
 .gb-plush .gb-plush-sweat [data-drop] + [data-drop] { animation-delay: 0.9s; }
 .gb-plush .gb-plush-float-prop { animation: gb-float 4s ease-in-out infinite; }
+.gb-building-rain path { animation: gb-building-rain 700ms linear infinite; }
+.gb-building-rain path:nth-child(3n) { animation-delay: -250ms; }
+.gb-building-rain path:nth-child(3n + 1) { animation-delay: -480ms; }
+@keyframes gb-building-rain { from { transform: translate(3px, -14px); opacity: 0; } 20% { opacity: 1; } to { transform: translate(-3px, 14px); opacity: 0; } }
+/* A break party: the blue windows go disco. */
+.gb-disco { animation: gb-disco 1.6s steps(4) infinite; }
+@keyframes gb-disco { to { filter: hue-rotate(360deg); } }
 .gb-scene .gb-rain [data-drop] { animation: gb-rainfall 900ms linear infinite; }
 @keyframes gb-rainfall { from { transform: translateY(-4px); opacity: 0; } 30% { opacity: 1; } to { transform: translateY(8px); opacity: 0; } }
 .gb-scene [data-part='strum'] { transform-box: fill-box; transform-origin: 50% 50%; animation: gb-strum 300ms ease-in-out infinite alternate; }
@@ -1125,5 +1132,5 @@ body {
 .gb-plush .gb-plush-status [data-dot]:nth-child(3) { animation-delay: 0.4s; }
 .gb-plush .gb-plush-status [data-wave] { transform-box: fill-box; animation: gb-wave 1s var(--motion-out) infinite; }
 @media (prefers-reduced-motion: reduce) {
-  .gb-plush *, .gb-plush[data-motion] .gb-plush-body, .gb-scene .gb-rain *, .gb-scene [data-part='strum'] { animation: none !important; }
+  .gb-plush *, .gb-plush[data-motion] .gb-plush-body, .gb-scene .gb-rain *, .gb-scene [data-part='strum'], .gb-building-rain path, .gb-disco { animation: none !important; }
 }

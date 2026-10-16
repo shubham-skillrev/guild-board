@@ -59,6 +59,8 @@ type FigureProps = {
   fuzzy?: boolean
   /** Floating hands and feet on faint lines. Off for marks too small to read them. */
   limbs?: boolean
+  /** Any felt colour, for the anonymous plushes in the focus building's windows. */
+  tint?: string
   look?: { x: number; y: number }
 }
 
@@ -100,10 +102,11 @@ export function PlushFigure({
   status = null,
   fuzzy = true,
   limbs: withLimbs = true,
+  tint,
   look = { x: 0, y: 0 },
 }: FigureProps) {
   const id = useId().replace(/:/g, '')
-  const base = PLUSH_COLOURS[colour]
+  const base = tint ?? PLUSH_COLOURS[colour]
   const weather = useContext(WearContext)
   const eyes = eyeShape(expression)
   const limbs = withLimbs ? limbsFor(hands) : []
