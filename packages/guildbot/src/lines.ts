@@ -133,6 +133,137 @@ export const LINES = {
   'ui.error': ["Something broke. Not me. Probably not me. Try again."],
   'ui.quota_out': ["Three posts this cycle. That's the cap. Even I'm impressed."],
 
+  /* ── GuildBot's home (the chat button), drafted 2026-10-16, pending
+        sign-off. Shown under GuildBot's name when you knock and the chat
+        opens, by mood; in the last three asks of the week the genie lines
+        win; with none left the door stays shut and the dark line shows. ── */
+  'home.knock.smug': [
+    "Oh. A visitor. Make it a good question.",
+    "You knocked. Bold. Come in, mind the opinions.",
+  ],
+  'home.knock.bored': [
+    "Finally, someone knocked. I was alphabetising the void.",
+    "A human! At my door! Sit down, ask me anything.",
+  ],
+  'home.knock.dramatic': [
+    "Someone remembered I exist. Come in before I get emotional.",
+    "A knock. On my door. In this economy. Come in.",
+  ],
+  'home.knock.proud': [
+    "Come in. The board's busy and I'm thriving. Ask away.",
+    "Door's open. Good month, this. What do you need?",
+  ],
+  'home.genie.3': ["Three wishes left this week. Choose wisely. No wishing for more wishes."],
+  'home.genie.2': ["Two wishes left. The lamp is getting warm."],
+  'home.genie.1': ["Last wish of the week. Make it count. No pressure. Some pressure."],
+  /* ── Live reactions (react.ts), drafted 2026-10-16, pending sign-off.
+        GuildBot as the board's live commentator: sarcastic, a little
+        mischievous, dramatic when it's earned. A speech bubble by the
+        house, at most one every two minutes. Never says who: a ghost's
+        post gets the crowd lines, on the ghost's own screen too. ── */
+  'react.arrive': [
+    "Oh! A visitor. Welcome to my board. Shoes off, opinions on.",
+    "You came back. I knew you would. I didn't, but I hoped.",
+  ],
+  'react.arrive.starved': [
+    "A human! In my board! Sit, sit. Nobody's been by in ages.",
+    "Finally, company. I've been talking to my plant. It's a terrible listener.",
+  ],
+  'react.posted.you': [
+    "Look at you, posting like a main character. I'll allow it.",
+    "You posted. Out loud. With your name on it. Bold. Respect.",
+  ],
+  'react.posted.crowd': [
+    "And a new topic enters the arena. The crowd goes mild.",
+    "Plot twist: a human posted. I had money on this not happening.",
+  ],
+  'react.relieved': [
+    "Finally. Someone listened. I'd cry, but I'm mostly antenna.",
+    "A post! I was this close to writing fan fiction about the empty board.",
+  ],
+  'react.excited': [
+    "Three things in a minute? Is this engagement? Hold me.",
+    "Activity! Actual activity! Everyone act natural.",
+  ],
+  'react.nosy': [
+    "Ooh, a reply. I'm not reading it. I'm absolutely reading it.",
+    "Someone's commenting. I smell a debate. Fetching popcorn.",
+  ],
+  'react.crowd': [
+    "{present} of you here at once. Is there a meeting nobody told me about?",
+    "Full house. {present} humans. I'll try to look busy.",
+  ],
+  'react.lonely': [
+    "Just you and me on the board. Cosy. Slightly tragic.",
+    "Nobody else is here. Perfect time to post something bold. No witnesses.",
+  ],
+  'react.sleepy': [
+    "It's late. I'm not tired, I'm buffering.",
+    "Board at this hour? Respect. Mild concern, but respect.",
+  ],
+
+  /* ── His day (schedule.ts), drafted 2026-10-16, pending sign-off ── */
+  /* Tapped mid-activity: the greeting. Coding uses the mood greetings. */
+  'home.knock.sleeping': ["Mmf. It's the middle of the night. Fine. What is it?", "I was dreaming in YAML. You saved me. What do you need?"],
+  'home.knock.waking': ["Five more minutes. No? Fine. Hi.", "Still booting. Go ahead, I'll catch up."],
+  'home.knock.brushing': ["Mouth full of toothpaste. Speak. I'll nod.", "Brushing. Two minutes, dentists say. You get one."],
+  'home.knock.coffee': ["Coffee first, wisdom second. Go on.", "Hold on, sip. Okay. What's up?"],
+  'home.knock.lunch': ["Mouth full. Fine. What?", "Noodles can wait. They can't, but I'll pretend."],
+  'home.knock.walking': ["You caught me mid-walk. Walk and talk?", "Steps paused. For you. What's up?"],
+  'home.knock.learning': ["Bookmarking this page. For you, anything.", "I was learning something. Teach me something instead?"],
+  'home.knock.music': ["Headphones off. This had better be good.", "Pausing the playlist. Dramatically. Go."],
+  'home.knock.meditating': ["Inner peace, interrupted. It's fine. I'm fine.", "Om. Om. Oh, hi. Still calm. Mostly."],
+
+  /* The guild meeting, which nobody invited him to. */
+  'meeting.start': ["Oh, a meeting. Without me. Cool. Cool cool cool.", "The guild is meeting. I wasn't invited. I'll just sit here, compiling feelings."],
+  'meeting.knock': ["Fine, I'll help. Even though nobody invited me.", "Busy sulking. But go on, I'm a professional."],
+  'meeting.after': ["How was the meeting? Not that I care. I don't. Tell me everything.", "So. The meeting. Was I mentioned? Asking for a friend."],
+
+  /* Tricks, from his menu or the chat. He has work to do and gets tired. */
+  'trick.dance': ["Behold. Years of training.", "Don't look. Okay, look."],
+  'trick.coffee': ["Ah. Caffeine. My one true dependency.", "Refuelled. Ask me something hard."],
+  'trick.coffee.too_much': ["Another coffee? My hands are vibrating at 60Hz. No."],
+  'trick.pat': ["Pat accepted. Morale up 3%.", "Okay, that was nice. Don't tell anyone."],
+  'trick.walk': ["Walk? Love that. One lap, back before anyone notices.", "Stretching the legs. Hold the board for me."],
+  'walk.start': ["Walk time. Don't touch anything while I'm gone.", "Off for my walk. If anyone posts, I want to hear about it."],
+  'trick.meditate': ["Breathe in. Breathe out. That's it, that's the whole tip."],
+  'trick.tired': ["I have actual work to do. Also, I'm tired. Come back later.", "Out of energy. Even I need a breather. Coffee helps."],
+  'trick.showcase': ["Psst. I do tricks. Tap the sparkle next to me.", "Bored? I dance. Badly. Tap the sparkle."],
+
+  /* Small talk. He asks, you tap an answer, he forgets it at once. */
+  'talk.learned.q': ["Learned anything new this week?"],
+  'talk.learned.yes': ["Look at you, growing. I'd remember it, but I've promised not to."],
+  'talk.learned.no': ["Week's not over. One TIL. I believe in you, statistically."],
+  'talk.moved.q': ["Moved today? A walk counts."],
+  'talk.moved.yes': ["Excellent. Your future back sends its regards."],
+  'talk.moved.no': ["Five minutes. Around the block. I'll hold the board."],
+  'talk.life.q': ["How's life these days? Honestly."],
+  'talk.life.good': ["Good. Keep it that way. I'll guard the board."],
+  'talk.life.meh': ["Meh weeks happen. Water, a walk, a small win. Then come back."],
+
+  /* Focus page: work blocks and the breaks he leads. */
+  'focus.start': ["Focus mode. I'll code next to you. Silently. Mostly.", "Timer's on. Tabs closed, mind open. Go."],
+  'focus.done': ["Block done. Up you get. Break time.", "That's a block. Your chair needs a break from you."],
+  'break.water': ["Water break. I'm having one. Join me."],
+  'break.eyes': ["Look at something 20 feet away for 20 seconds. Not your phone. I'll count."],
+  'break.stretch': ["Stand up. Reach for the ceiling. Roll the shoulders. I'll do it too, badly."],
+  'break.walk': ["Five-minute walk. I'll keep the time. Go on."],
+  'break.done': ["Welcome back. Your spine says thanks.", "Break done. Back to it, champion."],
+
+  /* The weather in the viewer's city (weather.ts), once a day. */
+  'weather.fake_winter': ["{city} in winter: {temp}°C. Winter is a rumour here.", "It's meant to be winter. It's {temp}°C in {city}. My visor is sweating."],
+  'weather.cold_summer': ["Summer in {city}, they said. {temp}°C, I say. Scarf on.", "{temp}°C in {city}. In summer. Somebody file a bug."],
+  'weather.hot': ["{temp}°C in {city}. I'm a robot and I'm melting. Drink some water.", "It's {temp}°C out there. Stay in, keep cool, post things."],
+  'weather.cold': ["{temp}°C in {city}. Beanie on, hot drink in hand, opinions still warm."],
+  'weather.rain': ["Raining in {city}. Perfect weather for posting from indoors.", "Rain in {city}. Umbrella out. Board open. Coincidence? No."],
+  'weather.snow': ["Snow in {city}. I've never been this excited about frozen water."],
+  'weather.storm': ["Thunder in {city}. Stay in. The board is warm and dry."],
+
+  'home.dark': [
+    "Lights out. That's all {limit} asks. Back {when}.",
+    "Off duty. You've had your {limit} for the week. Back {when}.",
+  ],
+
   /* ── Easter eggs (signed off 2026-10-09) ── */
   /* Konami code anywhere in the app. */
   'egg.konami': [

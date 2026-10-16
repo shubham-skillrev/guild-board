@@ -115,7 +115,7 @@ export function MeetingPill({ cycle, phase }: MeetingPillProps) {
       <button
         onClick={() => setCollapsed(false)}
         aria-label="Show meeting countdown"
-        className="fixed bottom-[calc(9rem+var(--gb-bubble-h,0px))] right-4 md:bottom-[calc(5rem+var(--gb-bubble-h,0px))] md:right-6 z-(--z-overlay) w-9 h-9 rounded-full bg-paper/95 border border-saffron/40 shadow-lg shadow-black/30 backdrop-blur-sm flex items-center justify-center transition-[transform,bottom] duration-300 hover:scale-110"
+        className="fixed bottom-[calc(10.25rem+var(--gb-bubble-h,0px))] right-4 md:bottom-[calc(6.5rem+var(--gb-bubble-h,0px))] md:right-6 z-(--z-overlay) w-9 h-9 rounded-full bg-paper/95 border border-saffron/40 shadow-lg shadow-black/30 backdrop-blur-sm flex items-center justify-center transition-[transform,bottom] duration-300 hover:scale-110"
       >
         <span className="relative flex h-3 w-3">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-saffron opacity-50" />
@@ -132,7 +132,7 @@ export function MeetingPill({ cycle, phase }: MeetingPillProps) {
       onClick={() => setCollapsed(true)}
       aria-label="Collapse meeting countdown"
       className={[
-        'fixed bottom-[calc(9rem+var(--gb-bubble-h,0px))] right-4 md:bottom-[calc(5rem+var(--gb-bubble-h,0px))] md:right-6 z-(--z-overlay)',
+        'fixed bottom-[calc(10.25rem+var(--gb-bubble-h,0px))] right-4 md:bottom-[calc(6.5rem+var(--gb-bubble-h,0px))] md:right-6 z-(--z-overlay)',
         'flex items-center gap-2.5 px-3 py-2 rounded-(--radius-card) border',
         'shadow-lg backdrop-blur-sm transition-all active:scale-95',
         isToday

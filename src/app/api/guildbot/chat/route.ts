@@ -8,22 +8,21 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import { chat, CHAT_FALLBACK, type ChatAnswer, type ChatDraft } from '@guildboard/guildbot'
+import { chat, CHAT_FALLBACK, type ChatAnswer, type ChatContext, type ChatDraft } from '@guildboard/guildbot'
 import { llm } from '@/lib/guildbot-host/llm'
 import { SASS, botSays } from '@/lib/guildbot-host/voice'
 import { buildChatContext, type ChatPage } from '@/lib/guildbot-host/chat-context'
 import { KINDS } from '@/lib/kinds'
 import { DESCRIPTION_MAX_LENGTH, TITLE_MAX_LENGTH } from '@/lib/constants'
 import { parsePollInput } from '@/lib/polls'
+import { asksFor, WEEKLY_LIMIT } from '@/lib/guildbot-host/asks'
 
-// One model call, ~20s, plus up to 45s of retry on a busy model.
+// One model call, ~20s; up to three models when the first is busy (src/lib/ai).
 // Chat uses the bulk tier (see chat() in the package): the quality model's
 // free quota is 20 requests a day, which GuildBot's comments need.
 export const maxDuration = 120
 
 const MESSAGE_MAX = 1500
-/** Asks per member per rolling week. Keeps the chat a tool, not a hangout. */
-const WEEKLY_LIMIT = 15
 const HISTORY_SHOWN = 40
 /** Same split as the share form: two answers and their headings share the description. */
 const SECTION_MAX = Math.floor((DESCRIPTION_MAX_LENGTH - 60) / 2)
@@ -63,7 +62,7 @@ export async function POST(request: Request) {
   const user = await session()
   if (!user) return NextResponse.json({ error: 'Sign in to chat with GuildBot' }, { status: 401 })
 
-  let body: { message?: unknown; page?: unknown }
+  let body: { message?: unknown; page?: unknown; yourself?: unknown }
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }) }
   const message = typeof body.message === 'string' ? body.message.trim() : ''
   if (!message) return NextResponse.json({ error: 'Say something' }, { status: 400 })
@@ -71,16 +70,10 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
 
-  const since = new Date(Date.now() - 7 * 86_400_000).toISOString()
-  const { count: thisWeek } = await admin
-    .from('guildbot_messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .eq('role', 'user')
-    .gte('created_at', since)
-  if ((thisWeek ?? 0) >= WEEKLY_LIMIT) {
+  const before = await asksFor(admin, user.id)
+  if (before.left === 0) {
     const reply = botSays('chat.limit', user.id, 'chat', { limit: WEEKLY_LIMIT }) ?? `That's ${WEEKLY_LIMIT} asks this week. Back next week.`
-    return NextResponse.json({ reply, draft: null, cites: [], limited: true })
+    return NextResponse.json({ reply, draft: null, cites: [], limited: true, asks: before })
   }
 
   const { data: earlier } = await admin
@@ -92,7 +85,7 @@ export async function POST(request: Request) {
 
   await admin.from('guildbot_messages').insert({ user_id: user.id, role: 'user', body: message })
 
-  const context = await buildChatContext(admin, user.id, parsePage(body.page), message)
+  const context = { ...(await buildChatContext(admin, user.id, parsePage(body.page), message)), yourself: parseYourself(body.yourself) }
   const answer: ChatAnswer = (await chat(llm, {
     message,
     history: (earlier ?? []).reverse().map(m => ({ role: m.role as 'user' | 'bot', text: m.body })),
@@ -108,7 +101,21 @@ export async function POST(request: Request) {
   const cites = answer.cites.map(id => titles.get(id)).filter((c): c is Cite => !!c)
 
   await admin.from('guildbot_messages').insert({ user_id: user.id, role: 'bot', body: answer.reply, draft, cites })
-  return NextResponse.json({ reply: answer.reply, draft, cites, fallback: answer.reply === CHAT_FALLBACK })
+  // This ask is already saved, so the window now counts it.
+  const asks = await asksFor(admin, user.id)
+  return NextResponse.json({ reply: answer.reply, draft, cites, fallback: answer.reply === CHAT_FALLBACK, asks })
+}
+
+const DOING = new Set(['sleeping', 'waking up', 'brushing his teeth', 'having coffee', 'coding', 'having lunch', 'out for a walk', 'reading a book', 'listening to music', 'meditating', 'sulking about the meeting', 'focusing with this person', 'on a break with this person'])
+const WEARING = new Set(['sunglasses', 'sweating', 'beanie', 'scarf', 'umbrella'])
+
+/** What the browser says GuildBot is doing and wearing: known values only, so it can't carry anything else to the model. */
+function parseYourself(raw: unknown): ChatContext['yourself'] {
+  const y = (raw ?? {}) as { doing?: unknown; weather?: unknown; wearing?: unknown }
+  if (typeof y.doing !== 'string' || !DOING.has(y.doing)) return null
+  const weather = typeof y.weather === 'string' && /^[\p{L}\p{M} .,'-]{2,60}, -?\d{1,2}°C, [a-z ]{3,20}$/u.test(y.weather) ? y.weather : null
+  const wearing = Array.isArray(y.wearing) ? y.wearing.filter((w): w is string => typeof w === 'string' && WEARING.has(w)) : []
+  return { doing: y.doing, weather, wearing }
 }
 
 function parsePage(raw: unknown): ChatPage {

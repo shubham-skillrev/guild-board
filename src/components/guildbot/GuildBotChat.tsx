@@ -11,14 +11,42 @@ import { Button } from '@/components/ui/Button'
 import { KINDS, composeDescription } from '@/lib/kinds'
 import { SASS, botSays } from '@/lib/guildbot-host/voice'
 import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
+import { useActivity, type Asks as AsksState, type Scene } from '@/components/guildbot/GuildBotScene'
+import { useFocusState, useRemaining, type BreakKind } from '@/lib/focus/store'
+import { useWeather, WearContext } from '@/components/guildbot/useWeather'
+import { GuildBotStamp } from '@/components/guildbot/GuildBotStamp'
+import { GuildBotStage, type Knock } from '@/components/guildbot/GuildBotStage'
 import { BodyPortal } from '@/components/ui/BodyPortal'
-import { useGuildBotMood } from '@/components/guildbot/useGuildBotMood'
-import { welcomeKey, meetingWhen, isoWeek, type Mood } from '@guildboard/guildbot'
+import { useGuildBotLife } from '@/components/guildbot/useGuildBotLife'
+import { announceSelf } from '@/lib/guildbot-host/live-bus'
+import { welcomeKey, meetingWhen, isoWeek, describeWeather, type Activity, type Expression } from '@guildboard/guildbot'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useUserTokens } from '@/hooks/useUserTokens'
 import { TOKEN_LIMITS } from '@/lib/constants'
 
 const APRIL_KEY = 'guildbot:april-dodged'
+/** What he does on screen during each focus-page break. */
+const BREAK_SCENE: Record<BreakKind, Scene> = { water: 'coffee', eyes: 'meditating', stretch: 'waking', walk: 'walking' }
+
+/** Things typed to him that he just does, locally. */
+function localCommand(text: string): 'dance' | 'pat' | 'coffee' | 'meditate' | 'walk' | null {
+  const t = text.toLowerCase().trim().replace(/[.!?]+$/, '')
+  if (t.length > 40) return null
+  if (/^(dance|do a dance|bust a move|show me a dance)\b/.test(t)) return 'dance'
+  if (/^(good bot|pat|\*pats?\*|good job)\b/.test(t)) return 'pat'
+  if (/^(have a coffee|coffee|here'?s a coffee|drink coffee)\b/.test(t)) return 'coffee'
+  if (/^(meditate|let'?s meditate|breathe)\b/.test(t)) return 'meditate'
+  if (/^(let'?s )?(take a )?(walk|break)\b|^(go for a walk)\b/.test(t)) return 'walk'
+  return null
+}
+
+/** His activity, as words for the model (the route only accepts these). */
+const DOING: Record<Activity, string> = {
+  sleeping: 'sleeping', waking: 'waking up', brushing: 'brushing his teeth', coffee: 'having coffee', coding: 'coding',
+  lunch: 'having lunch', walking: 'out for a walk', learning: 'reading a book', music: 'listening to music', meditating: 'meditating',
+}
+
+const PHASE_LABEL = { searching: 'Reading the board…', thinking: 'Thinking…', writing: 'Writing…' } as const
 const DRAWER_W = 400
 
 /** April 1st in India, once per browser session. */
@@ -36,7 +64,8 @@ type Message = { id: string; role: 'user' | 'bot'; body: string; draft?: Draft |
 function pageOf(path: string): { kind: 'board' } | { kind: 'topic'; topicId: string } | { kind: 'bytes'; byteId?: string } | null {
   const topic = path.match(/^\/board\/([0-9a-f-]{36})/i)
   if (topic) return { kind: 'topic', topicId: topic[1] }
-  if (path === '/board') return { kind: 'board' }
+  // The focus page talks about the board too: he's just working there.
+  if (path === '/board' || path === '/focus') return { kind: 'board' }
   const byte = path.match(/^\/bytes(?:\/([0-9a-f-]{36}))?/i)
   if (byte) return { kind: 'bytes', byteId: byte[1] }
   return null
@@ -47,8 +76,14 @@ function pageOf(path: string): { kind: 'board' } | { kind: 'topic'; topicId: str
  * only. The bot can answer from the board and Bytes, and draft a post, which
  * shows here as a card: nothing is posted until you press Post.
  *
- * The button sits in the bottom-right corner (the meeting pill stacks above
- * it) and wears the bot's current mood. It opens:
+ * The button is GuildBot's home (GuildBotHome), in the bottom-right corner
+ * with the meeting pill stacked above it. The plate on the door is asks left
+ * this week; in the last three the house becomes a genie's lamp and the chat
+ * turns blue; with none left the lights are out and knocking only gets you a
+ * line saying when they come back on. Tap it and you knock: the house rocks,
+ * the door swings in, GuildBot peeks out, and the chat rolls open with a
+ * greeting for its mood. From the keyboard, or with reduced motion, it just
+ * opens. It opens:
  *  - on desktop, a full-height drawer on the right, next to the button. No
  *    dimming: the page stays scrollable and clickable, and moving to another
  *    topic keeps the chat open with the new topic as context.
@@ -67,11 +102,32 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   // April 1st: the button hops away from the first click, once. The chat is
   // not a real action, so nothing anyone needs is ever in the way.
   const [dodge, setDodge] = useState<string | null>(null)
+  // The knock: two raps, the door swings in, GuildBot answers in the doorway,
+  // then he pulls the chat open. A second tap skips the rest.
+  const [knock, setKnock] = useState<Knock>('idle')
+  const [greeting, setGreeting] = useState<string | null>(null)
+  // Out of asks: the window sputters and GuildBot says when it's back.
+  const [lightsOut, setLightsOut] = useState<string | null>(null)
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([])
+  useEffect(() => () => timers.current.forEach(clearTimeout), [])
+  const { asks, setAsks } = useAsks(signedIn)
+  const activity = useActivity() ?? 'coding'
+  const focusState = useFocusState()
+  const weather = useWeather()
+  // A break's guided bit (sips, eyes, a stretch, a walk) runs for its own time, then he rests.
+  const guiding = useRemaining(focusState.guideEndsAt) > 0
   const welcome = useWelcome(pathname === '/board' && !open, signedIn)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const toast = useToast()
-  const { mood, line: moodLine } = useGuildBotMood()
+  const life = useGuildBotLife()
+  const { mood, moodLine } = life
+  // While a reply is on its way: reading the board, thinking, writing (shown in the header).
+  const [phase, setPhase] = useState<'searching' | 'thinking' | 'writing'>('searching')
+  const left = signedIn ? (asks?.left ?? null) : null
+  const asksState: AsksState = left === 0 ? 'out' : left !== null && left <= 3 ? 'genie' : 'normal'
+  const genie = asksState === 'genie'
+  const outOfAsks = asksState === 'out'
   const desktop = useMediaQuery('(min-width: 768px)')
   // From 1280px the drawer docks: the page narrows by its width instead of
   // being covered, so nothing (like the share button) hides underneath it.
@@ -116,6 +172,28 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, thinking])
 
+  // The weather where you are, once a day: a remark, and a face to match.
+  const sayWeather = life.say
+  useEffect(() => {
+    const w = weather.weather
+    if (!w || !weather.line) return
+    const key = `guildbot:weather:${new Date().toDateString()}:${w.city}`
+    if (localStorage.getItem(key)) return
+    const line = weather.line
+    const t = setTimeout(() => {
+      if (sayWeather(line, { city: w.city, temp: w.temperature }, w.temperature >= 30 ? 'dramatic' : 'nosy')) localStorage.setItem(key, '1')
+    }, 12_000)
+    return () => clearTimeout(t)
+  }, [weather.weather, weather.line, sayWeather])
+
+  // His own walk, when the schedule says it's time (once an hour at most).
+  const startWalk = life.startWalk
+  useEffect(() => {
+    if (activity !== 'walking' || open) return
+    const t = setTimeout(startWalk, 4000)
+    return () => clearTimeout(t)
+  }, [activity, open, startWalk])
+
   if (!SASS || !page) return null
 
   const send = async (preset?: string) => {
@@ -126,12 +204,26 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
       if (inputRef.current) inputRef.current.style.height = 'auto'
     }
     setMessages(m => [...m, { id: `local-${Date.now()}`, role: 'user', body: text }])
+    // A few things he does himself, without spending an ask or a model call:
+    // tricks and breaks. Not saved; gone on reload, like he promised.
+    const local = localCommand(text)
+    if (local) {
+      const said = life.doTrick(local)
+      setMessages(m => [...m, { id: `local-bot-${Date.now()}`, role: 'bot', body: said ?? 'Done.' }])
+      // A walk happens on the page, not in here.
+      if (local === 'walk') timers.current.push(setTimeout(() => setOpen(false), 900))
+      return
+    }
     setThinking(true)
+    // The server reads the board, then asks a model, then writes: the rings
+    // follow roughly those steps while we wait.
+    setPhase('searching')
+    const steps = [setTimeout(() => setPhase('thinking'), 1200), setTimeout(() => setPhase('writing'), 4500)]
     try {
       const res = await fetch('/api/guildbot/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, page }),
+        body: JSON.stringify({ message: text, page, yourself: yourself() }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok || !data) {
@@ -139,11 +231,69 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
         return
       }
       setMessages(m => [...m, { id: `bot-${Date.now()}`, role: 'bot', body: data.reply, draft: data.draft, cites: data.cites }])
+      if (data.asks) setAsks(data.asks)
     } catch {
       toast('GuildBot did not answer, check your connection', 'error')
     } finally {
+      steps.forEach(clearTimeout)
       setThinking(false)
     }
+  }
+
+  /** What he's doing and wearing on your screen right now, so he can answer for it. */
+  const yourself = () => {
+    const w = weather.weather
+    const wear = weather.wear
+    return {
+      doing: life.meeting ? 'sulking about the meeting'
+        : focusState.phase === 'focus' ? 'focusing with this person'
+        : focusState.phase === 'break' ? 'on a break with this person'
+        : DOING[activity],
+      weather: w ? `${w.city}, ${w.temperature}°C, ${describeWeather(w.code)}` : null,
+      wearing: [wear.sunglasses && 'sunglasses', wear.sweat && 'sweating', wear.beanie && 'beanie', wear.scarf && 'scarf', wear.umbrella && 'umbrella'].filter(Boolean),
+    }
+  }
+
+  const expression: Expression = life.expression
+  // What he's doing: the meeting beats everything, then a focus session you
+  // started, then his own day.
+  const scene: Scene = life.meeting
+    ? 'meeting'
+    : focusState.phase === 'focus' ? 'coding'
+    : focusState.phase === 'break' ? (guiding && focusState.breakKind ? BREAK_SCENE[focusState.breakKind] : 'meditating')
+    : activity
+
+  const press = (e: React.MouseEvent) => {
+    if (open) { setOpen(false); return }
+    // Impatient? A second tap during the knock skips straight to the chat.
+    if (knock !== 'idle') { timers.current.forEach(clearTimeout); setKnock('idle'); setOpen(true); return }
+    if (dodgeToday()) {
+      sessionStorage.setItem(APRIL_KEY, '1')
+      setDodge(botSays('egg.april', String(Date.now()), 'ui') ?? '')
+      setTimeout(() => setDodge(null), 4000)
+      return
+    }
+    if (outOfAsks) {
+      const when = asks?.nextAt ? whenBack(asks.nextAt) : 'next week'
+      setLightsOut(botSays('home.dark', `${asks?.nextAt}`, 'ui', { limit: asks?.limit ?? 15, when }) ?? `No asks left this week. Back ${when}.`)
+      timers.current.push(setTimeout(() => setLightsOut(null), 5000))
+      return
+    }
+    const left = asks?.left
+    const seed = String(Date.now())
+    setGreeting(
+      life.meeting ? botSays('meeting.knock', seed, 'ui')
+      : genie && left ? botSays(`home.genie.${left as 1 | 2 | 3}`, String(left), 'ui')
+      : scene !== 'coding' && scene !== 'meeting' ? botSays(`home.knock.${scene}`, seed, 'ui')
+      : botSays(`home.knock.${mood}`, seed, 'ui'),
+    )
+    // A keyboard press (detail 0) or reduced motion skips the knock.
+    if (reduce || e.detail === 0) { setOpen(true); return }
+    setKnock('knocking')
+    timers.current.push(
+      setTimeout(() => setKnock('door'), 480),
+      setTimeout(() => { setKnock('idle'); setOpen(true) }, 1500),
+    )
   }
 
   const clear = async () => {
@@ -154,39 +304,42 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
 
   return (
     <BodyPortal>
-      <button
-        type="button"
-        onClick={() => {
-          if (!open && dodgeToday()) {
-            sessionStorage.setItem(APRIL_KEY, '1')
-            setDodge(botSays('egg.april', String(Date.now()), 'ui') ?? '')
-            setTimeout(() => setDodge(null), 4000)
-            return
-          }
-          setOpen(o => !o)
-        }}
-        aria-expanded={open}
-        aria-label="Chat with GuildBot"
-        className={cn(
-          'press fixed right-4 bottom-24 md:right-6 md:bottom-6 z-(--z-overlay) inline-flex items-center justify-center gap-2 h-12 w-12 md:h-11 md:w-auto md:pl-3 md:pr-4 rounded-full bg-ink text-parchment shadow-lg hover:bg-ink/90 transition-[transform,background-color] duration-300 motion-reduce:transition-none',
-          dodge !== null && '-translate-x-24 -translate-y-16',
-          // The drawer or sheet has its own close; the button would only sit on top of it.
-          open && 'hidden',
-        )}
-      >
-        <GuildBotMark size={22} mood={mood} />
-        {/* Just the face on a phone: the full pill would cover the cards. */}
-        <span className="hidden md:inline text-[13px] font-medium">Ask GuildBot</span>
-      </button>
-
-      {welcome.text && !open && !dodge && (
-        <WelcomeCard text={welcome.text} onOpen={() => { welcome.dismiss(); setOpen(true) }} onDismiss={welcome.dismiss} />
+      <WearContext.Provider value={weather.wear}>
+      {SASS && (
+        <GuildBotStage
+          scene={scene}
+          asks={asksState}
+          left={left}
+          expression={expression}
+          reacting={life.reacting}
+          hop={life.hop}
+          bubble={life.bubble}
+          onDismissBubble={life.dismissBubble}
+          onChip={life.answer}
+          trick={life.trick}
+          onTrick={t => life.doTrick(t)}
+          patrol={life.patrol}
+          onPatrolEnd={life.endPatrol}
+          city={weather.city}
+          weatherLabel={weather.weather ? `${weather.weather.city} · ${weather.weather.temperature}°C` : weather.error}
+          onCity={weather.setCity}
+          energy={() => ({ now: life.energy(), max: life.energyMax })}
+          knock={knock}
+          greeting={greeting}
+          lightsOut={lightsOut}
+          open={open}
+          desktop={desktop}
+          hidden={life.hidden}
+          reduce={!!reduce}
+          dodge={dodge}
+          label={homeLabel(signedIn ? asks : null)}
+          onPress={press}
+          onTalk={press}
+        />
       )}
 
-      {dodge && (
-        <p role="status" className="fixed right-4 bottom-38 md:right-6 md:bottom-20 z-50 max-w-xs inline-flex items-start gap-1.5 rounded-(--radius-card) border border-border-strong bg-paper px-3 py-2 text-[12px] text-ink shadow-lg animate-fade-up">
-          <GuildBotMark size={16} className="text-ink mt-px" />{dodge}
-        </p>
+      {welcome.text && !open && !dodge && !lightsOut && !life.bubble && knock === 'idle' && (
+        <WelcomeCard text={welcome.text} onOpen={() => { welcome.dismiss(); setOpen(true) }} onDismiss={welcome.dismiss} />
       )}
 
       {open && (
@@ -216,6 +369,21 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                 : 'inset-x-0 rounded-t-2xl border-t shadow-[0_-12px_40px_-8px_rgba(0,0,0,0.4)]',
             )}
           >
+            {!reduce && (
+              // The roller shutter: slats over the panel that roll away as it
+              // arrives, sideways into the dock on desktop, up on phones.
+              <motion.div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 z-10"
+                style={{
+                  background: `repeating-linear-gradient(${desktop ? '90deg' : '180deg'}, ${genie ? 'var(--color-indigo-light)' : 'var(--color-kinu)'} 0 9px, ${genie ? 'var(--color-indigo-jp)' : 'var(--color-border-strong)'} 9px 10px)`,
+                  transformOrigin: desktop ? '100% 50%' : '50% 0%',
+                }}
+                initial={{ transform: desktop ? 'scaleX(1)' : 'scaleY(1)' }}
+                animate={{ transform: desktop ? 'scaleX(0)' : 'scaleY(0)' }}
+                transition={{ duration: 0.28, delay: 0.14, ease: [0.32, 0.72, 0, 1] }}
+              />
+            )}
             {!desktop && (
               // Grab handle: drag the sheet down to close it.
               <div onPointerDown={e => drag.start(e)} className="flex justify-center pt-2.5 pb-1 touch-none cursor-grab">
@@ -224,24 +392,43 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
             )}
             <header
               onPointerDown={e => { if (!desktop) drag.start(e) }}
-              className={cn('flex items-center gap-3 px-4 border-b border-border', desktop ? 'h-16' : 'pb-3 touch-none')}
+              className={cn('px-4 pt-3 pb-3 border-b border-border', !desktop && 'touch-none')}
             >
-              <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-sumi border border-border text-ink shrink-0">
-                <GuildBotMark size={22} mood={mood} />
-              </span>
-              <div className="min-w-0">
-                <h2 className="text-footnote font-semibold text-ink">GuildBot</h2>
-                <p className="text-caption text-cha truncate">{moodLine ?? 'Knows the board and Bytes'}</p>
-              </div>
-              <div className="ml-auto flex items-center gap-1">
-                {signedIn && messages.length > 0 && (
-                  <button type="button" onClick={clear} aria-label="Clear chat" title="Clear chat" className="p-2 rounded-full text-cha hover:text-ink hover:bg-kinu/60">
-                    <Trash className="w-4 h-4" />
+              <div className="flex items-center gap-2 min-h-8">
+                <h2 className="text-footnote font-semibold text-ink">
+                  GuildBot
+                  {signedIn && asks && (
+                    <span className={cn('ml-2 font-normal text-caption tabular-nums', genie ? 'text-indigo-jp' : 'text-cha')}>
+                      {genie ? `${asks.left} ${asks.left === 1 ? 'wish' : 'wishes'} left` : `${asks.left} ${asks.left === 1 ? 'ask' : 'asks'} left`}
+                    </span>
+                  )}
+                  {thinking && <span className="ml-2 font-normal text-caption text-cha" role="status">{PHASE_LABEL[phase]}</span>}
+                </h2>
+                <div className="ml-auto flex items-center gap-1">
+                  {life.hidden && (
+                    <button type="button" onClick={() => life.setHidden(false)} className="px-2 h-8 rounded-full text-caption text-cha hover:text-ink hover:bg-kinu/60">
+                      Bring back antics
+                    </button>
+                  )}
+                  {signedIn && messages.length > 0 && (
+                    <button type="button" onClick={clear} aria-label="Clear chat" title="Clear chat" className="p-2 rounded-full text-cha hover:text-ink hover:bg-kinu/60">
+                      <Trash className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setOpen(false)} aria-label="Close chat" className="p-2 rounded-full text-cha hover:text-ink hover:bg-kinu/60">
+                    <X className="w-4 h-4" />
                   </button>
-                )}
-                <button type="button" onClick={() => setOpen(false)} aria-label="Close chat" className="p-2 rounded-full text-cha hover:text-ink hover:bg-kinu/60">
-                  <X className="w-4 h-4" />
-                </button>
+                </div>
+              </div>
+
+              {/* A postcard from him: what he said when you came over, written
+                  out in full on ruled lines, his stamp in the corner. */}
+              <div className="relative mt-2 rounded-(--radius-card) border border-border bg-sumi pl-3.5 pr-15 pt-2 pb-2.5">
+                <p className="gb-ruled font-serif italic text-[15px] leading-6 text-ink line-clamp-3">
+                  {greeting ?? moodLine ?? 'Ask me about the board and Bytes, or tell me to do something.'}
+                </p>
+                <p className="mt-0.5 text-caption text-cha">From GuildBot&apos;s desk</p>
+                <GuildBotStamp expression={expression} genie={genie} className="absolute top-2 right-2 rotate-3" />
               </div>
             </header>
 
@@ -257,13 +444,14 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                 <div ref={listRef} className="flex-1 overflow-y-auto overscroll-contain px-4 py-5 space-y-5 bg-sumi" aria-live="polite">
                   {loaded && messages.length === 0 && (
                     <div className="space-y-4">
-                      <BotRow mood={mood}>
+                      <BotRow mood={expression}>
                         <p className="rounded-2xl rounded-tl-md border border-border bg-paper px-3.5 py-2.5 text-footnote leading-relaxed text-ink">
                           Ask me about this month&apos;s topics or Bytes, or give me an idea and I&apos;ll draft the post. You press Post.
+                          <span className="block mt-1.5 text-ink-soft">New: I take orders. Tell me to dance, take a walk, have a coffee or meditate, and I will. Those don&apos;t use up your asks.</span>
                         </p>
                       </BotRow>
-                      <div className="flex flex-wrap gap-2 pl-9">
-                        {suggestionsFor(page).map(q => (
+                      <div className="flex flex-wrap gap-2">
+                        {['Dance for me', ...suggestionsFor(page)].map(q => (
                           <button
                             key={q}
                             type="button"
@@ -274,8 +462,8 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                           </button>
                         ))}
                       </div>
-                      <p className="pl-9 text-caption text-cha leading-relaxed">
-                        15 asks a week. On meeting day I share anonymous themes from everyone&apos;s chats in Slack, never who asked what, then delete every chat.
+                      <p className="text-caption text-cha leading-relaxed">
+                        {`${asks?.limit ?? 15} asks a week. On meeting day I share anonymous themes from everyone's chats in Slack, never who asked what, then delete every chat.`}
                       </p>
                     </div>
                   )}
@@ -283,14 +471,14 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                     <ChatBubble
                       key={m.id}
                       message={m}
-                      mood={mood}
+                      mood={expression}
                       onPosted={() => setMessages(list => list.map(x => (x.id === m.id ? { ...x, posted: true } : x)))}
                     />
                   ))}
                   {thinking && (
-                    <BotRow mood={mood}>
+                    <BotRow mood={expression}>
                       <p role="status" className="inline-flex items-center gap-1 rounded-2xl rounded-tl-md border border-border bg-paper px-3.5 h-9 text-caption text-cha">
-                        GuildBot is typing<span className="animate-pulse">…</span>
+                        {PHASE_LABEL[phase]}
                       </p>
                     </BotRow>
                   )}
@@ -308,6 +496,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                   <div className="flex items-end gap-2 rounded-2xl border border-border bg-sumi pl-3.5 pr-1.5 py-1.5 transition-colors focus-within:border-border-strong focus-within:bg-paper">
                     <textarea
                       ref={inputRef}
+                      disabled={outOfAsks}
                       value={input}
                       onChange={e => {
                         setInput(e.target.value)
@@ -318,7 +507,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
                       rows={1}
                       maxLength={1500}
-                      placeholder="Ask GuildBot…"
+                      placeholder={outOfAsks ? `Out of asks. Back ${asks?.nextAt ? whenBack(asks.nextAt) : 'next week'}.` : genie ? 'Make a wish…' : 'Ask GuildBot…'}
                       aria-label="Message GuildBot"
                       // 16px on phones: smaller text makes iOS zoom the page on focus.
                       className="flex-1 min-w-0 resize-none bg-transparent py-1 min-h-8 text-[16px] leading-6 md:text-[14px] text-ink placeholder:text-cha focus:outline-none"
@@ -329,36 +518,36 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                       aria-label="Send"
                       className={cn(
                         'press shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-full transition-colors',
-                        input.trim() && !thinking ? 'bg-saffron text-parchment hover:bg-saffron/90' : 'bg-fill text-cha',
+                        input.trim() && !thinking
+                          ? genie ? 'bg-indigo-jp text-white hover:bg-indigo-jp/90' : 'bg-saffron text-parchment hover:bg-saffron/90'
+                          : 'bg-fill text-cha',
                       )}
                     >
                       <ArrowUp className="w-4 h-4" weight="bold" />
                     </button>
                   </div>
-                  <p className="hidden md:block mt-1.5 px-1 text-caption text-cha">Enter to send · Shift + Enter for a new line</p>
+                  <p className="hidden md:block mt-1.5 px-1 text-caption text-cha">Enter to send · Shift + Enter for a new line · try &ldquo;dance&rdquo;</p>
                 </form>
               </>
             )}
           </motion.section>
         </>
       )}
+      </WearContext.Provider>
     </BodyPortal>
   )
 }
 
-/** A bot turn: GuildBot's face beside whatever it said. */
-function BotRow({ mood, children }: { mood: Mood; children: React.ReactNode }) {
+/** A bot turn. No face beside it: there's one GuildBot on screen, by the dock. */
+function BotRow({ children }: { mood?: Expression; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2">
-      <span className="mt-0.5 inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-full bg-paper border border-border text-ink">
-        <GuildBotMark size={18} mood={mood} />
-      </span>
+    <div className="flex items-start">
       <div className="min-w-0 flex-1 flex flex-col items-start gap-2">{children}</div>
     </div>
   )
 }
 
-function ChatBubble({ message, mood, onPosted }: { message: Message; mood: Mood; onPosted: () => void }) {
+function ChatBubble({ message, mood, onPosted }: { message: Message; mood: Expression; onPosted: () => void }) {
   if (message.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -425,6 +614,7 @@ function DraftCard({ draft, posted, onPosted }: { draft: Draft; posted: boolean;
       const data = await res.json().catch(() => ({}))
       if (!res.ok) { toast(data.error ?? 'Could not post. Try again.', 'error'); return }
       setTopicId(data.id ?? null)
+      announceSelf({ kind: 'posted', anonymous: ghost })
       onPosted()
       toast('Posted to the board', 'success')
     } catch {
@@ -548,8 +738,8 @@ function WelcomeCard({ text, onOpen, onDismiss }: { text: string; onOpen: () => 
     <div
       ref={ref}
       role="status"
-      // Just above the button: 6rem + 3rem button on a phone, 1.5rem + 2.75rem on md.
-      className="fixed right-4 bottom-[9.5rem] md:right-6 md:bottom-[5rem] z-(--z-overlay) w-[min(18rem,calc(100vw-2rem))] animate-fade-up"
+      // Just above the house: 5.25rem + ~4.4rem on a phone, 0.75rem + ~5rem on md.
+      className="fixed right-4 bottom-[10.25rem] md:right-6 md:bottom-[6.5rem] z-(--z-overlay) w-[min(18rem,calc(100vw-2rem))] animate-fade-up"
     >
       <div className="relative rounded-(--radius-card) border border-border bg-paper shadow-lg">
         <button type="button" onClick={onOpen} className="block w-full text-left px-3.5 pt-3 pb-3">
@@ -569,8 +759,8 @@ function WelcomeCard({ text, onOpen, onDismiss }: { text: string; onOpen: () => 
         >
           <X className="w-3 h-3" />
         </button>
-        {/* Tail, pointing down at the button. */}
-        <span aria-hidden className="absolute -bottom-1.5 right-5 h-3 w-3 rotate-45 border-r border-b border-border bg-paper" />
+        {/* Tail, pointing down at the middle of the home. */}
+        <span aria-hidden className="absolute -bottom-1.5 right-[26px] h-3 w-3 rotate-45 border-r border-b border-border bg-paper" />
       </div>
     </div>
   )
@@ -612,4 +802,44 @@ function useKeyboardInset(active: boolean): { inset: number; height: string } {
     }
   }, [active])
   return active ? state : { inset: 0, height: '92dvh' }
+}
+
+type Asks = { left: number; limit: number; nextAt: string | null }
+
+/**
+ * Asks left this week, for the door plate. Fetched on load and whenever the
+ * tab comes back into focus (an old ask may have aged out meanwhile); the chat
+ * replaces it with the count each reply comes back with.
+ */
+function useAsks(signedIn: boolean) {
+  const [asks, setAsks] = useState<Asks | null>(null)
+  useEffect(() => {
+    if (!SASS || !signedIn) return
+    let cancelled = false
+    const load = () =>
+      fetch('/api/guildbot/asks')
+        .then(r => (r.ok ? r.json() : null))
+        .then((a: Asks | null) => { if (!cancelled && a) setAsks(a) })
+        .catch(() => {})
+    load()
+    window.addEventListener('focus', load)
+    return () => { cancelled = true; window.removeEventListener('focus', load) }
+  }, [signedIn])
+  return { asks, setAsks }
+}
+
+/** "today at 2 pm", "tomorrow at 9 am", "on Thursday at 2 pm", in the viewer's time zone. */
+function whenBack(iso: string): string {
+  const at = new Date(iso)
+  const days = Math.round((new Date(at).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86_400_000)
+  const time = at.toLocaleTimeString('en-GB', { hour: 'numeric', minute: at.getMinutes() ? '2-digit' : undefined, hour12: true })
+  const day = days <= 0 ? 'today' : days === 1 ? 'tomorrow' : `on ${at.toLocaleDateString('en-GB', { weekday: 'long' })}`
+  return `${day} at ${time}`
+}
+
+/** What a screen reader hears for the home, including the plate. */
+function homeLabel(asks: Asks | null): string {
+  if (!asks) return 'Chat with GuildBot'
+  if (asks.left === 0) return 'GuildBot, no asks left this week'
+  return `Chat with GuildBot, ${asks.left} ${asks.left === 1 ? 'ask' : 'asks'} left this week`
 }

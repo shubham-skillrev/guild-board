@@ -73,7 +73,9 @@ export function useTopics(cycleId: string | null | undefined) {
     setState(s => ({ ...s, topics: s.topics.map(t => (t.id === u.topic_id ? applyCounts(t, counts) : t)) }))
   }, [refetchSoon])
 
-  const { connected } = useLiveChannel(cycleId ? boardChannel(cycleId) : null, onLive)
+  // Presence on the board too (migration 034): GuildBot notices a crowd, or
+  // that you're alone. It counts tabs under random keys, so it names nobody.
+  const { connected } = useLiveChannel(cycleId ? boardChannel(cycleId) : null, onLive, { presence: true })
 
   // Fallback: poll every 15s while the live channel is down, visible tab only.
   useEffect(() => {

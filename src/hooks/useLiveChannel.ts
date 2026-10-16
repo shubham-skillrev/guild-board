@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { LIVE_EVENT, type LiveUpdate } from '@/lib/realtime/channels'
+import { announceLive, announcePresence } from '@/lib/guildbot-host/live-bus'
 
 /**
  * Listen to one private live channel (see src/lib/realtime/channels.ts).
@@ -17,6 +18,9 @@ import { LIVE_EVENT, type LiveUpdate } from '@/lib/realtime/channels'
  *
  * `connected` is false until the channel is joined and whenever it drops, so
  * callers can fall back to polling.
+ *
+ * Everything heard is also re-announced for GuildBot's character (live-bus.ts),
+ * which reacts to the board without a channel of its own.
  */
 export function useLiveChannel(
   name: string | null,
@@ -44,10 +48,13 @@ export function useLiveChannel(
 
     channel.on('broadcast', { event: LIVE_EVENT }, ({ payload }) => {
       handler.current(payload as LiveUpdate)
+      announceLive(name, payload as LiveUpdate)
     })
     if (presence) {
       channel.on('presence', { event: 'sync' }, () => {
-        setPresent(Object.keys(channel.presenceState()).length)
+        const count = Object.keys(channel.presenceState()).length
+        setPresent(count)
+        announcePresence(name, count)
       })
     }
 

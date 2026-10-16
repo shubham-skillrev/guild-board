@@ -11,6 +11,7 @@ import { KindChips } from '@/components/topics/KindChips'
 import { PollEditor, pollPayload, type PollDraft } from '@/components/topics/PollEditor'
 import { cn } from '@/lib/utils/cn'
 import type { Cycle } from '@/types'
+import { announceSelf } from '@/lib/guildbot-host/live-bus'
 
 /* The second answer and the optional context share the description column,
    with room left for their two bold headings. */
@@ -70,6 +71,7 @@ export function SubmitModal({ cycle, onClose, onSubmitted }: SubmitModalProps) {
         setError(data.error || 'Could not post. Try again.')
         return
       }
+      announceSelf({ kind: 'posted', anonymous: isAnonymous })
       onSubmitted()
     } catch {
       setError('Could not post. Check your connection and try again.')
