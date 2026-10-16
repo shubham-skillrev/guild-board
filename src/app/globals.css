@@ -1033,8 +1033,8 @@ body {
 /* A double-take when something happens. */
 /* In character, rarely: a smug double brow-wiggle, a sarcastic eye roll when bored. */
 .gb-kers .kx-brow-l, .gb-kers .kx-brow-r { transform-box: fill-box; }
-.gb-kers[data-motion='idle'][data-face='smug'] .kx-brow-r { animation: kx-wiggle 9s ease-in-out infinite; }
-@keyframes kx-wiggle { 0%, 86%, 92%, 100% { transform: translateY(0); } 88%, 94% { transform: translateY(-3px); } }
+.gb-kers[data-motion='idle'][data-face='smug'] .kx-brow-r { animation: kx-wiggle 6s var(--motion-in-out) infinite; }
+@keyframes kx-wiggle { 0%, 78%, 100% { transform: translateY(0) rotate(0); } 82%, 90% { transform: translateY(-7px) rotate(-6deg); } 86% { transform: translateY(-3px) rotate(-2deg); } }
 .gb-kers[data-motion='idle'][data-face='bored'] .kx-pupil { animation: kx-eyeroll 11s ease-in-out infinite; }
 @keyframes kx-eyeroll { 0%, 80%, 100% { transform: translate(0, 0); } 85% { transform: translate(-2.4px, -4px); } 90% { transform: translate(2.4px, -4.6px); } 95% { transform: translate(3px, -1px); } }
 .gb-kers[data-take] .gb-kers-body { animation: kx-take 420ms var(--motion-out); }
@@ -1047,8 +1047,9 @@ body {
 .gb-kers .gb-kers-body { transform-origin: 50% 100%; }
 .gb-kers[data-motion='idle'] .gb-kers-body { animation: gb-kers-breathe 4.2s ease-in-out infinite; }
 @keyframes gb-kers-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1%); } }
-.gb-kers[data-motion='walk'] .gb-kers-body { animation: gb-kers-bob 260ms ease-in-out infinite alternate; }
-@keyframes gb-kers-bob { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-3%) rotate(2deg); } }
+.gb-kers[data-motion='walk'] .gb-kers-body { animation: gb-kers-bob 340ms ease-in-out infinite alternate; }
+/* The walk is a strut: leaning back a touch, a springy rise on every step. */
+@keyframes gb-kers-bob { from { transform: translateY(0) rotate(1deg); } to { transform: translateY(-4.5%) rotate(5deg); } }
 .gb-kers[data-motion='hop'] .gb-kers-body { animation: gb-kers-hop 380ms var(--motion-out); }
 /* His parts: arms sway at rest and swing as he walks, legs step, one arm
    waves, the tail wags. Each part pivots at the origin set on it inline. */
@@ -1061,21 +1062,31 @@ body {
 @keyframes kx-wag { from { rotate: -5deg; } to { rotate: 7deg; } }
 .gb-kers .kx-wave { animation: kx-wave 520ms ease-in-out infinite alternate; }
 @keyframes kx-wave { from { rotate: -10deg; } to { rotate: 14deg; } }
-.gb-kers[data-motion='walk'] .kx-leg-l { animation: kx-step 520ms ease-in-out infinite alternate; }
-.gb-kers[data-motion='walk'] .kx-leg-r { animation: kx-step 520ms ease-in-out infinite alternate-reverse; }
-.gb-kers[data-motion='walk'] .kx-arm-l { animation: kx-swing 520ms ease-in-out infinite alternate-reverse; }
-.gb-kers[data-motion='walk'] .kx-arm-r { animation: kx-swing 520ms ease-in-out infinite alternate; }
-.gb-kers[data-motion='walk'] .kx-tail { animation-duration: 520ms; }
+.gb-kers[data-motion='walk'] .kx-leg-l { animation: kx-step 680ms ease-in-out infinite alternate; }
+.gb-kers[data-motion='walk'] .kx-leg-r { animation: kx-step 680ms ease-in-out infinite alternate-reverse; }
+.gb-kers[data-motion='walk'] .kx-arm-l { animation: kx-swing 680ms ease-in-out 90ms infinite alternate-reverse; }
+.gb-kers[data-motion='walk'] .kx-arm-r { animation: kx-swing 680ms ease-in-out 90ms infinite alternate; }
 @keyframes kx-step { from { rotate: -14deg; } to { rotate: 14deg; } }
-@keyframes kx-swing { from { rotate: -12deg; } to { rotate: 12deg; } }
-.gb-kers[data-motion='dance'] .kx-arm-l { animation: kx-wave 380ms ease-in-out infinite alternate; }
-.gb-kers[data-motion='dance'] .kx-arm-r { animation: kx-wave 380ms ease-in-out infinite alternate-reverse; }
+@keyframes kx-swing { from { rotate: -16deg; } to { rotate: 16deg; } }
+.gb-kers[data-motion='dance'] .kx-arm-l { animation: kx-wave 325ms ease-in-out infinite alternate; }
+.gb-kers[data-motion='dance'] .kx-arm-r { animation: kx-wave 325ms ease-in-out infinite alternate-reverse; }
 .gb-kers[data-motion='dance'] .kx-leg-l { animation: kx-kick 320ms ease-in-out infinite alternate; }
 .gb-kers[data-motion='dance'] .kx-leg-r { animation: kx-kick 320ms ease-in-out infinite alternate-reverse; }
 @keyframes kx-kick { from { rotate: -6deg; } to { rotate: 8deg; } }
 .gb-kers .gb-kers-steam { animation: gb-steam 3s var(--motion-out) infinite; }
-.gb-kers[data-motion='dance'] .gb-kers-body { animation: gb-kers-dance 640ms ease-in-out infinite; }
-@keyframes gb-kers-dance { 0%, 100% { transform: rotate(-4deg) translateX(-2%); } 50% { transform: rotate(4deg) translateX(2%) translateY(-2%); } }
+.gb-kers[data-motion='dance'] .gb-kers-body { animation: gb-kers-dance 2.6s ease-in-out infinite; }
+/* The dance: shimmy, shimmy, a spin like a loading cursor, a hop, then a cheeky held lean. Never resized. */
+@keyframes gb-kers-dance {
+  0%, 100% { transform: rotate(-4deg) translate(-3%, 0); }
+  11% { transform: rotate(4deg) translate(3%, -2%); }
+  22% { transform: rotate(-4deg) translate(-3%, 0); }
+  33% { transform: rotate(4deg) translate(3%, -2%); }
+  42% { transform: rotate(0deg) translate(0, -2%); }
+  60% { transform: rotate(360deg) translate(0, -2%); }
+  67% { transform: rotate(358deg) translate(0, -7%); }
+  73%, 90% { transform: rotate(351deg) translate(-2%, 0); }
+}
+.gb-kers[data-motion='dance'] .gb-kers-body { transform-origin: 50% 58%; }
 .gb-kers .gb-kers-float { animation: gb-float 4s ease-in-out infinite; }
 .gb-kers .gb-kers-sweat [data-drop] { transform-box: fill-box; animation: gb-drip 1.8s ease-in infinite; }
 .gb-kers .gb-kers-sweat [data-drop] + [data-drop] { animation-delay: 0.9s; }

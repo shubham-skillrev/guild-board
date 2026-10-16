@@ -25,7 +25,6 @@ const COLOURS: { colour: KersColour; face: Expression; label: string }[] = [
 const FACES: Expression[] = ['smug', 'bored', 'dramatic', 'proud', 'relieved', 'excited', 'nosy', 'lonely', 'sleepy', 'grumpy']
 const SPECIAL: { eyes: KersEyes; label: string }[] = [
   { eyes: 'happy', label: 'Pleased ^^' },
-  { eyes: 'star', label: 'Excited ★' },
   { eyes: 'swirl', label: 'Shocked @@' },
   { eyes: 'heart', label: 'Patted ♥' },
 ]

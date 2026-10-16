@@ -31,8 +31,8 @@ export type KersState = 'thinking' | 'writing' | 'pleased' | 'refusing' | null
 export type KersMotion = 'idle' | 'walk' | 'hop' | 'dance' | 'still'
 /** What he wears for what he's doing (the weather comes from WearContext). */
 export type KersWear = 'headphones' | null
-/** Eyes for a moment: ^^ pleased, stars excited, swirls shocked, hearts when patted. */
-export type KersEyes = 'happy' | 'star' | 'swirl' | 'heart' | null
+/** Eyes for a moment: ^^ pleased, swirls shocked, hearts when patted. */
+export type KersEyes = 'happy' | 'swirl' | 'heart' | null
 
 const SUMI = '#2B2B2B'
 const W = 200
@@ -106,7 +106,7 @@ export function Kers({
   wear?: KersWear
   /** Reacting to your cursor (useCursorPlay): pointing, leaning in, flinching. */
   play?: CursorPlay
-  /** Eyes for a moment (pleased and excited ones come on their own). */
+  /** Eyes for a moment (the pleased ones come on their own). */
   special?: KersEyes
   className?: string
 }) {
@@ -119,7 +119,7 @@ export function Kers({
   const rig = play === 'point' && !base.lying ? { ...base, hands: [[14, 112], base.hands[1]] as [Point, Point], wave: undefined } : base
   const dye = tint ? pastel(tint) : fillDye(colour)
   const face = rig.lying || rig.sleep ? 'relieved' : expression
-  const eyes: KersEyes = rig.lying || rig.sleep ? null : special ?? (state === 'pleased' ? 'happy' : expression === 'excited' ? 'star' : null)
+  const eyes: KersEyes = rig.lying || rig.sleep ? null : special ?? (state === 'pleased' ? 'happy' : null)
   const take = useDoubleTake(expression)
 
   return (
@@ -350,13 +350,6 @@ function SpecialEye({ kind }: { kind: Exclude<KersEyes, null> }) {
   switch (kind) {
     case 'happy':
       return <path d="M-10 4Q0 -10 10 4" stroke="#1A1A1F" strokeWidth={4.4} strokeLinecap="round" fill="none" />
-    case 'star':
-      return (
-        <g>
-          <path d="M0 -13L3.8 -4.2 13 -3.6 6 2.6 8 12 0 7 -8 12 -6 2.6 -13 -3.6 -3.8 -4.2Z" fill="#F6C431" stroke="#1A1A1F" strokeWidth={1.6} strokeLinejoin="round" />
-          <circle cx={-2.5} cy={-3} r={2} fill={WHITE} opacity={0.85} />
-        </g>
-      )
     case 'heart':
       return (
         <g>
