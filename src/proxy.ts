@@ -31,6 +31,9 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname === '/' ||
     pathname === '/login' ||
+    // The guild building, every hour (public, a story with no live data).
+    pathname === '/hours' ||
+    pathname.startsWith('/hours/') ||
     pathname === '/favicon.ico' ||
     isPwaAsset
 

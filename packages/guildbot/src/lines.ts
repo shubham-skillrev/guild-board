@@ -259,6 +259,17 @@ export const LINES = {
   'weather.snow': ["Snow in {city}. I've never been this excited about frozen water."],
   'weather.storm': ["Thunder in {city}. Stay in. The board is warm and dry."],
 
+  /* The guild building, hour by hour (/hours, public). One line per hour,
+     GuildBot narrating his building. Drafted 2026-10-16, pending sign-off. */
+  'hours.late_night': ["Midnight. Two windows still lit. One is fixing prod. One is pretending to. I'm not judging. I'm judging a little."],
+  'hours.dawn': ["Dawn. The building is asleep and the chai cart isn't. One window flickers on: a commit nobody will review until Monday."],
+  'hours.morning': ["Morning. Lights come on floor by floor, like a slow rollout. Coffee first, opinions second."],
+  'hours.standup': ["Standup o'clock. Every window says no blockers. Every window has blockers."],
+  'hours.afternoon': ["After lunch. The whole building runs on noodles and willpower. Mostly noodles."],
+  'hours.golden': ["Golden hour. Half the building is downstairs at the chai cart, settling tabs versus spaces in the best light of the day."],
+  'hours.dusk': ["Dusk. Windows go dark one by one. The ones still lit said just one more fix, and meant it."],
+  'hours.night': ["Night. The building hums. Third floor, left: a side project is having its best evening in months."],
+
   'home.dark': [
     "Lights out. That's all {limit} asks. Back {when}.",
     "Off duty. You've had your {limit} for the week. Back {when}.",

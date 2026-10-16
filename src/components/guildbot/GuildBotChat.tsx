@@ -14,12 +14,12 @@ import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
 import { useActivity, type Asks as AsksState, type Scene } from '@/components/guildbot/GuildBotScene'
 import { useFocusState, useRemaining, type BreakKind } from '@/lib/focus/store'
 import { useWeather, WearContext } from '@/components/guildbot/useWeather'
-import { GuildBotStamp } from '@/components/guildbot/GuildBotStamp'
+import { GuildBotStamp, MoodCloud, type StampVariant } from '@/components/guildbot/GuildBotStamp'
 import { GuildBotStage, type Knock } from '@/components/guildbot/GuildBotStage'
 import { BodyPortal } from '@/components/ui/BodyPortal'
 import { useGuildBotLife } from '@/components/guildbot/useGuildBotLife'
 import { announceSelf } from '@/lib/guildbot-host/live-bus'
-import { welcomeKey, meetingWhen, isoWeek, describeWeather, type Activity, type Expression } from '@guildboard/guildbot'
+import { welcomeKey, meetingWhen, isoWeek, describeWeather, type Activity, type ChatReaction, type Expression } from '@guildboard/guildbot'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useUserTokens } from '@/hooks/useUserTokens'
 import { TOKEN_LIMITS } from '@/lib/constants'
@@ -58,7 +58,15 @@ function dodgeToday(): boolean {
 
 type Cite = { type: 'topic' | 'byte'; id: string; title: string }
 type Draft = { kind: string; title: string; second: string; context: string; poll: { question: string; options: string[] } | null }
-type Message = { id: string; role: 'user' | 'bot'; body: string; draft?: Draft | null; cites?: Cite[] | null; posted?: boolean }
+/** A trick he did when told to in the chat, written up as a receipt. */
+type Receipt = { trick: string; energy: number; max: number }
+/**
+ * `reaction` sits on his reply and is his sticker on the message before it.
+ * `fresh`: arrived just now, so the sticker pops on.
+ */
+type Message = { id: string; role: 'user' | 'bot'; body: string; draft?: Draft | null; cites?: Cite[] | null; posted?: boolean; reaction?: ChatReaction | null; receipt?: Receipt | null; fresh?: boolean }
+
+const TRICK_NAME: Record<string, string> = { dance: 'Dance', pat: 'Pat on the head', coffee: 'Coffee', meditate: 'Meditation', walk: 'Walk' }
 
 /** Which page the chat is on, so the bot knows what "this topic" means. */
 function pageOf(path: string): { kind: 'board' } | { kind: 'topic'; topicId: string } | { kind: 'bytes'; byteId?: string } | null {
@@ -209,7 +217,15 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     const local = localCommand(text)
     if (local) {
       const said = life.doTrick(local)
-      setMessages(m => [...m, { id: `local-bot-${Date.now()}`, role: 'bot', body: said ?? 'Done.' }])
+      // Orders come back as a receipt, and a pat gets a heart.
+      setMessages(m => [...m, {
+        id: `local-bot-${Date.now()}`,
+        role: 'bot',
+        body: said ?? 'Done.',
+        receipt: { trick: TRICK_NAME[local], energy: life.energy(), max: life.energyMax },
+        reaction: local === 'pat' ? 'heart' : 'salute',
+        fresh: true,
+      }])
       // A walk happens on the page, not in here.
       if (local === 'walk') timers.current.push(setTimeout(() => setOpen(false), 900))
       return
@@ -230,7 +246,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
         toast(data?.error ?? 'GuildBot did not answer. Try again.', 'error')
         return
       }
-      setMessages(m => [...m, { id: `bot-${Date.now()}`, role: 'bot', body: data.reply, draft: data.draft, cites: data.cites }])
+      setMessages(m => [...m, { id: `bot-${Date.now()}`, role: 'bot', body: data.reply, draft: data.draft, cites: data.cites, reaction: data.reaction ?? null, fresh: true }])
       if (data.asks) setAsks(data.asks)
     } catch {
       toast('GuildBot did not answer, check your connection', 'error')
@@ -255,6 +271,12 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   }
 
   const expression: Expression = life.expression
+  // Which stamp in the series: the moment beats the mood.
+  const stampVariant: StampVariant = life.meeting ? 'meeting'
+    : genie ? 'genie'
+    : weather.wear.sweat ? 'heatwave'
+    : weather.wear.beanie || weather.wear.scarf ? 'chilly'
+    : mood
   // What he's doing: the meeting beats everything, then a focus session you
   // started, then his own day.
   const scene: Scene = life.meeting
@@ -428,7 +450,11 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                   {greeting ?? moodLine ?? 'Ask me about the board and Bytes, or tell me to do something.'}
                 </p>
                 <p className="mt-0.5 text-caption text-cha">From GuildBot&apos;s desk</p>
-                <GuildBotStamp expression={expression} genie={genie} className="absolute top-2 right-2 rotate-3" />
+                <span className="absolute top-2 right-2">
+                  <GuildBotStamp expression={expression} variant={stampVariant} className="rotate-3" />
+                  {/* His mood as a little weather of its own, floating over the stamp. */}
+                  <MoodCloud mood={mood} className="absolute -top-3 -left-3" />
+                </span>
               </div>
             </header>
 
@@ -467,10 +493,12 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                       </p>
                     </div>
                   )}
-                  {messages.map(m => (
+                  {messages.map((m, i) => (
                     <ChatBubble
                       key={m.id}
                       message={m}
+                      // His sticker on your message lives on his reply to it.
+                      sticker={m.role === 'user' && messages[i + 1]?.role === 'bot' ? messages[i + 1] : null}
                       mood={expression}
                       onPosted={() => setMessages(list => list.map(x => (x.id === m.id ? { ...x, posted: true } : x)))}
                     />
@@ -547,37 +575,88 @@ function BotRow({ children }: { mood?: Expression; children: React.ReactNode }) 
   )
 }
 
-function ChatBubble({ message, mood, onPosted }: { message: Message; mood: Expression; onPosted: () => void }) {
+const STICKER: Record<ChatReaction, { emoji: string; label: string }> = {
+  noted: { emoji: '📝', label: 'noted' },
+  bold: { emoji: '⚡', label: 'bold' },
+  ooh: { emoji: '👀', label: 'ooh' },
+  heart: { emoji: '❤️', label: 'loved it' },
+  eyeroll: { emoji: '🙄', label: 'eye-roll' },
+  mindblown: { emoji: '🤯', label: 'mind blown' },
+  salute: { emoji: '👍', label: 'on it' },
+  same: { emoji: '🤝', label: 'same' },
+}
+
+function ChatBubble({ message, sticker, mood, onPosted }: { message: Message; sticker: Message | null; mood: Expression; onPosted: () => void }) {
   if (message.role === 'user') {
+    const reaction = sticker?.reaction ? STICKER[sticker.reaction] : null
     return (
       <div className="flex justify-end">
-        <p className="max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tr-md bg-fill border border-border px-3.5 py-2.5 text-footnote leading-relaxed text-ink">
+        <p className="relative max-w-[85%] whitespace-pre-wrap rounded-2xl rounded-tr-md bg-fill border border-border px-3.5 py-2.5 text-footnote leading-relaxed text-ink">
           {message.body}
+          {/* His sticker on what you wrote. */}
+          {reaction && (
+            <span
+              role="img"
+              aria-label={`GuildBot reacted: ${reaction.label}`}
+              title={`GuildBot: ${reaction.label}`}
+              className={cn('gb-sticker absolute -bottom-3 -left-3 inline-flex items-center justify-center w-7 h-7 rounded-full bg-paper border border-border-strong text-[14px] leading-none shadow-sm -rotate-12', sticker?.fresh && 'gb-sticker-pop')}
+            >
+              {reaction.emoji}
+            </span>
+          )}
         </p>
       </div>
     )
   }
   return (
     <BotRow mood={mood}>
-      <p className="max-w-full whitespace-pre-wrap rounded-2xl rounded-tl-md border border-border bg-paper px-3.5 py-2.5 text-footnote leading-relaxed text-ink">
-        {message.body}
-      </p>
+      {message.receipt ? (
+        <ReceiptSlip receipt={message.receipt} line={message.body} />
+      ) : (
+        <p className="max-w-full whitespace-pre-wrap rounded-2xl rounded-tl-md border border-border bg-paper px-3.5 py-2.5 text-footnote leading-relaxed text-ink">
+          {message.body}
+        </p>
+      )}
       {!!message.cites?.length && (
-        <div className="flex flex-wrap gap-1.5 max-w-full">
-          {message.cites.map(c => (
+        <div className="flex flex-wrap gap-2 max-w-full pt-1">
+          {message.cites.map((c, i) => (
+            // A clipping, cut out of the board's notice wall or the Bytes paper.
             <Link
               key={c.id}
               href={c.type === 'topic' ? `/board/${c.id}` : `/bytes/${c.id}`}
-              className="inline-flex items-center gap-1 h-6 max-w-full rounded-full border border-border bg-paper px-2 text-[11px] text-ink-soft hover:border-border-strong hover:text-ink"
+              className={cn('gb-clip block max-w-[16rem] px-3 pt-2 pb-2.5 hover:-translate-y-0.5 transition-transform', i % 2 ? 'rotate-[0.8deg]' : '-rotate-[0.8deg]')}
             >
-              {c.type === 'byte' ? <Newspaper className="w-3 h-3 shrink-0" /> : <ChatsCircle className="w-3 h-3 shrink-0" />}
-              <span className="truncate">{c.title}</span>
+              <span className="flex items-center gap-1 text-[10px] uppercase tracking-[0.12em] text-cha">
+                {c.type === 'byte' ? <Newspaper className="w-3 h-3" /> : <ChatsCircle className="w-3 h-3" />}
+                {c.type === 'byte' ? 'From Bytes' : 'On the board'}
+              </span>
+              <span className="mt-0.5 block font-serif text-[14px] leading-snug text-ink line-clamp-2">{c.title}</span>
             </Link>
           ))}
         </div>
       )}
       {message.draft && <DraftCard draft={message.draft} posted={!!message.posted} onPosted={onPosted} />}
     </BotRow>
+  )
+}
+
+/** A trick, ordered in the chat, written up like a shop receipt. */
+function ReceiptSlip({ receipt, line }: { receipt: Receipt; line: string }) {
+  const row = (k: string, v: string) => (
+    <span className="flex justify-between gap-4"><span>{k}</span><span className="tabular-nums">{v}</span></span>
+  )
+  return (
+    <div className="gb-receipt w-56 px-3.5 pt-3 pb-4 font-mono text-[11.5px] leading-[1.55] text-ink">
+      <span className="block text-center font-semibold tracking-[0.18em]">GUILDBOT</span>
+      <span className="block text-center text-cha">receipt</span>
+      <span className="block my-1.5 border-t border-dashed border-border-strong" />
+      {row(`1 × ${receipt.trick}`, receipt.trick === 'Coffee' ? '+2 energy' : '1 energy')}
+      {row('Tip', 'none')}
+      {row('Energy left', `${receipt.energy}/${receipt.max}`)}
+      <span className="block my-1.5 border-t border-dashed border-border-strong" />
+      <span className="block text-ink-soft whitespace-pre-wrap">{line}</span>
+      <span className="block mt-1.5 text-center text-cha">Thank you for your patronage</span>
+    </div>
   )
 }
 
@@ -588,7 +667,10 @@ function suggestionsFor(page: NonNullable<ReturnType<typeof pageOf>>): string[] 
   return ["What's hot this month?", "Draft a post for this month's theme", "What's in Bytes?"]
 }
 
-/** A post GuildBot drafted. Nothing goes on the board until you press Post. */
+/**
+ * A post GuildBot drafted, on a sticky note. Nothing goes on the board until
+ * you pin it.
+ */
 function DraftCard({ draft, posted, onPosted }: { draft: Draft; posted: boolean; onPosted: () => void }) {
   const [ghost, setGhost] = useState(false)
   const [pending, setPending] = useState(false)
@@ -625,35 +707,35 @@ function DraftCard({ draft, posted, onPosted }: { draft: Draft; posted: boolean;
   }
 
   return (
-    <div className="w-full rounded-(--radius-card) border border-border-strong bg-paper overflow-hidden">
-      <p className="flex items-center gap-1.5 px-3.5 py-2 border-b border-border text-caption text-ink-soft">
+    <div className="gb-sticky w-full -rotate-[0.7deg]">
+      <p className="flex items-center gap-1.5 px-3.5 pt-3 pb-1.5 text-caption gb-sticky-soft">
         <PencilSimpleLine className="w-3.5 h-3.5" />
         Draft · {kind.label}
       </p>
       <div className="px-3.5 py-3 space-y-1.5">
-        <p className="text-footnote font-semibold leading-snug text-ink">{draft.title}</p>
-        <p className="text-caption leading-relaxed text-ink-soft"><span className="text-cha">{kind.second.label} </span>{draft.second}</p>
-        {draft.context && <p className="text-caption leading-relaxed text-ink-soft"><span className="text-cha">Context </span>{draft.context}</p>}
+        <p className="text-footnote font-semibold leading-snug">{draft.title}</p>
+        <p className="text-caption leading-relaxed"><span className="gb-sticky-soft">{kind.second.label} </span>{draft.second}</p>
+        {draft.context && <p className="text-caption leading-relaxed"><span className="gb-sticky-soft">Context </span>{draft.context}</p>}
         {draft.poll && (
-          <p className="inline-flex items-center gap-1 text-caption text-cha">
+          <p className="inline-flex items-center gap-1 text-caption gb-sticky-soft">
             <ChartBar className="w-3.5 h-3.5" /> Poll: {draft.poll.question} ({draft.poll.options.join(' / ')})
           </p>
         )}
       </div>
 
-      <div className="flex items-center gap-2 px-3.5 py-2.5 border-t border-border">
+      <div className="flex items-center gap-2 px-3.5 pt-1 pb-3">
         {posted || topicId ? (
           <p className="text-caption text-matcha">
-            Posted.{topicId && <> <Link href={`/board/${topicId}`} className="underline">Open it</Link></>}
+            Pinned.{topicId && <> <Link href={`/board/${topicId}`} className="underline">Open it</Link></>}
           </p>
         ) : (
           <>
-            <label className="inline-flex items-center gap-1.5 text-caption text-ink-soft cursor-pointer select-none">
+            <label className="inline-flex items-center gap-1.5 text-caption gb-sticky-soft cursor-pointer select-none">
               <input type="checkbox" checked={ghost} onChange={e => setGhost(e.target.checked)} className="accent-ink" />
               Post anonymously
             </label>
             <Button size="sm" className="ml-auto" onClick={post} disabled={pending}>
-              {pending ? 'Posting…' : 'Post'}
+              {pending ? 'Pinning…' : 'Pin to board'}
             </Button>
           </>
         )}

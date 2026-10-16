@@ -45,6 +45,7 @@ run, or the repo stops describing the database.
 | 032 | `032_guildbot_chat.sql` | `guildbot_messages`: one private chat thread per member, API-only (no member grants), wiped on meeting day after GuildBot shares anonymous themes (35-day backstop delete) | **Ship together with the chat code** |
 | 033 | `033_ai_usage.sql` | `ai_usage` and `ai_usage_take()`: a per-day count of paid OpenAI calls, so the fallback stops at `OPENAI_DAILY_CAP` (service role only) | Yes — additive only; until it is applied the app never falls back to OpenAI |
 | 034 | `034_board_presence.sql` | presence allowed on `board:*` channels as well as `topic:*` (anonymous tab counts, for GuildBot noticing a crowd) | Yes — replaces one policy; until applied the board just has no presence |
+| 035 | `035_guildbot_reactions.sql` | `guildbot_messages.reaction`: GuildBot's sticker on the message his reply answers (fixed set) | Yes — additive; until applied, stickers show live but aren't kept |
 
 > **028 and its code ship in the same deploy.** Apply 028 right after the code
 > goes live; never before. The old code reads `topics.user_id` and
