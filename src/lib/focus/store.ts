@@ -23,9 +23,9 @@ export const PLANS: Record<Plan, { label: string; focus: number; rest: number }>
   long: { label: 'Long haul', focus: 90, rest: 20 },
 }
 
-/** The breaks he leads, and how long each guided bit takes (water is a sip). */
+/** The breaks he leads, and how long each guided bit takes (water is a few sips). */
 export const BREAKS: Record<BreakKind, { label: string; seconds: number }> = {
-  water: { label: 'Water', seconds: 0 },
+  water: { label: 'Water', seconds: 10 },
   eyes: { label: 'Eyes, 20s', seconds: 20 },
   stretch: { label: 'Stretch, 1 min', seconds: 60 },
   walk: { label: 'Walk, 5 min', seconds: 300 },

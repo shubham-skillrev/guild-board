@@ -12,7 +12,7 @@ import { KINDS, composeDescription } from '@/lib/kinds'
 import { SASS, botSays } from '@/lib/guildbot-host/voice'
 import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
 import { useActivity, type Asks as AsksState, type Scene } from '@/components/guildbot/GuildBotScene'
-import { useFocusState, type BreakKind } from '@/lib/focus/store'
+import { useFocusState, useRemaining, type BreakKind } from '@/lib/focus/store'
 import { useWeather, WearContext } from '@/components/guildbot/useWeather'
 import type { AvatarStatus } from '@/components/guildbot/GuildBotAvatar'
 import { GuildBotStamp } from '@/components/guildbot/GuildBotStamp'
@@ -20,7 +20,7 @@ import { GuildBotStage, type Knock } from '@/components/guildbot/GuildBotStage'
 import { BodyPortal } from '@/components/ui/BodyPortal'
 import { useGuildBotLife } from '@/components/guildbot/useGuildBotLife'
 import { announceSelf } from '@/lib/guildbot-host/live-bus'
-import { welcomeKey, meetingWhen, isoWeek, type Expression } from '@guildboard/guildbot'
+import { welcomeKey, meetingWhen, isoWeek, describeWeather, type Activity, type Expression } from '@guildboard/guildbot'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
 import { useUserTokens } from '@/hooks/useUserTokens'
 import { TOKEN_LIMITS } from '@/lib/constants'
@@ -39,6 +39,12 @@ function localCommand(text: string): 'dance' | 'pat' | 'coffee' | 'meditate' | '
   if (/^(meditate|let'?s meditate|breathe)\b/.test(t)) return 'meditate'
   if (/^(let'?s )?(take a )?(walk|break)\b|^(go for a walk)\b/.test(t)) return 'walk'
   return null
+}
+
+/** His activity, as words for the model (the route only accepts these). */
+const DOING: Record<Activity, string> = {
+  sleeping: 'sleeping', waking: 'waking up', brushing: 'brushing his teeth', coffee: 'having coffee', coding: 'coding',
+  lunch: 'having lunch', walking: 'out for a walk', learning: 'reading a book', music: 'listening to music', meditating: 'meditating',
 }
 
 const PHASE_LABEL = { searching: 'Reading the board…', thinking: 'Thinking…', writing: 'Writing…' } as const
@@ -109,6 +115,8 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   const activity = useActivity() ?? 'coding'
   const focusState = useFocusState()
   const weather = useWeather()
+  // A break's guided bit (sips, eyes, a stretch, a walk) runs for its own time, then he rests.
+  const guiding = useRemaining(focusState.guideEndsAt) > 0
   const welcome = useWelcome(pathname === '/board' && !open, signedIn)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -218,7 +226,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
       const res = await fetch('/api/guildbot/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, page }),
+        body: JSON.stringify({ message: text, page, yourself: yourself() }),
       })
       const data = await res.json().catch(() => null)
       if (!res.ok || !data) {
@@ -237,6 +245,20 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     }
   }
 
+  /** What he's doing and wearing on your screen right now, so he can answer for it. */
+  const yourself = () => {
+    const w = weather.weather
+    const wear = weather.wear
+    return {
+      doing: life.meeting ? 'sulking about the meeting'
+        : focusState.phase === 'focus' ? 'focusing with this person'
+        : focusState.phase === 'break' ? 'on a break with this person'
+        : DOING[activity],
+      weather: w ? `${w.city}, ${w.temperature}°C, ${describeWeather(w.code)}` : null,
+      wearing: [wear.sunglasses && 'sunglasses', wear.sweat && 'sweating', wear.beanie && 'beanie', wear.scarf && 'scarf', wear.umbrella && 'umbrella'].filter(Boolean),
+    }
+  }
+
   const status: AvatarStatus = thinking ? phase : talking ? 'talking' : focused && input.trim() ? 'listening' : 'idle'
   const expression: Expression = life.expression
   // What he's doing: the meeting beats everything, then a focus session you
@@ -244,7 +266,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   const scene: Scene = life.meeting
     ? 'meeting'
     : focusState.phase === 'focus' ? 'coding'
-    : focusState.phase === 'break' && focusState.breakKind ? BREAK_SCENE[focusState.breakKind]
+    : focusState.phase === 'break' ? (guiding && focusState.breakKind ? BREAK_SCENE[focusState.breakKind] : 'meditating')
     : activity
 
   const press = (e: React.MouseEvent) => {

@@ -110,9 +110,10 @@ export function GuildBotStage({
 }) {
   const genie = asks === 'genie'
   const atHouse = scene === 'sleeping'
-  const stroll = useStroll(bubble, desktop && !open && !hidden && !reduce && !atHouse && !patrol)
   const slot = useSlot(usePathname() === '/focus' ? 'gb-focus-slot' : null)
-  const walk = usePatrol(patrol, !open && !hidden && !reduce && !atHouse, onPatrolEnd)
+  // On the focus page he stays at his spot in the card: no strolls, no walks across the screen.
+  const stroll = useStroll(bubble, desktop && !open && !hidden && !reduce && !atHouse && !patrol && !slot)
+  const walk = usePatrol(patrol, !open && !hidden && !reduce && !atHouse && !slot, onPatrolEnd)
   const dancing = trick === 'dance' && !open && !atHouse
   // Tap him: he asks what you want. "Do something" opens his actions panel,
   // which stays open while he performs; "Let's talk" is the knock.
@@ -161,7 +162,9 @@ export function GuildBotStage({
           <div
             role="status"
             className="absolute bottom-full mb-1 w-[min(17rem,calc(100vw-2rem))] animate-fade-up transition-[right] duration-700 ease-(--motion-in-out)"
-            style={{ right: strolling ? STROLL - 24 : 8 }}
+            // Exactly over him in the focus card (never across the timer); over
+            // the corner scene, or over him while he strolls, everywhere else.
+            style={slot ? { left: 0, width: slot.width } : { right: strolling ? STROLL - 24 : 8 }}
           >
             <div className="relative rounded-2xl border border-border-strong bg-paper px-3.5 py-2.5 text-[13px] leading-snug text-ink shadow-lg">
               <span className="block text-caption font-semibold text-ink-soft mb-0.5">GuildBot</span>

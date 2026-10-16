@@ -222,7 +222,7 @@ export function useGuildBotLife() {
   useEffect(() => {
     const onSay = (e: Event) => {
       const key = (e as CustomEvent<{ key: LineKey }>).detail.key
-      if (speak(key, { asked: true, ms: 9000 })) pullFace(key === 'focus.done' ? 'excited' : 'proud')
+      if (speak(key, { asked: true, ms: 9000, stay: true })) pullFace(key === 'focus.done' ? 'excited' : 'proud')
     }
     window.addEventListener('gb:say', onSay)
     return () => window.removeEventListener('gb:say', onSay)

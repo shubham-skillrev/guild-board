@@ -8,7 +8,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
-import { chat, CHAT_FALLBACK, type ChatAnswer, type ChatDraft } from '@guildboard/guildbot'
+import { chat, CHAT_FALLBACK, type ChatAnswer, type ChatContext, type ChatDraft } from '@guildboard/guildbot'
 import { llm } from '@/lib/guildbot-host/llm'
 import { SASS, botSays } from '@/lib/guildbot-host/voice'
 import { buildChatContext, type ChatPage } from '@/lib/guildbot-host/chat-context'
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   const user = await session()
   if (!user) return NextResponse.json({ error: 'Sign in to chat with GuildBot' }, { status: 401 })
 
-  let body: { message?: unknown; page?: unknown }
+  let body: { message?: unknown; page?: unknown; yourself?: unknown }
   try { body = await request.json() } catch { return NextResponse.json({ error: 'Invalid body' }, { status: 400 }) }
   const message = typeof body.message === 'string' ? body.message.trim() : ''
   if (!message) return NextResponse.json({ error: 'Say something' }, { status: 400 })
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
 
   await admin.from('guildbot_messages').insert({ user_id: user.id, role: 'user', body: message })
 
-  const context = await buildChatContext(admin, user.id, parsePage(body.page), message)
+  const context = { ...(await buildChatContext(admin, user.id, parsePage(body.page), message)), yourself: parseYourself(body.yourself) }
   const answer: ChatAnswer = (await chat(llm, {
     message,
     history: (earlier ?? []).reverse().map(m => ({ role: m.role as 'user' | 'bot', text: m.body })),
@@ -104,6 +104,18 @@ export async function POST(request: Request) {
   // This ask is already saved, so the window now counts it.
   const asks = await asksFor(admin, user.id)
   return NextResponse.json({ reply: answer.reply, draft, cites, fallback: answer.reply === CHAT_FALLBACK, asks })
+}
+
+const DOING = new Set(['sleeping', 'waking up', 'brushing his teeth', 'having coffee', 'coding', 'having lunch', 'out for a walk', 'reading a book', 'listening to music', 'meditating', 'sulking about the meeting', 'focusing with this person', 'on a break with this person'])
+const WEARING = new Set(['sunglasses', 'sweating', 'beanie', 'scarf', 'umbrella'])
+
+/** What the browser says GuildBot is doing and wearing: known values only, so it can't carry anything else to the model. */
+function parseYourself(raw: unknown): ChatContext['yourself'] {
+  const y = (raw ?? {}) as { doing?: unknown; weather?: unknown; wearing?: unknown }
+  if (typeof y.doing !== 'string' || !DOING.has(y.doing)) return null
+  const weather = typeof y.weather === 'string' && /^[\p{L}\p{M} .,'-]{2,60}, -?\d{1,2}°C, [a-z ]{3,20}$/u.test(y.weather) ? y.weather : null
+  const wearing = Array.isArray(y.wearing) ? y.wearing.filter((w): w is string => typeof w === 'string' && WEARING.has(w)) : []
+  return { doing: y.doing, weather, wearing }
 }
 
 function parsePage(raw: unknown): ChatPage {

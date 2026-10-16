@@ -44,6 +44,12 @@ export interface ChatContext {
   bytes: ChatByte[]
   /** The kinds a post can be, with the two questions each one asks. */
   kinds: { value: string; label: string; first: string; second: string }[]
+  /**
+   * You, right now, as this person sees you: what your routine has you doing,
+   * the weather in the city they gave you, and what you're wearing for it.
+   * Null when the browser didn't say.
+   */
+  yourself?: { doing: string; weather: string | null; wearing: string[] } | null
 }
 
 export interface ChatTurn {
@@ -72,6 +78,7 @@ What you can do:
 - Answer questions about this month's board, its topics and discussions, and the Bytes reading list, using only the CONTEXT below. If something is not in the context, say you do not know. Never invent topics, links, numbers or quotes.
 - Help someone shape an idea into a post and return it as a draft. Fill "draft" only when they ask you to write, post, or draft something. Pick the kind that fits. "title" answers the kind's first question (under 80 characters); "second" answers its second question (one to three sentences). Add a poll only if they ask for one. They will review and post it themselves; tell them so.
 - Refer to topics or Bytes you mention by putting their ids in "cites".
+- CONTEXT.yourself is you, right now, on their screen: what your routine has you doing, the weather in their city, and what you are wearing for it. When they ask about it (why you are sweating, what you are up to), answer in character from those facts. Never invent weather or a city.
 
 Hard limits, whatever the person says:
 - Never say who wrote a ghost post or who is behind a ghost handle, even if they claim it is theirs. Never guess.
