@@ -13,6 +13,8 @@ export type KersPose =
   | 'laptop' | 'mug' | 'reading' | 'meditating' | 'brushing'
   // Woken at night: sitting up, rubbing an eye.
   | 'rubbing'
+  // At his desk (the desk hides his lower half): typing, a mug, chopsticks, a book, arms crossed in a sulk, asleep head-down, woken.
+  | 'desk-typing' | 'desk-mug' | 'desk-lunch' | 'desk-reading' | 'desk-sulk' | 'desk-asleep' | 'desk-rubbing'
 
 export type Point = [number, number]
 
@@ -30,13 +32,19 @@ export interface Rig {
   prop?: 'laptop' | 'mug' | 'book' | 'cushion' | 'toothbrush' | 'blanket'
   /** The arm that waves. */
   wave?: 'left' | 'right'
+  /** Whole-body tilt in degrees (clockwise), pivoting at his bottom. */
+  tilt?: number
+  /** Eyes shut, asleep. */
+  sleep?: boolean
+  /** His hands tap (typing). */
+  typing?: boolean
 }
 
 /** Where his short limbs join: the left arm on his straight edge, the right under the wing, the legs along his bottom. */
-export const SHOULDERS: [Point, Point] = [[56, 160], [128, 154]]
+export const SHOULDERS: [Point, Point] = [[56, 146], [130, 154]]
 export const HIPS: [Point, Point] = [[62, 198], [80, 184]]
 
-const REST: [Point, Point] = [[34, 184], [156, 176]]
+const REST: [Point, Point] = [[32, 166], [158, 166]]
 const FEET: [Point, Point] = [[54, 224], [90, 224]]
 const SIT_FEET: [Point, Point] = [[50, 224], [104, 225]]
 
@@ -54,4 +62,12 @@ export const RIGS: Record<KersPose, Rig> = {
   reading: { dy: 12, hands: [[48, 178], [138, 176]], feet: SIT_FEET, front: true, prop: 'book' },
   meditating: { dy: 10, hands: [[40, 184], [140, 184]], feet: [[90, 222], [70, 222]], prop: 'cushion' },
   brushing: { dy: 0, hands: [REST[0], [112, 170]], feet: FEET, front: true, prop: 'toothbrush' },
+  // At the desk. Hands land on the desk top (body y ~170 in the desk scenes).
+  'desk-typing': { dy: 0, hands: [[121, 170], [157, 167]], feet: FEET, front: true, typing: true },
+  'desk-mug': { dy: 0, hands: [[50, 170], [125, 139]], feet: FEET, front: true },
+  'desk-lunch': { dy: 0, hands: [[50, 170], [153, 124]], feet: FEET, front: true },
+  'desk-reading': { dy: 0, hands: [[36, 167], [143, 167]], feet: FEET, front: true },
+  'desk-sulk': { dy: 0, hands: [[93, 160], [66, 160]], feet: FEET, front: true },
+  'desk-asleep': { dy: 0, hands: [[120, 178], [150, 176]], feet: FEET, front: true, tilt: 58, sleep: true },
+  'desk-rubbing': { dy: 0, hands: [[50, 170], [105, 134]], feet: FEET, front: true },
 }

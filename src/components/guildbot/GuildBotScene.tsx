@@ -66,12 +66,16 @@ export function kersState(status: AvatarStatus | null): KersState {
  * scene's, and where his middle sits (percent across) and his feet (percent
  * up from the bottom).
  */
+/** Where he sits behind the desk. */
+const DESK = { h: 0.75, x: 45, y: 16 }
+
 const STAGING: Record<Scene, { pose: KersPose; h: number; x: number; y: number }> = {
-  sleeping: { pose: 'asleep', h: 0.92, x: 52, y: 2 },
-  coding: { pose: 'laptop', h: 0.9, x: 52, y: 2 },
-  coffee: { pose: 'mug', h: 0.9, x: 52, y: 2 },
-  lunch: { pose: 'sitting', h: 0.86, x: 50, y: 4 },
-  learning: { pose: 'reading', h: 0.9, x: 52, y: 2 },
+  // At his desk (the desk's front hides his lower half).
+  sleeping: { pose: 'desk-asleep', ...DESK },
+  coding: { pose: 'desk-typing', ...DESK },
+  coffee: { pose: 'desk-mug', ...DESK },
+  lunch: { pose: 'desk-lunch', ...DESK },
+  learning: { pose: 'desk-reading', ...DESK },
   meditating: { pose: 'meditating', h: 0.92, x: 52, y: 2 },
   music: { pose: 'sitting', h: 0.86, x: 52, y: 4 },
   waking: { pose: 'arms-up', h: 0.94, x: 56, y: 3 },
@@ -79,8 +83,9 @@ const STAGING: Record<Scene, { pose: KersPose; h: number; x: number; y: number }
   walking: { pose: 'standing', h: 0.92, x: 50, y: 4 },
   garden: { pose: 'sitting', h: 0.8, x: 54, y: 5 },
   rainwatch: { pose: 'mug', h: 0.82, x: 54, y: 4 },
-  meeting: { pose: 'sitting', h: 0.86, x: 48, y: 4 },
+  meeting: { pose: 'desk-sulk', ...DESK },
 }
+const DESK_SCENES = new Set<Scene>(['sleeping', 'coding', 'coffee', 'lunch', 'learning', 'meeting'])
 
 export function GuildBotScene({
   scene,
@@ -131,7 +136,8 @@ export function GuildBotScene({
   const height = (width * 90) / 120
   const stage = STAGING[scene]
   const awake = scene === 'sleeping' && (knocking || doorOpen)
-  const pose: KersPose = awake ? 'rubbing' : scene === 'coffee' && variant === 'iced' ? 'sitting' : stage.pose
+  const atDesk = DESK_SCENES.has(scene)
+  const pose: KersPose = awake ? 'desk-rubbing' : stage.pose
   const guitar = scene === 'music' && variant === 'guitar'
 
   return (
@@ -172,7 +178,7 @@ export function GuildBotScene({
       <svg viewBox="0 0 120 90" className="absolute inset-0 w-full h-full overflow-visible pointer-events-none" aria-hidden>
         {!away && <Foreground scene={scene} variant={variant} guitar={guitar} />}
         {trick === 'pat' && !away && <Hearts />}
-        {mug && (genie ? <GenieLamp x={98} y={86} /> : out ? <OutSign y={86} /> : null)}
+        {mug && (genie ? <GenieLamp x={atDesk ? 96 : 98} y={atDesk ? 57.5 : 86} /> : out ? <OutSign y={atDesk ? 62 : 86} /> : null)}
       </svg>
     </span>
   )
@@ -186,6 +192,13 @@ function Backdrop({ scene }: { scene: Scene }) {
     case 'learning':
     case 'lunch':
     case 'meeting':
+      // His desk's back half: the plant on it, his chair.
+      return (
+        <g>
+          <Plant />
+          <path d="M30 59V40a8 8 0 0 1 8-8h26a8 8 0 0 1 8 8v19" className="gb-chair" strokeWidth={1.8} />
+        </g>
+      )
     case 'music':
       return <Plant dy={28} />
     case 'meditating':
@@ -223,9 +236,11 @@ function Backdrop({ scene }: { scene: Scene }) {
         </g>
       )
     case 'sleeping':
-      // Night: a moon, a few stars.
+      // Night at his desk: a moon, a few stars, the plant, his chair.
       return (
         <g>
+          <Plant />
+          <path d="M30 59V40a8 8 0 0 1 8-8h26a8 8 0 0 1 8 8v19" className="gb-chair" strokeWidth={1.8} />
           <path d="M100 8a10 10 0 1 0 8 16 8 8 0 1 1-8-16Z" fill="#F4E7B8" />
           <circle cx={22} cy={14} r={1.2} fill="#F4E7B8" />
           <circle cx={40} cy={6} r={0.9} fill="#F4E7B8" />
@@ -247,35 +262,9 @@ function Backdrop({ scene }: { scene: Scene }) {
   }
 }
 
-/** What's in front of him: his lunch, the guitar, iced coffee, lemonade, the meeting sign. */
+/** What's in front of him: his desk and what's on it, the guitar, lemonade. */
 function Foreground({ scene, variant, guitar }: { scene: Scene; variant: Variant; guitar: boolean }) {
-  if (scene === 'lunch') {
-    return variant === 'tiffin' ? (
-      // A stacked steel tiffin, lids off.
-      <g transform="translate(48 70)">
-        <rect x={0} y={4} width={11} height={10} rx={1.5} fill="#C9CED6" className="gb-line" strokeWidth={1.2} />
-        <rect x={12} y={2} width={11} height={12} rx={1.5} fill="#D7DCE3" className="gb-line" strokeWidth={1.2} />
-        <path d="M2 7h7M14 5h7" stroke="#E8B64B" strokeWidth={2} strokeLinecap="round" />
-      </g>
-    ) : (
-      <g transform="translate(46 72)">
-        <path d="M0 0h26c0 6-6 9-13 9S0 6 0 0Z" className="gb-pot" strokeWidth={1.5} strokeLinejoin="round" />
-        <path d="M3 0q3-3 6 0t6 0 6 0" className="gb-noodle" strokeWidth={1.6} fill="none" strokeLinecap="round" />
-        <g data-part="chopsticks"><path d="M22 -14 12 -1M25 -13 15 0" className="gb-line" strokeWidth={1.4} strokeLinecap="round" /></g>
-      </g>
-    )
-  }
-  if (scene === 'coffee' && variant === 'iced') {
-    // Too warm for hot coffee: an iced one on the floor beside him.
-    return (
-      <g transform="translate(80 66)">
-        <path d="M4 -6l2 6" className="gb-line" strokeWidth={1.4} strokeLinecap="round" />
-        <path d="M0 0h10l-1 14h-8Z" fill="#E8D4BC" fillOpacity={0.9} className="gb-line" strokeWidth={1.3} strokeLinejoin="round" />
-        <rect x={2} y={3} width={2.8} height={2.8} rx={0.6} fill="#FFFFFF" opacity={0.85} />
-        <rect x={5.4} y={6} width={2.8} height={2.8} rx={0.6} fill="#FFFFFF" opacity={0.85} />
-      </g>
-    )
-  }
+  if (DESK_SCENES.has(scene)) return <DeskFront scene={scene} variant={variant} />
   if (guitar) {
     return (
       <g transform="translate(-4 4)">
@@ -296,16 +285,102 @@ function Foreground({ scene, variant, guitar }: { scene: Scene; variant: Variant
       </g>
     )
   }
-  if (scene === 'sleeping') {
+  return null
+}
+
+/** His desk's front half, and what's on it for the scene. */
+function DeskFront({ scene, variant }: { scene: Scene; variant: Variant }) {
+  return (
+    <g>
+      {/* Desk: top face, front edge, legs. */}
+      <path d="M8 57.5h104l4 4.5H4Z" className="gb-wood-top" strokeWidth={1.6} strokeLinejoin="round" />
+      <path d="M4 62h112v5.5H4Z" className="gb-wood-front" strokeWidth={1.6} strokeLinejoin="round" />
+      <path d="M10 67.5V86M110 67.5V86" className="gb-line" strokeWidth={2.4} strokeLinecap="round" />
+
+      {scene === 'meeting' ? <MeetingSign /> : scene === 'sleeping' ? null : <Laptop open={scene === 'coding' || scene === 'coffee'} />}
+
+      {scene === 'coffee' && (
+        <g data-part="sip">
+          {variant === 'iced' ? (
+            // Too warm for hot coffee: iced, with a straw.
+            <>
+              <path d="M62 33l2 6" className="gb-line" strokeWidth={1.4} strokeLinecap="round" />
+              <path d="M58 38h9l-1 11h-7Z" fill="#E8D4BC" fillOpacity={0.9} className="gb-line" strokeWidth={1.3} strokeLinejoin="round" />
+              <rect x={59.5} y={40} width={2.6} height={2.6} rx={0.6} fill="#FFFFFF" opacity={0.8} />
+              <rect x={62.5} y={42.5} width={2.6} height={2.6} rx={0.6} fill="#FFFFFF" opacity={0.8} />
+            </>
+          ) : (
+            <>
+              <path d="M61.5 37c-1.6-2 1.6-3 0-5" className="gb-steam-on" strokeWidth={1.2} fill="none" strokeLinecap="round" />
+              <path d="M58 39h9v7.5a2.5 2.5 0 0 1-2.5 2.5h-4A2.5 2.5 0 0 1 58 46.5Z" className="gb-mug" strokeWidth={1.4} strokeLinejoin="round" />
+            </>
+          )}
+        </g>
+      )}
+      {scene === 'lunch' && (
+        variant === 'tiffin' ? (
+          <g>
+            <rect x={38} y={49} width={10} height={8.5} rx={1.5} fill="#C9CED6" className="gb-line" strokeWidth={1.2} />
+            <rect x={49} y={47} width={10} height={10.5} rx={1.5} fill="#D7DCE3" className="gb-line" strokeWidth={1.2} />
+            <path d="M40 51h6M51 49.5h6" stroke="#E8B64B" strokeWidth={2} strokeLinecap="round" />
+            <g data-part="chopsticks"><path d="M68 41 57 52M70.5 42.5 59 53" className="gb-line" strokeWidth={1.4} strokeLinecap="round" /></g>
+          </g>
+        ) : (
+          <g>
+            <path d="M38 52.5h24c0 4-5.4 6.5-12 6.5S38 56.5 38 52.5Z" className="gb-pot" strokeWidth={1.5} strokeLinejoin="round" />
+            <path d="M41 52.5q3-3 6 0t6 0 6 0" className="gb-noodle" strokeWidth={1.6} fill="none" strokeLinecap="round" />
+            <g data-part="chopsticks"><path d="M68 41 57 52M70.5 42.5 59 53" className="gb-line" strokeWidth={1.4} strokeLinecap="round" /></g>
+          </g>
+        )
+      )}
+      {scene === 'learning' && (
+        <g data-part="book">
+          <path d="M36 46 50 48.5v10l-14-2.5Z" className="gb-page" strokeWidth={1.4} strokeLinejoin="round" />
+          <path d="M64 46 50 48.5v10l14-2.5Z" className="gb-page" strokeWidth={1.4} strokeLinejoin="round" />
+          <path d="M39 50l8 1.4M39 53l8 1.4M53 51.4l8-1.4M53 54.4l8-1.4" className="gb-line" strokeOpacity={0.35} strokeWidth={1} />
+        </g>
+      )}
+      {scene === 'meeting' && <Fumes />}
+      {scene === 'sleeping' && (
+        <g>
+          {/* A dim desk lamp, and z's drifting up off him. */}
+          <circle cx={100} cy={44} r={14} fill="#FFD27A" opacity={0.18} />
+          <path d="M104 57.5V40l-8-6" className="gb-line" strokeWidth={1.8} strokeLinecap="round" fill="none" />
+          <path d="M90 30l10 8-4 4-9-6Z" fill="#E8B04B" className="gb-line" strokeWidth={1.4} strokeLinejoin="round" />
+          <path d="M98 57.5h12" className="gb-line" strokeWidth={2.4} strokeLinecap="round" />
+          <g className="gb-zzz" fill="#8A8F9C">
+            <text data-z x={66} y={34} fontSize={8} fontWeight={700}>z</text>
+            <text data-z x={72} y={26} fontSize={10} fontWeight={700}>z</text>
+            <text data-z x={80} y={16} fontSize={12} fontWeight={700}>z</text>
+          </g>
+        </g>
+      )}
+    </g>
+  )
+}
+
+function Laptop({ open }: { open: boolean }) {
+  if (!open) {
+    // Pushed aside, lid half down.
     return (
-      <g className="gb-zzz" fill="#8A8F9C">
-        <text data-z x={84} y={50} fontSize={10} fontWeight={700}>z</text>
-        <text data-z x={92} y={40} fontSize={7} fontWeight={700}>z</text>
+      <g>
+        <path d="M80 58.5 84 44l18-2-2.6 16.5Z" className="gb-laptop" strokeWidth={1.5} strokeLinejoin="round" />
+        <path d="M76 60.5h26l-1.8-2.4H78Z" className="gb-laptop" strokeWidth={1.4} strokeLinejoin="round" />
       </g>
     )
   }
-  if (scene === 'meeting') return <g><g transform="translate(14 28)"><MeetingSign /></g><g transform="translate(4 0)"><Fumes /></g></g>
-  return null
+  return (
+    <g>
+      <path d="M72 58.5 74 35.5l22-3-1.5 26Z" className="gb-laptop" strokeWidth={1.6} strokeLinejoin="round" />
+      <g data-part="code" strokeLinecap="round" strokeWidth={1.8}>
+        <path d="M77.5 40.5h9" stroke="#F7A851" />
+        <path d="M79.5 45h11" stroke="#3DB88A" />
+        <path d="M79.5 49.5h6" stroke="#9A7BD4" />
+        <path d="M77.5 54h10" stroke="#F7A851" />
+      </g>
+      <path d="M66 60.5h30l-1.8-2.4H68Z" className="gb-laptop" strokeWidth={1.4} strokeLinejoin="round" />
+    </g>
+  )
 }
 
 function Plant({ dy = 0 }: { dy?: number }) {

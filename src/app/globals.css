@@ -1025,6 +1025,9 @@ body {
 @keyframes gb-kers-lean { 0%, 100% { transform: rotate(0) translateX(0); } 30%, 70% { transform: rotate(-9deg) translateX(-5%); } }
 .gb-kers[data-play='flinch'] .gb-kers-body { animation: gb-kers-flinch 450ms var(--motion-out); }
 @keyframes gb-kers-flinch { 0% { transform: scale(1, 1); } 25% { transform: scale(0.9, 1.06) translateX(3%); } 55% { transform: scale(1.04, 0.97) translateX(-2%); } 100% { transform: scale(1, 1); } }
+.gb-kers [data-typing] .kx-arm-l { animation: kx-tap 360ms ease-in-out infinite alternate !important; }
+.gb-kers [data-typing] .kx-arm-r { animation: kx-tap 360ms ease-in-out infinite alternate-reverse !important; }
+@keyframes kx-tap { from { rotate: -4deg; } to { rotate: 5deg; } }
 .gb-kers[data-jiggle] .gb-kers-body { animation: gb-kers-jiggle 650ms var(--motion-out); }
 @keyframes gb-kers-jiggle { 0% { transform: scale(1.08, 0.92); } 35% { transform: scale(0.95, 1.05); } 65% { transform: scale(1.03, 0.97); } 100% { transform: scale(1, 1); } }
 

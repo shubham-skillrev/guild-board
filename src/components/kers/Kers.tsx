@@ -54,26 +54,27 @@ function rounded(pts: Point[], radii: number[]): string {
   return d + 'Z'
 }
 
-// The cursor, chubby: tip, straight left edge, the bottom, a short stubby
-// stem (part of him, not a tail), the step in under the wing, the wing.
+// The cursor, chubby: tip, straight left edge, the bottom, a small stubby
+// nub of a stem (part of him, not a tail), the step in under the wing, the wing.
 // Corners puffed (well rounded), edges straight, the tip kept crisp.
 const BODY = rounded(
-  [[54, 48], [54, 200], [92, 162], [113, 210], [139, 201], [113, 152], [160, 152]],
-  [9, 22, 6, 11, 11, 6, 15],
+  [[54, 48], [54, 200], [94, 164], [104, 189], [122, 182], [113, 152], [160, 152]],
+  [9, 22, 6, 8, 8, 6, 15],
 )
 const OUTLINE = 8
 // Where things sit on him: big eyes set low, and his cheeks.
-const EYES: [Point, Point] = [[77, 136], [105, 136]]
+const EYES: [Point, Point] = [[75, 126], [101, 126]]
 const EYE_R = 13
-const CHEEKS: [Point, Point] = [[64, 157], [102, 155]]
+const CHEEKS: [Point, Point] = [[63, 147], [99, 146]]
 const TIP: Point = [57, 52]
 const CENTRE: Point = [98, 136]
 const WHITE = '#FFFFFF'
 
-/** His fill: the mood's dye (kuchiba on an ordinary, smug day). */
+/** His fill: the mood's dye as a soft pastel (kuchiba becomes a light peach on an ordinary, smug day). */
 export function fillDye(colour: KersColour): string {
-  return KERS_COLOURS[colour]
+  return pastel(KERS_COLOURS[colour])
 }
+const pastel = (hex: string) => mix(hex, '#FFFBF5', 0.6)
 
 export function Kers({
   pose = 'standing',
@@ -110,8 +111,8 @@ export function Kers({
   const base = RIGS[motion === 'dance' ? 'arms-up' : pose]
   // Pointing: his left arm swings up toward whatever you're hovering.
   const rig = play === 'point' && !base.lying ? { ...base, hands: [[14, 112], base.hands[1]] as [Point, Point], wave: undefined } : base
-  const dye = tint ?? fillDye(colour)
-  const face = rig.lying ? 'relieved' : expression
+  const dye = tint ? pastel(tint) : fillDye(colour)
+  const face = rig.lying || rig.sleep ? 'relieved' : expression
 
   return (
     <span
@@ -203,7 +204,7 @@ function Figure({ rig, dye, face, look, weather, wear }: {
         )
       })}
 
-      <g className="kx-body" transform={rig.lying ? `translate(0 ${rig.dy}) rotate(-16 100 200)` : rig.dy ? `translate(0 ${rig.dy})` : undefined}>
+      <g className="kx-body" data-typing={rig.typing ? '' : undefined} transform={rig.lying ? `translate(0 ${rig.dy}) rotate(-16 100 200)` : `translate(0 ${rig.dy})${rig.tilt ? ` rotate(${rig.tilt} 100 205)` : ''}`}>
         {!rig.front && !rig.lying && <Arms rig={rig} ink={ink} />}
 
         {/* A soft drop shadow behind him for depth, then a thin white edge round his outline (so he reads on any background), then him. */}

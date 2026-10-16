@@ -198,9 +198,9 @@ const SHOWN = 6
 
 /**
  * Who's focusing right now, as a little crowd of anonymous cursors (Kers's
- * build, filled with a random dye): one per member with a timer running
- * (yours in front, saffron-ringed), at work or dancing on a break, and the
- * count in words.
+ * build, filled with a random pastel dye): one per member with a timer
+ * running, standing in a row on a little floor, yours first with a "you"
+ * tag, at work or dancing on a break, and the count in words.
  */
 function Crowd({ member, others, you, yourLook }: { member: boolean; others: Person[]; you: 'focus' | 'break' | null; yourLook: number }) {
   if (!member) {
@@ -210,37 +210,38 @@ function Crowd({ member, others, you, yourLook }: { member: boolean; others: Per
   const breaking = others.length - focusing
   const shown = [...others].sort((a, b) => a.since - b.since).slice(0, SHOWN)
   const words = others.length === 0
-    ? you ? 'Just you and GuildBot right now. Quality over quantity.' : 'Nobody focusing right now. First one in gets the good chair.'
+    ? you ? 'Just you and Kers right now. Quality over quantity.' : 'Nobody focusing right now. First one in gets the good chair.'
     : [
         focusing ? `${focusing} focusing${you ? ' with you' : ''}` : null,
         breaking ? `${breaking} on a break` : null,
       ].filter(Boolean).join(', ') + ' right now.'
 
   return (
-    <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 rounded-xl border border-border bg-sumi px-3 py-2">
-      <div className="flex items-end -space-x-1.5 shrink-0 max-w-full overflow-hidden" aria-hidden>
-        {you && (
-          <span className="relative z-10 rounded-full ring-2 ring-saffron/70 bg-paper">
-            <Kers size={30} tint={CREW_TINTS[yourLook % CREW_TINTS.length]} expression={you === 'break' ? 'relieved' : 'nosy'} motion={you === 'break' ? 'hop' : 'idle'} />
-          </span>
-        )}
-        {shown.map(p => (
-          <span key={p.key} className="relative rounded-full bg-paper ring-2 ring-paper">
+    <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-end sm:gap-4 rounded-xl border border-border bg-sumi px-3 pt-3 pb-2.5">
+      {(you || shown.length > 0) && (
+        // Little cursors standing in a row on a shared floor: yours first, tagged.
+        <div className="relative flex items-end gap-0.5 shrink-0 max-w-full border-b border-border pb-0.5" aria-hidden>
+          {you && (
+            <span className="relative flex flex-col items-center">
+              <span className="mb-0.5 rounded-full bg-saffron px-1.5 text-[9px] font-semibold leading-[14px] text-white">you</span>
+              <Kers size={40} tint={CREW_TINTS[yourLook % CREW_TINTS.length]} expression={you === 'break' ? 'relieved' : 'nosy'} motion={you === 'break' ? 'dance' : 'idle'} />
+            </span>
+          )}
+          {shown.map(p => (
             <Kers
-              size={30}
+              key={p.key}
+              size={34}
               tint={CREW_TINTS[p.look % CREW_TINTS.length]}
               expression={p.s === 'break' ? 'relieved' : 'nosy'}
               motion={p.s === 'break' ? 'dance' : 'idle'}
             />
-          </span>
-        ))}
-        {others.length > SHOWN && (
-          <span className="relative grid place-items-center h-[30px] min-w-[30px] px-1 rounded-full bg-kinu ring-2 ring-paper text-[11px] font-semibold text-ink-soft tabular-nums">
-            +{others.length - SHOWN}
-          </span>
-        )}
-      </div>
-      <p className="text-footnote text-ink-soft leading-snug">{words}</p>
+          ))}
+          {others.length > SHOWN && (
+            <span className="mb-1 ml-1 text-caption font-semibold text-ink-soft tabular-nums">+{others.length - SHOWN}</span>
+          )}
+        </div>
+      )}
+      <p className="text-footnote text-ink-soft leading-snug sm:pb-1">{words}</p>
     </div>
   )
 }
