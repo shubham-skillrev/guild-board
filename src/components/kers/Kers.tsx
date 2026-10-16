@@ -1,6 +1,6 @@
 'use client'
 
-import { useContext, useId } from 'react'
+import { useContext, useEffect, useId, useRef, useState } from 'react'
 import type { Expression, Wear } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
 import { Eye, KERS_COLOURS, eyeShape, mix, useLookAt, type KersColour } from '@/components/kers/look'
@@ -11,8 +11,8 @@ import { HIPS, RIGS, SHOULDERS, type KersPose, type Point, type Rig } from '@/co
  * Kers, GuildBot's character: the mouse cursor (↖) come to life as a
  * chubby little pet, drawn and animated in SVG. A puffy, squat arrowhead
  * (no stem, no tail) with short stick limbs, thin lines ending in round
- * hands and feet. Big googly eyes set low, stitched brows, blush, and a tiny
- * stitched mouth. Depth from a soft drop shadow, a gradient, light on his
+ * hands and feet. Big googly eyes set low, stitched brows and blush; no
+ * mouth. Depth from a soft drop shadow, a gradient, light on his
  * puffy top, lit round hands and feet, and a contact shadow.
  *
  * - Mood: his outline and limbs are always sumi, like a real cursor; his
@@ -40,11 +40,10 @@ const H = 240
 // wing where a real cursor's stem would start. No stem, no tail.
 const BODY = 'M52 70Q52 48 66 62Q122 94 158 150Q175 167 151 170L114 168Q99 167 96 176Q88 197 66 204Q48 209 48 187Q42 128 52 70Z'
 const OUTLINE = 8
-// Where things sit on him: big eyes set low, cheeks, a tiny mouth.
+// Where things sit on him: big eyes set low, and his cheeks.
 const EYES: [Point, Point] = [[78, 138], [114, 138]]
 const EYE_R = 15
 const CHEEKS: [Point, Point] = [[64, 160], [128, 158]]
-const MOUTH: Point = [96, 160]
 const TIP: Point = [56, 62]
 const CENTRE: Point = [100, 138]
 const WHITE = '#FFFFFF'
@@ -82,6 +81,7 @@ export function Kers({
   const look = useLookAt(follow)
   const weather = useContext(WearContext)
   const walking = motion === 'walk' || pose === 'walk-a' || pose === 'walk-b'
+  const jiggle = useJiggle(walking ? 'walk' : motion)
   const rig = RIGS[motion === 'dance' ? 'arms-up' : pose]
   const dye = tint ?? fillDye(colour)
   const face = rig.lying ? 'relieved' : expression
@@ -91,6 +91,7 @@ export function Kers({
       className={cn('gb-kers relative inline-block shrink-0', className)}
       style={{ width: (size * W) / H, height: size }}
       data-motion={walking ? 'walk' : motion}
+      data-jiggle={jiggle ? '' : undefined}
     >
       <span className="gb-kers-body absolute inset-0">
         <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 w-full h-full overflow-visible" aria-hidden>
@@ -106,6 +107,21 @@ export function Kers({
       </span>
     </span>
   )
+}
+
+/** A little jiggle when he stops walking or dancing, like a squishy toy settling. */
+function useJiggle(motion: KersMotion): boolean {
+  const [on, setOn] = useState(false)
+  const last = useRef(motion)
+  useEffect(() => {
+    const was = last.current
+    last.current = motion
+    if (motion !== 'idle' || (was !== 'walk' && was !== 'dance')) return
+    const start = setTimeout(() => setOn(true), 0)
+    const stop = setTimeout(() => setOn(false), 650)
+    return () => { clearTimeout(start); clearTimeout(stop) }
+  }, [motion])
+  return on
 }
 
 type Ink = { line: string; fill: string }
@@ -225,7 +241,7 @@ function Mark({ dye }: { dye: string }) {
   )
 }
 
-/** His face: big googly eyes set low, stitched brows, blush, and a tiny stitched mouth. */
+/** His face: big googly eyes set low, stitched brows and blush. No mouth. */
 function Face({ face, look, lid }: { face: Expression; look: { x: number; y: number }; lid: string }) {
   const shape = eyeShape(face)
   const k = EYE_R / 12
@@ -252,35 +268,8 @@ function Face({ face, look, lid }: { face: Expression; look: { x: number; y: num
           />
         </g>
       ))}
-      <Mouth face={face} />
     </g>
   )
-}
-
-/** A tiny stitched mouth that changes with his mood. */
-function Mouth({ face }: { face: Expression }) {
-  const [x, y] = MOUTH
-  const line = { stroke: SUMI, strokeWidth: 2.6, strokeLinecap: 'round' as const, fill: 'none' }
-  switch (face) {
-    case 'proud':
-    case 'excited':
-      return <path d={`M${x - 7} ${y - 1}q7 9 14 0Z`} fill="#7A2E2E" stroke={SUMI} strokeWidth={2.2} strokeLinejoin="round" />
-    case 'relieved':
-      return <path d={`M${x - 5} ${y}q5 4 10 0`} {...line} />
-    case 'smug':
-      return <path d={`M${x - 5} ${y + 1}q6 3 10 -2`} {...line} />
-    case 'dramatic':
-      return <ellipse cx={x} cy={y + 1} rx={3.6} ry={4.6} fill="#7A2E2E" stroke={SUMI} strokeWidth={2} />
-    case 'nosy':
-    case 'sleepy':
-      return <circle cx={x + 1} cy={y + 1} r={2.4} fill={SUMI} />
-    case 'lonely':
-      return <path d={`M${x - 7} ${y + 2}q3.5 -3 7 0t7 0`} {...line} />
-    case 'grumpy':
-      return <path d={`M${x - 6} ${y + 3}q6 -6 12 0`} {...line} />
-    default:
-      return <path d={`M${x - 5} ${y + 1}h10`} {...line} />
-  }
 }
 
 /** Stitched eyebrows: how high each sits and how it tilts (inner end up for sad, down for cross). */

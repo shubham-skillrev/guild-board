@@ -95,6 +95,7 @@ export function GuildBotScene({
   trick = null,
   variant = null,
   mug = true,
+  cursor = null,
   width = 120,
 }: {
   scene: Scene
@@ -119,6 +120,8 @@ export function GuildBotScene({
   variant?: Variant
   /** The genie lamp or the OUT sign, when the asks call for one. Off on the focus page. */
   mug?: boolean
+  /** A cursor state for a moment (click ripple, ⊘), over whatever he's doing. */
+  cursor?: KersState
   width?: number
 }) {
   if (scene === 'sleeping') {
@@ -169,7 +172,7 @@ export function GuildBotScene({
             motion={trick === 'dance' ? 'dance' : scene === 'walking' ? 'walk' : 'idle'}
             colour={paint}
             expression={face}
-            state={kersState(status)}
+            state={cursor ?? kersState(status)}
             wear={scene === 'music' && !guitar ? 'headphones' : null}
             size={Math.round(height * stage.h)}
           />

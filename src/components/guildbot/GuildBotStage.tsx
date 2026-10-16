@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import type { Expression, Variant } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
 import type { KersColour } from '@/components/kers/look'
-import { Kers } from '@/components/kers/Kers'
+import { Kers, type KersState } from '@/components/kers/Kers'
 import { GuildBotScene, type Asks, type Scene, type Trick as SceneTrick } from '@/components/guildbot/GuildBotScene'
 import type { Bubble, Chip, Trick } from '@/components/guildbot/useGuildBotLife'
 
@@ -55,6 +55,7 @@ export function GuildBotStage({
   desktop,
   trick,
   variant = null,
+  cursor = null,
   doing = null,
   onTrick,
   patrol,
@@ -90,6 +91,8 @@ export function GuildBotStage({
   onTrick: (t: Trick) => void
   /** Today's take on his activity (iced coffee, a tiffin, the guitar). */
   variant?: Variant
+  /** His cursor state for a moment: click ripple, ⊘. */
+  cursor?: KersState
   /** What he's up to, in a small bubble over him when he isn't saying anything. */
   doing?: string | null
   /** A walk across the screen is on (its id), and when it's done. */
@@ -195,7 +198,7 @@ export function GuildBotStage({
             transition={{ transform: { duration: STROLL_MS / 1000, ease: [0.77, 0, 0.175, 1] }, opacity: { duration: 0.2 } }}
           >
             <span key={hop} className="gb-hop block">
-              <Kers colour={colour} expression={expression} size={64} motion={stroll === 'walking-out' || stroll === 'walking-in' ? 'walk' : 'idle'} follow />
+              <Kers colour={colour} expression={expression} size={64} motion={stroll === 'walking-out' || stroll === 'walking-in' ? 'walk' : 'idle'} state={cursor} follow />
             </span>
           </motion.div>
         )}
@@ -216,7 +219,7 @@ export function GuildBotStage({
             transition={{ duration: walk.seconds, ease: 'linear', times: walk.times }}
             onAnimationComplete={onPatrolEnd}
           >
-            <Kers colour={colour} expression={expression} size={desktop ? 68 : 56} motion="walk" />
+            <Kers colour={colour} expression={expression} size={desktop ? 68 : 56} motion="walk" state={cursor} />
           </motion.div>
         )}
 
@@ -341,6 +344,7 @@ export function GuildBotStage({
               expression={expression}
               colour={colour}
               reacting={reacting}
+              cursor={cursor}
               knocking={knock !== 'idle'}
               away={strolling || open || dancing || !!walk}
               trick={trick}

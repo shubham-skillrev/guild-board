@@ -1040,18 +1040,22 @@ body {
    ═══════════════════════════════════════════════════════ */
 @keyframes gb-kers-hop {
   0%, 100% { transform: translateY(0) scale(1, 1); }
-  18% { transform: translateY(0) scale(1.1, 0.88); }
-  48% { transform: translateY(-16%) scale(0.94, 1.08); }
-  78% { transform: translateY(0) scale(1.06, 0.94); }
+  16% { transform: translateY(0) scale(1.14, 0.84); }
+  46% { transform: translateY(-18%) scale(0.92, 1.1); }
+  72% { transform: translateY(0) scale(1.12, 0.86); }
+  86% { transform: translateY(0) scale(0.97, 1.03); }
 }
+.gb-kers[data-jiggle] .gb-kers-body { animation: gb-kers-jiggle 650ms var(--motion-out); }
+@keyframes gb-kers-jiggle { 0% { transform: scale(1.08, 0.92); } 35% { transform: scale(0.95, 1.05); } 65% { transform: scale(1.03, 0.97); } 100% { transform: scale(1, 1); } }
+
 @keyframes gb-kers-eyeblink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(0.1); } }
 /* Kers (components/kers): breathes, bobs as he walks, hops; his cursor
    states spin, blink and ripple. Transform and opacity only. */
 .gb-kers .gb-kers-body { transform-origin: 50% 100%; }
 .gb-kers[data-motion='idle'] .gb-kers-body { animation: gb-kers-breathe 3.6s ease-in-out infinite; }
-@keyframes gb-kers-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.02, 0.98); } }
+@keyframes gb-kers-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.035, 0.965); } }
 .gb-kers[data-motion='walk'] .gb-kers-body { animation: gb-kers-bob 260ms ease-in-out infinite alternate; }
-@keyframes gb-kers-bob { from { transform: translateY(0) rotate(-1.5deg); } to { transform: translateY(-3%) rotate(1.5deg); } }
+@keyframes gb-kers-bob { from { transform: translateY(0) rotate(-1.5deg) scale(1.04, 0.96); } to { transform: translateY(-4%) rotate(1.5deg) scale(0.98, 1.03); } }
 .gb-kers[data-motion='hop'] .gb-kers-body { animation: gb-kers-hop 620ms var(--motion-out); }
 /* His parts: arms sway at rest and swing as he walks, legs step, one arm
    waves, the tail wags. Each part pivots at the origin set on it inline. */

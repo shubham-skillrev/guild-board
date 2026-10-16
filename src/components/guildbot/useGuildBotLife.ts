@@ -59,6 +59,8 @@ export function useGuildBotLife() {
   const [mood, setMood] = useState<Mood>('smug')
   const [moodLine, setMoodLine] = useState<string | null>(null)
   const [reaction, setReaction] = useState<Expression | null>(null)
+  /** His cursor state for a moment: a click ripple when he's pleased, ⊘ when he won't. */
+  const [cursor, setCursor] = useState<'pleased' | 'refusing' | null>(null)
   const [bubble, setBubble] = useState<Bubble | null>(null)
   const [hop, setHop] = useState(0)
   const [trick, setTrick] = useState<'dance' | 'pat' | null>(null)
@@ -87,6 +89,12 @@ export function useGuildBotLife() {
     clearTimeout(timers.current[name])
     timers.current[name] = setTimeout(fn, ms)
   }
+
+  /** A cursor state for a moment. */
+  const flash = useCallback((kind: 'pleased' | 'refusing', ms = 1400) => {
+    setCursor(kind)
+    later('cursor', ms, () => setCursor(null))
+  }, [])
 
   /** A face for a few seconds, and a hop. */
   const pullFace = useCallback((e: Expression) => {
@@ -118,10 +126,12 @@ export function useGuildBotLife() {
     recent.current = recent.current.filter(t => now - t < 60_000)
     const r = reactTo(event, { mood: moodRef.current, recent: recent.current.length, hour: new Date().getHours() })
     recent.current.push(now)
+    // A new post or a vote: he clicks along.
+    if (event.kind === 'post' || event.kind === 'vote') flash('pleased')
     if (!r) return
     pullFace(r.expression)
     if (r.line) speak(r.line)
-  }, [pullFace, speak])
+  }, [pullFace, speak, flash])
 
   // The month's counts: the mood, and the baseline for spotting a new post.
   const recount = useCallback(async () => {
@@ -228,10 +238,11 @@ export function useGuildBotLife() {
     const onSay = (e: Event) => {
       const { key, vars } = (e as CustomEvent<{ key: LineKey; vars?: Record<string, string | number> }>).detail
       if (speak(key, { asked: true, ms: 9000, stay: true, vars })) pullFace(key === 'focus.done' || key === 'focus.party' ? 'excited' : 'proud')
+      if (key === 'focus.done') flash('pleased')
     }
     window.addEventListener('gb:say', onSay)
     return () => window.removeEventListener('gb:say', onSay)
-  }, [speak, pullFace])
+  }, [speak, pullFace, flash])
 
   useEffect(() => {
     const t = timers.current
@@ -256,6 +267,7 @@ export function useGuildBotLife() {
       e -= 1
       key = kind === 'dance' ? 'trick.dance' : kind === 'pat' ? 'trick.pat' : kind === 'walk' ? 'trick.walk' : 'trick.meditate'
       pullFace(kind === 'dance' ? 'excited' : kind === 'pat' ? 'proud' : 'relieved')
+      if (kind === 'pat') flash('pleased')
       if (kind === 'dance' || kind === 'pat') {
         setTrick(kind)
         later('trick', kind === 'dance' ? 3200 : 1500, () => setTrick(null))
@@ -270,7 +282,7 @@ export function useGuildBotLife() {
       later('bubble', BUBBLE_MS, () => setBubble(null))
     }
     return text
-  }, [pullFace])
+  }, [pullFace, flash])
 
   /** Energy now, 0 to ENERGY_MAX, for his menu. */
   const energy = (): number => {
@@ -335,6 +347,9 @@ export function useGuildBotLife() {
     answer,
     /** Changes each time a reaction lands: use as a key to replay the hop. */
     hop,
+    /** His cursor state for a moment (click ripple, ⊘), and how to show one. */
+    cursor,
+    flash,
     trick,
     doTrick,
     patrol,

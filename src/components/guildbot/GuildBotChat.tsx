@@ -229,6 +229,8 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     setMessages(m => [...m, { id: `local-${Date.now()}`, role: 'user', body: text }])
     // A few things he does himself, without spending an ask or a model call:
     // tricks and breaks. Not saved; gone on reload, like he promised.
+    // Thanks gets a click of approval (and still goes to him).
+    if (/^(thanks|thank you|thx|ty)\b/i.test(text)) life.flash('pleased')
     const local = localCommand(text)
     if (local) {
       // Asked to walk while he's already on his walk: he says so, free.
@@ -312,6 +314,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
       return
     }
     if (outOfAsks) {
+      life.flash('refusing', 5000)
       const when = asks?.nextAt ? whenBack(asks.nextAt) : 'next week'
       setLightsOut(botSays('home.dark', `${asks?.nextAt}`, 'ui', { limit: asks?.limit ?? 15, when }) ?? `No asks left this week. Back ${when}.`)
       timers.current.push(setTimeout(() => setLightsOut(null), 5000))
@@ -359,6 +362,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
           onTrick={t => (t === 'walk' && walkingNow ? life.alreadyWalking() : life.doTrick(t))}
           variant={variant}
           doing={doing}
+          cursor={life.cursor}
           patrol={life.patrol}
           onPatrolEnd={life.endPatrol}
           city={weather.city}
@@ -464,7 +468,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
 
               {/* Him, and what he said when you came over. */}
               <div className="mt-2 flex items-end gap-2">
-                <Kers colour={colour} expression={expression} size={68} state={thinking ? (phase === 'writing' ? 'writing' : 'thinking') : null} follow className="-mb-1" />
+                <Kers colour={colour} expression={expression} size={68} state={thinking ? (phase === 'writing' ? 'writing' : 'thinking') : life.cursor} follow className="-mb-1" />
                 <p className="relative flex-1 min-w-0 rounded-2xl rounded-bl-md border border-border bg-sumi px-3.5 py-2.5 font-serif italic text-[15px] leading-snug text-ink">
                   {greeting ?? moodLine ?? 'Ask me about the board and Bytes, or tell me to do something.'}
                 </p>
