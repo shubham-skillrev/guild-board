@@ -807,6 +807,21 @@ body {
   75% { transform: rotate(8deg) translateY(-4px); }
 }
 
+/* The postage-stamp GuildBot in the chat header: flat, no shading, and
+   always paper, like a real stamp (just dimmed a touch on the dark theme). */
+.gb-stamp-paper { fill: #F7F2E8; }
+.gb-stamp-hole { fill: var(--color-paper); }
+.gb-stamp-field { fill: #F8E6CF; stroke: #D9C7AE; stroke-width: 0.6px; }
+.gb-stamp[data-genie] .gb-stamp-field { fill: #DDE7FA; stroke: #B9C9EC; }
+.gb-stamp-line { stroke: #1E2230; }
+.gb-stamp-accent { fill: #C8640F; }
+.gb-stamp[data-genie] .gb-stamp-accent { fill: #2F5FC4; }
+.gb-stamp-head { fill: #FFFFFF; stroke: #1E2230; }
+.gb-stamp-visor { fill: #121318; }
+.gb-stamp-ink { fill: #5A4A38; }
+.gb-stamp-postmark { stroke: #4A4D55; opacity: 0.5; }
+.dark .gb-stamp { filter: brightness(0.9); }
+
 /* Blinks now and then. */
 [data-eye] { transform-origin: 50% 50%; animation: gb-blink 5.2s infinite; }
 @keyframes gb-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.12); } }

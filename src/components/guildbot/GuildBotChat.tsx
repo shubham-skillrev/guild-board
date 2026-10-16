@@ -14,7 +14,8 @@ import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
 import { useActivity, type Asks as AsksState, type Scene } from '@/components/guildbot/GuildBotScene'
 import { useFocusState, type BreakKind } from '@/lib/focus/store'
 import { useRouter } from 'next/navigation'
-import { GuildBotAvatar, type AvatarStatus } from '@/components/guildbot/GuildBotAvatar'
+import type { AvatarStatus } from '@/components/guildbot/GuildBotAvatar'
+import { GuildBotStamp } from '@/components/guildbot/GuildBotStamp'
 import { GuildBotStage, type Knock } from '@/components/guildbot/GuildBotStage'
 import { BodyPortal } from '@/components/ui/BodyPortal'
 import { useGuildBotLife } from '@/components/guildbot/useGuildBotLife'
@@ -352,7 +353,8 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
               onPointerDown={e => { if (!desktop) drag.start(e) }}
               className={cn('flex items-center gap-3 px-4 border-b border-border', desktop ? 'h-16' : 'pb-3 touch-none')}
             >
-              <GuildBotAvatar expression={expression} status={status} size={38} feet={false} genie={genie} className="mx-1" />
+              {/* The flat GuildBot: the one in the round is standing by the dock. */}
+              <GuildBotStamp expression={expression} genie={genie} className="-rotate-3" />
               <div className="min-w-0">
                 <h2 className="text-footnote font-semibold text-ink">
                   GuildBot
@@ -398,7 +400,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                           Ask me about this month&apos;s topics or Bytes, or give me an idea and I&apos;ll draft the post. You press Post.
                         </p>
                       </BotRow>
-                      <div className="flex flex-wrap gap-2 pl-9">
+                      <div className="flex flex-wrap gap-2">
                         {suggestionsFor(page).map(q => (
                           <button
                             key={q}
@@ -410,7 +412,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
                           </button>
                         ))}
                       </div>
-                      <p className="pl-9 text-caption text-cha leading-relaxed">
+                      <p className="text-caption text-cha leading-relaxed">
                         {`${asks?.limit ?? 15} asks a week. On meeting day I share anonymous themes from everyone's chats in Slack, never who asked what, then delete every chat.`}
                       </p>
                     </div>
@@ -487,11 +489,10 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   )
 }
 
-/** A bot turn: GuildBot's face beside whatever it said. */
-function BotRow({ mood, children }: { mood: Expression; children: React.ReactNode }) {
+/** A bot turn. No face beside it: there's one GuildBot on screen, by the dock. */
+function BotRow({ children }: { mood?: Expression; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-2">
-      <GuildBotAvatar expression={mood} size={28} feet={false} className="mt-0.5" />
+    <div className="flex items-start">
       <div className="min-w-0 flex-1 flex flex-col items-start gap-2">{children}</div>
     </div>
   )

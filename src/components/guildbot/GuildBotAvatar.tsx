@@ -147,7 +147,7 @@ export function BotHead({
 }
 
 /** The eyes (and a mouth line) on the visor, per expression. Glow colour is --gb-eye. */
-function Face({ expression }: { expression: Expression }) {
+export function Face({ expression }: { expression: Expression }) {
   const fill = 'var(--gb-eye)'
   const s = { stroke: 'var(--gb-eye)', strokeWidth: 2.2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' }
   const pill = (x: number, h = 9, y = 36.5 - h / 2) => <rect data-eye x={x - 3} y={y} width={6} height={h} rx={3} fill={fill} />
