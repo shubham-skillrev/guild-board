@@ -160,9 +160,9 @@
      Strong curves for UI (Emil Kowalski's set): the built-in ease-out is too
      weak to read as deliberate. ease-out for anything entering or leaving,
      ease-in-out for things moving on screen, drawer for sheets. */
-  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --motion-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --motion-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --motion-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* ─── Shape lock ───
      Three shapes: inputs and small controls are 8, surfaces are 12, and
@@ -666,7 +666,7 @@ body {
 
 /* The knock: two raps that rattle the house, then the door swings in slowly
    on its hinge and GuildBot leans into the doorway. */
-.gb-home[data-knock] .gb-house { animation: gb-rap 460ms var(--ease-out); transform-origin: 50% 100%; }
+.gb-home[data-knock] .gb-house { animation: gb-rap 460ms var(--motion-out); transform-origin: 50% 100%; }
 @keyframes gb-rap {
   0%, 44%, 100% { transform: translateX(0) rotate(0deg); }
   10% { transform: translateX(-1.5px) rotate(-1.2deg); }
@@ -674,9 +674,9 @@ body {
   56% { transform: translateX(-1.5px) rotate(-1.2deg); }
   70% { transform: translateX(1.2px) rotate(0.8deg); }
 }
-.gb-home [data-part='door'] { transform-origin: 0% 50%; transition: transform 560ms var(--ease-in-out); }
+.gb-home [data-part='door'] { transform-origin: 0% 50%; transition: transform 560ms var(--motion-in-out); }
 .gb-home[data-door='open'] [data-part='door'] { transform: scaleX(0.14) skewY(-10deg); }
-.gb-home [data-part='doorway'] { opacity: 0; transform: translateY(8px); transition: opacity 260ms var(--ease-out), transform 420ms var(--ease-out); }
+.gb-home [data-part='doorway'] { opacity: 0; transform: translateY(8px); transition: opacity 260ms var(--motion-out), transform 420ms var(--motion-out); }
 .gb-home[data-door='open'] [data-part='doorway'] { opacity: 1; transform: translateY(0); transition-delay: 300ms; }
 
 /* Night: the torch burns. */
@@ -693,7 +693,7 @@ body {
 }
 
 /* Genie: smoke curls up, sparkles twinkle. */
-.gb-home [data-part='smoke'] { animation: gb-smoke 3s var(--ease-out) infinite; opacity: 0; }
+.gb-home [data-part='smoke'] { animation: gb-smoke 3s var(--motion-out) infinite; opacity: 0; }
 .gb-home [data-part='smoke'] + [data-part='smoke'] { animation-delay: 1.5s; }
 .gb-home [data-part='sparkle'] { transform-origin: 50% 50%; animation: gb-twinkle 1.8s ease-in-out infinite; }
 .gb-home [data-part='sparkle'] + [data-part='sparkle'] { animation-delay: 0.9s; }
@@ -755,6 +755,58 @@ body {
 .gb-bot svg [data-part], .gb-bot svg [data-dot], .gb-bot svg [data-wave],
 .gb-scene svg [data-dot], .gb-scene svg [data-wave] { transform-box: fill-box; }
 
+.gb-page { fill: var(--color-paper); stroke: var(--color-ink); }
+.gb-noodle { stroke: #E8B64B; }
+.gb-brush { stroke: var(--color-indigo-jp); }
+.gb-foam { fill: #FFFFFF; stroke: var(--color-ink-muted); stroke-width: 0.6px; }
+.gb-sun { fill: color-mix(in oklab, var(--color-saffron) 45%, transparent); }
+.gb-sun-ray { stroke: var(--color-saffron); opacity: 0.7; }
+.gb-note { fill: var(--color-saffron); }
+.gb-note-line { stroke: var(--color-saffron); }
+.gb-fumes { fill: var(--color-ink-muted); opacity: 0.8; }
+.gb-hearts { fill: var(--color-vermillion); }
+.gb-sign-muted { fill: var(--color-ink-muted); }
+.gb-steam-on { stroke: var(--color-ink-muted); }
+.gb-scene svg [data-fume], .gb-scene svg [data-heart], .gb-scene svg [data-foot] { transform-box: fill-box; }
+
+/* His day, in motion. */
+.gb-scene [data-part='sip'] { animation: gb-sip 3.2s ease-in-out infinite; }
+@keyframes gb-sip { 0%, 60%, 100% { transform: translateY(0); } 70%, 85% { transform: translateY(-4px) rotate(-8deg); } }
+.gb-scene [data-part='chopsticks'] { animation: gb-chop 1.4s ease-in-out infinite; }
+@keyframes gb-chop { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.gb-scene [data-part='book'] { animation: gb-read 6s ease-in-out infinite; }
+@keyframes gb-read { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(1.5deg); } }
+.gb-scene [data-part='groove'] { animation: gb-groove 0.9s ease-in-out infinite; transform-origin: 50% 100%; }
+@keyframes gb-groove { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg) translateY(-1px); } }
+.gb-scene [data-part='note'] { animation: gb-note 2.4s var(--motion-out) infinite; opacity: 0; }
+.gb-scene [data-part='note'] + [data-part='note'] { animation-delay: 1.2s; }
+@keyframes gb-note { 0% { opacity: 0; transform: translateY(4px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-8px); } }
+.gb-scene [data-part='stretch'] { animation: gb-stretch 2.6s ease-in-out infinite; }
+@keyframes gb-stretch { 0%, 100% { transform: translateY(6px); } 50% { transform: translateY(-2px); } }
+.gb-scene [data-part='brush'] { animation: gb-brush 0.5s ease-in-out infinite; }
+@keyframes gb-brush { 0%, 100% { transform: translateX(-1.5px); } 50% { transform: translateX(1.5px); } }
+.gb-scene [data-walking] [data-foot='l'] { animation: gb-step 420ms ease-in-out infinite; }
+.gb-scene [data-walking] [data-foot='r'] { animation: gb-step 420ms ease-in-out infinite 210ms; }
+.gb-scene [data-walking] .gb-body { animation: gb-bob 420ms ease-in-out infinite; }
+.gb-scene [data-walking] [data-hand='l'] { animation: gb-swing 840ms ease-in-out infinite; }
+.gb-scene [data-walking] [data-hand='r'] { animation: gb-swing 840ms ease-in-out infinite 420ms; }
+@keyframes gb-swing { 0%, 100% { transform: translateX(-2px); } 50% { transform: translateX(2px); } }
+.gb-scene [data-part='path'] { animation: gb-path 1.2s linear infinite; }
+@keyframes gb-path { to { transform: translateX(-22px); } }
+.gb-fumes [data-fume] { animation: gb-fume 1.8s var(--motion-out) infinite; opacity: 0; }
+.gb-fumes [data-fume] + [data-fume] { animation-delay: 0.9s; }
+@keyframes gb-fume { 0% { opacity: 0; transform: translateY(2px) scale(0.8); } 30% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(-8px) scale(1.2); } }
+.gb-hearts [data-heart] { animation: gb-heart 1.4s var(--motion-out) forwards; opacity: 0; }
+.gb-hearts [data-heart] + [data-heart] { animation-delay: 0.25s; }
+@keyframes gb-heart { 0% { opacity: 0; transform: translateY(4px) scale(0.6); } 30% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: translateY(-10px); } }
+.gb-scene[data-trick='dance'] [data-part='bot'] { animation: gb-dance 0.7s ease-in-out 3; transform-origin: 50% 100%; }
+@keyframes gb-dance {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  25% { transform: rotate(-8deg) translateY(-4px); }
+  50% { transform: rotate(0deg) translateY(0); }
+  75% { transform: rotate(8deg) translateY(-4px); }
+}
+
 /* Blinks now and then. */
 [data-eye] { transform-origin: 50% 50%; animation: gb-blink 5.2s infinite; }
 @keyframes gb-blink { 0%, 94%, 100% { transform: scaleY(1); } 96% { transform: scaleY(0.12); } }
@@ -779,7 +831,7 @@ body {
 @keyframes gb-twinkle { 0%, 100% { opacity: 0.15; transform: scale(0.6); } 50% { opacity: 1; transform: scale(1.1); } }
 
 /* Steam off the mug (or smoke off the genie lamp). */
-.gb-scene [data-part='steam'] { animation: gb-steam 3s var(--ease-out) infinite; }
+.gb-scene [data-part='steam'] { animation: gb-steam 3s var(--motion-out) infinite; }
 .gb-scene [data-part='steam'] + [data-part='steam'] { animation-delay: 1.5s; }
 @keyframes gb-steam {
   0% { opacity: 0; transform: translateY(3px); }
@@ -788,15 +840,15 @@ body {
 }
 
 /* Asleep: z's drift up. */
-.gb-zzz [data-z] { animation: gb-z 2.8s var(--ease-out) infinite; opacity: 0; }
+.gb-zzz [data-z] { animation: gb-z 2.8s var(--motion-out) infinite; opacity: 0; }
 .gb-zzz [data-z] + [data-z] { animation-delay: 1.4s; }
 .gb-home[data-door='open'] .gb-house-zzz { display: none; }
 @keyframes gb-z { 0% { opacity: 0; transform: translate(0, 3px); } 30% { opacity: 1; } 100% { opacity: 0; transform: translate(3px, -6px); } }
 
 /* You tapped him: a startled hop and a "!". */
 .gb-scene [data-part='exclaim'] { opacity: 0; }
-.gb-scene[data-knock] [data-part='bot'] { animation: gb-startle 640ms var(--ease-out); transform-origin: 50% 100%; }
-.gb-scene[data-knock] [data-part='exclaim'] { animation: gb-exclaim 900ms var(--ease-out) forwards; }
+.gb-scene[data-knock] [data-part='bot'] { animation: gb-startle 640ms var(--motion-out); transform-origin: 50% 100%; }
+.gb-scene[data-knock] [data-part='exclaim'] { animation: gb-exclaim 900ms var(--motion-out) forwards; }
 @keyframes gb-startle {
   0%, 100% { transform: translateY(0) scale(1, 1); }
   18% { transform: translateY(0) scale(1.05, 0.93); }
@@ -812,7 +864,7 @@ body {
 .gb-bot svg [data-foot], .gb-bot .gb-body { transform-box: fill-box; }
 @keyframes gb-step { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 @keyframes gb-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
-.gb-hop { animation: gb-hop 520ms var(--ease-out); }
+.gb-hop { animation: gb-hop 520ms var(--motion-out); }
 @keyframes gb-hop {
   0%, 100% { transform: translateY(0) scale(1, 1); }
   20% { transform: translateY(0) scale(1.06, 0.92); }
@@ -830,7 +882,7 @@ body {
 .gb-status [data-dot]:nth-child(2) { animation-delay: 0.2s; }
 .gb-status [data-dot]:nth-child(3) { animation-delay: 0.4s; }
 @keyframes gb-dot { 0%, 100% { opacity: 0.3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-2px); } }
-.gb-status [data-wave] { animation: gb-wave 1s var(--ease-out) infinite; }
+.gb-status [data-wave] { animation: gb-wave 1s var(--motion-out) infinite; }
 .gb-status [data-wave] + [data-wave] { animation-delay: 0.25s; }
 @keyframes gb-wave { 0% { opacity: 0; transform: translateX(-2px); } 40% { opacity: 1; } 100% { opacity: 0; transform: translateX(2px); } }
 
@@ -850,7 +902,12 @@ body {
   .gb-bot[data-walking] .gb-body,
   .gb-bot-head [data-part],
   .gb-status [data-dot],
+  .gb-scene [data-part='sip'], .gb-scene [data-part='chopsticks'], .gb-scene [data-part='book'],
+  .gb-scene [data-part='groove'], .gb-scene [data-part='stretch'], .gb-scene [data-part='brush'],
+  .gb-scene [data-walking] *, .gb-scene [data-part='path'],
+  .gb-scene[data-trick='dance'] [data-part='bot'],
   .gb-hop { animation: none; }
+  .gb-scene [data-part='note'], .gb-fumes [data-fume], .gb-hearts [data-heart] { animation: none; opacity: 0.8; }
   .gb-home [data-part='smoke'], .gb-scene [data-part='steam'], .gb-zzz [data-z], .gb-status [data-wave] { animation: none; opacity: 0.7; }
   .gb-scene[data-knock] [data-part='exclaim'] { animation: none; opacity: 1; }
   .gb-home[data-flicker] [data-part='window'] { animation: gb-flicker-calm 800ms ease; }

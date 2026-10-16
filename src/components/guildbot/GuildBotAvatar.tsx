@@ -75,11 +75,13 @@ export function BotHead({
   genie = false,
   status = null,
   look = { x: 0, y: 0 },
+  headphones = false,
 }: {
   expression: Expression
   genie?: boolean
   status?: AvatarStatus | null
   look?: { x: number; y: number }
+  headphones?: boolean
 }) {
   return (
     <g className="gb-bot-head" data-status={status ?? undefined} style={{ ['--gb-eye' as string]: genie ? '#8EC2FF' : '#F7A851' }}>
@@ -99,7 +101,7 @@ export function BotHead({
       <rect x={12.5} y={24} width={39} height={25} rx={12.5} fill="#121318" />
       <path d="M18 28.5q3-2.6 8-2.6" stroke="#fff" strokeOpacity={0.2} strokeWidth={1.6} strokeLinecap="round" fill="none" />
 
-      <g style={{ transform: `translate(${look.x}px, ${look.y}px)`, transition: 'transform 180ms var(--ease-out)' }}>
+      <g style={{ transform: `translate(${look.x}px, ${look.y}px)`, transition: 'transform 180ms var(--motion-out)' }}>
         <g data-part="eyes" filter="url(#gb-eye-glow)">
           <Face expression={expression} />
         </g>
@@ -110,6 +112,14 @@ export function BotHead({
           <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
       </defs>
+
+      {headphones && (
+        <g>
+          <path d="M6 33C6 8 58 8 58 33" fill="none" className="gb-line" strokeWidth={3} strokeLinecap="round" />
+          <rect x={0.5} y={27} width={9} height={16} rx={4.5} className="gb-mug" strokeWidth={1.6} />
+          <rect x={54.5} y={27} width={9} height={16} rx={4.5} className="gb-mug" strokeWidth={1.6} />
+        </g>
+      )}
 
       {/* Status, on him. */}
       {status === 'thinking' && (
@@ -209,6 +219,16 @@ function Face({ expression }: { expression: Expression }) {
           {pill(39, 6, 36)}
           <path d="M21.5 32.5l6-1.4M42.5 32.5l-6-1.4" {...s} strokeWidth={1.4} />
           <path d="M29 45.2q3-1.8 6 0" {...s} strokeWidth={1.6} />
+        </>
+      )
+    case 'grumpy':
+      return (
+        <>
+          {/* Brows down to the middle, eyes narrowed, a frown. */}
+          <rect data-eye x={22} y={35} width={6} height={5} rx={2.5} fill={fill} />
+          <rect data-eye x={36} y={35} width={6} height={5} rx={2.5} fill={fill} />
+          <path d="M20 29.4l8.5 3.4M44 29.4l-8.5 3.4" {...s} strokeWidth={2} />
+          <path d="M27.5 45.6q4.5-3 9 0" {...s} strokeWidth={1.8} />
         </>
       )
     case 'sleepy':

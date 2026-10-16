@@ -19,7 +19,7 @@ test('lines missing a value are skipped, not printed raw', () => {
 
 test('every hand-written line passes the guard on its surface', () => {
   const surfaceFor = (key: string) =>
-    key.startsWith('push') ? 'push' : key.startsWith('mood') || key.startsWith('ui') || key.startsWith('welcome') || key.startsWith('home') || key.startsWith('react') ? 'ui' : key.startsWith('chat') ? 'chat' : 'slack'
+    key.startsWith('push') ? 'push' : key.startsWith('mood') || key.startsWith('ui') || key.startsWith('welcome') || ['home', 'react', 'meeting', 'trick', 'talk', 'focus', 'break'].some(p => key.startsWith(p)) ? 'ui' : key.startsWith('chat') ? 'chat' : 'slack'
   const sample = { when: 'in 3 days', days: 9, bot_posts: 3, meeting_days: 4, month: 'October', theme: 'Problem Month', time: '11:00', count: 12, top: 'Flaky tests', comments: 40, top_thread: 'Flaky tests', posts: 5, lonely: 2, limit: 30, present: 4 }
   for (const [key, pool] of Object.entries(LINES)) {
     for (const text of pool) {

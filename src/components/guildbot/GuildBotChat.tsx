@@ -11,7 +11,9 @@ import { Button } from '@/components/ui/Button'
 import { KINDS, composeDescription } from '@/lib/kinds'
 import { SASS, botSays } from '@/lib/guildbot-host/voice'
 import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
-import { useActivity, type Asks as AsksState } from '@/components/guildbot/GuildBotScene'
+import { useActivity, type Asks as AsksState, type Scene } from '@/components/guildbot/GuildBotScene'
+import { useFocusState, type BreakKind } from '@/lib/focus/store'
+import { useRouter } from 'next/navigation'
 import { GuildBotAvatar, type AvatarStatus } from '@/components/guildbot/GuildBotAvatar'
 import { GuildBotStage, type Knock } from '@/components/guildbot/GuildBotStage'
 import { BodyPortal } from '@/components/ui/BodyPortal'
@@ -23,6 +25,21 @@ import { useUserTokens } from '@/hooks/useUserTokens'
 import { TOKEN_LIMITS } from '@/lib/constants'
 
 const APRIL_KEY = 'guildbot:april-dodged'
+/** What he does on screen during each focus-page break. */
+const BREAK_SCENE: Record<BreakKind, Scene> = { water: 'coffee', eyes: 'meditating', stretch: 'waking', walk: 'walking' }
+
+/** Things typed to him that he just does, locally. */
+function localCommand(text: string): 'dance' | 'pat' | 'coffee' | 'meditate' | 'walk' | null {
+  const t = text.toLowerCase().trim().replace(/[.!?]+$/, '')
+  if (t.length > 40) return null
+  if (/^(dance|do a dance|bust a move|show me a dance)\b/.test(t)) return 'dance'
+  if (/^(good bot|pat|\*pats?\*|good job)\b/.test(t)) return 'pat'
+  if (/^(have a coffee|coffee|here'?s a coffee|drink coffee)\b/.test(t)) return 'coffee'
+  if (/^(meditate|let'?s meditate|breathe)\b/.test(t)) return 'meditate'
+  if (/^(let'?s )?(take a )?(walk|break)\b|^(go for a walk)\b/.test(t)) return 'walk'
+  return null
+}
+
 const PHASE_LABEL = { searching: 'Reading the board…', thinking: 'Thinking…', writing: 'Writing…' } as const
 const DRAWER_W = 400
 
@@ -88,6 +105,8 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
   const { asks, setAsks } = useAsks(signedIn)
   const activity = useActivity() ?? 'coding'
+  const focusState = useFocusState()
+  const router = useRouter()
   const welcome = useWelcome(pathname === '/board' && !open, signedIn)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -156,6 +175,15 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
       if (inputRef.current) inputRef.current.style.height = 'auto'
     }
     setMessages(m => [...m, { id: `local-${Date.now()}`, role: 'user', body: text }])
+    // A few things he does himself, without spending an ask or a model call:
+    // tricks and breaks. Not saved; gone on reload, like he promised.
+    const local = localCommand(text)
+    if (local) {
+      const said = local === 'walk' ? botSays('break.walk', String(Date.now()), 'ui') : life.doTrick(local)
+      setMessages(m => [...m, { id: `local-bot-${Date.now()}`, role: 'bot', body: said ?? 'Done.' }])
+      if (local === 'walk') timers.current.push(setTimeout(() => router.push('/focus'), 900))
+      return
+    }
     setThinking(true)
     // The server reads the board, then asks a model, then writes: the rings
     // follow roughly those steps while we wait.
@@ -186,6 +214,13 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
 
   const status: AvatarStatus = thinking ? phase : talking ? 'talking' : focused && input.trim() ? 'listening' : 'idle'
   const expression: Expression = life.expression
+  // What he's doing: the meeting beats everything, then a focus session you
+  // started, then his own day.
+  const scene: Scene = life.meeting
+    ? 'meeting'
+    : focusState.phase === 'focus' ? 'coding'
+    : focusState.phase === 'break' && focusState.breakKind ? BREAK_SCENE[focusState.breakKind]
+    : activity
 
   const press = (e: React.MouseEvent) => {
     if (open) { setOpen(false); return }
@@ -204,10 +239,12 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
       return
     }
     const left = asks?.left
+    const seed = String(Date.now())
     setGreeting(
-      genie && left
-        ? botSays(`home.genie.${left as 1 | 2 | 3}`, String(left), 'ui')
-        : botSays(`home.knock.${mood}`, String(Date.now()), 'ui'),
+      life.meeting ? botSays('meeting.knock', seed, 'ui')
+      : genie && left ? botSays(`home.genie.${left as 1 | 2 | 3}`, String(left), 'ui')
+      : scene !== 'coding' && scene !== 'meeting' ? botSays(`home.knock.${scene}`, seed, 'ui')
+      : botSays(`home.knock.${mood}`, seed, 'ui'),
     )
     // A keyboard press (detail 0) or reduced motion skips the knock.
     if (reduce || e.detail === 0) { setOpen(true); return }
@@ -228,14 +265,18 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     <BodyPortal>
       {SASS && (
         <GuildBotStage
-          activity={activity}
-          night={activity === 'night'}
+          scene={scene}
           asks={asksState}
           left={left}
           expression={expression}
+          reacting={life.reacting}
           hop={life.hop}
           bubble={life.bubble}
           onDismissBubble={life.dismissBubble}
+          onChip={life.answer}
+          trick={life.trick}
+          onTrick={t => life.doTrick(t)}
+          energy={() => ({ now: life.energy(), max: life.energyMax })}
           knock={knock}
           greeting={greeting}
           lightsOut={lightsOut}
@@ -247,7 +288,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
           hidden={life.hidden}
           quiet={life.quiet}
           onQuiet={() => life.setQuiet(!life.quiet)}
-          onHide={() => life.setHidden(true)}
+          onHide={on => life.setHidden(on)}
           reduce={!!reduce}
           dodge={dodge}
           label={homeLabel(signedIn ? asks : null)}

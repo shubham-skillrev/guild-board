@@ -1,83 +1,115 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
-import type { Expression } from '@guildboard/guildbot'
+import { activityAt, type Activity, type Expression } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
 import { BotHead, type AvatarStatus } from '@/components/guildbot/GuildBotAvatar'
 import { GuildBotHome } from '@/components/guildbot/GuildBotHome'
 
 /**
- * GuildBot's corner, as a little scene that changes with the time of day
- * (the viewer's own clock):
+ * GuildBot's corner, as a little scene of whatever he's doing: his day runs
+ * on the viewer's clock (schedule.ts in the package), so it's coffee in the
+ * morning, coding through the day, noodles at lunch, a walk, a book,
+ * headphones, meditation, and asleep in his house at night.
  *
- *   coding      weekdays 09:00 to 19:00: at his desk, typing at a laptop
- *   meditating  mornings, evenings and weekends: floating over a cushion
- *   night       22:00 to 07:00: home asleep, in his house, the torch lit
+ * A few stages carry every activity, with props swapped in:
  *
- * While you chat he is at the desk whatever the hour (with a desk lamp at
- * night): he got up to work for you, and what he's doing shows on him.
+ *   desk     coding, coffee, lunch, learning, and the meeting sulk
+ *   cushion  meditating, music
+ *   floor    waking (a big stretch), brushing, walking
+ *   house    sleeping (GuildBotHome)
  *
  * The asks left this week are written on his saffron mug. In the last three
- * the mug becomes a genie's lamp and his eyes go blue; with none left the
- * laptop is shut, he's asleep on the desk, and an OUT sign stands where the
- * mug was. Colours come from the theme (.gb-scene in globals.css).
+ * the mug becomes a genie's lamp and his eyes go blue; with none left he naps
+ * on a shut laptop behind an OUT sign. Colours come from the theme
+ * (.gb-scene in globals.css), so light and dark both work.
  */
-export type Activity = 'coding' | 'meditating' | 'night'
+export type Scene = Activity | 'meeting'
 export type Asks = 'normal' | 'genie' | 'out'
+export type Trick = 'dance' | 'pat' | null
 
-export function activityAt(d: Date): Activity {
-  const h = d.getHours()
-  if (h >= 22 || h < 7) return 'night'
-  const weekday = d.getDay() >= 1 && d.getDay() <= 5
-  return weekday && h >= 9 && h < 19 ? 'coding' : 'meditating'
-}
-
-/** The current activity, rechecked every few minutes. Null until mounted (no SSR guess). */
+/** His activity now, rechecked every minute. Null until mounted (no server guess). */
 export function useActivity(): Activity | null {
   const [a, setA] = useState<Activity | null>(null)
   useEffect(() => {
     const check = () => setA(activityAt(new Date()))
     const first = setTimeout(check, 0)
-    const id = setInterval(check, 5 * 60_000)
+    const id = setInterval(check, 60_000)
     return () => { clearTimeout(first); clearInterval(id) }
   }, [])
   return a
 }
 
+/** The face an activity wears when nothing has just happened. */
+function restingFace(scene: Scene, mood: Expression): Expression {
+  switch (scene) {
+    case 'meeting': return 'grumpy'
+    case 'waking':
+    case 'sleeping': return 'sleepy'
+    case 'coffee':
+    case 'meditating': return 'relieved'
+    case 'brushing':
+    case 'lunch':
+    case 'music': return 'proud'
+    case 'learning': return 'nosy'
+    default: return mood
+  }
+}
+
+const STAGE: Record<Scene, 'desk' | 'cushion' | 'floor' | 'house'> = {
+  sleeping: 'house',
+  waking: 'floor',
+  brushing: 'floor',
+  coffee: 'desk',
+  coding: 'desk',
+  lunch: 'desk',
+  walking: 'floor',
+  learning: 'desk',
+  music: 'cushion',
+  meditating: 'cushion',
+  meeting: 'desk',
+}
+
 export function GuildBotScene({
-  activity,
+  scene,
   asks,
   left,
   expression,
+  reacting = false,
   status = null,
   knocking = false,
   away = false,
   doorOpen = false,
   doorway,
-  lamp = false,
+  trick = null,
   width = 120,
 }: {
-  activity: Activity
+  scene: Scene
   asks: Asks
   /** Asks left this week, for the mug; null for guests. */
   left: number | null
+  /** His mood, or a live reaction. */
   expression: Expression
+  /** True while a reaction is showing: its face beats the activity's own. */
+  reacting?: boolean
   status?: AvatarStatus | null
-  /** You just tapped him. */
   knocking?: boolean
-  /** He's out for a walk: an empty chair. */
+  /** He's out (strolling, or over at the chat): an empty spot. */
   away?: boolean
-  /** Night only: the house door. */
+  /** Asleep in the house: its door, and who stands in it. */
   doorOpen?: boolean
   doorway?: ReactNode
-  /** A desk lamp, for chatting at night. */
-  lamp?: boolean
+  trick?: Trick
   width?: number
 }) {
-  if (activity === 'night') {
+  const out = asks === 'out'
+  // Out of asks he naps at his desk, whatever the schedule says (at night, a dark house).
+  const shown: Scene = out && scene !== 'sleeping' ? 'coding' : scene
+  const stage = STAGE[shown]
+  if (stage === 'house') {
     return (
       <GuildBotHome
-        look={asks === 'out' ? 'dark' : 'night'}
+        look={out ? 'dark' : 'night'}
         left={left}
         width={width * 0.8}
         knocking={knocking}
@@ -88,26 +120,25 @@ export function GuildBotScene({
     )
   }
   const genie = asks === 'genie'
-  const out = asks === 'out'
-  // Meditating, he wears a calm face unless something just happened.
-  const face: Expression = out ? 'sleepy' : activity === 'meditating' && (expression === 'smug' || expression === 'bored') ? 'relieved' : expression
+  const face: Expression = out ? 'sleepy' : reacting || trick ? expression : restingFace(shown, expression)
+  const floorY = stage === 'desk' ? 62 : 84
+  const mugX = stage === 'desk' ? 100 : 98
   return (
     <span
       className="gb-scene relative inline-block"
       style={{ width, height: (width * 90) / 120 }}
-      data-activity={activity}
+      data-scene={shown}
       data-knock={knocking ? '' : undefined}
       data-status={status ?? undefined}
-      data-out={out ? '' : undefined}
+      data-trick={trick ?? undefined}
     >
       <svg viewBox="0 0 120 90" className="absolute inset-0 w-full h-full overflow-visible" aria-hidden>
         <ellipse cx={60} cy={86.5} rx={54} ry={3.2} fill="#000" opacity={0.12} />
-        {activity === 'coding' ? (
-          <Desk face={face} genie={genie} out={out} away={away} status={status} lamp={lamp} />
-        ) : (
-          <Cushion face={face} genie={genie} away={away} status={status} />
-        )}
-        {genie ? <GenieLamp x={activity === 'coding' ? 96 : 92} y={activity === 'coding' ? 62 : 84} /> : out ? <OutSign y={activity === 'coding' ? 0 : 22} /> : <Mug x={activity === 'coding' ? 100 : 98} y={activity === 'coding' ? 62 : 84} />}
+        {stage === 'desk' && <Desk scene={shown} face={face} genie={genie} out={out} away={away} status={status} />}
+        {stage === 'cushion' && <Cushion scene={shown} face={face} genie={genie} away={away} status={status} />}
+        {stage === 'floor' && <Floor scene={shown} face={face} genie={genie} away={away} status={status} />}
+        {trick === 'pat' && !away && <Hearts />}
+        {genie ? <GenieLamp x={mugX - 4} y={floorY} /> : out ? <OutSign /> : <Mug x={mugX} y={floorY} />}
       </svg>
       {left !== null && !out && (
         <span
@@ -116,7 +147,9 @@ export function GuildBotScene({
             'absolute -translate-x-1/2 -translate-y-1/2 text-[11px] font-bold tabular-nums leading-none',
             genie ? 'min-w-4.5 h-4.5 px-1 inline-flex items-center justify-center rounded-full bg-indigo-jp text-white shadow-sm' : 'text-parchment',
           )}
-          style={activity === 'coding' ? { left: genie ? '94%' : '88.3%', top: genie ? '75%' : '62%' } : { left: genie ? '91%' : '86.6%', top: genie ? '98%' : '86%' }}
+          style={stage === 'desk'
+            ? { left: genie ? '94%' : '88.3%', top: genie ? '75%' : '62%' }
+            : { left: genie ? '92%' : '86.6%', top: genie ? '98%' : '86%' }}
         >
           {left}
         </span>
@@ -125,100 +158,218 @@ export function GuildBotScene({
   )
 }
 
-function Desk({ face, genie, out, away, status, lamp }: { face: Expression; genie: boolean; out: boolean; away: boolean; status: AvatarStatus | null; lamp: boolean }) {
+type Part = { face: Expression; genie: boolean; away: boolean; status: AvatarStatus | null }
+
+function Plant({ dy = 0 }: { dy?: number }) {
+  return (
+    <g transform={dy ? `translate(-2 ${dy})` : undefined}>
+      <path d="M10 49c-3-6 0-11 2-12 1 4 1 8-2 12ZM14 49c0-7 4-10 7-10-1 5-3 8-7 10ZM12 50c-5-2-7-6-6-9 3 1 6 4 6 9Z" className="gb-leaf" strokeWidth={1.2} strokeLinejoin="round" />
+      <path d="M7.5 50h11l-1.6 8h-7.8Z" className="gb-pot" strokeWidth={1.4} strokeLinejoin="round" />
+    </g>
+  )
+}
+
+function Desk({ scene, face, genie, out, away, status }: Part & { scene: Scene; out: boolean }) {
+  const sulking = scene === 'meeting'
   return (
     <>
-      {/* Desk lamp, chatting at night. */}
-      {lamp && (
-        <g>
-          <path d="M24 37 L44 57.5 H18 Z" className="gb-lamp-light" />
-          <ellipse cx={25} cy={57} rx={5} ry={1.4} className="gb-foot" />
-          <path d="M25 56.5 L21 46 L27 37" className="gb-line" strokeWidth={1.8} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M22.5 35.5 L30.5 33.5 L33 39.5 L24.5 41.5 Z" className="gb-mug" strokeWidth={1.4} strokeLinejoin="round" />
-          <circle cx={21} cy={46} r={1.3} className="gb-shell" strokeWidth={1} />
-        </g>
-      )}
+      <Plant />
 
-      {/* Chair back, behind him (pushed in while he naps on the desk). */}
+      {/* Chair back (pushed in while he naps on the desk). */}
       {!out && <path d="M33 59V43a7 7 0 0 1 7-7h23a7 7 0 0 1 7 7v16" className="gb-chair" strokeWidth={1.8} />}
 
-      {/* GuildBot, at the desk. Asleep on it when out of asks. */}
       {!away && (
         <g data-part="bot">
           <g transform={out ? 'translate(27 25) rotate(-12 32 58) scale(0.62)' : 'translate(29.5 19) scale(0.68)'}>
             <BotHead expression={face} genie={genie} status={status} />
           </g>
           {out && <Zzz x={64} y={26} />}
+          {sulking && <Fumes />}
           <path data-part="exclaim" d="M78 8v8M78 20.5v.5" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
         </g>
       )}
-
-      {/* Plant (the lamp takes its spot at night). */}
-      <g display={lamp ? 'none' : undefined}>
-        <path d="M10 49c-3-6 0-11 2-12 1 4 1 8-2 12ZM14 49c0-7 4-10 7-10-1 5-3 8-7 10ZM12 50c-5-2-7-6-6-9 3 1 6 4 6 9Z" className="gb-leaf" strokeWidth={1.2} strokeLinejoin="round" />
-        <path d="M7.5 50h11l-1.6 8h-7.8Z" className="gb-pot" strokeWidth={1.4} strokeLinejoin="round" />
-      </g>
 
       {/* Desk: top face, front edge, legs. */}
       <path d="M8 57.5h104l4 4.5H4Z" className="gb-wood-top" strokeWidth={1.6} strokeLinejoin="round" />
       <path d="M4 62h112v5.5H4Z" className="gb-wood-front" strokeWidth={1.6} strokeLinejoin="round" />
       <path d="M10 67.5V86M110 67.5V86" className="gb-line" strokeWidth={2.4} strokeLinecap="round" />
 
-      {/* Laptop, or shut when he's out of asks. */}
+      {/* What's on the desk. */}
       {out ? (
         <path d="M68 60.5h28l-1.6-3H69.6Z" className="gb-laptop" strokeWidth={1.4} strokeLinejoin="round" />
+      ) : sulking ? (
+        <MeetingSign />
       ) : (
-        <g>
-          <path d="M72 58.5 74 35.5l22-3-1.5 26Z" className="gb-laptop" strokeWidth={1.6} strokeLinejoin="round" />
-          <g data-part="code" strokeLinecap="round" strokeWidth={1.8}>
-            <path d="M77.5 40.5h9" stroke="#F7A851" />
-            <path d="M79.5 45h11" stroke="#3DB88A" />
-            <path d="M79.5 49.5h6" stroke="#9A7BD4" />
-            <path d="M77.5 54h10" stroke="#F7A851" />
-          </g>
-          <path d="M66 60.5h30l-1.8-2.4H68Z" className="gb-laptop" strokeWidth={1.4} strokeLinejoin="round" />
-        </g>
+        <Laptop open={scene === 'coding' || scene === 'coffee'} />
       )}
 
-      {/* Hands on the keys (or one under his head, asleep). */}
       {!away && !out && (
-        <g>
-          <rect data-hand="l" x={52} y={56} width={7.5} height={4} rx={2} className="gb-shell" strokeWidth={1.4} />
-          <rect data-hand="r" x={61} y={56} width={7.5} height={4} rx={2} className="gb-shell" strokeWidth={1.4} />
-        </g>
+        <>
+          {scene === 'coding' && (
+            <g>
+              <rect data-hand="l" x={52} y={56} width={7.5} height={4} rx={2} className="gb-shell" strokeWidth={1.4} />
+              <rect data-hand="r" x={61} y={56} width={7.5} height={4} rx={2} className="gb-shell" strokeWidth={1.4} />
+            </g>
+          )}
+          {scene === 'coffee' && (
+            <g data-part="sip">
+              <path d="M59.5 36c-1.6-2 1.6-3 0-5" className="gb-steam-on" strokeWidth={1.2} fill="none" strokeLinecap="round" />
+              <path d="M56 38h9v7.5a2.5 2.5 0 0 1-2.5 2.5h-4A2.5 2.5 0 0 1 56 45.5Z" className="gb-mug" strokeWidth={1.4} strokeLinejoin="round" />
+              <ellipse cx={60.5} cy={49} rx={4.5} ry={2.4} className="gb-shell" strokeWidth={1.3} />
+            </g>
+          )}
+          {scene === 'lunch' && (
+            <g>
+              <path d="M42 54h22c0 5-5 7.5-11 7.5S42 59 42 54Z" className="gb-pot" strokeWidth={1.5} strokeLinejoin="round" />
+              <path d="M45 54q3-3 6 0t6 0 5 0" className="gb-noodle" strokeWidth={1.6} fill="none" strokeLinecap="round" />
+              <g data-part="chopsticks">
+                <path d="M66 42 55 53M68.5 43.5 57 54" className="gb-line" strokeWidth={1.4} strokeLinecap="round" />
+                <ellipse cx={68} cy={42.5} rx={3.6} ry={2.3} className="gb-shell" strokeWidth={1.3} />
+              </g>
+            </g>
+          )}
+          {scene === 'learning' && (
+            <g data-part="book">
+              <path d="M37 45.5 51 48v12l-14-2.5Z" className="gb-page" strokeWidth={1.4} strokeLinejoin="round" />
+              <path d="M65 45.5 51 48v12l14-2.5Z" className="gb-page" strokeWidth={1.4} strokeLinejoin="round" />
+              <path d="M40 49.5l8 1.4M40 52.5l8 1.4M54 50.9l8-1.4M54 53.9l8-1.4" className="gb-line" strokeOpacity={0.35} strokeWidth={1} />
+              <ellipse cx={36} cy={54} rx={3} ry={2.2} className="gb-shell" strokeWidth={1.3} />
+              <ellipse cx={66} cy={54} rx={3} ry={2.2} className="gb-shell" strokeWidth={1.3} />
+            </g>
+          )}
+          {sulking && (
+            <g>
+              {/* Arms crossed. */}
+              <rect x={42} y={54} width={16} height={5} rx={2.5} className="gb-shell" strokeWidth={1.4} transform="rotate(-10 50 56)" />
+              <rect x={46} y={54} width={16} height={5} rx={2.5} className="gb-shell" strokeWidth={1.4} transform="rotate(10 54 56)" />
+            </g>
+          )}
+        </>
       )}
     </>
   )
 }
 
-function Cushion({ face, genie, away, status }: { face: Expression; genie: boolean; away: boolean; status: AvatarStatus | null }) {
+function Laptop({ open }: { open: boolean }) {
+  if (!open) {
+    // Pushed aside, lid half down.
+    return (
+      <g>
+        <path d="M80 58.5 84 44l18-2-2.6 16.5Z" className="gb-laptop" strokeWidth={1.5} strokeLinejoin="round" />
+        <path d="M76 60.5h26l-1.8-2.4H78Z" className="gb-laptop" strokeWidth={1.4} strokeLinejoin="round" />
+      </g>
+    )
+  }
+  return (
+    <g>
+      <path d="M72 58.5 74 35.5l22-3-1.5 26Z" className="gb-laptop" strokeWidth={1.6} strokeLinejoin="round" />
+      <g data-part="code" strokeLinecap="round" strokeWidth={1.8}>
+        <path d="M77.5 40.5h9" stroke="#F7A851" />
+        <path d="M79.5 45h11" stroke="#3DB88A" />
+        <path d="M79.5 49.5h6" stroke="#9A7BD4" />
+        <path d="M77.5 54h10" stroke="#F7A851" />
+      </g>
+      <path d="M66 60.5h30l-1.8-2.4H68Z" className="gb-laptop" strokeWidth={1.4} strokeLinejoin="round" />
+    </g>
+  )
+}
+
+function MeetingSign() {
+  return (
+    <g>
+      <path d="M70 58 72.5 37h23l2.5 21Z" className="gb-page" strokeWidth={1.5} strokeLinejoin="round" />
+      <text x={84} y={45.5} textAnchor="middle" fontSize={5.4} fontWeight={800} className="gb-sign-text">MEETING</text>
+      <text x={84} y={51.5} textAnchor="middle" fontSize={4.2} className="gb-sign-text">in progress</text>
+      <text x={84} y={56} textAnchor="middle" fontSize={3.6} fontStyle="italic" className="gb-sign-muted">(not invited)</text>
+    </g>
+  )
+}
+
+function Cushion({ scene, face, genie, away, status }: Part & { scene: Scene }) {
+  const music = scene === 'music'
   return (
     <>
-      {/* Plant, on the floor. */}
-      <g transform="translate(-2 26)">
-        <path d="M10 49c-3-6 0-11 2-12 1 4 1 8-2 12ZM14 49c0-7 4-10 7-10-1 5-3 8-7 10ZM12 50c-5-2-7-6-6-9 3 1 6 4 6 9Z" className="gb-leaf" strokeWidth={1.2} strokeLinejoin="round" />
-        <path d="M7.5 50h11l-1.6 8h-7.8Z" className="gb-pot" strokeWidth={1.4} strokeLinejoin="round" />
-      </g>
-      {/* Cushion. */}
+      <Plant dy={26} />
       <ellipse cx={52} cy={80} rx={27} ry={6.5} className="gb-cushion" strokeWidth={1.6} />
       <path d="M28 79q24 6 48 0" className="gb-line" strokeOpacity={0.25} strokeWidth={1.2} fill="none" />
 
       {!away && (
         <g data-part="bot">
-          <g data-part="float">
-            {/* Crossed legs, body, hands resting on the knees. */}
+          <g data-part={music ? 'groove' : 'float'}>
             <path d="M30 73q22-9 44 0q-22 7-44 0Z" className="gb-foot" strokeLinejoin="round" />
             <rect x={40} y={52} width={24} height={20} rx={9} className="gb-shell" strokeWidth={1.8} />
             <path d="M42 58q-10 6-10 14M62 58q10 6 10 14" className="gb-line" strokeWidth={1.8} fill="none" strokeLinecap="round" />
             <circle cx={32} cy={72} r={2.6} className="gb-shell" strokeWidth={1.4} />
             <circle cx={72} cy={72} r={2.6} className="gb-shell" strokeWidth={1.4} />
             <g transform="translate(30 14) scale(0.66)">
+              <BotHead expression={face} genie={genie} status={status} headphones={music} />
+            </g>
+          </g>
+          {music ? (
+            <>
+              <Note x={80} y={26} />
+              <Note x={18} y={34} />
+            </>
+          ) : (
+            <>
+              <path data-part="sparkle" d="M20 30l1 2.8 2.8 1-2.8 1-1 2.8-1-2.8-2.8-1 2.8-1Z" className="gb-sparkle" />
+              <path data-part="sparkle" d="M84 22l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z" className="gb-sparkle" />
+            </>
+          )}
+          <path data-part="exclaim" d="M76 6v8M76 18.5v.5" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
+        </g>
+      )}
+    </>
+  )
+}
+
+function Floor({ scene, face, genie, away, status }: Part & { scene: Scene }) {
+  return (
+    <>
+      {scene === 'waking' && (
+        // The sun coming up behind him.
+        <g>
+          <path d="M8 80a16 16 0 0 1 32 0Z" className="gb-sun" />
+          <path d="M24 58v-5M10 64l-3.5-3.5M38 64l3.5-3.5" className="gb-sun-ray" strokeWidth={1.8} strokeLinecap="round" />
+        </g>
+      )}
+      {scene === 'walking' && (
+        // The pavement going by.
+        <g data-part="path" className="gb-line" strokeWidth={1.6} strokeLinecap="round" strokeOpacity={0.4}>
+          <path d="M4 82h10M26 82h10M48 82h10M70 82h10M92 82h10M114 82h10" />
+        </g>
+      )}
+      <path d="M2 80h86" className="gb-line" strokeOpacity={0.15} strokeWidth={1.2} />
+
+      {!away && (
+        <g data-part="bot" data-walking={scene === 'walking' ? '' : undefined}>
+          <g transform="translate(35 26) scale(0.78)">
+            <rect data-foot="l" x={19} y={57} width={10} height={9} rx={4.5} className="gb-foot" />
+            <rect data-foot="r" x={35} y={57} width={10} height={9} rx={4.5} className="gb-foot" />
+            <g className="gb-body">
               <BotHead expression={face} genie={genie} status={status} />
             </g>
           </g>
-          <path data-part="sparkle" d="M20 30l1 2.8 2.8 1-2.8 1-1 2.8-1-2.8-2.8-1 2.8-1Z" className="gb-sparkle" />
-          <path data-part="sparkle" d="M84 22l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8Z" className="gb-sparkle" />
-          <path data-part="exclaim" d="M76 6v8M76 18.5v.5" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
+          {scene === 'waking' && (
+            <g data-part="stretch">
+              <ellipse cx={30} cy={30} rx={3.6} ry={2.6} className="gb-shell" strokeWidth={1.3} />
+              <ellipse cx={90} cy={30} rx={3.6} ry={2.6} className="gb-shell" strokeWidth={1.3} />
+            </g>
+          )}
+          {scene === 'brushing' && (
+            <g data-part="brush">
+              <path d="M62 64h14" className="gb-brush" strokeWidth={2.4} strokeLinecap="round" />
+              <path d="M61 61.5v5" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
+              <ellipse cx={78} cy={64} rx={3.6} ry={2.6} className="gb-shell" strokeWidth={1.3} />
+              <circle cx={57} cy={61} r={1.6} className="gb-foam" />
+              <circle cx={55} cy={65} r={1.2} className="gb-foam" />
+            </g>
+          )}
+          {(scene === 'walking' || scene === 'brushing') && (
+            <ellipse data-hand="l" cx={31} cy={62} rx={3.4} ry={2.4} className="gb-shell" strokeWidth={1.3} />
+          )}
+          {scene === 'walking' && <ellipse data-hand="r" cx={89} cy={62} rx={3.4} ry={2.4} className="gb-shell" strokeWidth={1.3} />}
+          <path data-part="exclaim" d="M90 12v8M90 24.5v.5" className="gb-line" strokeWidth={2.6} strokeLinecap="round" />
         </g>
       )}
     </>
@@ -251,9 +402,9 @@ function GenieLamp({ x, y }: { x: number; y: number }) {
   )
 }
 
-function OutSign({ y }: { y: number }) {
+function OutSign() {
   return (
-    <g transform={`translate(0 ${y})`}>
+    <g>
       <path d="M99 62 102.5 48h13l3.5 14Z" className="gb-pot" strokeWidth={1.4} strokeLinejoin="round" />
       <text x={109} y={58} textAnchor="middle" fontSize={6.2} fontWeight={800} className="gb-sign-text">OUT</text>
     </g>
@@ -265,6 +416,38 @@ function Zzz({ x, y }: { x: number; y: number }) {
     <g transform={`translate(${x} ${y})`} className="gb-zzz" fill="none" strokeLinecap="round" strokeLinejoin="round">
       <path data-z d="M0 0h4l-4 4h4" strokeWidth={1.4} />
       <path data-z d="M6 -8h5l-5 5h5" strokeWidth={1.6} />
+    </g>
+  )
+}
+
+/** Steam off his head: the meeting he wasn't invited to. */
+function Fumes() {
+  return (
+    <g className="gb-fumes">
+      <path data-fume d="M44 14c-3 0-3.6-4 0-4.6 0-3 4.6-3 5 0 3.4 0 3.4 4.6 0 4.6Z" />
+      <path data-fume d="M58 12c-2.4 0-3-3.2 0-3.7 0-2.4 3.7-2.4 4 0 2.7 0 2.7 3.7 0 3.7Z" />
+    </g>
+  )
+}
+
+function Note({ x, y }: { x: number; y: number }) {
+  return (
+    // The animation moves the inner group; the outer one places it.
+    <g transform={`translate(${x} ${y})`}>
+      <g data-part="note">
+        <path d="M3 0v8.5" className="gb-note-line" strokeWidth={1.4} strokeLinecap="round" />
+        <path d="M3 0l5 1.6v2.4L3 2.4Z" className="gb-note" />
+        <ellipse cx={1.4} cy={8.8} rx={2.2} ry={1.6} className="gb-note" />
+      </g>
+    </g>
+  )
+}
+
+function Hearts() {
+  return (
+    <g className="gb-hearts">
+      <path data-heart d="M50 18c-2-3-6-1-4 2l4 4 4-4c2-3-2-5-4-2Z" />
+      <path data-heart d="M66 12c-1.5-2.4-4.6-.8-3.2 1.6l3.2 3.2 3.2-3.2c1.4-2.4-1.7-4-3.2-1.6Z" />
     </g>
   )
 }

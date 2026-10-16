@@ -22,7 +22,7 @@ import type { LineKey } from './lines.ts'
 export type Reaction = 'relieved' | 'excited' | 'nosy' | 'lonely' | 'sleepy'
 
 /** Every face GuildBot can pull: its mood, or a reaction for a few seconds. */
-export type Expression = Mood | Reaction
+export type Expression = Mood | Reaction | 'grumpy'
 
 export type BoardEvent =
   /** `mine`: this viewer posted it, under their name or as a ghost. Null: someone else did. */

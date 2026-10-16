@@ -1,6 +1,6 @@
 'use client'
 
-import { Broadcast, ShieldCheck, SquaresFour, Trophy } from '@phosphor-icons/react/dist/ssr'
+import { Broadcast, ShieldCheck, SquaresFour, Timer, Trophy } from '@phosphor-icons/react/dist/ssr'
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
@@ -22,6 +22,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
   const isBoard = pathname.startsWith('/board')
   const isBytes = pathname.startsWith('/bytes')
   const isLeaders = pathname.startsWith('/leaderboard')
+  const isFocus = pathname.startsWith('/focus')
   const isAdmin = pathname.startsWith('/admin')
 
   return (
@@ -62,6 +63,15 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
       >
         Leaderboard
       </Link>
+      <Link
+        href="/focus"
+        className={cn(
+          'px-3 py-2 border-b-2 transition-colors press',
+          isFocus ? 'text-ink border-saffron' : 'text-ink-soft border-transparent hover:text-ink'
+        )}
+      >
+        Focus
+      </Link>
       {role === 'admin' && (
         <Link
           href="/admin"
@@ -84,13 +94,14 @@ export function MobileBottomNav({ role, username, isGuest }: NavLinksProps) {
   const isAdmin = pathname.startsWith('/admin')
   const isProfile = pathname.startsWith('/profile')
   const isBytes = pathname.startsWith('/bytes')
+  const isFocus = pathname.startsWith('/focus')
   const { unseen: unseenBytes } = useUnseenDigest()
 
-  // Board and Leaders always; Bytes, Admin and You when they apply. A guest
-  // has no profile to open. Written out as literals so Tailwind generates
-  // each class.
-  const tabCount = 2 + (isGuest ? 0 : 1) + (HIDE_BYTES ? 0 : 1) + (role === 'admin' ? 1 : 0)
-  const cols = { 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4', 5: 'grid-cols-5' }[tabCount] ?? 'grid-cols-5'
+  // Board, Leaders and Focus always; Bytes, Admin and You when they apply. A
+  // guest has no profile to open. Written out as literals so Tailwind
+  // generates each class.
+  const tabCount = 3 + (isGuest ? 0 : 1) + (HIDE_BYTES ? 0 : 1) + (role === 'admin' ? 1 : 0)
+  const cols = { 3: 'grid-cols-3', 4: 'grid-cols-4', 5: 'grid-cols-5', 6: 'grid-cols-6' }[tabCount] ?? 'grid-cols-6'
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
@@ -137,6 +148,16 @@ export function MobileBottomNav({ role, username, isGuest }: NavLinksProps) {
         >
           <Trophy className="w-4.5 h-4.5" />
           <span>Leaders</span>
+        </Link>
+        <Link
+          href="/focus"
+          className={cn(
+            'flex flex-col items-center justify-center gap-1 py-1.5 text-[11px] transition-colors rounded-(--radius-control) press-sm',
+            isFocus ? 'text-ink bg-kinu/80' : 'text-ink-soft hover:text-ink'
+          )}
+        >
+          <Timer className="w-4.5 h-4.5" />
+          <span>Focus</span>
         </Link>
         {role === 'admin' && (
           <Link

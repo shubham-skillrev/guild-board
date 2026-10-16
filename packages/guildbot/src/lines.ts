@@ -202,6 +202,52 @@ export const LINES = {
     "Board at this hour? Respect. Mild concern, but respect.",
   ],
 
+  /* ── His day (schedule.ts), drafted 2026-10-16, pending sign-off ── */
+  /* Tapped mid-activity: the greeting. Coding uses the mood greetings. */
+  'home.knock.sleeping': ["Mmf. It's the middle of the night. Fine. What is it?", "I was dreaming in YAML. You saved me. What do you need?"],
+  'home.knock.waking': ["Five more minutes. No? Fine. Hi.", "Still booting. Go ahead, I'll catch up."],
+  'home.knock.brushing': ["Mouth full of toothpaste. Speak. I'll nod.", "Brushing. Two minutes, dentists say. You get one."],
+  'home.knock.coffee': ["Coffee first, wisdom second. Go on.", "Hold on, sip. Okay. What's up?"],
+  'home.knock.lunch': ["Mouth full. Fine. What?", "Noodles can wait. They can't, but I'll pretend."],
+  'home.knock.walking': ["You caught me mid-walk. Walk and talk?", "Steps paused. For you. What's up?"],
+  'home.knock.learning': ["Bookmarking this page. For you, anything.", "I was learning something. Teach me something instead?"],
+  'home.knock.music': ["Headphones off. This had better be good.", "Pausing the playlist. Dramatically. Go."],
+  'home.knock.meditating': ["Inner peace, interrupted. It's fine. I'm fine.", "Om. Om. Oh, hi. Still calm. Mostly."],
+
+  /* The guild meeting, which nobody invited him to. */
+  'meeting.start': ["Oh, a meeting. Without me. Cool. Cool cool cool.", "The guild is meeting. I wasn't invited. I'll just sit here, compiling feelings."],
+  'meeting.knock': ["Fine, I'll help. Even though nobody invited me.", "Busy sulking. But go on, I'm a professional."],
+  'meeting.after': ["How was the meeting? Not that I care. I don't. Tell me everything.", "So. The meeting. Was I mentioned? Asking for a friend."],
+
+  /* Tricks, from his menu or the chat. He has work to do and gets tired. */
+  'trick.dance': ["Behold. Years of training.", "Don't look. Okay, look."],
+  'trick.coffee': ["Ah. Caffeine. My one true dependency.", "Refuelled. Ask me something hard."],
+  'trick.coffee.too_much': ["Another coffee? My hands are vibrating at 60Hz. No."],
+  'trick.pat': ["Pat accepted. Morale up 3%.", "Okay, that was nice. Don't tell anyone."],
+  'trick.meditate': ["Breathe in. Breathe out. That's it, that's the whole tip."],
+  'trick.tired': ["I have actual work to do. Also, I'm tired. Come back later.", "Out of energy. Even I need a breather. Coffee helps."],
+  'trick.showcase': ["Psst. I do tricks. Tap the sparkle next to me.", "Bored? I dance. Badly. Tap the sparkle."],
+
+  /* Small talk. He asks, you tap an answer, he forgets it at once. */
+  'talk.learned.q': ["Learned anything new this week?"],
+  'talk.learned.yes': ["Look at you, growing. I'd remember it, but I've promised not to."],
+  'talk.learned.no': ["Week's not over. One TIL. I believe in you, statistically."],
+  'talk.moved.q': ["Moved today? A walk counts."],
+  'talk.moved.yes': ["Excellent. Your future back sends its regards."],
+  'talk.moved.no': ["Five minutes. Around the block. I'll hold the board."],
+  'talk.life.q': ["How's life these days? Honestly."],
+  'talk.life.good': ["Good. Keep it that way. I'll guard the board."],
+  'talk.life.meh': ["Meh weeks happen. Water, a walk, a small win. Then come back."],
+
+  /* Focus page: work blocks and the breaks he leads. */
+  'focus.start': ["Focus mode. I'll code next to you. Silently. Mostly.", "Timer's on. Tabs closed, mind open. Go."],
+  'focus.done': ["Block done. Up you get. Break time.", "That's a block. Your chair needs a break from you."],
+  'break.water': ["Water break. I'm having one. Join me."],
+  'break.eyes': ["Look at something 20 feet away for 20 seconds. Not your phone. I'll count."],
+  'break.stretch': ["Stand up. Reach for the ceiling. Roll the shoulders. I'll do it too, badly."],
+  'break.walk': ["Five-minute walk. I'll keep the time. Go on."],
+  'break.done': ["Welcome back. Your spine says thanks.", "Break done. Back to it, champion."],
+
   'home.dark': [
     "Lights out. That's all {limit} asks. Back {when}.",
     "Off duty. You've had your {limit} for the week. Back {when}.",

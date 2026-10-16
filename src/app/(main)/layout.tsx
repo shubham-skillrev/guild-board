@@ -12,6 +12,7 @@ import { GuestBanner } from "@/components/layout/GuestBanner";
 import { isGuestSession } from "@/lib/supabase/viewer";
 import { GuestGateProvider } from "@/components/auth/GuestGate";
 import { GuildBotChat } from "@/components/guildbot/GuildBotChat";
+import { FocusAlerts } from "@/components/focus/FocusAlerts";
 import { KonamiEgg } from "@/components/guildbot/KonamiEgg";
 
 async function getUser() {
@@ -111,6 +112,8 @@ export default async function MainLayout({
 
       {/* GuildBot chat: on the board, topic and Bytes pages only. */}
       <GuildBotChat signedIn={!!profile} />
+      {/* The focus timer's end-of-block chime and title, on every page. */}
+      <FocusAlerts />
       <KonamiEgg />
 
       {/* Mobile bottom nav stays outside scrolling container for stable viewport pinning */}
