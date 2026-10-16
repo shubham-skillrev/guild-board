@@ -89,14 +89,14 @@ export function FocusRoom() {
         subtitle="Work in blocks with GuildBot. He codes next to you, then makes you take a proper break. It all stays in this browser."
       />
 
-      <div className="rounded-(--radius-card) border border-border bg-paper p-(--pad-card) md:p-6 grid gap-6 md:grid-cols-[1fr_1.1fr] md:items-center">
+      <div className="rounded-(--radius-card) border border-border bg-paper p-(--pad-card) md:p-6 grid gap-6 md:grid-cols-[1fr_1.1fr] md:items-center [&>*]:min-w-0">
         {/* GuildBot's spot: he leaves his corner and works from here (GuildBotStage). */}
         <div className="flex justify-center pt-16">
           <div id="gb-focus-slot" aria-hidden className="w-[260px] h-[195px]" />
         </div>
 
         {/* The timer. */}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 min-w-0">
           <div>
             <p className="text-footnote text-ink-soft">
               {state.phase === 'idle' ? 'Ready when you are' : state.phase === 'focus' ? (paused ? 'Focus, paused' : 'Focusing') : paused ? 'Break, paused' : 'Break'}
@@ -106,16 +106,17 @@ export function FocusRoom() {
             </p>
           </div>
 
-          {state.phase === 'idle' ? (
+          {state.phase === 'idle' && (
+            // Short labels so all three fit on a phone; the plan's name is spelled out below.
             <SegmentedControl<Plan>
               label="Plan"
               value={state.plan}
               onChange={focus.setPlan}
-              options={(Object.keys(PLANS) as Plan[]).map(k => ({ key: k, label: `${PLANS[k].label} ${PLANS[k].focus}/${PLANS[k].rest}` }))}
+              className="self-start max-w-full"
+              options={(Object.keys(PLANS) as Plan[]).map(k => ({ key: k, label: `${PLANS[k].focus}/${PLANS[k].rest}` }))}
             />
-          ) : (
-            <p className="text-caption text-cha">{plan.label}: {plan.focus} minutes on, {plan.rest} off</p>
           )}
+          <p className="-mt-2 text-caption text-cha">{plan.label}: {plan.focus} minutes on, {plan.rest} off</p>
 
           <div className="flex flex-wrap items-center gap-2">
             {state.phase === 'idle' ? (
@@ -214,8 +215,8 @@ function Crowd({ member, others, you, yourLook }: { member: boolean; others: Per
       ].filter(Boolean).join(', ') + ' right now.'
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-sumi px-3 py-2">
-      <div className="flex items-end -space-x-1.5 shrink-0" aria-hidden>
+    <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3 rounded-xl border border-border bg-sumi px-3 py-2">
+      <div className="flex items-end -space-x-1.5 shrink-0 max-w-full overflow-hidden" aria-hidden>
         {you && (
           <span className="relative z-10 rounded-full ring-2 ring-saffron/70 bg-paper">
             <PlushBot size={30} tint={CREW_TINTS[yourLook % CREW_TINTS.length]} expression={you === 'break' ? 'relieved' : 'nosy'} motion={you === 'break' ? 'hop' : 'idle'} limbs={false} />
