@@ -7,7 +7,7 @@
  */
 import { useState } from 'react'
 import type { Expression } from '@guildboard/guildbot'
-import { PlushBot, type PlushColour, type PlushHands, type PlushMotion, type PlushWear } from '@/components/guildbot/PlushBot'
+import { PlushBot, type PlushColour, type PlushHands, type PlushMotion, type PlushShape, type PlushWear } from '@/components/guildbot/PlushBot'
 import { WearContext } from '@/components/guildbot/useWeather'
 import type { Variant, Wear } from '@guildboard/guildbot'
 import { GuildBotScene, type Scene } from '@/components/guildbot/GuildBotScene'
@@ -20,6 +20,12 @@ const COLOURS: { colour: PlushColour; face: Expression; label: string }[] = [
   { colour: 'genie', face: 'excited', label: 'Genie · blue' },
   { colour: 'meeting', face: 'grumpy', label: 'Meeting sulk · plum' },
 ]
+const SHAPE_OPTIONS: { shape: PlushShape; label: string }[] = [
+  { shape: 'cushion', label: 'Cushion: a puffed-up ◈ pillow with tassels' },
+  { shape: 'critter', label: 'Critter: a round bean with felt ◈ ears' },
+  { shape: 'mochi', label: 'Mochi: squishy, a stitched ◈ patch on the side' },
+]
+
 const FACES: Expression[] = ['smug', 'bored', 'dramatic', 'proud', 'relieved', 'excited', 'nosy', 'lonely', 'sleepy', 'grumpy']
 const MOTIONS: PlushMotion[] = ['idle', 'dance', 'stretch', 'walk']
 const HANDS: PlushHands[] = ['rest', 'typing', 'mug', 'wave', 'brush']
@@ -58,6 +64,25 @@ function Sheet() {
   const [hop, setHop] = useState(0)
   return (
     <div className="space-y-10">
+      <section>
+        <h2 className="text-footnote font-semibold text-ink mb-4">Pick a shape</h2>
+        <div className="grid gap-6 sm:grid-cols-3">
+          {SHAPE_OPTIONS.map(o => (
+            <figure key={o.shape} className="flex flex-col items-center gap-3">
+              <div className="flex items-end gap-3">
+                <PlushBot shape={o.shape} size={120} expression="smug" follow />
+                <PlushBot shape={o.shape} size={64} colour="bored" expression="bored" motion="walk" />
+              </div>
+              <div className="flex items-end gap-2">
+                <PlushBot shape={o.shape} size={56} colour="dramatic" expression="dramatic" motion="dance" />
+                <PlushBot shape={o.shape} size={56} colour="proud" expression="proud" />
+                <PlushBot shape={o.shape} size={56} colour="genie" expression="excited" hands="wave" />
+              </div>
+              <figcaption className="text-caption text-cha text-center">{o.label}</figcaption>
+            </figure>
+          ))}
+        </div>
+      </section>
       <section>
         <h2 className="text-footnote font-semibold text-ink mb-4">Colour follows his mood (and two moments)</h2>
         <div className="flex flex-wrap gap-8">
