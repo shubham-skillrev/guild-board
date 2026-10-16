@@ -65,8 +65,9 @@ const BODY = rounded(
 )
 const OUTLINE = 8
 // Where things sit on him: big eyes set low, and his cheeks.
-const EYES: [Point, Point] = [[75, 126], [101, 126]]
-const EYE_R = 13
+// Eyes may spill past his outline: they're the expression, the shape just holds them.
+const EYES: [Point, Point] = [[76, 120], [106, 120]]
+const EYE_R = 15
 const CHEEKS: [Point, Point] = [[63, 147], [99, 146]]
 const TIP: Point = [57, 52]
 const CENTRE: Point = [98, 136]
@@ -129,6 +130,7 @@ export function Kers({
       data-jiggle={jiggle ? '' : undefined}
       data-play={play ?? undefined}
       data-take={take ? '' : undefined}
+      data-face={face}
     >
       <span className="gb-kers-body absolute inset-0">
         <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 w-full h-full overflow-visible" aria-hidden>
@@ -227,7 +229,7 @@ function Figure({ rig, dye, face, eyes, look, weather, wear }: {
         )
       })}
 
-      <g className="kx-body" data-typing={rig.typing ? '' : undefined} transform={rig.lying ? `translate(0 ${rig.dy}) rotate(-16 100 200)` : `translate(0 ${rig.dy})${rig.tilt ? ` rotate(${rig.tilt} 100 205)` : ''}${rig.squash ? ` translate(100 205) scale(${rig.squash[0]} ${rig.squash[1]}) translate(-100 -205)` : ''}`}>
+      <g className="kx-body" data-typing={rig.typing ? '' : undefined} transform={rig.lying ? `translate(0 ${rig.dy}) rotate(-16 100 200)` : `translate(0 ${rig.dy})${rig.tilt ? ` rotate(${rig.tilt} 100 205)` : ''}`}>
         {!rig.front && !rig.lying && <Arms rig={rig} ink={ink} />}
 
         {/* A soft drop shadow behind him for depth, then a thin white edge round his outline (so he reads on any background), then him. */}
@@ -327,14 +329,16 @@ function Face({ face, eyes, look, lid }: { face: Expression; eyes: KersEyes; loo
               <Eye cx={0} cy={0} shape={shape} side={side as 0 | 1} look={look} lid={lid} />
             </>
           )}
-          <path
-            d="M-11 0H11"
-            transform={`translate(0 ${-shape.r - 7 - brow.lift[side]}) rotate(${brow.tilt[side]})`}
-            stroke={SUMI}
-            strokeWidth={2.6}
-            strokeDasharray="3.4 2.2"
-            strokeLinecap="round"
-          />
+          <g className={side ? 'kx-brow-r' : 'kx-brow-l'}>
+            <path
+              d="M-12 0H12"
+              transform={`translate(0 ${-shape.r - 7 - brow.lift[side]}) rotate(${brow.tilt[side]})`}
+              stroke={SUMI}
+              strokeWidth={2.6}
+              strokeDasharray="3.4 2.2"
+              strokeLinecap="round"
+            />
+          </g>
         </g>
       ))}
     </g>

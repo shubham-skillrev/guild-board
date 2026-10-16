@@ -775,7 +775,6 @@ body {
 .gb-hearts [data-heart] { animation: gb-heart 1.4s var(--motion-out) forwards; opacity: 0; }
 .gb-hearts [data-heart] + [data-heart] { animation-delay: 0.25s; }
 @keyframes gb-heart { 0% { opacity: 0; transform: translateY(4px) scale(0.6); } 30% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: translateY(-10px); } }
-.gb-scene[data-trick='dance'] [data-part='bot'] { animation: gb-dance 0.7s ease-in-out 3; transform-origin: 50% 100%; }
 @keyframes gb-dance {
   0%, 100% { transform: rotate(0deg) translateY(0); }
   25% { transform: rotate(-8deg) translateY(-4px); }
@@ -903,10 +902,8 @@ body {
 /* Walking: feet step, body bobs. A small hop when a reaction lands. */
 .gb-hop { animation: gb-hop 520ms var(--motion-out); }
 @keyframes gb-hop {
-  0%, 100% { transform: translateY(0) scale(1, 1); }
-  20% { transform: translateY(0) scale(1.06, 0.92); }
-  50% { transform: translateY(-9px) scale(0.96, 1.05); }
-  80% { transform: translateY(0) scale(1.03, 0.97); }
+  0%, 100% { transform: translateY(0); }
+  45% { transform: translateY(-8px); }
 }
 
 /* His body (BotFigure): limbs turn at the joint. Shoulders sit at the top
@@ -1015,40 +1012,44 @@ body {
    moves under reduced motion.
    ═══════════════════════════════════════════════════════ */
 @keyframes gb-kers-hop {
-  0%, 100% { transform: translateY(0) scale(1, 1); }
-  16% { transform: translateY(0) scale(1.14, 0.84); }
-  46% { transform: translateY(-18%) scale(0.92, 1.1); }
-  72% { transform: translateY(0) scale(1.12, 0.86); }
-  86% { transform: translateY(0) scale(0.97, 1.03); }
+  0%, 100% { transform: translateY(0) rotate(0); }
+  40% { transform: translateY(-9%) rotate(-3deg); }
+  72% { transform: translateY(0) rotate(1deg); }
 }
-.gb-kers[data-play='lean'] .gb-kers-body { animation: gb-kers-lean 2.4s ease-in-out; }
-@keyframes gb-kers-lean { 0%, 100% { transform: rotate(0) translateX(0); } 30%, 70% { transform: rotate(-9deg) translateX(-5%); } }
-.gb-kers[data-play='flinch'] .gb-kers-body { animation: gb-kers-flinch 450ms var(--motion-out); }
-@keyframes gb-kers-flinch { 0% { transform: scale(1, 1); } 25% { transform: scale(0.9, 1.06) translateX(3%); } 55% { transform: scale(1.04, 0.97) translateX(-2%); } 100% { transform: scale(1, 1); } }
+.gb-kers[data-play='lean'] .gb-kers-body { animation: gb-kers-lean 2.4s var(--motion-in-out); }
+@keyframes gb-kers-lean { 0%, 100% { transform: rotate(0) translateX(0); } 30%, 70% { transform: rotate(-6deg) translateX(-3%); } }
+.gb-kers[data-play='flinch'] .gb-kers-body { animation: gb-kers-flinch 280ms var(--motion-out); }
+@keyframes gb-kers-flinch { 0% { transform: translateX(0) rotate(0); } 35% { transform: translateX(4%) rotate(5deg); } 100% { transform: translateX(0) rotate(0); } }
 .gb-kers [data-typing] .kx-arm-l { animation: kx-tap 360ms ease-in-out infinite alternate !important; }
 .gb-kers [data-typing] .kx-arm-r { animation: kx-tap 360ms ease-in-out infinite alternate-reverse !important; }
 @keyframes kx-tap { from { rotate: -4deg; } to { rotate: 5deg; } }
-.gb-kers[data-jiggle] .gb-kers-body { animation: gb-kers-jiggle 650ms var(--motion-out); }
-@keyframes gb-kers-jiggle { 0% { transform: scale(1.08, 0.92); } 35% { transform: scale(0.95, 1.05); } 65% { transform: scale(1.03, 0.97); } 100% { transform: scale(1, 1); } }
+.gb-kers[data-jiggle] .gb-kers-body { animation: gb-kers-settle 380ms var(--motion-out); }
+@keyframes gb-kers-settle { 0% { transform: rotate(3deg); } 45% { transform: rotate(-1.5deg); } 100% { transform: rotate(0); } }
 
 @keyframes gb-kers-eyeblink { 0%, 90%, 94%, 98%, 100% { transform: scaleY(1); } 92%, 96% { transform: scaleY(0.1); } }
 /* Idle glances: now and then his pupils dart aside and back. */
 .gb-kers[data-motion='idle'] .kx-pupil { animation: kx-glance 7s ease-in-out infinite; }
 @keyframes kx-glance { 0%, 66%, 100% { transform: translate(0, 0); } 70%, 78% { transform: translate(2.6px, 0); } 82%, 88% { transform: translate(-2.4px, 0.6px); } }
 /* A double-take when something happens. */
-.gb-kers[data-take] .gb-kers-body { animation: kx-take 460ms var(--motion-out); }
+/* In character, rarely: a smug double brow-wiggle, a sarcastic eye roll when bored. */
+.gb-kers .kx-brow-l, .gb-kers .kx-brow-r { transform-box: fill-box; }
+.gb-kers[data-motion='idle'][data-face='smug'] .kx-brow-r { animation: kx-wiggle 9s ease-in-out infinite; }
+@keyframes kx-wiggle { 0%, 86%, 92%, 100% { transform: translateY(0); } 88%, 94% { transform: translateY(-3px); } }
+.gb-kers[data-motion='idle'][data-face='bored'] .kx-pupil { animation: kx-eyeroll 11s ease-in-out infinite; }
+@keyframes kx-eyeroll { 0%, 80%, 100% { transform: translate(0, 0); } 85% { transform: translate(-2.4px, -4px); } 90% { transform: translate(2.4px, -4.6px); } 95% { transform: translate(3px, -1px); } }
+.gb-kers[data-take] .gb-kers-body { animation: kx-take 420ms var(--motion-out); }
 @keyframes kx-take { 0% { transform: rotate(0); } 30% { transform: rotate(-7deg) translateX(-2%); } 65% { transform: rotate(5deg); } 100% { transform: rotate(0); } }
 /* Cartoon marks pop and pulse. */
 .gb-kers .kx-mark { transform-box: fill-box; transform-origin: center; animation: kx-mark 1.6s ease-in-out infinite; }
-@keyframes kx-mark { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+@keyframes kx-mark { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
 /* Kers (components/kers): breathes, bobs as he walks, hops; his cursor
    states spin, blink and ripple. Transform and opacity only. */
 .gb-kers .gb-kers-body { transform-origin: 50% 100%; }
-.gb-kers[data-motion='idle'] .gb-kers-body { animation: gb-kers-breathe 3.6s ease-in-out infinite; }
-@keyframes gb-kers-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.035, 0.965); } }
+.gb-kers[data-motion='idle'] .gb-kers-body { animation: gb-kers-breathe 4.2s ease-in-out infinite; }
+@keyframes gb-kers-breathe { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1%); } }
 .gb-kers[data-motion='walk'] .gb-kers-body { animation: gb-kers-bob 260ms ease-in-out infinite alternate; }
-@keyframes gb-kers-bob { from { transform: translateY(0) rotate(-1.5deg) scale(1.04, 0.96); } to { transform: translateY(-4%) rotate(1.5deg) scale(0.98, 1.03); } }
-.gb-kers[data-motion='hop'] .gb-kers-body { animation: gb-kers-hop 620ms var(--motion-out); }
+@keyframes gb-kers-bob { from { transform: translateY(0) rotate(-2deg); } to { transform: translateY(-3%) rotate(2deg); } }
+.gb-kers[data-motion='hop'] .gb-kers-body { animation: gb-kers-hop 380ms var(--motion-out); }
 /* His parts: arms sway at rest and swing as he walks, legs step, one arm
    waves, the tail wags. Each part pivots at the origin set on it inline. */
 .gb-kers .kx-arm-l, .gb-kers .kx-arm-r, .gb-kers .kx-leg-l, .gb-kers .kx-leg-r, .gb-kers .kx-tail, .gb-kers .kx-wave { transform-box: view-box; }
@@ -1066,14 +1067,15 @@ body {
 .gb-kers[data-motion='walk'] .kx-arm-r { animation: kx-swing 520ms ease-in-out infinite alternate; }
 .gb-kers[data-motion='walk'] .kx-tail { animation-duration: 520ms; }
 @keyframes kx-step { from { rotate: -14deg; } to { rotate: 14deg; } }
-@keyframes kx-swing { from { rotate: -16deg; } to { rotate: 16deg; } }
+@keyframes kx-swing { from { rotate: -12deg; } to { rotate: 12deg; } }
 .gb-kers[data-motion='dance'] .kx-arm-l { animation: kx-wave 380ms ease-in-out infinite alternate; }
 .gb-kers[data-motion='dance'] .kx-arm-r { animation: kx-wave 380ms ease-in-out infinite alternate-reverse; }
-.gb-kers[data-motion='dance'] .kx-leg-l { animation: kx-step 380ms ease-in-out infinite alternate; }
-.gb-kers[data-motion='dance'] .kx-leg-r { animation: kx-step 380ms ease-in-out infinite alternate-reverse; }
+.gb-kers[data-motion='dance'] .kx-leg-l { animation: kx-kick 320ms ease-in-out infinite alternate; }
+.gb-kers[data-motion='dance'] .kx-leg-r { animation: kx-kick 320ms ease-in-out infinite alternate-reverse; }
+@keyframes kx-kick { from { rotate: -6deg; } to { rotate: 8deg; } }
 .gb-kers .gb-kers-steam { animation: gb-steam 3s var(--motion-out) infinite; }
-.gb-kers[data-motion='dance'] .gb-kers-body { animation: gb-kers-dance 700ms ease-in-out infinite; }
-@keyframes gb-kers-dance { 0%, 100% { transform: rotate(-6deg) translateY(0); } 50% { transform: rotate(6deg) translateY(-5%); } }
+.gb-kers[data-motion='dance'] .gb-kers-body { animation: gb-kers-dance 640ms ease-in-out infinite; }
+@keyframes gb-kers-dance { 0%, 100% { transform: rotate(-4deg) translateX(-2%); } 50% { transform: rotate(4deg) translateX(2%) translateY(-2%); } }
 .gb-kers .gb-kers-float { animation: gb-float 4s ease-in-out infinite; }
 .gb-kers .gb-kers-sweat [data-drop] { transform-box: fill-box; animation: gb-drip 1.8s ease-in infinite; }
 .gb-kers .gb-kers-sweat [data-drop] + [data-drop] { animation-delay: 0.9s; }

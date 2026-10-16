@@ -34,8 +34,6 @@ export interface Rig {
   wave?: 'left' | 'right'
   /** Whole-body tilt in degrees (clockwise), pivoting at his bottom. */
   tilt?: number
-  /** Squash and stretch: width and height scale, from his bottom. */
-  squash?: [number, number]
   /** Eyes shut, asleep. */
   sleep?: boolean
   /** His hands tap (typing). */
@@ -57,8 +55,8 @@ export const RIGS: Record<KersPose, Rig> = {
   'walk-b': { dy: 0, hands: REST, feet: FEET, tilt: -6 },
   // Sitting: leaning back, hands on his knees.
   sitting: { dy: 12, hands: [[44, 190], [136, 192]], feet: SIT_FEET, tilt: 5 },
-  // Arms up: stretched tall, on his toes.
-  'arms-up': { dy: -4, hands: [[22, 100], [164, 108]], feet: FEET, squash: [0.93, 1.08] },
+  // Arms up: reaching high, a little lift onto his toes. Never stretched: his shape stays his shape.
+  'arms-up': { dy: -6, hands: [[22, 100], [164, 108]], feet: FEET, tilt: 3 },
   // Waving: leaning into the wave.
   waving: { dy: 0, hands: [[22, 104], REST[1]], feet: FEET, wave: 'left', tilt: -6 },
   asleep: { dy: 18, lying: true, hands: [[66, 182], [112, 184]], feet: SIT_FEET, prop: 'blanket' },
@@ -66,7 +64,7 @@ export const RIGS: Record<KersPose, Rig> = {
   laptop: { dy: 12, hands: [[76, 178], [112, 178]], feet: SIT_FEET, prop: 'laptop' },
   mug: { dy: 12, hands: [[80, 176], [110, 176]], feet: SIT_FEET, front: true, prop: 'mug', tilt: 3 },
   reading: { dy: 12, hands: [[48, 178], [138, 176]], feet: SIT_FEET, front: true, prop: 'book', tilt: 2 },
-  meditating: { dy: 10, hands: [[40, 184], [140, 184]], feet: [[90, 222], [70, 222]], prop: 'cushion', squash: [1.03, 0.97] },
+  meditating: { dy: 10, hands: [[40, 184], [140, 184]], feet: [[90, 222], [70, 222]], prop: 'cushion' },
   brushing: { dy: 0, hands: [REST[0], [108, 160]], feet: FEET, front: true, prop: 'toothbrush', tilt: -4 },
   // At the desk. Hands land on the desk top (body y ~170 in the desk scenes).
   'desk-typing': { dy: 0, hands: [[121, 170], [157, 167]], feet: FEET, front: true, typing: true },
