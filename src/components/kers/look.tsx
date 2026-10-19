@@ -22,9 +22,6 @@ export const KERS_COLOURS: Record<KersColour, string> = {
 /** What he's up to while you chat or work: some of it shows on him. */
 export type AvatarStatus = 'idle' | 'listening' | 'searching' | 'thinking' | 'writing' | 'talking'
 
-/** Fill colours for the anonymous cursors in the focus crowd: Japanese dyes, none of them his. */
-export const CREW_TINTS = ['#2EC4A6', '#FF7AA8', '#00B3D6', '#8FD14F', '#FF9F43', '#6C6CFF', '#3BB273', '#E06BD0']
-
 export type EyeShape = {
   /** Eye white radius. */
   r: number

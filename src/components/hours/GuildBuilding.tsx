@@ -10,9 +10,8 @@ import { GuildBotScene } from '@/components/guildbot/GuildBotScene'
  * window doing whatever his day says, and the street out front (a lamp post,
  * the chai cart, steam off the kettle).
  *
- * On /hours the lit windows are the scene's story. The focus room passes
- * `windows` instead (live, anonymous: '1' focusing, 'b' on a break, '0'
- * empty) and `you` to mark the viewer's own window, on their screen only.
+ * The lit windows are the scene's story (`windows` and `you` can override
+ * them: '1' lit, 'b' blue, '0' dark, and one window marked "you").
  * Motion is CSS (globals.css, .gb-building) and stops under reduced motion.
  */
 export function GuildBuilding({

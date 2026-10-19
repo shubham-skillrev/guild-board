@@ -244,13 +244,6 @@ export const LINES = {
   'talk.life.good': ["Good. Keep it that way. I'll guard the board."],
   'talk.life.meh': ["Meh weeks happen. Water, a walk, a small win. Then come back."],
 
-  /* Focus page: work blocks and the breaks he leads. */
-  'focus.start': ["Focus mode. I'll code next to you. Silently. Mostly.", "Timer's on. Tabs closed, mind open. Go."],
-  'focus.done': ["Block done. Up you get. Break time.", "That's a block. Your chair needs a break from you."],
-  'break.water': ["Water break. I'm having one. Join me."],
-  'break.eyes': ["Look at something 20 feet away for 20 seconds. Not your phone. I'll count."],
-  'break.stretch': ["Stand up. Reach for the ceiling. Roll the shoulders. I'll do it too, badly."],
-  'break.walk': ["Five-minute walk. I'll keep the time. Go on."],
   /* ── What he's up to, in a small bubble over him ── */
   'doing.sleeping': ["Asleep. Knock if it's an emergency. It isn't.", "Dreaming of green builds. Do not wake."],
   'doing.waking': ["Waking up. Do not perceive me yet.", "Rebooting. Coffee not found."],
@@ -268,12 +261,7 @@ export const LINES = {
   'doing.music.guitar': ["Guitar. Three chords, zero shame."],
   'doing.meditating': ["Meditating. Inner peace, outer judging.", "Breathing. Loudly. On purpose."],
   'doing.meeting': ["Not invited to the meeting. Fine. Totally fine."],
-  'doing.focus': ["Focusing with you. No talking. Okay, a little.", "Heads down. Mine's already down. It's a diamond."],
-  'doing.break': ["On a break with you. Stretching, badly.", "Break time. Doing it properly, unlike you."],
 
-  'focus.nudge': ["{n} people just went on a break. Break together?", "{n} people are on a break right now. Join them, I won't tell."],
-  'focus.party': ["Break party. {n} of you, same minute. I'm dancing.", "{n} breaks at once. This is a party now. Hydrate."],
-  'break.done': ["Welcome back. Your spine says thanks.", "Break done. Back to it, champion."],
 
   /* The weather in the viewer's city (weather.ts), once a day. */
   'weather.fake_winter': ["{city} in winter: {temp}°C. Winter is a rumour here.", "It's meant to be winter. It's {temp}°C in {city}. My visor is sweating."],

@@ -1,8 +1,7 @@
 import type { Activity, LineKey } from '@guildboard/guildbot'
 
 /**
- * The guild building, every hour of the day: eight scenes for /hours (public)
- * and, later, the focus room. SkillRev's entry in the ".wtf" trend
+ * The guild building, every hour of the day: eight scenes for /hours (public). SkillRev's entry in the ".wtf" trend
  * (chaitapri.wtf, saloon.wtf): one place, told hour by hour.
  *
  * Each scene has a sky, how many of the building's sixteen windows are lit

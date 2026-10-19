@@ -1,8 +1,6 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { usePathname } from 'next/navigation'
-import Link from 'next/link'
 import { motion } from 'framer-motion'
 import type { Expression, Variant } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
@@ -30,13 +28,10 @@ const STROLL_MS = 1100
  *    ink drawing (InkBot). His spot stays empty until you close it.
  *  - Tap him and he asks: talk, or do something? Talking is the knock and the
  *    chat. Doing something opens his actions panel (it stays open): tricks
- *    (he gets tired), a walk, the weather he dresses for, focus with him, and
+ *    (he gets tired), a walk, the weather he dresses for, and
  *    a way into the chat. He dances standing in front of his desk, and
  *    walks across the bottom of the screen and back (once on a wide screen,
  *    twice on a phone).
- *  - On the focus page he moves out of the corner into the page itself (the
- *    #gb-focus-slot element), bigger, and does the breaks there. He's working
- *    with you there: tapping him does nothing, no chat, no tricks.
  */
 export function GuildBotStage({
   scene,
@@ -116,14 +111,13 @@ export function GuildBotStage({
   onPoke?: () => void
 }) {
   const asleep = scene === 'sleeping'
-  const slot = useSlot(usePathname() === '/focus' ? 'gb-focus-slot' : null)
   // On the focus page he stays at his spot in the card: no strolls, no walks across the screen.
-  const stroll = useStroll(bubble, desktop && !open && !hidden && !reduce && !asleep && !patrol && !slot && !trick)
-  const walk = usePatrol(patrol, !open && !hidden && !reduce && !asleep && !slot, onPatrolEnd)
+  const stroll = useStroll(bubble, desktop && !open && !hidden && !reduce && !asleep && !patrol && !trick)
+  const walk = usePatrol(patrol, !open && !hidden && !reduce && !asleep, onPatrolEnd)
   const dancing = trick === 'dance' && !open && !asleep
   // He notices your cursor (desktop only): points at what you hover nearby, leans in at a still pointer, flinches when you hover him.
   const corner = useRef<HTMLButtonElement>(null)
-  const play = useCursorPlay(corner, desktop && !open && !hidden && !reduce && !asleep && !slot && !walk && !dancing && knock === 'idle')
+  const play = useCursorPlay(corner, desktop && !open && !hidden && !reduce && !asleep && !walk && !dancing && knock === 'idle')
   // Tap him: he asks what you want. "Do something" opens his actions panel,
   // which stays open while he performs; "Let's talk" is the knock.
   const [choice, setChoice] = useState(false)
@@ -152,7 +146,7 @@ export function GuildBotStage({
   const strolling = stroll !== 'home'
   const [hiddenDoing, hideDoing] = useHiddenDoing()
   const say = lightsOut ?? (knock === 'door' ? greeting : null) ?? (open ? null : bubble?.text ?? dodge)
-  const width = slot ? slot.width : desktop ? 124 : 100
+  const width = desktop ? 124 : 100
 
 
   return (
@@ -160,10 +154,9 @@ export function GuildBotStage({
       <div
         className={cn(
           'fixed flex items-end z-(--z-overlay) transition-transform duration-300 motion-reduce:transition-none',
-          !slot && 'right-2 bottom-20 md:right-4 md:bottom-2',
+          'right-2 bottom-20 md:right-4 md:bottom-2',
           dodge !== null && '-translate-x-24 -translate-y-16',
         )}
-        style={slot ? { left: slot.left, top: slot.top } : undefined}
       >
         {/* What he says, with answers to tap when he's asking. */}
         {say && !open && !panel && !choice && (
@@ -172,7 +165,7 @@ export function GuildBotStage({
             className="absolute bottom-full mb-1 w-[min(17rem,calc(100vw-2rem))] animate-fade-up transition-[right] duration-700 ease-(--motion-in-out)"
             // Centred over him in the focus building (kept on screen); over the
             // corner scene, or over him while he strolls, everywhere else.
-            style={slot ? slotBubble(slot) : { right: strolling ? STROLL - 24 : 8 }}
+            style={{ right: strolling ? STROLL - 24 : 8 }}
           >
             <div className="relative rounded-2xl border border-border-strong bg-paper px-3.5 py-2.5 text-[13px] leading-snug text-ink shadow-lg">
               <span className="block text-caption font-semibold text-ink-soft mb-0.5">Kers</span>
@@ -189,7 +182,7 @@ export function GuildBotStage({
               {bubble && say === bubble.text && (
                 <button type="button" onClick={onDismissBubble} aria-label="Dismiss" className="absolute top-1.5 right-2 text-cha hover:text-ink text-[14px] leading-none">×</button>
               )}
-              <span aria-hidden className={cn('absolute -bottom-1.5 h-3 w-3 rotate-45 border-r border-b border-border-strong bg-paper', slot ? 'left-1/2 -ml-1.5' : 'right-14')} />
+              <span aria-hidden className={cn('absolute -bottom-1.5 h-3 w-3 rotate-45 border-r border-b border-border-strong bg-paper right-14')} />
             </div>
           </div>
         )}
@@ -270,9 +263,6 @@ export function GuildBotStage({
                     {t === 'dance' ? 'Dance' : t === 'walk' ? 'Go for a walk' : t === 'pat' ? 'Pat his head' : t === 'coffee' ? 'Bring coffee' : 'Meditate'}
                   </button>
                 ))}
-                <Link href="/focus" onClick={() => setPanel(null)} className="press h-9 rounded-xl border border-border bg-sumi px-2.5 leading-9 text-ink hover:bg-kinu">
-                  Focus with me
-                </Link>
               </div>
               {/* The weather he dresses for: your city, kept in this browser. */}
               {editingCity ? (
@@ -303,8 +293,8 @@ export function GuildBotStage({
             Hide it and it stays hidden until he moves on to something else. */}
         {doing && doing !== hiddenDoing && !say && !open && !panel && !choice && !hidden && !strolling && !walk && !dancing && (
           <div
-            className={cn('absolute bottom-full mb-1 w-max max-w-[min(12.5rem,calc(100vw-2rem))] md:max-w-56', !slot && 'animate-fade-up')}
-            style={slot ? { left: slot.width / 2, transform: 'translateX(-50%)' } : { right: 8 }}
+            className={cn('absolute bottom-full mb-1 w-max max-w-[min(12.5rem,calc(100vw-2rem))] md:max-w-56 animate-fade-up')}
+            style={{ right: 8 }}
           >
             <p className="relative rounded-xl border border-border-strong bg-paper pl-2.5 pr-6 py-1.5 text-[11.5px] leading-snug italic text-ink-soft shadow-[0_8px_24px_-6px_rgba(0,0,0,0.35),0_2px_6px_-2px_rgba(0,0,0,0.2)]">
               {doing}
@@ -316,7 +306,7 @@ export function GuildBotStage({
               >
                 ×
               </button>
-              <span aria-hidden className={cn('absolute -bottom-[5px] h-2.5 w-2.5 rotate-45 border-r border-b border-border-strong bg-paper', slot ? 'left-1/2 -ml-[5px]' : 'right-10')} />
+              <span aria-hidden className={cn('absolute -bottom-[5px] h-2.5 w-2.5 rotate-45 border-r border-b border-border-strong bg-paper right-10')} />
             </p>
           </div>
         )}
@@ -326,27 +316,22 @@ export function GuildBotStage({
           ref={corner}
           type="button"
           onClick={e => {
-            // On the focus page he's working with you: not a chat, no tricks.
-            if (slot) return
             onPoke?.()
             if (open || knock !== 'idle') { onPress(e); return }
             setPanel(null)
             setChoice(c => !c)
           }}
-          tabIndex={slot ? -1 : undefined}
-          aria-hidden={slot ? true : undefined}
           aria-expanded={open || choice || !!panel}
           aria-haspopup="dialog"
           aria-label={label}
-          className={cn('relative rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4', slot && 'cursor-default')}
+          className={cn('relative rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-4')}
         >
           <span key={asleep ? 'asleep' : hop} className={cn('block', !asleep && !strolling && hop > 0 && 'gb-hop')}>
             <GuildBotScene
               scene={scene}
               // On the focus page he's working with you: nothing about chat asks
               // (no mug count, genie lamp, or napping behind an OUT sign).
-              asks={slot ? 'normal' : asks}
-              mug={!slot}
+              asks={asks}
               expression={expression}
               colour={colour}
               reacting={reacting}
@@ -391,13 +376,6 @@ function useStroll(bubble: Bubble | null, enabled: boolean): Stroll {
 }
 
 /** Where an element is on screen, kept current through scroll and resize. Null when it's absent. */
-/** A speech bubble centred over him in the focus building, never off screen. */
-function slotBubble(slot: DOMRect): React.CSSProperties {
-  const width = Math.min(256, window.innerWidth - 32)
-  const x = Math.min(Math.max(slot.left + slot.width / 2 - width / 2, 16), window.innerWidth - 16 - width)
-  return { left: x - slot.left, width }
-}
-
 const HIDE_DOING = 'guildbot:doing-hidden'
 
 /** The status line the viewer hid (this tab only): it comes back once it changes. */
@@ -414,35 +392,6 @@ function useHiddenDoing(): [string | null, (text: string) => void] {
   return [hidden, hide]
 }
 
-function useSlot(id: string | null): DOMRect | null {
-  const [rect, setRect] = useState<DOMRect | null>(null)
-  useEffect(() => {
-    if (!id) { const t = setTimeout(() => setRect(null), 0); return () => clearTimeout(t) }
-    let frame = 0
-    const measure = () => {
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(() => {
-        const el = document.getElementById(id)
-        setRect(el ? el.getBoundingClientRect() : null)
-      })
-    }
-    measure()
-    const observer = new ResizeObserver(measure)
-    const el = document.getElementById(id)
-    if (el) observer.observe(el)
-    window.addEventListener('scroll', measure, { passive: true })
-    window.addEventListener('resize', measure)
-    const late = setTimeout(measure, 300) // the page may mount after us
-    return () => {
-      cancelAnimationFrame(frame)
-      clearTimeout(late)
-      observer.disconnect()
-      window.removeEventListener('scroll', measure)
-      window.removeEventListener('resize', measure)
-    }
-  }, [id])
-  return rect
-}
 
 /**
  * A walk across the bottom of the screen and back, at a stroll (150 px/s):

@@ -12,7 +12,6 @@ import { KINDS, composeDescription } from '@/lib/kinds'
 import { SASS, botSays } from '@/lib/guildbot-host/voice'
 import { GuildBotMark } from '@/components/guildbot/GuildBotMark'
 import { useActivity, type Asks as AsksState, type Scene } from '@/components/guildbot/GuildBotScene'
-import { useFocusState, useRemaining, type BreakKind } from '@/lib/focus/store'
 import { useWeather, WearContext } from '@/components/guildbot/useWeather'
 import type { KersColour } from '@/components/kers/look'
 import { Kers } from '@/components/kers/Kers'
@@ -26,8 +25,6 @@ import { useUserTokens } from '@/hooks/useUserTokens'
 import { TOKEN_LIMITS } from '@/lib/constants'
 
 const APRIL_KEY = 'guildbot:april-dodged'
-/** What he does on screen during each focus-page break. */
-const BREAK_SCENE: Record<BreakKind, Scene> = { water: 'coffee', eyes: 'meditating', stretch: 'waking', walk: 'walking' }
 
 /** Things typed to him that he just does, locally. */
 function localCommand(text: string): 'dance' | 'pat' | 'coffee' | 'meditate' | 'walk' | null {
@@ -73,8 +70,7 @@ const TRICK_NAME: Record<string, string> = { dance: 'Dance', pat: 'Pat on the he
 function pageOf(path: string): { kind: 'board' } | { kind: 'topic'; topicId: string } | { kind: 'bytes'; byteId?: string } | null {
   const topic = path.match(/^\/board\/([0-9a-f-]{36})/i)
   if (topic) return { kind: 'topic', topicId: topic[1] }
-  // The focus page talks about the board too: he's just working there.
-  if (path === '/board' || path === '/focus') return { kind: 'board' }
+  if (path === '/board') return { kind: 'board' }
   const byte = path.match(/^\/bytes(?:\/([0-9a-f-]{36}))?/i)
   if (byte) return { kind: 'bytes', byteId: byte[1] }
   return null
@@ -121,26 +117,20 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
   const { asks, setAsks } = useAsks(signedIn)
   const activity = useActivity() ?? 'coding'
-  const focusState = useFocusState()
   const weather = useWeather()
   // Today's take on what he's doing: too hot to walk (the garden), rain (the
   // window and chai), iced coffee, a tiffin, the guitar.
   const w = weather.weather
   const variant = variantOf(activity, new Date(), w ? { temperature: w.temperature, code: w.code } : null)
-  // A break's guided bit (sips, eyes, a stretch, a walk) runs for its own time, then he rests.
-  const guiding = useRemaining(focusState.guideEndsAt) > 0
   const welcome = useWelcome(pathname === '/board' && !open, signedIn)
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const toast = useToast()
   const life = useGuildBotLife()
   const { mood, moodLine } = life
-  // What he's doing: the meeting beats everything, then a focus session you
-  // started, then his own day.
+  // What he's doing: the meeting beats everything, then his own day.
   const scene: Scene = life.meeting
     ? 'meeting'
-    : focusState.phase === 'focus' ? 'coding'
-    : focusState.phase === 'break' ? (guiding && focusState.breakKind ? BREAK_SCENE[focusState.breakKind] : 'meditating')
     : variant === 'garden' || variant === 'rainwatch' ? variant
     : activity
   // While a reply is on its way: reading the board, thinking, writing (shown in the header).
@@ -210,7 +200,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
   // His own walk, when the schedule says it's time: laps across the screen,
   // a breather in the corner between them, until walk time is over.
   const startWalk = life.startWalk
-  const walkingNow = scene === 'walking' && focusState.phase !== 'break'
+  const walkingNow = scene === 'walking'
   useEffect(() => {
     if (!walkingNow || open || life.patrol) return
     const t = setTimeout(startWalk, 6000)
@@ -280,8 +270,6 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     const wear = weather.wear
     return {
       doing: life.meeting ? 'sulking about the meeting'
-        : focusState.phase === 'focus' ? 'focusing with this person'
-        : focusState.phase === 'break' ? 'on a break with this person'
         : variant === 'garden' ? 'sitting in the garden, too hot to walk'
         : variant === 'rainwatch' ? 'watching the rain with chai'
         : DOING[activity],
@@ -296,9 +284,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
 
   // What he's up to, in a small bubble over him: a cheeky line per scene
   // (and today's take on it), the same one all hour.
-  const doingKey = focusState.phase === 'focus' ? 'doing.focus'
-    : focusState.phase === 'break' && !guiding ? 'doing.break'
-    : variant && `doing.${scene}.${variant}` in LINES ? `doing.${scene}.${variant}`
+  const doingKey = variant && `doing.${scene}.${variant}` in LINES ? `doing.${scene}.${variant}`
     : `doing.${scene}`
   const hourSeed = `${new Date().toDateString()}:${new Date().getHours()}`
   const doing = doingKey in LINES ? botSays(doingKey as LineKey, hourSeed, 'ui') : null
