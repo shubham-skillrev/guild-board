@@ -66,8 +66,11 @@ export function kersState(status: AvatarStatus | null): KersState {
  * scene's, and where his middle sits (percent across) and his feet (percent
  * up from the bottom).
  */
+/** He's as wide as he is tall: drawn a bit smaller than the staging heights (set for the old, narrow Kers). */
+const BLOB = 0.66
+
 /** Where he sits behind the desk. */
-const DESK = { h: 0.75, x: 45, y: 16 }
+const DESK = { h: 0.92, x: 42, y: 22 }
 
 const STAGING: Record<Scene, { pose: KersPose; h: number; x: number; y: number }> = {
   // At his desk (the desk's front hides his lower half).
@@ -164,7 +167,7 @@ export function GuildBotScene({
           className="absolute block -translate-x-1/2"
           style={{ left: `${stage.x}%`, bottom: `${stage.y}%` }}
         >
-          {figure ? figure(Math.round(height * stage.h)) : <Kers
+          {figure ? figure(Math.round(height * stage.h * BLOB)) : <Kers
             pose={trick === 'dance' ? 'arms-up' : pose}
             motion={trick === 'dance' ? 'dance' : scene === 'walking' ? 'walk' : awake ? 'hop' : 'idle'}
             colour={paint}
@@ -173,7 +176,7 @@ export function GuildBotScene({
             play={play}
             special={trick === 'pat' ? 'heart' : reacting && expression === 'dramatic' ? 'swirl' : null}
             wear={scene === 'music' && !guitar ? 'headphones' : null}
-            size={Math.round(height * stage.h)}
+            size={Math.round(height * stage.h * BLOB)}
           />}
         </span>
       )}
