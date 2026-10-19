@@ -12,6 +12,7 @@ import { WearContext } from '@/components/guildbot/useWeather'
 import { GuildBotScene, type Scene } from '@/components/guildbot/GuildBotScene'
 import { Kers, type KersEyes, type KersState, type KersWear } from '@/components/kers/Kers'
 import { RIGS, type KersPose } from '@/components/kers/poses'
+import { MiniKers, type MiniBlush, type MiniFace, type MiniShape } from '@/components/kers/MiniKers'
 
 const POSES = (Object.keys(RIGS) as KersPose[]).filter(p => p !== 'walk-b')
 const COLOURS: { colour: KersColour; face: Expression; label: string }[] = [
@@ -58,6 +59,70 @@ const DAY: { label: string; scene: Scene; variant?: Variant }[] = [
   { label: 'Meeting sulk', scene: 'meeting' },
   { label: 'Asleep (his house)', scene: 'sleeping' },
 ]
+
+const MINI_SHAPES: { shape: MiniShape; label: string }[] = [
+  { shape: 'cursor', label: 'Soft cursor' },
+  { shape: 'blob', label: 'Round blob' },
+  { shape: 'drop', label: 'Gumdrop' },
+  { shape: 'hex', label: 'Rounded hex' },
+]
+const MINI_FACES: MiniFace[] = ['curious', 'happy', 'smug', 'bored', 'shocked', 'sleepy', 'sulky', 'sad', 'proud']
+const MINI_BLUSH: { blush: MiniBlush; face: MiniFace; label: string }[] = [
+  { blush: null, face: 'curious', label: 'Ordinary day (no blush)' },
+  { blush: 'proud', face: 'proud', label: 'Proud · gold' },
+  { blush: 'dramatic', face: 'shocked', label: 'Dramatic · red' },
+  { blush: 'genie', face: 'happy', label: 'Genie · lavender' },
+  { blush: 'meeting', face: 'sulky', label: 'Meeting sulk · plum' },
+]
+
+/** The minimal experiment (after grokbots.ai): four shapes, cut-out pill eyes, mint, no limbs, blush for strong moods. */
+function MiniSheet() {
+  return (
+    <div className="space-y-10">
+      <section>
+        <h2 className="text-footnote font-semibold text-ink mb-4">Four shapes × eight faces</h2>
+        <div className="overflow-x-auto">
+          <table className="border-separate border-spacing-x-3 border-spacing-y-2">
+            <thead>
+              <tr>
+                <th />
+                {MINI_FACES.map(f => <th key={f} className="text-caption font-normal text-cha">{f}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {MINI_SHAPES.map(s => (
+                <tr key={s.shape}>
+                  <th className="text-caption font-normal text-cha text-left pr-2 whitespace-nowrap">{s.label}</th>
+                  {MINI_FACES.map(f => <td key={f}><MiniKers shape={s.shape} face={f} size={76} motion="still" /></td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <Section title="Alive: idling (eyes follow your pointer), hopping, dancing">
+        {MINI_SHAPES.map(s => (
+          <Cell key={s.shape} label={s.label}>
+            <span className="flex items-end gap-2">
+              <MiniKers shape={s.shape} size={84} follow />
+              <MiniKers shape={s.shape} face="happy" size={64} motion="dance" />
+            </span>
+          </Cell>
+        ))}
+      </Section>
+      <Section title="Mood in the blush only (strong moods)">
+        {MINI_BLUSH.map(b => <Cell key={b.label} label={b.label}><MiniKers shape="blob" face={b.face} blush={b.blush} size={96} /></Cell>)}
+      </Section>
+      <Section title="At his desk">
+        {MINI_SHAPES.map(s => (
+          <Cell key={s.shape} label={s.label}>
+            <GuildBotScene scene="coding" asks="normal" expression="smug" width={170} figure={size => <MiniKers shape={s.shape} face="curious" size={size} />} />
+          </Cell>
+        ))}
+      </Section>
+    </div>
+  )
+}
 
 function Cell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -127,6 +192,10 @@ export default function GuildBotSheet() {
       <h1 className="text-title-1 text-label">Kers <span className="text-label-2">· GuildBot</span></h1>
       <p className="text-callout text-label-2 mt-1.5 max-w-prose">The mouse cursor come to life, drawn and animated in SVG. Not linked from the app.</p>
       <div className="mt-8 grid gap-6">
+        <h2 className="text-title-3 text-label mt-2">Minimal Kers <span className="text-label-2">· experiment</span></h2>
+        <div className="rounded-(--radius-card) border border-border bg-paper p-6"><MiniSheet /></div>
+        <div className="dark rounded-(--radius-card) border border-border bg-parchment p-6"><MiniSheet /></div>
+        <h2 className="text-title-3 text-label mt-6">Kers <span className="text-label-2">· live now</span></h2>
         <div className="rounded-(--radius-card) border border-border bg-paper p-6"><Sheet /></div>
         <div className="dark rounded-(--radius-card) border border-border bg-parchment p-6"><Sheet /></div>
       </div>

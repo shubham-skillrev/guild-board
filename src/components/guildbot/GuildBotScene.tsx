@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { activityAt, type Activity, type Expression, type Variant } from '@guildboard/guildbot'
 import type { AvatarStatus, KersColour } from '@/components/kers/look'
 import { Kers, type KersState } from '@/components/kers/Kers'
@@ -102,6 +102,7 @@ export function GuildBotScene({
   mug = true,
   cursor = null,
   play = null,
+  figure,
   width = 120,
 }: {
   scene: Scene
@@ -127,6 +128,8 @@ export function GuildBotScene({
   cursor?: KersState
   /** Reacting to your cursor: pointing, leaning in, flinching. */
   play?: CursorPlay
+  /** Draw someone else in his place (the minimal experiments on /design/guildbot), given his height. */
+  figure?: (size: number) => ReactNode
   width?: number
 }) {
   const genie = asks === 'genie'
@@ -161,7 +164,7 @@ export function GuildBotScene({
           className="absolute block -translate-x-1/2"
           style={{ left: `${stage.x}%`, bottom: `${stage.y}%` }}
         >
-          <Kers
+          {figure ? figure(Math.round(height * stage.h)) : <Kers
             pose={trick === 'dance' ? 'arms-up' : pose}
             motion={trick === 'dance' ? 'dance' : scene === 'walking' ? 'walk' : awake ? 'hop' : 'idle'}
             colour={paint}
@@ -171,7 +174,7 @@ export function GuildBotScene({
             special={trick === 'pat' ? 'heart' : reacting && expression === 'dramatic' ? 'swirl' : null}
             wear={scene === 'music' && !guitar ? 'headphones' : null}
             size={Math.round(height * stage.h)}
-          />
+          />}
         </span>
       )}
 

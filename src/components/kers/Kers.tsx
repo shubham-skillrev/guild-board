@@ -39,7 +39,7 @@ const W = 200
 const H = 240
 
 /** A closed path through the points, each corner rounded by its radius (a quadratic curve with the corner as control). */
-function rounded(pts: Point[], radii: number[]): string {
+export function rounded(pts: Point[], radii: number[]): string {
   const n = pts.length
   let d = ''
   for (let i = 0; i < n; i++) {
