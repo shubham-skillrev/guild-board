@@ -28,12 +28,15 @@ export function SurveyDashboard({
   state,
   generatedAt,
   briefing,
+  readOnly = false,
 }: {
   rows: SurveyRow[]
   state: SurveyState
   generatedAt: string
   /** Kers' read of the results (the page reads the daily cache). */
   briefing: BriefingView
+  /** A viewer: no open/close switch, no CSV or image exports. */
+  readOnly?: boolean
 }) {
   const [role, setRole] = useState<Role | 'all'>('all')
   const [names, setNames] = useState(true)
@@ -79,27 +82,27 @@ export function SurveyDashboard({
                 </a>
               </span>
             </p>
-            <SurveySwitch state={state} />
+            {!readOnly && <SurveySwitch state={state} />}
           </div>
           {rows.length > 0 && (
             <div className="print:hidden flex flex-wrap items-center gap-2">
-              <a href={imageHref} download className={EXPORT_BTN}>
+              {!readOnly && <a href={imageHref} download className={EXPORT_BTN}>
                 <ImageIcon className="w-4 h-4" aria-hidden />
                 Image
-              </a>
+              </a>}
               <Button variant="secondary" icon={FilePdf} onClick={savePdf}>
                 Save as PDF
               </Button>
-              <a href="/api/admin/survey" className={EXPORT_BTN}>
+              {!readOnly && <a href="/api/admin/survey" className={EXPORT_BTN}>
                 <DownloadSimple className="w-4 h-4" aria-hidden />
                 CSV
-              </a>
+              </a>}
             </div>
           )}
         </div>
       </header>
 
-      <KersBriefing scope="survey" initial={briefing} className="mb-10 break-inside-avoid" />
+      <KersBriefing scope="survey" initial={briefing} readOnly={readOnly} className="mb-10 break-inside-avoid" />
 
       {rows.length === 0 ? (
         <EmptyState

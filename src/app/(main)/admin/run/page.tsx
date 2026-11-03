@@ -13,6 +13,7 @@ import { Toolbox } from '@/components/admin/run/Toolbox'
 import { AdminControls } from '@/components/admin/AdminControls'
 import { CycleListCards } from '@/components/admin/CycleListCards'
 import { ByteGenerator } from '@/components/admin/ByteGenerator'
+import { BriefBackfill } from '@/components/admin/BriefBackfill'
 import { SystemTopicsPanel } from '@/components/admin/SystemTopicsPanel'
 import { ThemePanel } from '@/components/admin/ThemePanel'
 import { AnnouncePanel } from '@/components/admin/AnnouncePanel'
@@ -79,7 +80,7 @@ export default async function RunPage() {
           { id: 'theme', title: 'Theme', hint: current?.theme ? 'This month’s theme' : 'No theme this month', body: <ThemePanel key={current?.id} cycle={current} /> },
           { id: 'announce', title: 'Announce', hint: 'Slack and push, to the whole guild', body: <AnnouncePanel /> },
           { id: 'suggest', title: 'Suggested topics', hint: 'Kers picks a few from the news', body: <SystemTopicsPanel /> },
-          { id: 'bytes', title: 'Bytes', hint: 'Make a digest now', body: <ByteGenerator /> },
+          { id: 'bytes', title: 'Bytes', hint: 'Make a digest now, or rewrite older bytes as briefs', body: <div className="space-y-5"><BriefBackfill /><ByteGenerator /></div> },
           {
             id: 'months',
             title: 'Months',

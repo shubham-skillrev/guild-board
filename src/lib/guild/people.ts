@@ -40,7 +40,7 @@ async function all<T>(build: (from: number, to: number) => PromiseLike<{ data: T
   return out
 }
 
-export async function getPeople(): Promise<{ people: Person[]; teams: { id: string; name: string; leadId: string | null }[] }> {
+export async function getPeople(): Promise<{ people: Person[] }> {
   const admin = createAdminClient()
   const now = Date.now()
   const since = new Date(now - WINDOW_DAYS * DAY).toISOString()
@@ -48,7 +48,6 @@ export async function getPeople(): Promise<{ people: Person[]; teams: { id: stri
 
   const [
     { data: users },
-    { data: teams },
     visits,
     topics,
     comments,
@@ -60,8 +59,7 @@ export async function getPeople(): Promise<{ people: Person[]; teams: { id: stri
     { data: survey },
     { data: nudges },
   ] = await Promise.all([
-    admin.from('users').select('id, username, real_name, email, created_at, team_id, nudges_off, role').eq('is_system', false),
-    admin.from('teams').select('id, name, lead_id').order('name'),
+    admin.from('users').select('id, username, real_name, email, created_at, nudges_off, role').eq('is_system', false),
     visitsSince(istDay(new Date(now - 90 * DAY))),
     all<{ user_id: string; is_anonymous: boolean }>((f, t) => admin.from('topics').select('user_id, is_anonymous').eq('is_deleted', false).gte('created_at', since).range(f, t)),
     all<{ user_id: string; is_anonymous: boolean }>((f, t) => admin.from('comments').select('user_id, is_anonymous').eq('is_deleted', false).gte('created_at', since).range(f, t)),
@@ -95,7 +93,6 @@ export async function getPeople(): Promise<{ people: Person[]; teams: { id: stri
   const lastNudge = new Map<string, string>()
   for (const n of nudges ?? []) if (!lastNudge.has(n.email)) lastNudge.set(n.email, n.sent_at)
   const surveyBy = new Map((survey ?? []).map(s => [s.email, s]))
-  const teamName = new Map((teams ?? []).map(t => [t.id, t.name]))
   const nudgeOpen = (email: string) => {
     const last = lastNudge.get(email)
     return !last || now - new Date(last).getTime() > NUDGE_GAP_DAYS * DAY
@@ -125,8 +122,7 @@ export async function getPeople(): Promise<{ people: Person[]; teams: { id: stri
       username: u.username,
       email,
       isAdmin: u.role === 'admin',
-      teamId: u.team_id ?? null,
-      teamName: u.team_id ? teamName.get(u.team_id) ?? null : null,
+      isViewer: u.role === 'viewer',
       joined: u.created_at,
       level: levelOf(score),
       lastSeen: lastDay,
@@ -156,8 +152,7 @@ export async function getPeople(): Promise<{ people: Person[]; teams: { id: stri
       username: null,
       email: s.email,
       isAdmin: false,
-      teamId: null,
-      teamName: null,
+      isViewer: false,
       joined: null,
       level: 'quiet',
       lastSeen: null,
@@ -176,5 +171,5 @@ export async function getPeople(): Promise<{ people: Person[]; teams: { id: stri
     })
   }
 
-  return { people, teams: (teams ?? []).map(t => ({ id: t.id, name: t.name, leadId: t.lead_id })) }
+  return { people }
 }

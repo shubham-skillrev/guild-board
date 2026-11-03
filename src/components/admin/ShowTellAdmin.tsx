@@ -39,7 +39,10 @@ export function ShowTellAdmin({
   demos,
   members,
   suggestions,
+  readOnly = false,
 }: {
+  /** A viewer sees what's booked and queued; no invitations, no passes. */
+  readOnly?: boolean
   meeting: { id: string; label: string } | null
   demos: AdminDemo[]
   members: { id: string; label: string }[]
@@ -95,10 +98,11 @@ export function ShowTellAdmin({
   const spotlight = thisMeeting.find(d => d.kind === 'spotlight')
   const demo = thisMeeting.find(d => d.kind === 'demo')
   const groups: { title: string; rows: AdminDemo[] }[] = [
-    { title: 'Waiting for an answer', rows: demos.filter(d => d.status === 'invited') },
+    // Who's been invited and who passed is for admins only.
+    ...(readOnly ? [] : [{ title: 'Waiting for an answer', rows: demos.filter(d => d.status === 'invited') }]),
     { title: 'Offers in the queue', rows: demos.filter(d => d.status === 'proposed') },
     { title: 'Booked', rows: demos.filter(d => d.status === 'confirmed') },
-    { title: 'Passed recently', rows: demos.filter(d => d.status === 'passed').slice(0, 5) },
+    ...(readOnly ? [] : [{ title: 'Passed recently', rows: demos.filter(d => d.status === 'passed').slice(0, 5) }]),
   ]
 
   return (
@@ -122,7 +126,7 @@ export function ShowTellAdmin({
         ))}
       </ul>
 
-      <div className="space-y-3 rounded-(--radius-card) border border-border bg-paper/60 p-4">
+      {!readOnly && <div className="space-y-3 rounded-(--radius-card) border border-border bg-paper/60 p-4">
         <p className="text-footnote font-medium text-ink">Invite someone to the Spotlight</p>
         <div>
           <Label htmlFor="st-who">Member</Label>
@@ -139,9 +143,9 @@ export function ShowTellAdmin({
           {busy === 'invite' ? 'Sending…' : 'Send invitation'}
         </Button>
         <p className="text-meta text-ink-muted">They get a push (if notifications are on) and a card on their board. Two passes a year, no pressure.</p>
-      </div>
+      </div>}
 
-      {suggestions.length > 0 && (
+      {!readOnly && suggestions.length > 0 && (
         <div>
           <p className="mb-2 text-footnote font-medium text-ink">From the survey</p>
           <ul className="divide-y divide-border border-y border-border">
@@ -180,7 +184,7 @@ export function ShowTellAdmin({
                 {(d.title || d.blurb || d.note) && (
                   <p className="text-footnote leading-snug text-ink-soft">{d.title || d.note}{d.blurb ? ` · ${d.blurb}` : ''}</p>
                 )}
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {!readOnly && <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {d.status === 'proposed' && meeting && (
                     <Button size="sm" variant="secondary" disabled={!!busy} onClick={() => call(d.id, { action: 'confirm', id: d.id, cycle_id: meeting.id }, `Booked for ${meeting.label}`)}>
                       Book for {meeting.label}
@@ -197,7 +201,7 @@ export function ShowTellAdmin({
                   {d.status !== 'passed' && (
                     <Button size="sm" variant="ghost" disabled={!!busy} onClick={() => call(d.id, { action: 'cancel', id: d.id }, 'Cancelled')}>Cancel</Button>
                   )}
-                </div>
+                </div>}
               </li>
             ))}
           </ul>

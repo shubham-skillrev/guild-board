@@ -22,13 +22,14 @@ function channelOf(p: Person): string {
 export function NudgePanel({
   picked,
   segment,
-  teams,
+  readOnly = false,
   onClear,
   onRemove,
 }: {
   picked: Person[]
   segment: string
-  teams: { id: string; name: string }[]
+  /** A viewer: sees who people are, can't nudge or change anyone. */
+  readOnly?: boolean
   onClear: () => void
   onRemove: (key: string) => void
 }) {
@@ -83,20 +84,25 @@ export function NudgePanel({
     }
   }
 
-  const assign = async (p: Person, teamId: string) => {
-    const res = await fetch('/api/admin/teams', {
-      method: 'POST',
+  const setViewer = async (p: Person, viewer: boolean) => {
+    const res = await fetch('/api/admin/roles', {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'assign', user_id: p.userId, team_id: teamId || null }),
+      body: JSON.stringify({ user_id: p.userId, viewer }),
     }).catch(() => null)
-    if (res?.ok) router.refresh()
-    else toast('Could not move them', 'error')
+    const data = await res?.json().catch(() => ({}))
+    if (res?.ok) {
+      toast(viewer ? `${p.name} can now see the analytics` : `${p.name} no longer sees the analytics`, 'success')
+      router.refresh()
+    } else toast(data?.error ?? 'Could not change that', 'error')
   }
 
   if (!picked.length && !sentCopies.length) {
     return (
       <div className="rounded-(--radius-card) border border-dashed border-border-strong p-5 text-footnote text-ink-muted">
-        Pick a window (or a few, or a whole group with the chips above) to see who they are and send a note.
+        {readOnly
+          ? 'Pick someone in the circle to see who they are.'
+          : 'Pick someone (or a few, or a whole group with the chips above) to see who they are and send a note.'}
       </div>
     )
   }
@@ -139,19 +145,21 @@ export function NudgePanel({
             {one.survey?.demoIdea && (<><dt className="text-ink-muted">Could show</dt><dd className="text-ink">{one.survey.demoIdea}</dd></>)}
             {one.survey?.learnNext && (<><dt className="text-ink-muted">Wants to learn</dt><dd className="text-ink">{one.survey.learnNext}</dd></>)}
           </dl>
-          {one.member && one.userId && (
-            <label className="mt-3 flex items-center gap-2 text-footnote text-ink-muted">
-              Team
-              <select
-                value={one.teamId ?? ''}
-                onChange={e => assign(one, e.target.value)}
-                className="h-8 flex-1 rounded-(--radius-control) border border-border bg-paper px-2 text-footnote text-ink"
-              >
-                <option value="">No team</option>
-                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
+          {!readOnly && one.member && one.userId && !one.isAdmin && (
+            <label className="mt-3 flex items-start gap-3 border-t border-border pt-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={one.isViewer}
+                onChange={e => setViewer(one, e.target.checked)}
+                className="mt-0.5 size-4 accent-ink"
+              />
+              <span className="min-w-0">
+                <span className="block text-footnote text-ink">Can see the analytics</span>
+                <span className="block text-meta text-ink-muted">Pulse, People, Topics and Survey, read-only. No Run tab, no nudges, never Kers&apos; draw.</span>
+              </span>
             </label>
           )}
+          {one.isAdmin && <p className="mt-3 border-t border-border pt-3 text-meta text-ink-muted">Admin: sees and runs everything.</p>}
           <p className="mt-2 text-meta text-ink-muted">* Under their own name only.</p>
         </div>
       )}
@@ -165,13 +173,13 @@ export function NudgePanel({
         </div>
       )}
 
-      {blocked.length > 0 && (
+      {!readOnly && blocked.length > 0 && (
         <p className="text-meta text-ink-muted">
           Leaving out {blocked.map(p => p.name).join(', ')}: {blocked.every(p => p.nudgesOff) ? 'they turned nudges off' : 'nudges off, or heard from the guild in the last 14 days'}.
         </p>
       )}
 
-      {reachable.length > 0 && (
+      {!readOnly && reachable.length > 0 && (
         <div className="space-y-3">
           {!reachable.some(p => p.key in drafts) ? (
             <Button variant="tinted" icon={Sparkle} className="w-full" disabled={busy === 'draft'} onClick={draft}>

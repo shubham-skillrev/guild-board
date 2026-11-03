@@ -67,7 +67,7 @@ export default async function JoinPage({ searchParams }: Props) {
               {snapshot.members} people at SkillRev are already in. Joining takes one tap with your SkillRev Google account.
             </p>
             <div className="mt-7 space-y-3">
-              <GoogleSignIn label="Join with Google" />
+              <GoogleSignIn label="Join with Google" intent="join" />
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-footnote">
                 <Link href="/survey" className="text-ink underline decoration-border-strong underline-offset-2 hover:decoration-ink">Answer the 2-minute survey first</Link>
                 <Link href="/" className="text-ink-muted hover:text-ink">Just look around</Link>

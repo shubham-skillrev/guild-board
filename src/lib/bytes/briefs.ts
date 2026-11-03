@@ -59,3 +59,9 @@ export async function convertOldBytes(limit = 12): Promise<{ converted: number; 
   }
   return { converted, pending: data.length === limit || converted < data.length }
 }
+
+/** How many bytes still need turning into briefs. */
+export async function briefsLeft(): Promise<number> {
+  const { count, error } = await createAdminClient().from('bytes').select('id', { count: 'exact', head: true }).is('brief_at', null)
+  return error ? 0 : count ?? 0
+}

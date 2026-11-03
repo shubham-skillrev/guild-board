@@ -557,7 +557,7 @@ function ThankYou({ name, viewer, snapshot, onEdit }: { name: string; viewer: Su
         <GuildWelcome snapshot={snapshot} />
       </div>
       <div className="mt-8 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
-        <GoogleSignIn label="Join the guild with Google" />
+        <GoogleSignIn label="Join the guild with Google" intent="survey" />
         <Link href="/" className="text-center text-footnote text-ink-muted hover:text-ink sm:px-4">Look around first</Link>
       </div>
       <p className="mt-3 text-meta text-ink-muted">

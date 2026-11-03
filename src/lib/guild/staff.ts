@@ -5,24 +5,20 @@ import { createAdminClient } from '@/lib/supabase/admin'
 export interface Staff {
   userId: string
   isAdmin: boolean
-  /** The team this person leads, if any (migration 040). Leads see their
-   *  team's totals on /admin and nothing else there. */
-  leadTeam: { id: string; name: string } | null
+  /** A viewer (migration 043) sees the control room's analytics, read-only:
+   *  no Run tab, no nudges, no Kers' draw, no edits. */
+  readOnly: boolean
 }
 
-/** Who is asking, if they run the guild or lead a team. Null for everyone else. */
+/** Who is asking, if they may see the control room. Null for everyone else. */
 export async function getStaff(): Promise<Staff | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
-  const admin = createAdminClient()
-  const [{ data: me }, { data: team }] = await Promise.all([
-    admin.from('users').select('role').eq('id', user.id).maybeSingle(),
-    admin.from('teams').select('id, name').eq('lead_id', user.id).limit(1).maybeSingle(),
-  ])
-  const isAdmin = me?.role === 'admin'
-  if (!isAdmin && !team) return null
-  return { userId: user.id, isAdmin, leadTeam: team ?? null }
+  const { data: me } = await createAdminClient().from('users').select('role').eq('id', user.id).maybeSingle()
+  if (me?.role === 'admin') return { userId: user.id, isAdmin: true, readOnly: false }
+  if (me?.role === 'viewer') return { userId: user.id, isAdmin: false, readOnly: true }
+  return null
 }
 
 /** The signed-in admin's id, or null. */

@@ -71,13 +71,21 @@ export async function GET(request: Request) {
     .single()
 
   if (!existingUser) {
-    // First login - insert user row; empty username triggers setup modal
-    const { error: insertError } = await admin.from('users').insert({
+    // First login - insert user row; empty username triggers setup modal.
+    // Where they came from goes with it (migration 043), for the sign-up
+    // analytics; before that migration the column is missing, so retry
+    // without it rather than fail the sign-up.
+    const row = {
       id: data.user.id,
       email: data.user.email ?? '',
       real_name: data.user.user_metadata?.full_name ?? '',
       username: `user_${data.user.id.slice(0, 8)}`, // temp username, user will update
-    })
+    }
+    const signup_source = survey ? 'survey' : intent === 'join' ? 'join' : 'direct'
+    let { error: insertError } = await admin.from('users').insert({ ...row, signup_source })
+    if (insertError && (insertError.code === 'PGRST204' || insertError.code === '42703')) {
+      ;({ error: insertError } = await admin.from('users').insert(row))
+    }
     if (insertError) {
       console.error('Insert Error details:', insertError)
       return redirect(`${appOrigin}/login?error=user_creation_failed`)

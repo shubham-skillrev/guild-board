@@ -51,7 +51,6 @@ export function PeopleTable({
           <tr className="border-b border-border text-left text-ink-muted">
             <th scope="col" className="w-8 px-3 py-2"><span className="sr-only">Select</span></th>
             {head('name', 'Name')}
-            <th scope="col" className="px-3 py-2 font-medium">Team</th>
             {head('level', 'Level')}
             {head('lastSeen', 'Last here')}
             {head('daysActive30', 'Days (30d)', 'text-right')}
@@ -73,7 +72,6 @@ export function PeopleTable({
                 <span className="text-ink">{p.name}</span>
                 {p.username && <span className="block text-meta text-ink-muted">@{p.username}</span>}
               </td>
-              <td className="px-3 py-2 text-ink-soft">{p.teamName ?? '—'}</td>
               <td className="px-3 py-2 text-ink-soft">{p.member ? levelLabel(p.level) : 'No account'}</td>
               <td className="px-3 py-2 text-ink-soft tabular">{p.lastSeen ?? '—'}</td>
               <td className="px-3 py-2 text-right tabular">{p.daysActive30}</td>

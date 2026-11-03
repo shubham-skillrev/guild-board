@@ -8,10 +8,13 @@ export function Trend({
   title,
   points,
   unit,
+  span = 'last 8 weeks',
 }: {
   title: string
   points: { label: string; value: number }[]
   unit: string
+  /** What the x-axis covers, said in the corner. */
+  span?: string
 }) {
   const W = 320
   const H = 72
@@ -26,14 +29,14 @@ export function Trend({
     <figure className="elev-1 rounded-(--radius-card) p-4">
       <figcaption className="flex items-baseline justify-between gap-3">
         <span className="text-footnote font-medium text-ink">{title}</span>
-        <span className="text-meta text-ink-muted">last 8 weeks</span>
+        <span className="text-meta text-ink-muted">{span}</span>
       </figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} className="mt-3 w-full h-[72px] overflow-visible" role="img" aria-label={`${title}: ${points.map(p => `${p.label} ${p.value}`).join(', ')}`}>
         <line x1={PAD} x2={W - 40} y1={H - PAD} y2={H - PAD} className="stroke-border" strokeWidth={1} />
         <path d={path} fill="none" className="stroke-ink" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         {points.map((p, i) => (
           <g key={p.label}>
-            <title>{`Week of ${p.label}: ${p.value} ${unit}`}</title>
+            <title>{`${p.label}: ${p.value} ${unit}`}</title>
             <rect x={x(i) - 12} y={0} width={24} height={H} fill="transparent" />
           </g>
         ))}

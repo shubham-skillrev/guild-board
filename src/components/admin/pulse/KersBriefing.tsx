@@ -17,7 +17,7 @@ export interface BriefingView {
  * Kers at his desk, reading the numbers out. The bubble is his; the numbers
  * in it were worked out by code before he ever saw them.
  */
-export function KersBriefing({ scope, initial, className }: { scope: string; initial: BriefingView; className?: string }) {
+export function KersBriefing({ scope, initial, className, readOnly = false }: { scope: string; initial: BriefingView; className?: string; readOnly?: boolean }) {
   const toast = useToast()
   const [b, setB] = useState(initial)
   const [busy, setBusy] = useState(false)
@@ -51,7 +51,7 @@ export function KersBriefing({ scope, initial, className }: { scope: string; ini
           <p className={cn('text-[17px] leading-relaxed text-ink transition-opacity', busy && 'opacity-50')}>{b.body}</p>
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-meta text-ink-muted">
             <span>{b.byAi ? 'Kers, from today’s numbers' : 'Kers’ quick read'}</span>
-            {b.refreshesLeft > 0 && (
+            {b.refreshesLeft > 0 && !readOnly && (
               <button type="button" onClick={again} disabled={busy} className="print:hidden press-sm inline-flex items-center gap-1 hover:text-ink disabled:opacity-50">
                 <Icon icon={ArrowClockwise} size="sm" className={cn(busy && 'animate-spin')} />
                 {busy ? 'Thinking…' : `Ask again (${b.refreshesLeft} left today)`}

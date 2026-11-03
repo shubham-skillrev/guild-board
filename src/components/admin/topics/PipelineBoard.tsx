@@ -59,7 +59,7 @@ async function send(url: string, method: string, body: unknown) {
  * way on a phone or a keyboard. Each move is one request, applied at once
  * and undone if it fails.
  */
-export function PipelineBoard({ topics: initial }: { topics: PipelineTopic[] }) {
+export function PipelineBoard({ topics: initial, readOnly = false }: { topics: PipelineTopic[]; readOnly?: boolean }) {
   const toast = useToast()
   const [topics, setTopics] = useState(initial)
   const [dragging, setDragging] = useState<string | null>(null)
@@ -120,7 +120,7 @@ export function PipelineBoard({ topics: initial }: { topics: PipelineTopic[] }) 
             <section
               key={col.key}
               aria-labelledby={`col-${col.key}`}
-              onDragOver={e => { if (dragging) { e.preventDefault(); setOver(col.key) } }}
+              onDragOver={e => { if (dragging && !readOnly) { e.preventDefault(); setOver(col.key) } }}
               onDragLeave={() => setOver(o => (o === col.key ? null : o))}
               onDrop={e => {
                 e.preventDefault()
@@ -145,11 +145,12 @@ export function PipelineBoard({ topics: initial }: { topics: PipelineTopic[] }) 
                 {cards.map(t => (
                   <li
                     key={t.id}
-                    draggable
+                    draggable={!readOnly}
                     onDragStart={e => { setDragging(t.id); e.dataTransfer.effectAllowed = 'move' }}
                     onDragEnd={() => { setDragging(null); setOver(null) }}
                     className={cn(
-                      'cursor-grab rounded-[12px] border border-border bg-paper p-3 shadow-[0_2px_8px_var(--shadow-tint)] active:cursor-grabbing',
+                      'rounded-[12px] border border-border bg-paper p-3 shadow-[0_2px_8px_var(--shadow-tint)]',
+                      !readOnly && 'cursor-grab active:cursor-grabbing',
                       dragging === t.id && 'opacity-50',
                     )}
                   >
@@ -162,14 +163,17 @@ export function PipelineBoard({ topics: initial }: { topics: PipelineTopic[] }) 
                       <span className="inline-flex items-center gap-1" title="Votes"><Icon icon={ArrowFatUp} size="sm" />{t.votes}</span>
                       <span className="inline-flex items-center gap-1" title="Comments"><Icon icon={ChatCircle} size="sm" />{t.comments}</span>
                       {t.signals > 0 && <span title="Signals">+{t.signals}</span>}
-                      <button type="button" onClick={() => hide(t)} aria-label={`Hide ${t.title}`} className="ml-auto rounded p-0.5 text-ink-muted hover:text-vermillion">
+                      {!readOnly && <button type="button" onClick={() => hide(t)} aria-label={`Hide ${t.title}`} className="ml-auto rounded p-0.5 text-ink-muted hover:text-vermillion">
                         <Icon icon={EyeSlash} size="sm" />
-                      </button>
+                      </button>}
                     </div>
 
-                    {col.key === 'discussed' && <OutcomeEditor topic={t} onSave={setOutcome} />}
+                    {col.key === 'discussed' && !readOnly && <OutcomeEditor topic={t} onSave={setOutcome} />}
+                    {col.key === 'discussed' && readOnly && t.outcome && (
+                      <p className="mt-2 text-meta text-ink-soft">{OUTCOME_LABELS[t.outcome]}{t.outcomeNote ? `: ${t.outcomeNote}` : ''}</p>
+                    )}
 
-                    <label className="mt-2 flex items-center gap-2 border-t border-border pt-2 text-meta text-ink-muted">
+                    {!readOnly && <label className="mt-2 flex items-center gap-2 border-t border-border pt-2 text-meta text-ink-muted">
                       Move to
                       <select
                         value={col.key}
@@ -178,7 +182,7 @@ export function PipelineBoard({ topics: initial }: { topics: PipelineTopic[] }) 
                       >
                         {COLUMNS.map(c => <option key={c.key} value={c.key}>{c.short}</option>)}
                       </select>
-                    </label>
+                    </label>}
                   </li>
                 ))}
               </ul>

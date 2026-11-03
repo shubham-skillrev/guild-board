@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { getAdminId } from '@/lib/guild/staff'
+import { getStaff } from '@/lib/guild/staff'
 import { serializeTopic } from '@/lib/utils/anonymity'
 import { openCycle } from '@/lib/guild/demos'
 import { getSurveyRows } from '@/lib/surveyResults'
@@ -21,8 +21,9 @@ export const metadata: Metadata = { title: 'Topics & Show & Tell' }
  * ghost handle here like everywhere else.
  */
 export default async function TopicsPage() {
-  const adminId = await getAdminId()
-  if (!adminId) notFound()
+  const staff = await getStaff()
+  if (!staff) notFound()
+  const adminId = staff.userId
   const admin = createAdminClient()
 
   const { data: cyclesData } = await admin.from('cycles').select('id, label, status').order('year', { ascending: false }).order('month', { ascending: false })
@@ -45,7 +46,8 @@ export default async function TopicsPage() {
     topicsBriefing().then(b => readBriefing('topics', b.fallback)),
   ])
 
-  const { data: drawRows } = meeting
+  // Kers' draw is for admins' eyes only: viewers never see who was drawn or passed.
+  const { data: drawRows } = meeting && !staff.readOnly
     ? await admin
         .from('draws')
         .select('id, kind, round, status, review_until, draw_picks(id, position, tickets, state, users!draw_picks_user_id_fkey(username))')
@@ -104,20 +106,21 @@ export default async function TopicsPage() {
 
   return (
     <div className="space-y-12">
-      <KersBriefing scope="topics" initial={briefing} />
+      <KersBriefing scope="topics" initial={briefing} readOnly={staff.readOnly} />
 
       <section aria-labelledby="topics-pipeline">
         <SectionHeader id="topics-pipeline" title={month ? `${month.label} topics` : 'Topics'} hint="Drag a card to move it, or use “Move to”. Ranked by votes in each column." />
-        <PipelineBoard topics={pipeline} />
+        <PipelineBoard topics={pipeline} readOnly={staff.readOnly} />
       </section>
 
-      <DrawPanel
+      {!staff.readOnly && <DrawPanel
         draws={draws}
         canDraw={!!meeting}
         members={(members ?? []).map(m => ({ id: m.id, label: m.real_name ? `${m.real_name} (@${m.username})` : `@${m.username}` }))}
-      />
+      />}
 
       <ShowTellAdmin
+        readOnly={staff.readOnly}
         meeting={meeting}
         demos={rows}
         members={(members ?? []).map(m => ({ id: m.id, label: m.real_name ? `${m.real_name} (@${m.username})` : `@${m.username}` }))}

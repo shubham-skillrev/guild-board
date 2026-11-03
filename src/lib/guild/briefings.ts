@@ -8,7 +8,7 @@ import { getSurveyRows } from '@/lib/surveyResults'
 import { runBriefing, topicsBriefing } from '@/lib/guild/runBriefing'
 
 export interface BriefingInputs {
-  /** Cache key prefix: 'pulse', 'team:<id>', 'survey', 'people'. */
+  /** Cache key prefix: 'pulse', 'people', 'survey', 'run', 'topics'. */
   scope: string
   facts: Facts
   actions: string[]
@@ -19,12 +19,12 @@ export interface BriefingInputs {
  * What Kers is told for each briefing, in one place, so the page, the
  * "ask again" button and the daily cron all hand him the same facts.
  */
-export async function briefingInputs(scope: string, teamId?: string): Promise<BriefingInputs | null> {
-  if (scope === 'pulse' || (scope === 'team' && teamId)) {
-    const facts = await getPulseFacts(scope === 'team' ? teamId : undefined)
-    const actions = scope === 'team' ? [] : pulseActions(facts)
+export async function briefingInputs(scope: string): Promise<BriefingInputs | null> {
+  if (scope === 'pulse') {
+    const facts = await getPulseFacts()
+    const actions = pulseActions(facts)
     return {
-      scope: scope === 'team' ? `team:${teamId}` : 'pulse',
+      scope: 'pulse',
       facts: kersFacts(facts),
       actions: actions.map(a => a.text),
       fallback: pulseFallback(facts, actions),

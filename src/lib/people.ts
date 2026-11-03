@@ -26,8 +26,8 @@ export interface Person {
   username: string | null
   email: string
   isAdmin: boolean
-  teamId: string | null
-  teamName: string | null
+  /** Can see the control room read-only (migration 043). */
+  isViewer: boolean
   joined: string | null
   /** A blend of everything (ghost activity included), never a count. */
   level: ActivityLevel

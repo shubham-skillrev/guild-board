@@ -101,16 +101,16 @@ export async function proxy(request: NextRequest) {
   }
 
   // Admin route - return 404 for non-admins (do NOT redirect - 404 hides existence).
-  // /admin itself is also a team lead's view of their team, so it passes here
-  // and the page checks admin-or-lead itself (with the same 404).
-  if (pathname.startsWith('/admin') && pathname !== '/admin' && user) {
+  // Viewers (migration 043) may see the analytics tabs read-only, never Run.
+  if (pathname.startsWith('/admin') && user) {
     const { data: userData } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single()
 
-    if (userData?.role !== 'admin') {
+    const viewerOk = userData?.role === 'viewer' && !pathname.startsWith('/admin/run')
+    if (userData?.role !== 'admin' && !viewerOk) {
       return new NextResponse(null, { status: 404 })
     }
   }

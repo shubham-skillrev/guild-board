@@ -15,16 +15,19 @@ import { SEGMENTS, inSegment, type Person, type Segment } from '@/lib/people'
  */
 export function PeopleView({
   people,
-  teams,
+  readOnly = false,
   initialSegment,
+  initialPick = null,
 }: {
+  /** Someone to open with already picked (from "Nudge" on a recent joiner). */
+  initialPick?: string | null
   people: Person[]
-  teams: { id: string; name: string }[]
+  readOnly?: boolean
   initialSegment: Segment
 }) {
   const [view, setView] = useState<'hall' | 'table'>('hall')
   const [segment, setSegment] = useState<Segment>(initialSegment)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(initialPick && people.some(p => p.key === initialPick) ? [initialPick] : []))
 
   const shown = useMemo(() => people.filter(p => inSegment(p, segment)), [people, segment])
   const picked = useMemo(() => people.filter(p => selected.has(p.key)), [people, selected])
@@ -73,7 +76,7 @@ export function PeopleView({
           />
         </div>
 
-        {segment !== 'all' && reachableInSegment.length > 0 && (
+        {!readOnly && segment !== 'all' && reachableInSegment.length > 0 && (
           <Button size="sm" variant="secondary" onClick={() => setSelected(new Set(reachableInSegment.slice(0, 25).map(p => p.key)))}>
             Pick {Math.min(25, reachableInSegment.length)} who can be nudged
           </Button>
@@ -88,7 +91,7 @@ export function PeopleView({
         <NudgePanel
           picked={picked}
           segment={segment}
-          teams={teams}
+          readOnly={readOnly}
           onClear={() => setSelected(new Set())}
           onRemove={toggle}
         />

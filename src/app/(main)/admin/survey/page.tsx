@@ -7,7 +7,7 @@
 
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { getAdminId } from '@/lib/guild/staff'
+import { getStaff } from '@/lib/guild/staff'
 import { getSurveyRows, getSurveyState } from '@/lib/surveyResults'
 import { readBriefing } from '@/lib/guild/kers'
 import { surveyBriefing } from '@/lib/guild/surveyBriefing'
@@ -16,8 +16,9 @@ import { SurveyDashboard } from '@/components/admin/SurveyDashboard'
 export const metadata: Metadata = { title: 'Survey results' }
 
 export default async function SurveyResultsPage() {
-  if (!(await getAdminId())) notFound()
+  const staff = await getStaff()
+  if (!staff) notFound()
   const [rows, state] = await Promise.all([getSurveyRows(), getSurveyState()])
   const briefing = await readBriefing('survey', surveyBriefing(rows).fallback)
-  return <SurveyDashboard rows={rows} state={state} briefing={briefing} generatedAt={new Date().toISOString()} />
+  return <SurveyDashboard rows={rows} state={state} briefing={briefing} readOnly={staff.readOnly} generatedAt={new Date().toISOString()} />
 }
