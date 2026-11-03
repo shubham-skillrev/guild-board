@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { fetchCandidates } from '@/lib/bytes/sources'
 import { selectMix } from '@/lib/bytes/domains'
 import { curateCandidates, summarizeCandidates } from '@/lib/bytes/summarize'
+import { resourcesFrom } from '@/lib/bytes/articleHtml'
 import type { Candidate } from '@/lib/bytes/sources'
 
 /**
@@ -247,6 +248,8 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
           relevance: lastCuration.get(c.source_id) ?? null,
           summary: s?.summary ?? null,
           tags: s?.tags ?? null,
+          actions: s?.actions ?? null,
+          resources: resourcesFrom(c.content, c.url),
         }
       }),
     }
@@ -300,19 +303,32 @@ export async function generateDigest(opts: GenerateOptions): Promise<GenerateRes
       source_name: c.source_name,
       url: c.url,
       thumbnail_url: c.thumbnail ?? null,
-      /* Only set for feeds that syndicate in full. NULL is not a failure here,
-         it is the row telling the UI to link out to the publisher instead. */
-      content_html: c.content ?? null,
+      /* The article body is read for the brief and then dropped: GuildBoard
+         has no licence to republish it (migration 039). Its links are kept,
+         verbatim, as resources. */
+      content_html: null,
       reading_minutes: c.readingMinutes ?? null,
       source_points: c.points,
       domain: c.domain,
       summary: s?.summary ?? null,
       tags: s?.tags ?? null,
+      actions: s?.actions.length ? s.actions : null,
+      resources: resourcesFrom(c.content, c.url),
+      brief_at: new Date().toISOString(),
       position: i,
     }
   })
 
-  const { error: bytesErr } = await admin.from('bytes').insert(rows)
+  let { error: bytesErr } = await admin.from('bytes').insert(rows)
+  // Before migration 039 the brief columns don't exist. Publish without them
+  // (and within the old summary cap) rather than lose the digest.
+  if (bytesErr && (bytesErr.code === 'PGRST204' || bytesErr.code === '42703')) {
+    const legacy = rows.map(({ actions: _a, resources: _r, brief_at: _b, ...row }) => ({
+      ...row,
+      summary: row.summary?.slice(0, 400) ?? null,
+    }))
+    ;({ error: bytesErr } = await admin.from('bytes').insert(legacy))
+  }
   if (bytesErr) {
     await admin.from('byte_digests').delete().eq('id', digest.id)
     return { ok: false, reason: 'db_error', message: bytesErr.message }

@@ -1,6 +1,7 @@
 import 'server-only'
 import { aiJson } from '@/lib/ai'
 import type { Candidate } from '@/lib/bytes/sources'
+import { articleText } from '@/lib/bytes/articleHtml'
 
 /**
  * Gemini's two jobs on the Bytes pool: curate it, then summarise the picks.
@@ -22,12 +23,16 @@ import type { Candidate } from '@/lib/bytes/sources'
  * third-party API being reachable.
  */
 
-const SUMMARY_MAX = 400
+const SUMMARY_MAX = 700
+const ACTION_MAX = 160
+const ACTIONS_MAX = 3
 
 export interface Summary {
   source_id: string
   summary: string
   tags: string[]
+  /** "Try this" lines for the guild: plain text, never a link. */
+  actions: string[]
 }
 
 /** Only the fields the model needs. Never the URL. */
@@ -39,6 +44,19 @@ function payloadOf(candidates: Candidate[]) {
     medium: c.source === 'video' ? 'video' : c.source === 'news' ? 'news' : 'article',
     excerpt: c.excerpt?.slice(0, 300) ?? null,
   }))
+}
+
+/** For summaries: the article's own text when the feed carried it, so the
+ *  brief can say what the piece actually says. Read, never shown. */
+function briefPayloadOf(candidates: Candidate[]) {
+  return payloadOf(candidates).map((p, i) => ({ ...p, text: articleText(candidates[i].content) ?? null }))
+}
+
+/** Model-written lines are plain text: any link it slips in is cut out. */
+function cleanAction(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const line = raw.replace(/https?:\/\/\S+|www\.\S+/gi, '').replace(/\s+/g, ' ').trim()
+  return line ? line.slice(0, ACTION_MAX) : null
 }
 
 /* ─── Curate ──────────────────────────────────────────────── */
@@ -116,8 +134,18 @@ const SUMMARY_SCHEMA = {
           summary: {
             type: 'string',
             description:
-              `Two or three plain sentences on what this is and why an engineer might care. ` +
-              `Under ${SUMMARY_MAX} characters. No marketing language, no hype, no restating the title.`,
+              `Three or four plain sentences: what this is, the one idea worth taking from it, and ` +
+              `why it matters to people building software. Under ${SUMMARY_MAX} characters. No ` +
+              `marketing language, no hype, no restating the title.`,
+          },
+          actions: {
+            type: 'array',
+            description:
+              `0 to ${ACTIONS_MAX} short "try this" lines for the guild, each under ${ACTION_MAX} ` +
+              `characters: something to try this week, a small project idea, or a question to bring ` +
+              `to the meeting. Plain text. No links, no URLs, no repository names or tools that are ` +
+              `not in the input. Empty when the item gives nothing to act on.`,
+            items: { type: 'string' },
           },
           tags: {
             type: 'array',
@@ -125,7 +153,7 @@ const SUMMARY_SCHEMA = {
             items: { type: 'string' },
           },
         },
-        required: ['source_id', 'summary', 'tags'],
+        required: ['source_id', 'summary', 'tags', 'actions'],
       },
     },
   },
@@ -135,17 +163,22 @@ const SUMMARY_SCHEMA = {
 const SUMMARY_SYSTEM = [
   'You summarize tech items for a small engineering guild that meets monthly.',
   '',
-  'You are given items that were already fetched from real feeds. For each one,',
-  'write a short, factual summary and a few topic tags.',
+  'The guild is mostly developers, with DevOps, QA, product managers and scrum',
+  'masters too. You are given items that were already fetched from real feeds.',
+  'For each one, write a factual summary, a few topic tags, and up to three',
+  'practical "try this" lines.',
   '',
   'Each item carries a `medium`: article (an engineering blog post), news (tech',
   'reporting) or video (a talk or explainer). Match it: a video is something to',
   'watch, not to read, so never describe a video as an article.',
   '',
-  'Ground every summary in the title and excerpt you are given. If an excerpt is',
-  'missing or thin, say less and describe only what the title supports. Never',
-  'invent version numbers, benchmarks, dates, company names, or outcomes that are',
-  'not present in the input.',
+  'Ground everything in the title, excerpt and text you are given. If they are',
+  'thin, say less and describe only what the title supports. Never invent version',
+  'numbers, benchmarks, dates, company names, repositories, tools or outcomes that',
+  'are not present in the input.',
+  '',
+  'Try-this lines are concrete and small: "Run X against your slowest test suite",',
+  '"Project idea: a CLI that ...", "Ask at the meeting: ...". Never write a link.',
   '',
   'Write for engineers: plain, specific, and skimmable. No hype, no "game-changing",',
   'no restating the headline back.',
@@ -164,7 +197,7 @@ export async function summarizeCandidates(candidates: Candidate[]): Promise<Map<
     label: 'bytes: summaries',
     tier: 'bulk',
     system: SUMMARY_SYSTEM,
-    prompt: `Summarize each of these ${candidates.length} items.\n\n${JSON.stringify(payloadOf(candidates), null, 2)}`,
+    prompt: `Summarize each of these ${candidates.length} items.\n\n${JSON.stringify(briefPayloadOf(candidates), null, 2)}`,
     schema: SUMMARY_SCHEMA,
   })
 
@@ -179,6 +212,9 @@ export async function summarizeCandidates(candidates: Candidate[]): Promise<Map<
       summary: item.summary.trim().slice(0, SUMMARY_MAX),
       tags: Array.isArray(item.tags)
         ? item.tags.filter((t): t is string => typeof t === 'string').map(t => t.toLowerCase()).slice(0, 3)
+        : [],
+      actions: Array.isArray(item.actions)
+        ? item.actions.map(cleanAction).filter((a): a is string => !!a).slice(0, ACTIONS_MAX)
         : [],
     })
   }

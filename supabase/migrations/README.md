@@ -49,6 +49,7 @@ run, or the repo stops describing the database.
 | 036 | `036_focus_presence.sql` | members-only presence on `focus:guild`: an anonymous count of running focus timers (`{ s, since, look }`, no ids) | Yes — additive; until applied /focus counts only you |
 | 037 | `037_survey_responses.sql` | `survey_responses`: answers to the public `/survey` (name, @skillrev.dev email, one row per email per survey run, `verified` when signed in; service role only) | **Ship together with the survey code** — until applied every survey submit fails |
 | 038 | `038_visits_nudges_survey_switch.sql` | `user_visits` (one row per member per day: areas, app, push state; written only via `record_visit()`, kept 180 days then `rollup_user_visits()` folds them into `user_visits_monthly`), `users.nudges_off`, `surveys` (open/close switch + close date; `pulse-2026-11` starts open) | Yes — additive; until applied visits aren't recorded, the survey counts as always open, and the No nudges switch can't save |
+| 039 | `039_byte_briefs.sql` | `bytes.actions` (AI try-this lines, no links), `bytes.resources` (links extracted from the publisher's own feed item), `bytes.brief_at`; summary cap 400 → 700. The article body is no longer stored; the daily cron converts older rows and clears their `content_html` | Yes — until applied new digests publish without try-this and resources (the generator falls back), and older rows aren't converted |
 
 > **028 and its code ship in the same deploy.** Apply 028 right after the code
 > goes live; never before. The old code reads `topics.user_id` and

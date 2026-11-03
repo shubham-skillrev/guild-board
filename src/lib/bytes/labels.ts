@@ -37,16 +37,3 @@ export function compactCount(n: number): string {
   if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1).replace(/\.0$/, '')}K`
   return String(n)
 }
-
-/**
- * Does this row open in the app, or at the publisher?
- *
- * The answer is not a property of the source but of the individual item: two
- * Cloudflare posts can differ if one feed entry was truncated. `reading_minutes`
- * is written exactly when a body was, so it doubles as the flag - and it is a
- * smallint, which means the digest list can ask this question without pulling
- * a quarter of a megabyte of article bodies down to render ten link rows.
- */
-export function hasReaderPage(byte: { reading_minutes?: number | null }): boolean {
-  return byte.reading_minutes != null
-}

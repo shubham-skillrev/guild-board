@@ -14,6 +14,7 @@
 
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { convertOldBytes } from '@/lib/bytes/briefs'
 import { rejectIfNotCron, firstAdminId } from '@/lib/bytes/cron'
 import { generateDigest } from '@/lib/bytes/generate'
 import { closeCycle, createCycle } from '@/lib/cycles/lifecycle'
@@ -167,6 +168,18 @@ export async function GET(request: Request) {
     }
   } catch (err) {
     steps.push({ step: 'bytes', done: false, detail: errorText(err) })
+  }
+
+  // ─── Bytes: older rows become briefs (migration 039) ───
+  // A dozen a day: summary and try-this from one AI call, links pulled out,
+  // stored article deleted. Quiet once there is nothing left to convert.
+  if (!dry) {
+    try {
+      const { converted, pending } = await convertOldBytes()
+      if (converted) steps.push({ step: 'briefs', done: true, detail: `${converted} older bytes turned into briefs${pending ? ', more tomorrow' : ''}` })
+    } catch (err) {
+      steps.push({ step: 'briefs', done: false, detail: errorText(err) })
+    }
   }
 
   // ─── Visits: days older than six months fold into monthly totals ───

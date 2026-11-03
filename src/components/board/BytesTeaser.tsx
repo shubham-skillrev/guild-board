@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { SectionHeader } from '@/components/ui/Section'
 import { useUnseenDigest } from '@/lib/bytes/useUnseenDigest'
-import { mediumLabel, hasReaderPage } from '@/lib/bytes/labels'
+import { mediumLabel } from '@/lib/bytes/labels'
 
 interface TeaserByte {
   id: string
@@ -74,9 +74,7 @@ export function BytesTeaser() {
                 straight to the publisher when it did not. Neither drops you at
                 the top of /bytes to find the row you just tapped. */}
             <Link
-              href={hasReaderPage(b) ? `/bytes/${b.id}` : b.url}
-              target={hasReaderPage(b) ? undefined : '_blank'}
-              rel={hasReaderPage(b) ? undefined : 'noopener noreferrer'}
+              href={`/bytes/${b.id}`}
               className="block px-4 py-3 hover:bg-kinu/30 transition-colors"
             >
               <div className="flex items-start gap-2">

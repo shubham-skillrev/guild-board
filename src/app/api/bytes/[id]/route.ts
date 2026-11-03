@@ -1,14 +1,12 @@
 // ROUTE: GET /api/bytes/[id]
 // AUTH: authenticated
-// PURPOSE: One byte and its article body, for the in-app reader. Only rows
-//          whose feed syndicated the whole piece have a body; the rest are
-//          link-outs and never reach this route.
+// PURPOSE: One byte as a brief: summary, try-this lines, resources and the
+//          link to the original. Never the article itself (migration 039).
 // DB TABLES: bytes, byte_interests
 // RLS: server client (published-only policies do the filtering)
 
 import { getViewer } from '@/lib/supabase/viewer'
 import { NextResponse } from 'next/server'
-import { sanitizeArticleHtml } from '@/lib/bytes/articleHtml'
 
 export async function GET(
   request: Request,
@@ -20,7 +18,9 @@ export async function GET(
 
   const { data: byte } = await supabase
     .from('bytes')
-    .select('id, digest_id, source, source_id, source_title, source_name, url, thumbnail_url, source_points, summary, tags, editor_note, domain, interest_count, seeded_topic_id, content_html, reading_minutes')
+    // Every column, so the page works on either side of migration 039 (the
+    // brief columns appear with it). The article body is never sent.
+    .select('*')
     .eq('id', id)
     .maybeSingle()
 
@@ -46,12 +46,12 @@ export async function GET(
     .eq('byte_id', id)
     .maybeSingle()
 
+  const { content_html: _body, brief_at: _briefAt, source_id: _sourceId, ...brief } = byte
   return NextResponse.json({
     byte: {
-      ...byte,
-      /* Filtered here rather than at write time, so closing a hole in the
-         allowlist fixes every row already in the table. See articleHtml.ts. */
-      content_html: byte.content_html ? sanitizeArticleHtml(byte.content_html) : null,
+      ...brief,
+      actions: Array.isArray(byte.actions) ? byte.actions : [],
+      resources: Array.isArray(byte.resources) ? byte.resources : [],
       user_interested: !!mine,
     },
   })

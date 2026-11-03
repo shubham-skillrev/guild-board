@@ -2,24 +2,28 @@
 
 import { use, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ArrowSquareOut, Sparkle } from '@phosphor-icons/react/dist/ssr'
+import { ArrowLeft, ArrowSquareOut, Lightning, Sparkle } from '@phosphor-icons/react/dist/ssr'
 import { Icon } from '@/components/ui/Icon'
 import { InterestButton } from '@/components/bytes/InterestButton'
 import { DOMAIN_LABELS, type Domain } from '@/lib/bytes/domains'
 import { mediumLabel, compactCount, POINT_LABELS } from '@/lib/bytes/labels'
 
 /**
- * Read a byte here, when the publisher syndicated it.
+ * A byte as a brief: what it is, what to try, where to go next.
  *
- * Roughly half the feeds ship the whole article in the feed element, and those
- * rows render below. The rest are link-outs and never link here in the first
- * place - a truncated feed is the publisher asking readers to come to them,
- * and the answer to that is to send them, not to go and fetch the text anyway.
+ * The article itself is never shown here. GuildBoard has no licence to
+ * republish anyone's writing, and a feed's markup rarely looks right inside
+ * the app anyway, so the page is a summary, a few "try this" lines, the links
+ * the publisher put in their own piece, and a clear way to the original.
  *
- * Landing here by URL on a link-out row is still handled: the page falls back
- * to the summary and a button to the original, which is the honest version of
- * what it knows.
+ * Everything machine-written is labelled as such. Titles and every link are
+ * the publisher's, verbatim; the model never writes a URL.
  */
+
+interface Resource {
+  title: string
+  url: string
+}
 
 interface ReaderByte {
   id: string
@@ -34,8 +38,9 @@ interface ReaderByte {
   interest_count: number
   seeded_topic_id: string | null
   user_interested?: boolean
-  content_html: string | null
   reading_minutes: number | null
+  actions: string[]
+  resources: Resource[]
 }
 
 export default function ByteReaderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -71,18 +76,6 @@ export default function ByteReaderPage({ params }: { params: Promise<{ id: strin
   const publisher = byte?.source_name?.trim() || (byte ? mediumLabel(byte.source) : '')
   const domain = byte?.domain as Domain | null | undefined
   const pointLabel = byte ? POINT_LABELS[byte.source] : undefined
-
-  const original = byte && (
-    <a
-      href={byte.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="press inline-flex items-center gap-1.5 text-caption text-accent hover:underline"
-    >
-      Read the original on {publisher}
-      <Icon icon={ArrowSquareOut} size="sm" />
-    </a>
-  )
 
   return (
     <div className="px-5 md:px-10 py-8 w-full max-w-2xl mx-auto pb-28 md:pb-10">
@@ -146,60 +139,80 @@ export default function ByteReaderPage({ params }: { params: Promise<{ id: strin
 
           <h1 className="text-title-1 text-label">{byte.source_title}</h1>
 
-          <div className="mt-3">{original}</div>
+          {/* The one action this page is for: the original. */}
+          <a
+            href={byte.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="press mt-5 inline-flex items-center gap-2 h-9 px-4 rounded-full bg-saffron text-parchment text-footnote font-medium hover:bg-saffron/90 transition-colors pointer-coarse:h-11"
+          >
+            {byte.source === 'video' ? 'Watch' : 'Read'} on {publisher}
+            <Icon icon={ArrowSquareOut} size="sm" />
+          </a>
 
-          {/* Labelled, always. A machine-written paragraph sitting in the same
-              type as the article it precedes is the one thing that would make
-              this page untrustworthy. */}
+          {/* Labelled, always: a machine-written paragraph must never pass for
+              the publisher's words. */}
           {byte.summary && (
-            <div className="mt-6 rounded-(--radius-card) border border-border bg-paper/50 p-4">
-              <p className="flex items-center gap-1.5 text-meta text-ink-muted mb-1.5">
+            <section aria-labelledby="byte-summary" className="mt-8">
+              <h2 id="byte-summary" className="flex items-center gap-1.5 text-meta text-ink-muted mb-2">
                 <Icon icon={Sparkle} size="sm" />
-                AI-drafted summary
-              </p>
-              <p className="text-footnote text-ink-soft">{byte.summary}</p>
-            </div>
+                The gist · AI-drafted
+              </h2>
+              <p className="text-body leading-relaxed text-ink">{byte.summary}</p>
+            </section>
           )}
 
           {/* The human voice. This is what makes a digest get read. */}
           {byte.editor_note && (
-            <p className="text-footnote text-ink mt-4 pl-3 border-l-2 border-saffron/40">
+            <p className="text-footnote text-ink mt-5 pl-3 border-l-2 border-saffron/40">
               {byte.editor_note}
             </p>
           )}
 
-          {byte.content_html ? (
-            <>
-              {/* Sanitized server-side on the way out of /api/bytes/[id], with
-                  an allowlist that permits no script, iframe, style or event
-                  handler. Never render this without that pass. */}
-              <div
-                className="prose-guild prose-read mt-8"
-                dangerouslySetInnerHTML={{ __html: byte.content_html }}
-              />
-              <p className="text-meta text-ink-muted mt-8">
-                Published by {publisher} and syndicated in full through their own feed.
-                Copyright remains theirs.
-              </p>
-            </>
-          ) : (
-            /* A link-out row reached by URL. Say what it is and point at the
-               publisher rather than showing an article-shaped empty page. */
-            <div className="mt-8 rounded-(--radius-card) border border-border bg-paper/40 p-5 text-center">
-              <p className="text-footnote text-ink-soft">
-                {publisher} publishes this one on their own site only.
-              </p>
-              <a
-                href={byte.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="press mt-3 inline-flex items-center gap-2 h-(--control-h) px-4 rounded-(--radius-control) border border-saffron/40 bg-saffron/12 text-saffron text-footnote hover:bg-saffron/20 transition-colors"
-              >
-                Read the full article on {publisher}
-                <Icon icon={ArrowSquareOut} size="sm" />
-              </a>
-            </div>
+          {byte.actions.length > 0 && (
+            <section aria-labelledby="byte-actions" className="mt-8 rounded-(--radius-card) border border-border bg-paper/60 p-5">
+              <h2 id="byte-actions" className="flex items-center gap-1.5 text-footnote font-semibold text-ink">
+                <Icon icon={Lightning} size="sm" />
+                Try this
+                <span className="font-normal text-meta text-ink-muted">· AI-suggested</span>
+              </h2>
+              <ol className="mt-3 space-y-2.5">
+                {byte.actions.map((action, i) => (
+                  <li key={i} className="flex gap-3 text-footnote leading-relaxed text-ink-soft">
+                    <span className="mt-px flex size-5 shrink-0 items-center justify-center rounded-full bg-kinu font-mono text-[10px] text-ink-muted">
+                      {i + 1}
+                    </span>
+                    {action}
+                  </li>
+                ))}
+              </ol>
+            </section>
           )}
+
+          {/* The original first, then the links the publisher put in it. */}
+          <section aria-labelledby="byte-resources" className="mt-8">
+            <h2 id="byte-resources" className="text-footnote font-semibold text-ink mb-2">Resources</h2>
+            <ul className="divide-y divide-border border-y border-border">
+              {[{ title: byte.source_title, url: byte.url, original: true }, ...byte.resources.map(r => ({ ...r, original: false }))].map(r => (
+                <li key={r.url}>
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="press group flex items-center gap-3 py-3 hover:bg-kinu/30 transition-colors"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-footnote text-ink group-hover:text-saffron transition-colors">
+                        {r.original ? `The original on ${publisher}` : r.title}
+                      </span>
+                      <span className="block truncate text-meta text-ink-muted">{hostOf(r.url)}</span>
+                    </span>
+                    <Icon icon={ArrowSquareOut} size="sm" className="shrink-0 text-ink-muted" />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
 
           <footer className="mt-10 pt-6 border-t border-border flex flex-wrap items-center gap-3">
             <InterestButton
@@ -208,7 +221,6 @@ export default function ByteReaderPage({ params }: { params: Promise<{ id: strin
               initialInterested={!!byte.user_interested}
               layout="wide"
             />
-            {original}
             {byte.seeded_topic_id && (
               <Link
                 href={`/board/${byte.seeded_topic_id}`}
@@ -222,4 +234,12 @@ export default function ByteReaderPage({ params }: { params: Promise<{ id: strin
       )}
     </div>
   )
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
 }

@@ -2,24 +2,13 @@ import 'server-only'
 import sanitizeHtml from 'sanitize-html'
 
 /**
- * Feed article bodies: measuring them, and making them safe to render.
+ * Feed article bodies: measuring them, and taking what is useful out of them.
  *
  * ── The integrity contract, same as summarize.ts ─────────────────────────
  * Nothing here is model-generated. A body is the publisher's own HTML, taken
- * verbatim from the feed element they put it in. The summarizer writes prose
- * *about* an item; this is what the item actually says. The two never mix, and
- * the reader labels them separately.
- *
- * ── Why sanitize on read rather than on write ────────────────────────────
- * Feed HTML is third-party input and goes into the DOM via
- * dangerouslySetInnerHTML, so it has to be filtered or it is a stored-XSS hole
- * with a scheduled job politely populating it twice a week.
- *
- * Filtering happens when the body is served, not when it is stored. Storing
- * the raw element means a hole found in the allowlist below is closed by
- * editing this file - every existing row is re-filtered on its next read.
- * Sanitizing on write would bake today's allowlist into the table and leave
- * every row already in it holding whatever that version let through.
+ * verbatim from the feed element they put it in. It is never shown: GuildBoard
+ * has no licence to republish it (migration 039). It is read once, for the
+ * summarizer's context, the read time, and the links inside it, then dropped.
  */
 
 /** Shorter than this and the feed gave a teaser, not an article. */
@@ -27,59 +16,6 @@ const MIN_BODY_CHARS = 3_000
 /** Beyond this a reader wants the original anyway, and the row gets huge. */
 const MAX_BODY_CHARS = 400_000
 const WORDS_PER_MINUTE = 225
-
-/**
- * What a syndicated article is allowed to contain.
- *
- * Structure, emphasis, links, code, tables and images. No <script>, no
- * <iframe>, no <style>, no event handlers, and no `srcset` - sanitize-html
- * drops every attribute not named here, which is why the list is written as
- * what is permitted rather than what is blocked.
- */
-const POLICY: sanitizeHtml.IOptions = {
-  allowedTags: [
-    'p', 'br', 'hr',
-    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-    'strong', 'b', 'em', 'i', 'u', 's', 'sub', 'sup', 'mark', 'small',
-    'ul', 'ol', 'li', 'dl', 'dt', 'dd',
-    'blockquote', 'q', 'cite',
-    'pre', 'code', 'kbd', 'samp', 'var',
-    'a', 'img', 'figure', 'figcaption',
-    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption',
-    'span', 'div',
-  ],
-  allowedAttributes: {
-    // target and rel are here because transformTags below sets them; an
-    // attribute the transform adds is still dropped if it is not permitted.
-    a: ['href', 'title', 'target', 'rel'],
-    img: ['src', 'alt', 'title', 'width', 'height', 'loading'],
-    // Highlighted code blocks carry their language as a class, and dropping it
-    // turns every snippet into undifferentiated grey text.
-    code: ['class'],
-    pre: ['class'],
-    th: ['colspan', 'rowspan', 'scope'],
-    td: ['colspan', 'rowspan'],
-  },
-  // http is absent on purpose: a mixed-content image is a broken image, and a
-  // plaintext link out of an authenticated page is worse than no link.
-  allowedSchemes: ['https', 'mailto'],
-  allowedSchemesByTag: { img: ['https', 'data'] },
-  // Every link leaves the app. Opening in place would strand the reader in a
-  // publisher's site inside what is otherwise a tab of the guild board.
-  transformTags: {
-    a: sanitizeHtml.simpleTransform('a', {
-      target: '_blank',
-      rel: 'noopener noreferrer nofollow',
-    }),
-  },
-  // Drop the contents too, rather than leaving stylesheet text as a paragraph.
-  nonTextTags: ['style', 'script', 'textarea', 'option', 'noscript'],
-}
-
-/** Filter a stored body for rendering. Never skip this on the way to the DOM. */
-export function sanitizeArticleHtml(html: string): string {
-  return sanitizeHtml(html, POLICY)
-}
 
 /** Rough word count off the markup, for the read-time badge. */
 export function readingMinutes(html: string): number {
@@ -101,4 +37,101 @@ export function usableArticleBody(html: string | undefined): string | null {
   const trimmed = html.trim()
   if (trimmed.length < MIN_BODY_CHARS) return null
   return trimmed.slice(0, MAX_BODY_CHARS)
+}
+
+/* ─── Resources: the links a publisher put in their own piece ─────────────
+   A byte page no longer shows the article (no licence to republish it), but
+   the links inside it are often the most useful part: the repo, the docs,
+   the paper. These are taken verbatim from the publisher's markup, never
+   from the model, the same rule as titles and URLs. */
+
+export interface Resource {
+  title: string
+  url: string
+}
+
+const MAX_RESOURCES = 6
+
+/* Sharing buttons, social profiles and link shorteners: never a resource. */
+const SKIP_HOST = /(^|\.)(twitter\.com|x\.com|facebook\.com|linkedin\.com|instagram\.com|threads\.net|bsky\.app|mastodon\.social|reddit\.com|t\.co|bit\.ly|buff\.ly|lnkd\.in|feedburner\.com|patreon\.com|discord\.gg|news\.google\.com)$/i
+/* The publisher's own furniture: tag pages, authors, newsletters, careers. */
+const SKIP_PATH = /\/(tag|tags|category|categories|author|authors|subscribe|newsletter|about|careers|jobs|privacy|terms|contact|login|signup|share)(\/|$)/i
+/* Worth surfacing first: code, docs, papers, specs. */
+const PREFER_HOST = /(^|\.)(github\.com|gitlab\.com|arxiv\.org|huggingface\.co|npmjs\.com|pypi\.org|crates\.io|docs\.[a-z.]+|developer\.[a-z.]+|rfc-editor\.org|w3\.org|youtube\.com)$/i
+/* Anchor text that says nothing on its own. */
+const VAGUE_TEXT = /^(here|this|link|source|read more|more|click here|this post|this article|the post|website|site)$/i
+
+function normalizeUrl(raw: string): URL | null {
+  try {
+    const u = new URL(raw)
+    if (u.protocol !== 'https:') return null
+    u.hash = ''
+    for (const key of [...u.searchParams.keys()]) {
+      if (/^(utm_|ref$|ref_src$|fbclid$|gclid$)/i.test(key)) u.searchParams.delete(key)
+    }
+    return u
+  } catch {
+    return null
+  }
+}
+
+function sameTarget(a: URL, b: URL): boolean {
+  const strip = (u: URL) => `${u.host}${u.pathname.replace(/\/+$/, '')}${u.search}`
+  return strip(a) === strip(b)
+}
+
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+}
+
+/**
+ * Up to six useful links out of a feed item's HTML, code and docs first,
+ * then in reading order. Skips the article's own URL, sharing and social
+ * links, the publisher's tag/author/newsletter pages, homepages, and
+ * anything not https.
+ */
+export function resourcesFrom(html: string | null | undefined, articleUrl: string): Resource[] {
+  if (!html) return []
+  const article = normalizeUrl(articleUrl)
+  const found: { r: Resource; preferred: boolean; order: number }[] = []
+  const seen = new Set<string>()
+
+  sanitizeHtml(html, {
+    allowedTags: ['a'],
+    allowedAttributes: { a: ['href'] },
+    exclusiveFilter: frame => {
+      if (frame.tag !== 'a') return false
+      const u = normalizeUrl(String(frame.attribs.href ?? ''))
+      if (!u || SKIP_HOST.test(u.hostname) || SKIP_PATH.test(u.pathname)) return false
+      if (u.pathname === '/' && !u.search) return false
+      if (article && sameTarget(u, article)) return false
+      const key = `${u.host}${u.pathname.replace(/\/+$/, '')}${u.search}`
+      if (seen.has(key)) return false
+      seen.add(key)
+
+      const text = decodeEntities(frame.text ?? '').replace(/\s+/g, ' ').trim()
+      const fallback = `${u.hostname.replace(/^www\./, '')}${u.pathname.replace(/\/+$/, '')}`
+      const title = !text || VAGUE_TEXT.test(text) || /^https?:\/\//.test(text) ? fallback : text
+      found.push({ r: { title: title.slice(0, 120), url: u.toString() }, preferred: PREFER_HOST.test(u.hostname), order: found.length })
+      return false
+    },
+  })
+
+  return found
+    .sort((a, b) => Number(b.preferred) - Number(a.preferred) || a.order - b.order)
+    .slice(0, MAX_RESOURCES)
+    .map(f => f.r)
+}
+
+/** Plain text of a feed item, for the summarizer only. Never displayed. */
+export function articleText(html: string | null | undefined, max = 2_500): string | undefined {
+  if (!html) return undefined
+  const text = decodeEntities(sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} })).replace(/\s+/g, ' ').trim()
+  return text ? text.slice(0, max) : undefined
 }
