@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { Broadcast } from "@phosphor-icons/react";
 import { ByteCard, type Byte } from "@/components/bytes/ByteCard";
 import { FormatFilter, type Format } from "@/components/bytes/FormatFilter";
+import { RadarSection } from "@/components/radar/RadarSection";
 import { useUnseenDigest } from "@/lib/bytes/useUnseenDigest";
 import {
   PageHeader,
@@ -94,6 +95,9 @@ export default function BytesPage() {
           ) : undefined
         }
       />
+
+      {/* ─── Radar: the meeting's "what's new", voted ─── */}
+      <RadarSection className="mb-(--gap-section)" />
 
       {loading ? (
         <CardSkeleton count={4} />

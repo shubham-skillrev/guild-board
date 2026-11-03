@@ -15,6 +15,8 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { convertOldBytes } from '@/lib/bytes/briefs'
+import { briefingInputs } from '@/lib/guild/briefings'
+import { refreshBriefing } from '@/lib/guild/kers'
 import { rejectIfNotCron, firstAdminId } from '@/lib/bytes/cron'
 import { generateDigest } from '@/lib/bytes/generate'
 import { closeCycle, createCycle } from '@/lib/cycles/lifecycle'
@@ -179,6 +181,18 @@ export async function GET(request: Request) {
       if (converted) steps.push({ step: 'briefs', done: true, detail: `${converted} older bytes turned into briefs${pending ? ', more tomorrow' : ''}` })
     } catch (err) {
       steps.push({ step: 'briefs', done: false, detail: errorText(err) })
+    }
+  }
+
+  // ─── Kers' morning briefing for Pulse (migration 040) ───
+  // One AI call a day, so the dashboard opens on a fresh read without ever
+  // waiting on the model. Quiet when it works.
+  if (!dry) {
+    try {
+      const inputs = await briefingInputs('pulse')
+      if (inputs) await refreshBriefing(inputs.scope, inputs.facts, inputs.actions, inputs.fallback)
+    } catch (err) {
+      steps.push({ step: 'kers', done: false, detail: errorText(err) })
     }
   }
 

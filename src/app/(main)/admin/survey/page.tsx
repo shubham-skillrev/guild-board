@@ -21,9 +21,5 @@ export default async function SurveyResultsPage() {
 
   const [rows, state] = await Promise.all([getSurveyRows(), getSurveyState()])
 
-  return (
-    <div className="px-(--pad-page-x) py-8 w-full max-w-(--measure-wide) mx-auto pb-28 md:pb-10">
-      <SurveyDashboard rows={rows} state={state} generatedAt={new Date().toISOString()} />
-    </div>
-  )
+  return <SurveyDashboard rows={rows} state={state} generatedAt={new Date().toISOString()} />
 }

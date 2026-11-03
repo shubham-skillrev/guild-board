@@ -1,109 +1,81 @@
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { serializeTopic } from '@/lib/utils/anonymity'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { AdminControls } from '@/components/admin/AdminControls'
-import { CycleListCards } from '@/components/admin/CycleListCards'
-import { ByteGenerator } from '@/components/admin/ByteGenerator'
-import { SystemTopicsPanel } from '@/components/admin/SystemTopicsPanel'
-import { ThemePanel } from '@/components/admin/ThemePanel'
-import { AnnouncePanel } from '@/components/admin/AnnouncePanel'
-import { SurveyPanel } from '@/components/admin/SurveyPanel'
-import { getSurveyRows } from '@/lib/surveyResults'
-import { PageHeader, SectionHeader } from '@/components/ui/Section'
-import type { Cycle } from '@/types'
+import { getStaff } from '@/lib/guild/staff'
+import { getPulseFacts, pulseActions, pulseFallback } from '@/lib/guild/pulse'
+import { readBriefing } from '@/lib/guild/kers'
+import { KersBriefing } from '@/components/admin/pulse/KersBriefing'
+import { ActionNotes } from '@/components/admin/pulse/ActionNotes'
+import { Figure, Trend } from '@/components/admin/pulse/Trend'
+import { SectionHeader } from '@/components/ui/Section'
 
-export const metadata: Metadata = { title: 'Admin' }
+export const metadata: Metadata = { title: 'Pulse' }
 
-async function getAdminData() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') return null
-
-  const [{ data: cycles }, { data: allTopics }, surveyRows] = await Promise.all([
-    supabase
-      .from('cycles')
-      .select('*')
-      .order('year', { ascending: false })
-      .order('month', { ascending: false }),
-    // Service role to read user_id, then serialized: admins see ghost
-    // handles like everyone else, never the person behind them.
-    createAdminClient()
-      .from('topics')
-      .select('*, users!topics_user_id_fkey(username)')
-      .eq('is_deleted', false)
-      .order('score', { ascending: false }),
-    getSurveyRows(),
-  ])
-
-  return {
-    cycles: cycles ?? [],
-    allTopics: (allTopics ?? []).map(t => serializeTopic(t, user.id)),
-    surveyRows,
-  }
+function weekLabel(day: string): string {
+  return new Date(`${day}T12:00:00Z`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
 }
 
-export default async function AdminPage() {
-  const data = await getAdminData()
-  if (!data) notFound()
+/**
+ * Pulse: Kers' read of the guild, this week's to-dos, the headline numbers
+ * and the trend. A team lead sees the same page for their own team, minus
+ * the to-dos and anything about a single person.
+ */
+export default async function PulsePage() {
+  const staff = await getStaff()
+  if (!staff) notFound()
+  const teamId = staff.isAdmin ? undefined : staff.leadTeam?.id
 
-  const { cycles, allTopics, surveyRows } = data
-  const activeCycle = cycles.find(c => c.status === 'open') ?? cycles[0] ?? null
-  const activeCycleTopics = activeCycle
-    ? allTopics.filter((t: any) => t.cycle_id === activeCycle.id)
-    : []
+  const facts = await getPulseFacts(teamId)
+  const actions = teamId ? [] : pulseActions(facts)
+  const scope = teamId ? `team:${teamId}` : 'pulse'
+  const briefing = await readBriefing(scope, pulseFallback(facts, actions))
+
+  const pct = (n: number) => (facts.members ? `${Math.round((n / facts.members) * 100)}% of ${teamId ? 'the team' : 'members'}` : undefined)
 
   return (
-    <div className="px-(--pad-page-x) py-8 w-full max-w-(--measure-wide) mx-auto pb-28 md:pb-10">
-      <PageHeader
-        title="Admin"
-        subtitle={
-          activeCycle
-            ? `${activeCycle.label} is the working cycle.`
-            : 'No open cycle. Create one to get the guild rolling.'
-        }
-      />
+    <div className="space-y-12">
+      <KersBriefing scope={teamId ? 'team' : 'pulse'} initial={briefing} />
 
-      {/* Same two-column shape as the board, for the same reason: the thing you
-          came here to do takes the wide column, and the things you only check
-          on sit in the rail. This page used to stack four full-width sections,
-          which made it the longest screen in the product. */}
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-x-10 gap-y-(--gap-section) items-start">
-        <div className="min-w-0">
-          <AdminControls
-            cycles={cycles as Cycle[]}
-            activeCycle={activeCycle as Cycle | null}
-            topics={activeCycleTopics as any[]}
-          />
-          <ThemePanel key={activeCycle?.id} cycle={activeCycle as Cycle | null} />
-          <AnnouncePanel />
-          <SystemTopicsPanel />
+      {!teamId && (
+        <section aria-labelledby="pulse-todo">
+          <SectionHeader id="pulse-todo" title="On the desk this week" hint="Worked out from the numbers; each note goes where it gets done." />
+          <div className="pt-2">
+            <ActionNotes notes={actions.slice(0, 6)} />
+          </div>
+        </section>
+      )}
+
+      <section aria-labelledby="pulse-numbers">
+        <SectionHeader id="pulse-numbers" title={teamId ? 'Your team' : 'The guild'} hint={facts.cycle ? `${facts.cycle.label}${facts.cycle.daysToMeeting != null && facts.cycle.daysToMeeting >= 0 ? ` · meeting in ${facts.cycle.daysToMeeting} day${facts.cycle.daysToMeeting === 1 ? '' : 's'}` : ''}` : undefined} />
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+          <Figure label="Members" value={facts.members} sub={facts.joined30 ? `${facts.joined30} new this month` : 'none new this month'} />
+          <Figure label="Active, 30 days" value={facts.active30} sub={pct(facts.active30)} />
+          <Figure label="Active, 7 days" value={facts.active7} />
+          <Figure label="Use the app" value={facts.appUsers} sub="opened as installed app" />
+          <Figure label="Notifications on" value={facts.pushOn} sub={pct(facts.pushOn)} />
+          <Figure label="Survey answers" value={facts.survey.answers} sub={facts.survey.noAccount ? `${facts.survey.noAccount} without an account` : undefined} />
         </div>
+        {facts.cycle && (
+          <p className="mt-3 text-footnote text-ink-muted">
+            This month: {facts.cycle.topics} topic{facts.cycle.topics === 1 ? '' : 's'}, {facts.cycle.comments} comment{facts.cycle.comments === 1 ? '' : 's'}
+            {!teamId && <>, {facts.cycle.votes} vote{facts.cycle.votes === 1 ? '' : 's'}, {facts.radar} Radar link{facts.radar === 1 ? '' : 's'}</>}.
+            Show & Tell: Spotlight {facts.showTell.spotlight ? 'booked' : 'open'}, demo {facts.showTell.demo ? 'booked' : 'open'}.
+          </p>
+        )}
+      </section>
 
-        <aside className="min-w-0 space-y-(--gap-section) lg:sticky lg:top-20">
-          <SurveyPanel rows={surveyRows} />
-          <ByteGenerator />
+      <section aria-labelledby="pulse-trend" className="grid gap-4 md:grid-cols-2">
+        <h2 id="pulse-trend" className="sr-only">Trends</h2>
+        <Trend title="Active members per week" unit="active" points={facts.weeks.map(w => ({ label: weekLabel(w.week), value: w.active }))} />
+        <Trend title="New members per week" unit="joined" points={facts.weeks.map(w => ({ label: weekLabel(w.week), value: w.joined }))} />
+      </section>
 
-          <section aria-labelledby="admin-cycles">
-            <SectionHeader id="admin-cycles" title="All cycles" hint={`${cycles.length}`} />
-            {cycles.length === 0 ? (
-              <p className="text-footnote text-ink-muted">No cycles created yet.</p>
-            ) : (
-              <CycleListCards cycles={cycles as Cycle[]} />
-            )}
-          </section>
-        </aside>
-      </div>
+      {!teamId && (
+        <p className="text-footnote text-ink-muted">
+          Who’s behind the numbers: <Link href="/admin/people" className="text-ink underline decoration-border-strong underline-offset-2 hover:decoration-ink">the guild hall</Link>.
+          Visits are counted from the day migration 038 went live, so the trend fills in over the coming weeks.
+        </p>
+      )}
     </div>
   )
 }
-

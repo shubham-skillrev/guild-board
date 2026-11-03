@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { LogoutButton } from "@/components/layout/LogoutButton";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { DesktopNavLinks, MobileBottomNav } from "@/components/layout/NavLinks";
@@ -27,7 +28,16 @@ async function getUser() {
       .select("username, role")
       .eq("id", user.id)
       .single();
-    return data;
+    if (!data || data.role === "admin") return data;
+    // Team leads get a "Team" link to their team's Pulse (teams has no member
+    // grants, migration 040, so this one read uses the service role).
+    const { data: team } = await createAdminClient()
+      .from("teams")
+      .select("id")
+      .eq("lead_id", user.id)
+      .limit(1)
+      .maybeSingle();
+    return team ? { ...data, role: "lead" } : data;
   } catch {
     return null;
   }

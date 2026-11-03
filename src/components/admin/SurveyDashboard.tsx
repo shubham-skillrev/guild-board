@@ -1,10 +1,9 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/hooks/useToast'
-import { ArrowLeft, ChartBar, DownloadSimple, FilePdf, Image as ImageIcon } from '@phosphor-icons/react/dist/ssr'
+import { ChartBar, DownloadSimple, FilePdf, Image as ImageIcon } from '@phosphor-icons/react/dist/ssr'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/Section'
 import { cn } from '@/lib/utils/cn'
@@ -63,14 +62,7 @@ export function SurveyDashboard({
     <div id="survey-report">
       {/* ─── Header + controls ─── */}
       <header className="mb-8">
-        <Link
-          href="/admin"
-          className="print:hidden inline-flex items-center gap-1 text-footnote text-ink-muted hover:text-ink transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" aria-hidden />
-          Admin
-        </Link>
-        <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="eyebrow">Guild survey · {SURVEY_KEY}</p>
             <h1 className="mt-2 text-title-1 text-label">Survey results</h1>

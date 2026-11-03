@@ -62,7 +62,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
       >
         Leaderboard
       </Link>
-      {role === 'admin' && (
+      {(role === 'admin' || role === 'lead') && (
         <Link
           href="/admin"
           className={cn(
@@ -70,7 +70,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
             isAdmin ? 'text-saffron border-saffron' : 'text-saffron/80 border-transparent hover:text-saffron'
           )}
         >
-          Admin
+          {role === 'lead' ? 'Team' : 'Admin'}
         </Link>
       )}
     </nav>
@@ -89,7 +89,7 @@ export function MobileBottomNav({ role, username, isGuest }: NavLinksProps) {
   // Board and Leaders always; Bytes, Admin and You when they apply. A
   // guest has no profile to open. Written out as literals so Tailwind
   // generates each class.
-  const tabCount = 2 + (isGuest ? 0 : 1) + (HIDE_BYTES ? 0 : 1) + (role === 'admin' ? 1 : 0)
+  const tabCount = 2 + (isGuest ? 0 : 1) + (HIDE_BYTES ? 0 : 1) + (role === 'admin' || role === 'lead' ? 1 : 0)
   const cols = { 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4', 5: 'grid-cols-5' }[tabCount] ?? 'grid-cols-5'
 
   const [mounted, setMounted] = useState(false)
@@ -138,7 +138,7 @@ export function MobileBottomNav({ role, username, isGuest }: NavLinksProps) {
           <Trophy className="w-4.5 h-4.5" />
           <span>Leaders</span>
         </Link>
-        {role === 'admin' && (
+        {(role === 'admin' || role === 'lead') && (
           <Link
             href="/admin"
             className={cn(
@@ -147,7 +147,7 @@ export function MobileBottomNav({ role, username, isGuest }: NavLinksProps) {
             )}
           >
             <ShieldCheck className="w-4.5 h-4.5" />
-            <span>Admin</span>
+            <span>{role === 'lead' ? 'Team' : 'Admin'}</span>
           </Link>
         )}
         {!isGuest && (

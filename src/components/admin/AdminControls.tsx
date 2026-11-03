@@ -78,9 +78,11 @@ interface AdminControlsProps {
   cycles: Cycle[]
   activeCycle: Cycle | null
   topics: any[]
+  /** The Run tab shows the month controls; the Topics tab shows the topics. */
+  show?: 'cycle' | 'topics'
 }
 
-export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProps) {
+export function AdminControls({ cycles, activeCycle, topics, show }: AdminControlsProps) {
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -223,6 +225,7 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
       )}
 
       {/* ─── This cycle: meeting date, status, and the way to start the next one ─── */}
+      {show !== 'topics' && (
       <section>
         <SectionHeader
           title="This cycle"
@@ -357,9 +360,10 @@ export function AdminControls({ cycles, activeCycle, topics }: AdminControlsProp
           </div>
         )}
       </section>
+      )}
 
       {/* ─── Topics: one compact row each ─── */}
-      {activeCycle && (
+      {show !== 'cycle' && activeCycle && (
         <section>
           <SectionHeader
             title="Topics"
