@@ -12,12 +12,14 @@ const TABS = [
   { href: '/admin/run', label: 'Run' },
 ] as const
 
-/** The control room's tabs, each its own URL. Leads only get Pulse. */
+/** The control room's tabs, each its own URL. Leads only get Pulse. Scrolls
+ *  sideways on a narrow phone, with the scrollbar hidden (it showed as a stray
+ *  bar at the end of the row on desktop). */
 export function AdminTabs({ leadOnly = false }: { leadOnly?: boolean }) {
   const pathname = usePathname()
   const tabs = leadOnly ? TABS.slice(0, 1) : TABS
   return (
-    <nav aria-label="Control room" className="print:hidden -mx-1 flex gap-1 overflow-x-auto border-b border-border px-1">
+    <nav aria-label="Control room" className="print:hidden -mx-1 flex gap-1 overflow-x-auto border-b border-border px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {tabs.map(t => {
         const active = t.href === '/admin' ? pathname === '/admin' : pathname.startsWith(t.href)
         return (

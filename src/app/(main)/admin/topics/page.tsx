@@ -5,31 +5,33 @@ import { getAdminId } from '@/lib/guild/staff'
 import { serializeTopic } from '@/lib/utils/anonymity'
 import { openCycle } from '@/lib/guild/demos'
 import { getSurveyRows } from '@/lib/surveyResults'
-import { AdminControls } from '@/components/admin/AdminControls'
-import { TopicEngagement, type EngagementRow } from '@/components/admin/TopicEngagement'
+import { readBriefing } from '@/lib/guild/kers'
+import { topicsBriefing } from '@/lib/guild/runBriefing'
+import { KersBriefing } from '@/components/admin/pulse/KersBriefing'
+import { PipelineBoard, type PipelineTopic } from '@/components/admin/topics/PipelineBoard'
 import { ShowTellAdmin, type AdminDemo, type Suggestion } from '@/components/admin/ShowTellAdmin'
-import { PageHeader } from '@/components/ui/Section'
-import type { Cycle } from '@/types'
+import { SectionHeader } from '@/components/ui/Section'
 
 export const metadata: Metadata = { title: 'Topics & Show & Tell' }
 
 /**
- * The meeting's content: which topics get discussed, and who is on for Show
- * & Tell. Anonymous topics show their ghost handle here like everywhere else.
+ * The meeting's content: this month's topics as a pipeline (board → picked
+ * → what came of it), and Show & Tell bookings. Anonymous topics show their
+ * ghost handle here like everywhere else.
  */
 export default async function TopicsPage() {
   const adminId = await getAdminId()
   if (!adminId) notFound()
   const admin = createAdminClient()
 
-  const { data: cyclesData } = await admin.from('cycles').select('*').order('year', { ascending: false }).order('month', { ascending: false })
-  const cycles = (cyclesData ?? []) as Cycle[]
-  const activeCycle = cycles.find(c => c.status === 'open') ?? cycles[0] ?? null
+  const { data: cyclesData } = await admin.from('cycles').select('id, label, status').order('year', { ascending: false }).order('month', { ascending: false })
+  const cycles = cyclesData ?? []
+  const month = cycles.find(c => c.status === 'open' || c.status === 'frozen') ?? cycles.find(c => c.status !== 'upcoming') ?? null
   const meeting = await openCycle(admin)
 
-  const [{ data: topics }, { data: demos }, { data: members }, survey] = await Promise.all([
-    activeCycle
-      ? admin.from('topics').select('*, users!topics_user_id_fkey(username)').eq('cycle_id', activeCycle.id).eq('is_deleted', false).order('score', { ascending: false })
+  const [{ data: topics }, { data: demos }, { data: members }, survey, briefing] = await Promise.all([
+    month
+      ? admin.from('topics').select('*, users!topics_user_id_fkey(username)').eq('cycle_id', month.id).eq('is_deleted', false).eq('is_system', false).order('score', { ascending: false })
       : Promise.resolve({ data: [] }),
     admin
       .from('demos')
@@ -39,6 +41,7 @@ export default async function TopicsPage() {
       .limit(60),
     admin.from('users').select('id, username, real_name, email').eq('is_system', false).order('username'),
     getSurveyRows(),
+    topicsBriefing().then(b => readBriefing('topics', b.fallback)),
   ])
 
   const serialized = (topics ?? []).map(t => serializeTopic(t, adminId))
@@ -47,26 +50,23 @@ export default async function TopicsPage() {
     : { data: [] as { topic_id: string }[] }
   const signalCount = new Map<string, number>()
   for (const s of signals ?? []) signalCount.set(s.topic_id, (signalCount.get(s.topic_id) ?? 0) + 1)
-  const engagement: EngagementRow[] = serialized
-    .filter(t => !t.is_system)
-    .map(t => ({
-      id: t.id,
-      title: t.title,
-      by: t.author_username ? `@${t.author_username}` : 'GuildBot',
-      votes: t.vote_count ?? 0,
-      comments: t.comment_count ?? 0,
-      signals: signalCount.get(t.id) ?? 0,
-    }))
+
+  const pipeline: PipelineTopic[] = serialized.map(t => ({
+    id: t.id,
+    title: t.title,
+    category: t.category ?? null,
+    by: t.author_username ? `@${t.author_username}` : 'GuildBot',
+    votes: t.vote_count ?? 0,
+    comments: t.comment_count ?? 0,
+    signals: signalCount.get(t.id) ?? 0,
+    selected: !!t.is_selected,
+    outcome: t.outcome_tag ?? null,
+    outcomeNote: t.outcome_note ?? null,
+  }))
 
   const byEmail = new Map((members ?? []).map(m => [(m.email ?? '').toLowerCase(), m]))
   const suggestions: Suggestion[] = [
-    ...survey.filter(r => r.nominee_name).map(r => ({
-      kind: 'nomination' as const,
-      name: r.nominee_name,
-      why: r.nominee_why || null,
-      from: r.name,
-      userId: null,
-    })),
+    ...survey.filter(r => r.nominee_name).map(r => ({ kind: 'nomination' as const, name: r.nominee_name, why: r.nominee_why || null, from: r.name, userId: null })),
     ...survey.filter(r => r.demo === 'yes' || r.demo === 'maybe').map(r => ({
       kind: 'volunteer' as const,
       name: r.name,
@@ -75,7 +75,6 @@ export default async function TopicsPage() {
       userId: byEmail.get(r.email)?.id ?? null,
     })),
   ]
-
   const rows: AdminDemo[] = (demos ?? []).map(d => ({
     id: d.id, kind: d.kind, status: d.status, format: d.format, title: d.title, blurb: d.blurb, note: d.note,
     cycleId: d.cycle_id,
@@ -84,20 +83,20 @@ export default async function TopicsPage() {
   }))
 
   return (
-    <>
-      <PageHeader title="Topics & Show & Tell" subtitle={activeCycle ? `What ${activeCycle.label} will talk about, and who is showing what.` : 'No open month.'} />
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-x-10 gap-y-(--gap-section) items-start">
-        <div className="min-w-0">
-          <TopicEngagement rows={engagement} />
-          <AdminControls cycles={cycles} activeCycle={activeCycle} topics={serialized} show="topics" />
-        </div>
-        <ShowTellAdmin
-          meeting={meeting}
-          demos={rows}
-          members={(members ?? []).map(m => ({ id: m.id, label: m.real_name ? `${m.real_name} (@${m.username})` : `@${m.username}` }))}
-          suggestions={suggestions}
-        />
-      </div>
-    </>
+    <div className="space-y-12">
+      <KersBriefing scope="topics" initial={briefing} />
+
+      <section aria-labelledby="topics-pipeline">
+        <SectionHeader id="topics-pipeline" title={month ? `${month.label} topics` : 'Topics'} hint="Drag a card to move it, or use “Move to”. Ranked by votes in each column." />
+        <PipelineBoard topics={pipeline} />
+      </section>
+
+      <ShowTellAdmin
+        meeting={meeting}
+        demos={rows}
+        members={(members ?? []).map(m => ({ id: m.id, label: m.real_name ? `${m.real_name} (@${m.username})` : `@${m.username}` }))}
+        suggestions={suggestions}
+      />
+    </div>
   )
 }

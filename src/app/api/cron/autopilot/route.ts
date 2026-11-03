@@ -189,7 +189,7 @@ export async function GET(request: Request) {
   // waiting on the model. Quiet when it works.
   if (!dry) {
     try {
-      for (const scope of ['pulse', 'people', 'survey']) {
+      for (const scope of ['pulse', 'people', 'survey', 'run', 'topics']) {
         const inputs = await briefingInputs(scope)
         if (inputs) await refreshBriefing(inputs.scope, inputs.facts, inputs.actions, inputs.fallback)
       }

@@ -64,6 +64,10 @@ export interface PulseAction {
   weight: number
 }
 
+function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`
+}
+
 function istDay(d: Date): string {
   return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 }
@@ -177,7 +181,7 @@ export function pulseActions(f: PulseFacts): PulseAction[] {
       id: 'spotlight',
       text: f.showTell.invited
         ? `${f.showTell.invited} Spotlight invite${f.showTell.invited === 1 ? ' is' : 's are'} waiting for an answer`
-        : `No Spotlight for ${f.cycle.label} yet${f.survey.nominations ? `: ${f.survey.nominations} nominations to pick from` : ''}`,
+        : `No Spotlight for ${f.cycle.label} yet${f.survey.nominations ? `: ${plural(f.survey.nominations, 'nomination')} to pick from` : ''}`,
       href: '/admin/topics#showtell',
       weight: meetingSoon ? 100 : 80,
     })
@@ -188,7 +192,7 @@ export function pulseActions(f: PulseFacts): PulseAction[] {
       text: f.showTell.queued
         ? `Demo slot is open and ${f.showTell.queued} offer${f.showTell.queued === 1 ? ' is' : 's are'} in the queue: book one`
         : f.survey.couldDemo
-          ? `Demo slot is open: ${f.survey.couldDemo} people said in the survey they could show something`
+          ? `Demo slot is open: ${f.survey.couldDemo === 1 ? '1 person' : `${f.survey.couldDemo} people`} said in the survey they could show something`
           : 'Demo slot is open and nobody has offered yet',
       href: f.showTell.queued ? '/admin/topics#showtell' : '/admin/people?segment=could-demo',
       weight: meetingSoon ? 95 : 70,
@@ -197,7 +201,7 @@ export function pulseActions(f: PulseFacts): PulseAction[] {
   if (f.survey.noAccount > 0) {
     out.push({
       id: 'no-account',
-      text: `${f.survey.noAccount} people answered the survey but have no account: invite them`,
+      text: `${f.survey.noAccount === 1 ? '1 person' : `${f.survey.noAccount} people`} answered the survey but ${f.survey.noAccount === 1 ? 'has' : 'have'} no account: invite them`,
       href: '/admin/people?segment=no-account',
       weight: 75,
     })
@@ -213,7 +217,7 @@ export function pulseActions(f: PulseFacts): PulseAction[] {
   if (f.survey.open && f.members > 0 && f.survey.answers < f.members / 2) {
     out.push({
       id: 'survey',
-      text: `Only ${f.survey.answers} survey answers so far: share the link in Slack again`,
+      text: `Only ${plural(f.survey.answers, 'survey answer')} so far: share the link in Slack again`,
       href: '/admin/survey',
       weight: 50,
     })

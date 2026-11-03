@@ -103,8 +103,10 @@ export function ShowTellAdmin({
 
   return (
     <section id="showtell" aria-labelledby="admin-showtell" className="min-w-0 scroll-mt-24 space-y-6">
-      <SectionHeader id="admin-showtell" title="Show & Tell" hint={meeting ? `${meeting.label} meeting` : 'No open month'} />
+      <SectionHeader id="admin-showtell" title="Show & Tell" hint={meeting ? `${meeting.label} meeting · invite, book, keep track` : 'No open month'} />
 
+      <div className="grid gap-x-10 gap-y-8 lg:grid-cols-2 items-start">
+      <div className="min-w-0 space-y-6">
       <ul className="elev-1 rounded-(--radius-card) divide-y divide-separator text-footnote">
         {[['Spotlight', spotlight], ['Demo', demo]].map(([label, d]) => (
           <li key={label as string} className="flex items-baseline justify-between gap-3 px-4 py-3">
@@ -114,7 +116,7 @@ export function ShowTellAdmin({
                 @{(d as AdminDemo).username} · {(d as AdminDemo).title || formatLabel((d as AdminDemo).format)}
               </span>
             ) : (
-              <span className="text-saffron">Open</span>
+              <span className="text-ink-muted">Open</span>
             )}
           </li>
         ))}
@@ -158,6 +160,14 @@ export function ShowTellAdmin({
         </div>
       )}
 
+      </div>
+
+      <div className="min-w-0 space-y-6">
+      {groups.every(g => g.rows.length === 0) && (
+        <p className="rounded-(--radius-card) border border-dashed border-border-strong p-5 text-footnote text-ink-muted">
+          No invitations or offers yet. Invite someone on the left, or wait for volunteers from the board.
+        </p>
+      )}
       {groups.map(g => g.rows.length > 0 && (
         <div key={g.title}>
           <p className="mb-2 text-footnote font-medium text-ink">{g.title} <span className="font-normal text-ink-muted">· {g.rows.length}</span></p>
@@ -172,7 +182,7 @@ export function ShowTellAdmin({
                 )}
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {d.status === 'proposed' && meeting && (
-                    <Button size="sm" variant="tinted" disabled={!!busy} onClick={() => call(d.id, { action: 'confirm', id: d.id, cycle_id: meeting.id }, `Booked for ${meeting.label}`)}>
+                    <Button size="sm" variant="secondary" disabled={!!busy} onClick={() => call(d.id, { action: 'confirm', id: d.id, cycle_id: meeting.id }, `Booked for ${meeting.label}`)}>
                       Book for {meeting.label}
                     </Button>
                   )}
@@ -193,6 +203,8 @@ export function ShowTellAdmin({
           </ul>
         </div>
       ))}
+      </div>
+      </div>
     </section>
   )
 }

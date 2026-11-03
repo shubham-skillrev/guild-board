@@ -122,7 +122,7 @@ export function RadarRow({
   )
 }
 
-function AddLink({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+export function AddLink({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const toast = useToast()
   const [url, setUrl] = useState('')
   const [title, setTitle] = useState('')
@@ -152,7 +152,8 @@ function AddLink({ onClose, onDone }: { onClose: () => void; onDone: () => void 
 
   return (
     <Modal title="Put a link on the Radar" subtitle="Something new this month the guild should hear about in a minute. Three a month each." onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
+      <form onSubmit={submit}>
+        <div className="space-y-4 p-5">
         <div>
           <Label htmlFor="radar-url">Link</Label>
           <Input id="radar-url" type="url" required inputMode="url" placeholder="https://" maxLength={RADAR_LIMITS.url} value={url} onChange={e => setUrl(e.target.value)} />
@@ -165,7 +166,8 @@ function AddLink({ onClose, onDone }: { onClose: () => void; onDone: () => void 
           <Label htmlFor="radar-note">Why it matters, in a line (optional)</Label>
           <Input id="radar-note" maxLength={RADAR_LIMITS.note} value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. cuts our CI time if it works for us" />
         </div>
-        <div className="flex justify-end gap-2 pt-2">
+        </div>
+        <div className="flex justify-end gap-2 border-t border-border px-5 py-4">
           <Button variant="ghost" onClick={onClose}>Cancel</Button>
           <Button type="submit" disabled={busy}>{busy ? 'Adding…' : 'Add to Radar'}</Button>
         </div>

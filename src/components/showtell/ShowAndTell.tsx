@@ -6,12 +6,14 @@ import { MicrophoneStage, Presentation } from '@phosphor-icons/react/dist/ssr'
 import { SectionHeader } from '@/components/ui/Section'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { Input, Label, Textarea, CharCount } from '@/components/ui/Input'
+import { Input, Label, Textarea } from '@/components/ui/Input'
+import { SegmentedControl } from '@/components/ui/SegmentedControl'
+import { Kers } from '@/components/kers/Kers'
 import { Icon } from '@/components/ui/Icon'
 import { useToast } from '@/hooks/useToast'
 import { useGuestGate } from '@/components/auth/GuestGate'
 import { useShowTell } from '@/components/showtell/useShowTell'
-import { FormatPills } from '@/components/showtell/FormatPills'
+import { FormatCards } from '@/components/showtell/FormatCards'
 import { LIMITS, formatLabel, type DemoFormat, type Slot } from '@/lib/showtell'
 import { cn } from '@/lib/utils/cn'
 
@@ -79,7 +81,7 @@ function SlotRow({ icon, label, slot, empty }: { icon: typeof Presentation; labe
   )
 }
 
-function VolunteerModal({ meeting, onClose, onDone }: { meeting: string; onClose: () => void; onDone: () => void }) {
+export function VolunteerModal({ meeting, onClose, onDone }: { meeting: string; onClose: () => void; onDone: () => void }) {
   const toast = useToast()
   const [title, setTitle] = useState('')
   const [blurb, setBlurb] = useState('')
@@ -109,35 +111,59 @@ function VolunteerModal({ meeting, onClose, onDone }: { meeting: string; onClose
   }
 
   return (
-    <Modal title="Show something" subtitle="Ten minutes, no slides needed. A tool you use, a script that saves you time, a bug that ate your week." onClose={onClose}>
-      <form onSubmit={submit} className="space-y-4">
-        <div>
-          <Label htmlFor="demo-title">What would you show?</Label>
-          <Input id="demo-title" required maxLength={LIMITS.title} value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. My Claude Code setup for reviews" />
-        </div>
-        <div>
-          <Label htmlFor="demo-blurb">One or two lines about it (optional)</Label>
-          <Textarea id="demo-blurb" rows={2} maxLength={LIMITS.blurb} value={blurb} onChange={e => setBlurb(e.target.value)} className="font-sans" />
-          <CharCount value={blurb} max={LIMITS.blurb} />
-        </div>
-        <div>
-          <Label>Format</Label>
-          <FormatPills name="demo-format" value={format} onChange={setFormat} />
-        </div>
-        <div>
-          <Label>When</Label>
-          <div role="radiogroup" className="flex flex-wrap gap-1.5 text-footnote">
-            {([['this', `The ${meeting} meeting`], ['later', 'A later one']] as const).map(([v, l]) => (
-              <label key={v} className="inline-flex items-center gap-2 cursor-pointer text-ink-soft has-checked:text-ink">
-                <input type="radio" name="demo-when" checked={when === v} onChange={() => setWhen(v)} className="accent-ink" />
-                {l}
-              </label>
-            ))}
+    <Modal title="Show something at a guild meeting" subtitle="Ten minutes, no slides needed: a tool you use, a script that saves you time, a bug that ate your week." onClose={onClose}>
+      <form onSubmit={submit}>
+        <div className="space-y-5 p-5">
+          <div>
+            <Label htmlFor="demo-title">What would you show?</Label>
+            <Input
+              id="demo-title"
+              required
+              autoFocus
+              maxLength={LIMITS.title}
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="e.g. My Claude Code setup for reviews"
+            />
+          </div>
+          <div>
+            <div className="flex items-baseline justify-between">
+              <Label htmlFor="demo-blurb">A line or two about it</Label>
+              <span className="text-meta text-ink-muted">optional{blurb.length > LIMITS.blurb * 0.8 ? ` · ${blurb.length}/${LIMITS.blurb}` : ''}</span>
+            </div>
+            <Textarea
+              id="demo-blurb"
+              rows={2}
+              maxLength={LIMITS.blurb}
+              value={blurb}
+              onChange={e => setBlurb(e.target.value)}
+              placeholder="What will people take away?"
+              className="font-sans resize-none"
+            />
+          </div>
+          <fieldset>
+            <legend className="mb-1.5 text-footnote text-ink-soft">Format</legend>
+            <FormatCards name="demo-format" value={format} onChange={setFormat} />
+          </fieldset>
+          <div>
+            <p className="mb-1.5 text-footnote text-ink-soft">When</p>
+            <SegmentedControl
+              label="When"
+              value={when}
+              onChange={setWhen}
+              options={[{ key: 'this', label: `${meeting} meeting` }, { key: 'later', label: 'A later one' }]}
+            />
           </div>
         </div>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={busy || !title.trim()}>{busy ? 'Saving…' : 'Put me in the queue'}</Button>
+        <div className="flex flex-col gap-3 border-t border-border px-5 py-4 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <Kers size={36} expression="excited" className="shrink-0" />
+            <p className="min-w-0 text-meta leading-snug text-ink-muted">An organiser confirms the month with you before anything’s announced.</p>
+          </div>
+          <div className="flex shrink-0 justify-end gap-2">
+            <Button variant="ghost" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={busy || !title.trim()}>{busy ? 'Saving…' : 'Put me in the queue'}</Button>
+          </div>
         </div>
       </form>
     </Modal>
