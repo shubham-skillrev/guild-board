@@ -9,6 +9,9 @@ import { UserAvatar } from '@/components/ui/UserAvatar'
 import { RoastMeToggle } from '@/components/profile/RoastMeToggle'
 import { ProfileSwitch } from '@/components/profile/ProfileSwitch'
 import { MyYearCard } from '@/components/profile/MyYearCard'
+import { WaysToTakePart } from '@/components/profile/WaysToTakePart'
+import { getInvolvement } from '@/lib/guild/nextSteps'
+import { openCycle } from '@/lib/guild/demos'
 import { getMyYear, myYearLine } from '@/lib/guild/myYear'
 
 export const metadata: Metadata = { title: 'Your profile' }
@@ -37,12 +40,16 @@ async function getProfile() {
       .limit(20),
   ])
 
-  const year = await getMyYear(user.id, profile?.email ?? '')
-  return { profile, topics: topics ?? [], sparksReceived: sparksReceived ?? [], year }
+  const [year, involvement, cycle] = await Promise.all([
+    getMyYear(user.id, profile?.email ?? ''),
+    getInvolvement(user.id),
+    openCycle(admin),
+  ])
+  return { profile, topics: topics ?? [], sparksReceived: sparksReceived ?? [], year, involvement, meeting: cycle?.label ?? null }
 }
 
 export default async function ProfilePage() {
-  const { profile, topics, sparksReceived, year } = await getProfile()
+  const { profile, topics, sparksReceived, year, involvement, meeting } = await getProfile()
 
   if (!profile) redirect('/login')
 
@@ -79,6 +86,7 @@ export default async function ProfilePage() {
 
       {/* Your ideas */}
       <MyYearCard year={year} line={myYearLine(year)} />
+      <WaysToTakePart involvement={involvement} meeting={meeting} idea={involvement.idea} />
 
       <div className="mb-8 space-y-4">
         <RoastMeToggle initial={profile.roast_me === true} />

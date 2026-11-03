@@ -16,7 +16,7 @@ interface Note {
  * Kers delivers it; the words are the organiser's. "I'd rather not get these"
  * turns on "No nudges" for good (it's also on the profile).
  */
-export function NudgeCard() {
+export function NudgeCard({ onDone }: { onDone?: () => void } = {}) {
   const [notes, setNotes] = useState<Note[]>([])
 
   useEffect(() => {
@@ -29,7 +29,9 @@ export function NudgeCard() {
   }, [])
 
   const close = (id: string, stop = false) => {
-    setNotes(n => (stop ? [] : n.filter(x => x.id !== id)))
+    const left = stop ? [] : notes.filter(x => x.id !== id)
+    setNotes(left)
+    if (!left.length) onDone?.()
     fetch(`/api/nudges/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

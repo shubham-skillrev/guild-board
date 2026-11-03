@@ -23,7 +23,7 @@ const STEPS: { key: OnboardingStep; title: string; hint: string; href?: string; 
  * Each step ticks itself off from what they actually did, and the card goes
  * away when everything's done, after two weeks, or when they hide it.
  */
-export function GettingStarted() {
+export function GettingStarted({ onDone }: { onDone?: () => void } = {}) {
   const [data, setData] = useState<Onboarding | null>(null)
   const [hidden, setHidden] = useState(true)
 
@@ -95,7 +95,7 @@ export function GettingStarted() {
 
       <button
         type="button"
-        onClick={() => { try { localStorage.setItem(HIDE_KEY, '1') } catch {}; setHidden(true) }}
+        onClick={() => { try { localStorage.setItem(HIDE_KEY, '1') } catch {}; setHidden(true); onDone?.() }}
         className="mt-3 text-meta text-ink-muted hover:text-ink"
       >
         Hide this

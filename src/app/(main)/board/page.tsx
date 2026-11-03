@@ -14,11 +14,8 @@ import { SubmitModal } from '@/components/topics/SubmitModal'
 import { ShareIntent } from '@/components/topics/ShareIntent'
 import { MeetingPill } from '@/components/layout/MeetingPill'
 import { OutcomesRecap } from '@/components/board/OutcomesRecap'
-import { SurveyCard } from '@/components/board/SurveyCard'
-import { SpotlightInvite } from '@/components/showtell/SpotlightInvite'
-import { NudgeCard } from '@/components/board/NudgeCard'
-import { GettingStarted } from '@/components/board/GettingStarted'
 import { ShowTellBanner } from '@/components/showtell/ShowTellBanner'
+import { KersSlot } from '@/components/board/KersSlot'
 import { ShowAndTell } from '@/components/showtell/ShowAndTell'
 import { RadarTeaser } from '@/components/radar/RadarTeaser'
 import { BytesTeaser } from '@/components/board/BytesTeaser'
@@ -190,17 +187,9 @@ export default function BoardPage() {
           {/* ─── This month's Show & Tell, once someone said yes ─── */}
           <ShowTellBanner />
 
-          {/* ─── A new member's first two weeks ─── */}
-          <GettingStarted />
-
-          {/* ─── A Spotlight invitation, for whoever has one ─── */}
-          <SpotlightInvite />
-
-          {/* ─── A note from an organiser, until closed ─── */}
-          <NudgeCard />
-
-          {/* ─── Kers asking for the guild survey (until answered) ─── */}
-          <SurveyCard />
+          {/* ─── Kers: the one thing worth doing next (an invitation, a note,
+              the first week, the survey, the demo slot, the Radar) ─── */}
+          <KersSlot />
 
           {/* ─── What came of last cycle ─── */}
           <OutcomesRecap />

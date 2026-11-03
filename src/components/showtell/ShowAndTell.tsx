@@ -81,9 +81,9 @@ function SlotRow({ icon, label, slot, empty }: { icon: typeof Presentation; labe
   )
 }
 
-export function VolunteerModal({ meeting, onClose, onDone }: { meeting: string; onClose: () => void; onDone: () => void }) {
+export function VolunteerModal({ meeting, onClose, onDone, initialTitle = '' }: { meeting: string; onClose: () => void; onDone: () => void; initialTitle?: string }) {
   const toast = useToast()
-  const [title, setTitle] = useState('')
+  const [title, setTitle] = useState(initialTitle)
   const [blurb, setBlurb] = useState('')
   const [format, setFormat] = useState<DemoFormat>('demo')
   const [when, setWhen] = useState<'this' | 'later'>('this')

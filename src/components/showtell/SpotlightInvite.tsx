@@ -16,14 +16,14 @@ import { LIMITS, SMALL_FORMATS, type DemoFormat, type MyDemo } from '@/lib/showt
  * card offers the smaller formats instead and the way out becomes "not this
  * year", which also stops invitations until January.
  */
-export function SpotlightInvite() {
+export function SpotlightInvite({ onDone }: { onDone?: () => void } = {}) {
   const { data, refresh } = useShowTell()
   const invites = data?.mine.filter(d => d.status === 'invited') ?? []
   if (!invites.length) return null
   return (
     <>
       {invites.map(inv => (
-        <Invite key={inv.id} invite={inv} passesLeft={data!.passes_left} onDone={refresh} />
+        <Invite key={inv.id} invite={inv} passesLeft={data!.passes_left} onDone={() => { refresh(); onDone?.() }} />
       ))}
     </>
   )

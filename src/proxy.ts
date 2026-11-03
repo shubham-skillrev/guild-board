@@ -38,7 +38,7 @@ export async function proxy(request: NextRequest) {
     // checks the email domain itself and writes only with the service role.
     pathname === '/survey' ||
     pathname === '/api/survey' ||
-    pathname === '/api/survey/status' ||
+    pathname === '/api/me/next' ||
     // The invite page: for people who haven't joined yet.
     pathname === '/join' ||
     pathname === '/favicon.ico' ||
