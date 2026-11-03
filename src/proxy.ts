@@ -39,6 +39,8 @@ export async function proxy(request: NextRequest) {
     pathname === '/survey' ||
     pathname === '/api/survey' ||
     pathname === '/api/survey/status' ||
+    // The invite page: for people who haven't joined yet.
+    pathname === '/join' ||
     pathname === '/favicon.ico' ||
     isPwaAsset
 

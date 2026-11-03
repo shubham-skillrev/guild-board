@@ -17,6 +17,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { EMPTY_ANSWERS, SURVEY_KEY, type SurveyAnswers } from '@/lib/survey'
 import { isAllowedEmailDomain } from '@/lib/utils/email'
 import { getSurveyState } from '@/lib/surveyResults'
+import { getGuildSnapshot } from '@/lib/guild/snapshot'
 
 const SITE = process.env.NEXT_PUBLIC_APP_URL || 'https://guildboard.skillrev.in'
 const TITLE = 'What would make the guild worth your hour?'
@@ -76,7 +77,7 @@ async function getViewer(): Promise<{ viewer: SurveyViewer | null; initial: Surv
 }
 
 export default async function SurveyPage() {
-  const [{ viewer, initial, answeredAt }, state] = await Promise.all([getViewer(), getSurveyState()])
+  const [{ viewer, initial, answeredAt }, state, snapshot] = await Promise.all([getViewer(), getSurveyState(), getGuildSnapshot()])
 
   return (
     <div className="relative min-h-screen bg-parchment flex flex-col font-sans">
@@ -97,7 +98,7 @@ export default async function SurveyPage() {
       </header>
 
       <main className="relative flex-1 px-(--pad-page-x) pt-10 pb-20 md:pt-16">
-        <SurveyForm viewer={viewer} initial={initial} answeredAt={answeredAt} closed={!state.open} />
+        <SurveyForm viewer={viewer} initial={initial} answeredAt={answeredAt} closed={!state.open} snapshot={snapshot} />
       </main>
 
       {viewer && <VisitBeacon />}

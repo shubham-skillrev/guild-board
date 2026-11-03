@@ -17,6 +17,7 @@ import { OutcomesRecap } from '@/components/board/OutcomesRecap'
 import { SurveyCard } from '@/components/board/SurveyCard'
 import { SpotlightInvite } from '@/components/showtell/SpotlightInvite'
 import { NudgeCard } from '@/components/board/NudgeCard'
+import { GettingStarted } from '@/components/board/GettingStarted'
 import { ShowAndTell } from '@/components/showtell/ShowAndTell'
 import { RadarTeaser } from '@/components/radar/RadarTeaser'
 import { BytesTeaser } from '@/components/board/BytesTeaser'
@@ -185,6 +186,9 @@ export default function BoardPage() {
           ? 'grid grid-cols-1 gap-y-(--gap-section) items-start'
           : 'grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-x-10 gap-y-(--gap-section) items-start'}>
           <div className="min-w-0 space-y-(--gap-section)">
+          {/* ─── A new member's first two weeks ─── */}
+          <GettingStarted />
+
           {/* ─── A Spotlight invitation, for whoever has one ─── */}
           <SpotlightInvite />
 

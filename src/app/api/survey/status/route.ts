@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { SURVEY_KEY } from '@/lib/survey'
 import { getSurveyState } from '@/lib/surveyResults'
+import { isNewMember } from '@/lib/onboarding'
 
 export async function GET() {
   const state = await getSurveyState()
@@ -18,7 +19,10 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser()
 
   let answered = false
+  let newMember = false
   if (state.open && user?.email) {
+    const { data: me } = await createAdminClient().from('users').select('created_at').eq('id', user.id).maybeSingle()
+    newMember = isNewMember(me?.created_at)
     const { data } = await createAdminClient()
       .from('survey_responses')
       .select('id')
@@ -29,7 +33,8 @@ export async function GET() {
   }
 
   return NextResponse.json(
-    { survey: SURVEY_KEY, open: state.open, answered, member: !!user },
+    // A member's first two weeks: the getting-started card asks instead.
+    { survey: SURVEY_KEY, open: state.open, answered, member: !!user, newMember },
     { headers: { 'Cache-Control': 'private, no-store' } },
   )
 }

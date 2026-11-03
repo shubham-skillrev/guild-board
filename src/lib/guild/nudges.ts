@@ -69,7 +69,9 @@ function fallbackDraft(p: Person): string {
 }
 
 function withLink(p: Person, body: string): string {
-  return p.member ? body : `${body} ${SITE}/survey`
+  if (p.member) return body
+  const first = p.name.replace(/^@/, '').split(/\s+/)[0]
+  return `${body} ${SITE}/join?n=${encodeURIComponent(first)}`
 }
 
 /** Kers' drafts for a set of people, one AI call for all of them. */

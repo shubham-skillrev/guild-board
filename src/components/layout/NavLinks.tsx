@@ -60,7 +60,7 @@ export function DesktopNavLinks({ role }: NavLinksProps) {
           isLeaders ? 'text-ink border-saffron' : 'text-ink-soft border-transparent hover:text-ink'
         )}
       >
-        Leaderboard
+        Guild hall
       </Link>
       {(role === 'admin' || role === 'lead') && (
         <Link
@@ -136,7 +136,7 @@ export function MobileBottomNav({ role, username, isGuest }: NavLinksProps) {
           )}
         >
           <Trophy className="w-4.5 h-4.5" />
-          <span>Leaders</span>
+          <span>Hall</span>
         </Link>
         {(role === 'admin' || role === 'lead') && (
           <Link

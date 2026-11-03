@@ -10,6 +10,8 @@ interface Status {
   open: boolean
   answered: boolean
   member: boolean
+  /** In their first two weeks: the getting-started card covers the survey. */
+  newMember?: boolean
 }
 
 /* "Later" hides the card for a week, and after the third "Later" it stops
@@ -42,7 +44,7 @@ export function SurveyCard() {
     fetch('/api/survey/status')
       .then(r => (r.ok ? r.json() : null))
       .then((s: Status | null) => {
-        if (!alive || !s || !s.open || s.answered) return
+        if (!alive || !s || !s.open || s.answered || s.newMember) return
         const later = readLater(s.survey)
         if (later.count >= MAX_LATERS || later.until > Date.now()) return
         setStatus(s)

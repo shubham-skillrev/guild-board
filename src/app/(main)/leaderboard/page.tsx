@@ -1,67 +1,21 @@
 import type { Metadata } from 'next'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { isSystemUsername } from '@/lib/system/identity'
-import { getViewer } from '@/lib/supabase/viewer'
 import { redirect } from 'next/navigation'
 import { Lightbulb, Users, CheckCircle } from '@phosphor-icons/react/dist/ssr'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { getViewer } from '@/lib/supabase/viewer'
+import { getPublicHall, SCORE_WEIGHTS } from '@/lib/guild/publicHall'
+import { PublicHall, type SparkWindow } from '@/components/hall/PublicHall'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { SparkButton } from '@/components/voting/SparkButton'
 import { StatStrip, StatChip } from '@/components/ui/Section'
+import { cn } from '@/lib/utils/cn'
 
-export const metadata: Metadata = { title: 'Leaderboard' }
+export const metadata: Metadata = { title: 'The guild hall' }
 
-interface LeaderboardEntry {
-  id: string
-  username: string
-  spark_count: number
-  hall_of_flame: boolean
-  topic_count: number
-  selected_count: number
-  guild_score: number
-}
-
-interface SparkWindowInfo {
-  cycleId: string
-  sparkedUserId: string | null
-  currentUserId: string
-}
-
-/** Cohort stats - group framing, deliberately not per-person. */
-interface CycleStats {
-  label: string
-  ideas: number
-  voters: number
-  discussed: number
-}
-
-async function getLeaderboard(): Promise<{
-  entries: LeaderboardEntry[]
-  sparkWindow: SparkWindowInfo | null
-  members: { id: string; username: string }[]
-  stats: CycleStats | null
-}> {
-  // Auth gate: user must be signed in, or browsing as a guest
-  const { supabase, user, isGuest } = await getViewer()
-  if (!user) redirect('/login')
-
-  // Admin client bypasses RLS for cross-user aggregation.
-  const adminDb = createAdminClient()
-
-  const { data: users } = await adminDb
-    .from('users')
-    .select('id, username, spark_count, hall_of_flame')
-    .limit(100)
-
-  const empty = { entries: [], sparkWindow: null, members: [], stats: null }
-  if (!users?.length) return empty
-
-  const members = users
-    .map(u => ({ id: u.id, username: u.username }))
-    .sort((a, b) => (a.username ?? '').localeCompare(b.username ?? ''))
-
-  // The most recent non-upcoming cycle. Used only to label and compute the
-  // cohort stats strip; the standings themselves run across all cycles.
-  const { data: scopedCycle } = await adminDb
+/** Cohort stats: what the guild did together this month, nobody ranked. */
+async function cycleStats() {
+  const admin = createAdminClient()
+  const { data: cycle } = await admin
     .from('cycles')
     .select('id, label')
     .neq('status', 'upcoming')
@@ -69,81 +23,25 @@ async function getLeaderboard(): Promise<{
     .order('month', { ascending: false })
     .limit(1)
     .maybeSingle()
-
-  if (!scopedCycle) return { ...empty, members }
-
-  /* Standings run across all cycles. Ranking was scoped to the current cycle,
-     which meant that early in a month almost nobody had scored yet and the
-     board showed a podium with nothing under it. Contribution to a guild is
-     cumulative, and a table that resets to empty every month cannot show it.
-     The cohort stats below stay per-cycle: those describe the month, not the
-     person, and that is the distinction the two are making.
-     Tradeoff accepted knowingly: a permanent ordinal list also records who is
-     inactive. Sparks stay per-cycle-giveable so newcomers can still move. */
-  const [{ data: allTopics }, { data: allSparks }] = await Promise.all([
-    adminDb
-      .from('topics')
-      .select('user_id, is_selected, is_anonymous')
-      .eq('is_deleted', false),
-    adminDb.from('sparks').select('to_user_id'),
+  if (!cycle) return null
+  const [{ data: topics }, { data: votes }] = await Promise.all([
+    admin.from('topics').select('outcome_tag').eq('cycle_id', cycle.id).eq('is_deleted', false),
+    admin.from('votes').select('user_id').eq('cycle_id', cycle.id),
   ])
-
-  const [{ data: cycleTopics }, { data: cycleVotes }] = await Promise.all([
-    adminDb
-      .from('topics')
-      .select('user_id, outcome_tag')
-      .eq('cycle_id', scopedCycle.id)
-      .eq('is_deleted', false),
-    adminDb
-      .from('votes')
-      .select('user_id')
-      .eq('cycle_id', scopedCycle.id),
-  ])
-
-  const topicMap = new Map<string, number>()
-  const selectedMap = new Map<string, number>()
-  const sparkMap = new Map<string, number>()
-
-  // Ghost pitches are excluded from scoring - crediting them would let the
-  // board reveal, by arithmetic, who authored an anonymous topic.
-  allTopics?.forEach(t => {
-    if (t.is_anonymous) return
-    topicMap.set(t.user_id, (topicMap.get(t.user_id) ?? 0) + 1)
-    if (t.is_selected) selectedMap.set(t.user_id, (selectedMap.get(t.user_id) ?? 0) + 1)
-  })
-  allSparks?.forEach(s => sparkMap.set(s.to_user_id, (sparkMap.get(s.to_user_id) ?? 0) + 1))
-
-  const stats: CycleStats = {
-    label: scopedCycle.label,
-    ideas: cycleTopics?.length ?? 0,
-    voters: new Set((cycleVotes ?? []).map(v => v.user_id)).size,
-    discussed: (cycleTopics ?? []).filter(t => t.outcome_tag && t.outcome_tag !== 'dropped').length,
+  return {
+    label: cycle.label,
+    ideas: topics?.length ?? 0,
+    voters: new Set((votes ?? []).map(v => v.user_id)).size,
+    discussed: (topics ?? []).filter(t => t.outcome_tag && t.outcome_tag !== 'dropped').length,
   }
+}
 
-  // Composite score: sparks × 3 + picked × 2 + ideas × 1, across all cycles.
-  const entries: LeaderboardEntry[] = users
-    .map(u => {
-      const topic_count = topicMap.get(u.id) ?? 0
-      const selected_count = selectedMap.get(u.id) ?? 0
-      const spark_count = sparkMap.get(u.id) ?? 0
-      return {
-        ...u,
-        spark_count,
-        topic_count,
-        selected_count,
-        guild_score: spark_count * 3 + selected_count * 2 + topic_count,
-      }
-    })
-    // Only people who actually did something place. A score of 0 never ranks.
-    // GuildBot's suggestions are not a person's work.
-    .filter(e => e.guild_score > 0 && !isSystemUsername(e.username))
-    .sort((a, b) => b.guild_score - a.guild_score)
-
-  // Check for active spark window:
-  // 1. Open cycle after meeting date, OR
-  // 2. Closed cycle still within spark_closes_at window
+/** The spark window: an open month after its meeting, or a closed one still in its 48 hours. */
+async function sparkWindowFor(userId: string, isGuest: boolean): Promise<SparkWindow | null> {
+  if (isGuest) return null
+  const admin = createAdminClient()
   const now = new Date().toISOString()
-  const { data: activeCycle } = await adminDb
+  const { data: active } = await admin
     .from('cycles')
     .select('id')
     .or(`and(status.eq.open,meeting_at.lte.${now}),and(status.eq.closed,spark_closes_at.gt.${now})`)
@@ -151,294 +49,146 @@ async function getLeaderboard(): Promise<{
     .order('month', { ascending: false })
     .limit(1)
     .maybeSingle()
-
-  // Guests are read-only, so they never get a spark to give.
-  let sparkWindow: SparkWindowInfo | null = null
-  if (activeCycle && !isGuest) {
-    const { data: existingSpark } = await supabase
-      .from('sparks')
-      .select('to_user_id')
-      .eq('from_user_id', user.id)
-      .eq('cycle_id', activeCycle.id)
-      .maybeSingle()
-
-    sparkWindow = {
-      cycleId: activeCycle.id,
-      sparkedUserId: existingSpark?.to_user_id ?? null,
-      currentUserId: user.id,
-    }
-  }
-
-  return { entries, sparkWindow, members, stats }
+  if (!active) return null
+  const { data: given } = await admin
+    .from('sparks')
+    .select('to_user_id')
+    .eq('from_user_id', userId)
+    .eq('cycle_id', active.id)
+    .maybeSingle()
+  return { cycleId: active.id, sparkedUserId: given?.to_user_id ?? null, currentUserId: userId }
 }
 
+/**
+ * The guild hall: everyone who is making the guild better, as lit windows,
+ * then the standings with what each person has done. Lit only by named,
+ * visible things; quiet members are never named (see lib/guild/publicHall).
+ */
 export default async function LeaderboardPage() {
-  const { entries, sparkWindow, members, stats } = await getLeaderboard()
-  // The podium. Ranks 4-N follow in the standings table below.
-  const hallOfFame = entries.slice(0, 3)
-  const hasSparkWindow = sparkWindow !== null
-  // Ranks 4 and below. These were computed and then dropped, which left the
-  // page with a podium and nothing under it.
-  const rest = entries.slice(3)
-  // Everyone is sparkable during the window, not just people who placed. The
-  // picker lists only those NOT already in the table above, so no member gets
-  // two spark buttons on one screen.
-  const rankedIds = new Set(entries.map(e => e.id))
-  const unranked = members.filter(
-    m => m.id !== sparkWindow?.currentUserId && !rankedIds.has(m.id),
-  )
+  const { user, isGuest } = await getViewer()
+  if (!user) redirect('/login')
+
+  const [{ windows, lit }, stats, spark, { data: members }] = await Promise.all([
+    getPublicHall(isGuest ? null : user.id),
+    cycleStats(),
+    sparkWindowFor(user.id, isGuest),
+    createAdminClient().from('users').select('id, username').eq('is_system', false).order('username'),
+  ])
+  const litIds = new Set(lit.map(w => w.userId))
+  const unranked = spark ? (members ?? []).filter(m => m.id !== spark.currentUserId && !litIds.has(m.id)) : []
 
   return (
-    <div className="px-5 md:px-10 py-8 w-full max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="type-display text-ink">
-          Top Builders
-        </h1>
-        <p className="type-body text-ink-soft mt-1.5">
-          Guild legends across all cycles. Earn <span className="text-saffron font-medium">sparks</span> to reach the Hall of Flame.
+    <div className="px-(--pad-page-x) py-8 w-full max-w-(--measure-wide) mx-auto pb-28 md:pb-10">
+      <header className="mb-7">
+        <h1 className="text-title-1 text-label">The guild hall</h1>
+        <p className="mt-1.5 max-w-prose text-callout text-label-2">
+          The whole guild in one crowd: the bigger you are and the nearer the middle, the more you’ve done for the guild. Move in: post a topic, comment, put a link on the
+          Radar, or show something at a meeting.
         </p>
-        {hasSparkWindow && (
-          <p className="text-[13px] text-saffron mt-2 font-medium">
-            ⚡ Spark window is open - give your spark to a builder who inspired you this cycle.
+        {spark && (
+          <p className="mt-2 text-footnote font-medium text-ink">
+            The spark window is open: give your spark to someone who made this month better. Pick them in the crowd.
           </p>
         )}
-      </div>
+      </header>
 
-      {/* Cohort stats - what the guild did together, with nobody ranked.
-          Same strip the board uses for your quotas. These are for one month
-          while the standings below are all-time, so the strip names its month. */}
       {stats && (
         <StatStrip className="mb-8" aria-label={`${stats.label} so far`}>
           <span className="px-2 text-[12px] font-medium text-ink-soft">{stats.label}</span>
-          {[
-            { label: 'ideas pitched', value: stats.ideas, icon: Lightbulb },
-            { label: 'people voted', value: stats.voters, icon: Users },
-            { label: 'taken forward', value: stats.discussed, icon: CheckCircle },
-          ].map(stat => (
-            <StatChip key={stat.label} icon={stat.icon} value={stat.value} label={stat.label} />
-          ))}
+          <StatChip icon={Lightbulb} value={stats.ideas} label="ideas pitched" />
+          <StatChip icon={Users} value={stats.voters} label="people voted" />
+          <StatChip icon={CheckCircle} value={stats.discussed} label="taken forward" />
         </StatStrip>
       )}
 
-      {hallOfFame.length > 0 && (
-        <section className="mb-8 rounded-(--radius-card) border border-saffron/20 bg-linear-to-br from-saffron-light/30 via-paper/90 to-wisteria-light/25 p-5 md:p-6 shadow-[0_24px_70px_rgba(0,0,0,0.28)] overflow-hidden">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="font-serif text-[1.75rem] md:text-[2rem] font-normal tracking-[-0.01em] text-ink">Hall of Fame</h2>
-              <p className="text-[12px] text-ink-soft mt-1">The most celebrated builders in the guild.</p>
-            </div>
-            <span className="text-[11px] font-semibold tracking-[0.24em] uppercase text-saffron/80">Top 3</span>
-          </div>
+      <PublicHall windows={windows} spark={spark} />
 
-          <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr_1fr] items-end">
-            {hallOfFame[1] && (
-              <div className="order-2 lg:order-1 rounded-(--radius-card) border border-border bg-paper/75 p-(--pad-card)">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-2xl">🥈</span>
-                  <span className="text-[10px] uppercase tracking-widest text-cha">Runner-up</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <UserAvatar username={hallOfFame[1].username ?? 'user'} size={40} />
-                  <div className="min-w-0">
-                    <p className="text-[15px] font-medium text-ink truncate">@{hallOfFame[1].username}</p>
-                    <p className="text-[12px] text-ink-soft">Score {hallOfFame[1].guild_score}</p>
-                  </div>
-                </div>
-                {hasSparkWindow && sparkWindow!.currentUserId !== hallOfFame[1].id && (
-                  <div className="mt-3 flex justify-end">
-                    <SparkButton
-                      toUserId={hallOfFame[1].id}
-                      cycleId={sparkWindow!.cycleId}
-                      alreadyGiven={sparkWindow!.sparkedUserId === hallOfFame[1].id}
-                      isDisabled={sparkWindow!.sparkedUserId !== null && sparkWindow!.sparkedUserId !== hallOfFame[1].id}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {hallOfFame[0] && (
-              <div className="order-1 lg:order-2 rounded-(--radius-card) border border-saffron/25 bg-linear-to-b from-saffron-light/50 to-paper/90 p-5 md:p-6 shadow-[0_22px_50px_rgba(232,145,58,0.12)] relative">
-                <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-saffron/50 to-transparent" />
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-3xl">🥇</span>
-                  <span className="text-[10px] uppercase tracking-widest text-saffron">Champion</span>
-                </div>
-                <div className="flex flex-col items-center text-center gap-3">
-                  <UserAvatar username={hallOfFame[0].username ?? 'user'} size={64} />
-                  <div>
-                    <p className="text-[17px] font-semibold text-ink">@{hallOfFame[0].username}</p>
-                    <p className="text-[12px] text-ink-soft">Guild score {hallOfFame[0].guild_score}</p>
-                  </div>
-                  <div className="flex items-center gap-3 text-[12px] text-cha">
-                    <span>⚡ {hallOfFame[0].spark_count}</span>
-                    <span>•</span>
-                    <span>Ideas {hallOfFame[0].topic_count}</span>
-                  </div>
-                  {hasSparkWindow && (
-                    sparkWindow!.currentUserId === hallOfFame[0].id
-                      ? <span className="text-[12px] text-saffron/60 font-medium">✨ That&apos;s you!</span>
-                      : <SparkButton
-                          toUserId={hallOfFame[0].id}
-                          cycleId={sparkWindow!.cycleId}
-                          alreadyGiven={sparkWindow!.sparkedUserId === hallOfFame[0].id}
-                          isDisabled={sparkWindow!.sparkedUserId !== null && sparkWindow!.sparkedUserId !== hallOfFame[0].id}
-                        />
-                  )}
-                </div>
-              </div>
-            )}
-
-            {hallOfFame[2] && (
-              <div className="order-3 rounded-(--radius-card) border border-border bg-paper/75 p-(--pad-card)">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-2xl">🥉</span>
-                  <span className="text-[10px] uppercase tracking-widest text-cha">Podium</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <UserAvatar username={hallOfFame[2].username ?? 'user'} size={40} />
-                  <div className="min-w-0">
-                    <p className="text-[15px] font-medium text-ink truncate">@{hallOfFame[2].username}</p>
-                    <p className="text-[12px] text-ink-soft">Score {hallOfFame[2].guild_score}</p>
-                  </div>
-                </div>
-                {hasSparkWindow && sparkWindow!.currentUserId !== hallOfFame[2].id && (
-                  <div className="mt-3 flex justify-end">
-                    <SparkButton
-                      toUserId={hallOfFame[2].id}
-                      cycleId={sparkWindow!.cycleId}
-                      alreadyGiven={sparkWindow!.sparkedUserId === hallOfFame[2].id}
-                      isDisabled={sparkWindow!.sparkedUserId !== null && sparkWindow!.sparkedUserId !== hallOfFame[2].id}
-                    />
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {entries.length === 0 && (
-        <div className="text-center py-16">
-          <div className="text-3xl mb-3">⚡</div>
-          <p className="text-base font-medium text-ink-soft">Nothing on the board yet this cycle</p>
-          <p className="text-[13px] mt-1 text-cha">Pitch an idea or raise a hand - it counts from the first one.</p>
-        </div>
-      )}
-
-      {/* ─── Standings ───
-          Ranks 4 and below were being computed and then thrown away, so the
-          page went straight from a podium to nothing. A table restores the
-          density the podium alone cannot carry, and a column of aligned
-          numbers is the whole reason a standings table beats a card grid.
-          Everyone who scored appears. Nobody who scored zero is listed as
-          zero, which was the original objection and still holds. */}
-      {rest.length > 0 && (
-        <section className="mb-8 rounded-(--radius-card) border border-border bg-paper/40 overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-border text-meta text-ink-muted uppercase">
-                <th scope="col" className="font-medium py-2.5 pl-4 pr-2 w-12">#</th>
-                <th scope="col" className="font-medium py-2.5 px-2">Builder</th>
-                <th scope="col" className="font-medium py-2.5 px-2 text-right tabular">Ideas</th>
-                <th scope="col" className="font-medium py-2.5 px-2 text-right tabular hidden sm:table-cell">Picked</th>
-                <th scope="col" className="font-medium py-2.5 px-2 text-right tabular">Sparks</th>
-                {hasSparkWindow && (
-                  <th scope="col" className="font-medium py-2.5 pl-2 pr-4 text-right">Give</th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rest.map((entry, i) => (
-                <tr key={entry.id} className="hover:bg-kinu/25 transition-colors">
-                  <td className="py-2.5 pl-4 pr-2 text-footnote text-ink-muted tabular">
-                    {i + 4}
-                  </td>
-                  <td className="py-2.5 px-2">
-                    <span className="flex items-center gap-2.5 min-w-0">
-                      <UserAvatar username={entry.username ?? 'user'} size={26} />
-                      <span className="text-footnote text-ink truncate">@{entry.username}</span>
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-2 text-right text-footnote text-ink-soft tabular">
-                    {entry.topic_count}
-                  </td>
-                  <td className="py-2.5 px-2 text-right text-footnote text-ink-soft tabular hidden sm:table-cell">
-                    {entry.selected_count}
-                  </td>
-                  <td className="py-2.5 px-2 text-right text-footnote text-ink-soft tabular">
-                    {entry.spark_count}
-                  </td>
-                  {hasSparkWindow && (
-                    <td className="py-2.5 pl-2 pr-4 text-right">
-                      {sparkWindow!.currentUserId === entry.id ? (
-                        <span className="text-ink-muted">-</span>
-                      ) : (
-                        <SparkButton
-                          toUserId={entry.id}
-                          cycleId={sparkWindow!.cycleId}
-                          alreadyGiven={sparkWindow!.sparkedUserId === entry.id}
-                          isDisabled={
-                            sparkWindow!.sparkedUserId !== null &&
-                            sparkWindow!.sparkedUserId !== entry.id
-                          }
-                        />
-                      )}
-                    </td>
-                  )}
+      {lit.length > 0 && (
+        <section aria-labelledby="hall-standings" className="mt-12">
+          <h2 id="hall-standings" className="mb-3 text-title-3 text-label">Who’s lighting it up</h2>
+          <div className="elev-1 overflow-x-auto rounded-(--radius-card)">
+            <table className="w-full text-footnote">
+              <thead>
+                <tr className="border-b border-separator text-left text-ink-muted">
+                  <th scope="col" className="w-10 px-4 py-2.5 font-medium">#</th>
+                  <th scope="col" className="px-4 py-2.5 font-medium">Member</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Score</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Sparks</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Topics</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Picked</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Comments</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Show & Tell</th>
+                  <th scope="col" className="px-3 py-2.5 text-right font-medium">Radar</th>
+                  {spark && <th scope="col" className="px-4 py-2.5"><span className="sr-only">Spark</span></th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-separator">
+                {lit.map((w, i) => (
+                  <tr key={w.key} className={cn(w.isYou && 'bg-kinu/40')}>
+                    <td className="px-4 py-2.5 font-mono text-[12px] text-ink-muted tabular">{i + 1}</td>
+                    <td className="px-4 py-2.5">
+                      <span className="flex items-center gap-2.5">
+                        <UserAvatar username={w.username ?? ''} size={26} />
+                        <span className="text-ink">@{w.username}</span>
+                        {w.isYou && <span className="text-meta text-ink-muted">you</span>}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-medium text-ink tabular">{w.stats?.score}</td>
+                    <td className="px-3 py-2.5 text-right text-ink-soft tabular">{w.stats?.sparks}</td>
+                    <td className="px-3 py-2.5 text-right text-ink-soft tabular">{w.stats?.topics}</td>
+                    <td className="px-3 py-2.5 text-right text-ink-soft tabular">{w.stats?.picked}</td>
+                    <td className="px-3 py-2.5 text-right text-ink-soft tabular">{w.stats?.comments}</td>
+                    <td className="px-3 py-2.5 text-right text-ink-soft tabular">{w.stats?.demos}</td>
+                    <td className="px-3 py-2.5 text-right text-ink-soft tabular">{w.stats?.radar}</td>
+                    {spark && (
+                      <td className="px-4 py-2">
+                        {w.userId && w.userId !== spark.currentUserId && (
+                          <SparkButton
+                            toUserId={w.userId}
+                            cycleId={spark.cycleId}
+                            alreadyGiven={spark.sparkedUserId === w.userId}
+                            isDisabled={spark.sparkedUserId !== null && spark.sparkedUserId !== w.userId}
+                          />
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       )}
 
-      {/* Spark picker - every member, unranked and alphabetical. Recognition
-          should not require appearing in a standings table, so this stays
-          separate from the table above and keeps its own A-Z order. */}
-      {hasSparkWindow && unranked.length > 0 && (
-        <section className="rounded-(--radius-card) border border-border bg-paper/40 overflow-hidden">
-          <div className="px-4 py-3.5 border-b border-border">
-            <h2 className="text-heading text-ink">Give your spark</h2>
-            <p className="text-footnote text-ink-muted mt-0.5">
-              One per cycle, to anyone who made this month better. Listed A-Z, not ranked.
-            </p>
-          </div>
-          <ul className="divide-y divide-border">
-            {unranked.map(member => {
-              const alreadyGiven = sparkWindow!.sparkedUserId === member.id
-              const isDisabled = sparkWindow!.sparkedUserId !== null && !alreadyGiven
-              return (
-                <li
-                  key={member.id}
-                  className={`flex items-center gap-2.5 px-4 py-2.5 min-h-11 transition-colors ${
-                    alreadyGiven ? 'bg-saffron/8' : 'hover:bg-kinu/25'
-                  }`}
-                >
-                  <UserAvatar username={member.username ?? 'user'} size={26} />
-                  <span className="text-footnote text-ink truncate min-w-0">@{member.username}</span>
-                  <span className="ml-auto shrink-0">
-                    <SparkButton
-                      toUserId={member.id}
-                      cycleId={sparkWindow!.cycleId}
-                      alreadyGiven={alreadyGiven}
-                      isDisabled={isDisabled}
-                    />
-                  </span>
-                </li>
-              )
-            })}
+      {/* Sparks aren't only for people already lit: everyone else, A-Z. */}
+      {spark && unranked.length > 0 && (
+        <section aria-labelledby="hall-spark" className="mt-10">
+          <h2 id="hall-spark" className="text-title-3 text-label">Spark someone who isn’t lit yet</h2>
+          <p className="mb-3 mt-0.5 text-footnote text-ink-muted">One spark per month. Listed A to Z, not ranked.</p>
+          <ul className="elev-1 rounded-(--radius-card) divide-y divide-separator overflow-hidden">
+            {unranked.map(m => (
+              <li key={m.id} className="flex items-center gap-2.5 px-4 py-2.5 min-h-11">
+                <UserAvatar username={m.username ?? 'user'} size={26} />
+                <span className="min-w-0 truncate text-footnote text-ink">@{m.username}</span>
+                <span className="ml-auto shrink-0">
+                  <SparkButton
+                    toUserId={m.id}
+                    cycleId={spark.cycleId}
+                    alreadyGiven={spark.sparkedUserId === m.id}
+                    isDisabled={spark.sparkedUserId !== null && spark.sparkedUserId !== m.id}
+                  />
+                </span>
+              </li>
+            ))}
           </ul>
         </section>
       )}
 
-
-      {/* Scoring note */}
-      <p className="text-[11px] text-cha mt-6 text-center leading-relaxed">
-        Ranked by guild score: Sparks ×3, picked topics ×2, ideas ×1.
+      <p className="mt-8 text-center text-[11px] leading-relaxed text-cha">
+        Guild score: sparks ×{SCORE_WEIGHTS.sparks}, picked topics ×{SCORE_WEIGHTS.picked}, topics ×{SCORE_WEIGHTS.topics},
+        comments ×{SCORE_WEIGHTS.comments}, Show & Tell ×{SCORE_WEIGHTS.demos}, Radar links ×{SCORE_WEIGHTS.radar}, across every month.
         <br />
-        Counted across every cycle. Ghost pitches are never scored.
+        Only what you did under your name counts. Anonymous posts and comments never do, and visits are never shown.
       </p>
     </div>
   )

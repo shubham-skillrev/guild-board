@@ -55,7 +55,7 @@ function isStandaloneMode() {
    tried yet is also the wrong order. It shows once they are inside. Nor on
    /hours, the public page: strangers came for the building, not an app.
    Nor on /survey: it is two minutes long, and the card covered the form. */
-const QUIET_PATHS = new Set(["/", "/login", "/hours", "/survey"]);
+const QUIET_PATHS = new Set(["/", "/login", "/hours", "/survey", "/join", "/about"]);
 
 export function InstallPrompt() {
   const pathname = usePathname();
