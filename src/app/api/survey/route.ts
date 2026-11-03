@@ -3,7 +3,7 @@
 // PURPOSE: Save one answer to the guild survey at /survey. One row per email
 //          per survey: answering again replaces the earlier answer, except
 //          that a typed (unverified) answer never replaces a signed-in one.
-// DB TABLES: survey_responses, users
+// DB TABLES: survey_responses, surveys, users
 // RLS: server client for identity; admin client for the write (the table
 //      has no anon or member grants, see migration 037)
 
@@ -11,6 +11,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { SURVEY_KEY, sanitizeAnswers } from '@/lib/survey'
+import { getSurveyState } from '@/lib/surveyResults'
 import { isAllowedEmailDomain } from '@/lib/utils/email'
 
 export async function POST(request: Request) {
@@ -21,6 +22,10 @@ export async function POST(request: Request) {
   // quiet success and nothing is stored.
   if (typeof body.website === 'string' && body.website.trim()) {
     return NextResponse.json({ ok: true })
+  }
+
+  if (!(await getSurveyState()).open) {
+    return NextResponse.json({ error: 'The survey is closed. The results go up at the next guild meeting.' }, { status: 403 })
   }
 
   const supabase = await createClient()

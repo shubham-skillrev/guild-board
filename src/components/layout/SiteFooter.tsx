@@ -7,13 +7,16 @@
  * reason other than being last on the page.
  */
 
+import Link from "next/link";
+
 export function SiteFooter({ className }: { className?: string }) {
   return (
     <footer
       className={`border-t border-separator px-(--pad-page-x) py-6 mt-auto ${className ?? ""}`}
     >
       <p className="text-[12px] text-label-3 text-center">
-        guildboard by SkillRev · © 2026 SkillRev
+        guildboard by SkillRev · © 2026 SkillRev ·{" "}
+        <Link href="/about" className="hover:text-ink transition-colors">About</Link>
       </p>
     </footer>
   );

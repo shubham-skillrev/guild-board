@@ -7,7 +7,7 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getSurveyRows } from '@/lib/surveyResults'
+import { getSurveyRows, getSurveyState } from '@/lib/surveyResults'
 import { SurveyDashboard } from '@/components/admin/SurveyDashboard'
 
 export const metadata: Metadata = { title: 'Survey results' }
@@ -19,11 +19,11 @@ export default async function SurveyResultsPage() {
   const { data: me } = await supabase.from('users').select('role').eq('id', user.id).single()
   if (me?.role !== 'admin') notFound()
 
-  const rows = await getSurveyRows()
+  const [rows, state] = await Promise.all([getSurveyRows(), getSurveyState()])
 
   return (
     <div className="px-(--pad-page-x) py-8 w-full max-w-(--measure-wide) mx-auto pb-28 md:pb-10">
-      <SurveyDashboard rows={rows} generatedAt={new Date().toISOString()} />
+      <SurveyDashboard rows={rows} state={state} generatedAt={new Date().toISOString()} />
     </div>
   )
 }

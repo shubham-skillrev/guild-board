@@ -119,7 +119,7 @@ function LoginPageContent() {
         )}
 
         <p className="text-center text-[12px] text-cha">
-          <Link href="/" className="hover:text-ink transition-colors">← Back to home</Link>
+          <Link href="/about" className="hover:text-ink transition-colors">← What is GuildBoard?</Link>
         </p>
       </div>
     </div>

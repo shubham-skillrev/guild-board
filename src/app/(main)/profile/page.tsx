@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { RoastMeToggle } from '@/components/profile/RoastMeToggle'
+import { ProfileSwitch } from '@/components/profile/ProfileSwitch'
 
 export const metadata: Metadata = { title: 'Your profile' }
 
@@ -74,7 +75,21 @@ export default async function ProfilePage() {
       </div>
 
       {/* Your ideas */}
-      <RoastMeToggle initial={profile.roast_me === true} />
+      <div className="mb-8 space-y-4">
+        <RoastMeToggle initial={profile.roast_me === true} />
+        <ProfileSwitch
+          initial={profile.nudges_off === true}
+          endpoint="/api/profile/nudges"
+          field="nudges_off"
+          label="No nudges"
+          hint="Guild organisers can send a short note suggesting something to post. Turn this on and they never can."
+        />
+        {/* The privacy note for daily visits (migration 038). */}
+        <p className="text-[12px] text-cha leading-relaxed">
+          GuildBoard keeps a daily note of when you visit, which parts you open, and whether you use the app or
+          notifications, so the guild organisers can see what works. Kept six months.
+        </p>
+      </div>
 
       <section className="mb-8">
         <h2 className="text-[11px] font-semibold text-cha uppercase tracking-wider mb-3">

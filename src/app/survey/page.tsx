@@ -3,17 +3,20 @@
 //          monthly meeting, who would show something, who deserves the
 //          Spotlight. Anyone can answer with a name and @skillrev.dev email;
 //          "Fill with Google" signs them up and fills both in.
-// DB TABLES: survey_responses, users (read here only for a signed-in viewer)
+// DB TABLES: survey_responses, users (read here only for a signed-in viewer),
+//            surveys (closed: the form gives way to a note)
 
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { ThemeToggle } from '@/components/ui/ThemeToggle'
 import { SurveyForm, type SurveyViewer } from '@/components/survey/SurveyForm'
+import { VisitBeacon } from '@/components/layout/VisitBeacon'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { EMPTY_ANSWERS, SURVEY_KEY, type SurveyAnswers } from '@/lib/survey'
 import { isAllowedEmailDomain } from '@/lib/utils/email'
+import { getSurveyState } from '@/lib/surveyResults'
 
 const SITE = process.env.NEXT_PUBLIC_APP_URL || 'https://guildboard.skillrev.in'
 const TITLE = 'What would make the guild worth your hour?'
@@ -73,7 +76,7 @@ async function getViewer(): Promise<{ viewer: SurveyViewer | null; initial: Surv
 }
 
 export default async function SurveyPage() {
-  const { viewer, initial, answeredAt } = await getViewer()
+  const [{ viewer, initial, answeredAt }, state] = await Promise.all([getViewer(), getSurveyState()])
 
   return (
     <div className="relative min-h-screen bg-parchment flex flex-col font-sans">
@@ -94,8 +97,10 @@ export default async function SurveyPage() {
       </header>
 
       <main className="relative flex-1 px-(--pad-page-x) pt-10 pb-20 md:pt-16">
-        <SurveyForm viewer={viewer} initial={initial} answeredAt={answeredAt} />
+        <SurveyForm viewer={viewer} initial={initial} answeredAt={answeredAt} closed={!state.open} />
       </main>
+
+      {viewer && <VisitBeacon />}
 
       <footer className="relative border-t border-border px-(--pad-page-x) py-6 text-center text-caption text-ink-muted">
         The SkillRev engineering guild · meets once a month, open to every role

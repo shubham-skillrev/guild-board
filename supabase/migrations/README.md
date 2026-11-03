@@ -48,6 +48,7 @@ run, or the repo stops describing the database.
 | 035 | `035_guildbot_reactions.sql` | `guildbot_messages.reaction`: GuildBot's sticker on the message his reply answers (fixed set) | Yes — additive; until applied, stickers show live but aren't kept |
 | 036 | `036_focus_presence.sql` | members-only presence on `focus:guild`: an anonymous count of running focus timers (`{ s, since, look }`, no ids) | Yes — additive; until applied /focus counts only you |
 | 037 | `037_survey_responses.sql` | `survey_responses`: answers to the public `/survey` (name, @skillrev.dev email, one row per email per survey run, `verified` when signed in; service role only) | **Ship together with the survey code** — until applied every survey submit fails |
+| 038 | `038_visits_nudges_survey_switch.sql` | `user_visits` (one row per member per day: areas, app, push state; written only via `record_visit()`, kept 180 days then `rollup_user_visits()` folds them into `user_visits_monthly`), `users.nudges_off`, `surveys` (open/close switch + close date; `pulse-2026-11` starts open) | Yes — additive; until applied visits aren't recorded, the survey counts as always open, and the No nudges switch can't save |
 
 > **028 and its code ship in the same deploy.** Apply 028 right after the code
 > goes live; never before. The old code reads `topics.user_id` and

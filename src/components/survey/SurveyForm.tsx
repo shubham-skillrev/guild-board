@@ -53,10 +53,13 @@ export function SurveyForm({
   viewer,
   initial,
   answeredAt,
+  closed = false,
 }: {
   viewer: SurveyViewer | null
   initial: SurveyAnswers | null
   answeredAt: string | null
+  /** The organisers closed it: no form, just where the results will be. */
+  closed?: boolean
 }) {
   const [a, setA] = useState<SurveyAnswers>(
     initial ?? { ...EMPTY_ANSWERS, name: viewer?.name ?? '', email: viewer?.email ?? '' },
@@ -99,16 +102,33 @@ export function SurveyForm({
     <div className="max-w-(--measure-wide) mx-auto grid gap-10 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:gap-16">
       {/* Thin progress line pinned under the header on phones, where the
           rail's meter scrolls away. */}
-      {!sent && (
+      {!sent && !closed && (
         <div aria-hidden className="lg:hidden fixed inset-x-0 top-16 z-(--z-chrome) h-0.5">
           <div className="h-full bg-ink transition-[width] duration-500 ease-out" style={{ width: `${(done / QUESTION_COUNT) * 100}%` }} />
         </div>
       )}
 
-      <Rail done={done} busy={busy} sent={sent} />
+      <Rail done={done} busy={busy} sent={sent} closed={closed} />
 
       <div className="min-w-0">
-        {sent ? (
+        {closed ? (
+          <div className="elev-2 rounded-[20px] p-8 md:p-12">
+            <p className="eyebrow">Survey closed</p>
+            <h2 className="mt-4 text-[2rem] font-semibold leading-tight tracking-[-0.03em] text-ink">
+              Thanks to everyone who <span className="font-serif italic font-normal">answered</span>.
+            </h2>
+            <p className="mt-4 max-w-prose text-[15px] leading-relaxed text-ink-soft">
+              This round is closed. The totals go up at the next guild meeting, so you&apos;ll see what the rest
+              of SkillRev asked for.
+            </p>
+            <Link
+              href="/board"
+              className="press mt-8 inline-flex items-center h-11 px-6 rounded-full bg-ink text-parchment text-[15px] font-medium hover:bg-ink/85 transition-colors"
+            >
+              Open the board
+            </Link>
+          </div>
+        ) : sent ? (
           <ThankYou name={a.name} viewer={viewer} onEdit={() => setSent(false)} />
         ) : (
           <div className="elev-2 rounded-[20px] p-5 sm:p-8 md:p-10">
@@ -305,7 +325,7 @@ export function SurveyForm({
  * pleased when every question has an answer, thinking while it sends,
  * dancing after.
  */
-function Rail({ done, busy, sent }: { done: number; busy: boolean; sent: boolean }) {
+function Rail({ done, busy, sent, closed }: { done: number; busy: boolean; sent: boolean; closed: boolean }) {
   const all = done === QUESTION_COUNT
   const shown = sent ? QUESTION_COUNT : done
   return (
@@ -332,7 +352,7 @@ function Rail({ done, busy, sent }: { done: number; busy: boolean; sent: boolean
         />
         <div className="min-w-0 flex-1">
           <p className="text-footnote text-ink">
-            {sent ? 'All sent' : all ? 'Every question answered' : `${done} of ${QUESTION_COUNT} answered`}
+            {closed ? 'This round is closed' : sent ? 'All sent' : all ? 'Every question answered' : `${done} of ${QUESTION_COUNT} answered`}
           </p>
           <div
             role="progressbar"

@@ -2,13 +2,15 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useToast } from '@/hooks/useToast'
 import { ArrowLeft, ChartBar, DownloadSimple, FilePdf, Image as ImageIcon } from '@phosphor-icons/react/dist/ssr'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/Section'
 import { cn } from '@/lib/utils/cn'
 import { DEMO, JOIN_REASONS, ROLES, SURVEY_KEY, labelOf, type Role } from '@/lib/survey'
 import { pct, surveyStats, type Bar } from '@/lib/surveyStats'
-import type { SurveyRow } from '@/lib/surveyResults'
+import type { SurveyRow, SurveyState } from '@/lib/surveyResults'
 
 /**
  * Survey results, as one report.
@@ -21,7 +23,15 @@ import type { SurveyRow } from '@/lib/surveyResults'
  * slide or in Slack); "Save as PDF" prints this page, and "Hide names" takes
  * every name and email out of it first.
  */
-export function SurveyDashboard({ rows, generatedAt }: { rows: SurveyRow[]; generatedAt: string }) {
+export function SurveyDashboard({
+  rows,
+  state,
+  generatedAt,
+}: {
+  rows: SurveyRow[]
+  state: SurveyState
+  generatedAt: string
+}) {
   const [role, setRole] = useState<Role | 'all'>('all')
   const [names, setNames] = useState(true)
 
@@ -73,6 +83,7 @@ export function SurveyDashboard({ rows, generatedAt }: { rows: SurveyRow[]; gene
                 </a>
               </span>
             </p>
+            <SurveySwitch state={state} />
           </div>
           {rows.length > 0 && (
             <div className="print:hidden flex flex-wrap items-center gap-2">
@@ -233,6 +244,80 @@ export function SurveyDashboard({ rows, generatedAt }: { rows: SurveyRow[]; gene
 }
 
 /* ─── Pieces ─────────────────────────────────────────────── */
+
+/**
+ * Taking answers or not, and an optional close date. Closed means no board
+ * card and /survey says the results go up at the meeting.
+ */
+function SurveySwitch({ state }: { state: SurveyState }) {
+  const router = useRouter()
+  const toast = useToast()
+  const [on, setOn] = useState(state.switchedOn)
+  const [closesOn, setClosesOn] = useState(state.closesAt ? toDateInput(state.closesAt) : '')
+  const [saving, setSaving] = useState(false)
+
+  const save = async (nextOn: boolean, nextDate: string) => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/admin/survey', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // A date closes at the end of that day in India.
+        body: JSON.stringify({ open: nextOn, closes_at: nextDate ? `${nextDate}T23:59:59+05:30` : null }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error ?? 'Could not save')
+      setOn(nextOn)
+      setClosesOn(nextDate)
+      toast(nextOn ? 'Survey is taking answers' : 'Survey closed', 'success')
+      router.refresh()
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not save', 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const pastClose = on && !state.open
+  return (
+    <div className="print:hidden mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-footnote">
+      <label className="inline-flex items-center gap-2.5 cursor-pointer select-none">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          disabled={saving}
+          onClick={() => save(!on, closesOn)}
+          className={cn('relative w-8 h-4.5 rounded-full transition-colors', on ? 'bg-ink' : 'bg-border-strong')}
+        >
+          <span className={cn('absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-paper transition-transform', on && 'translate-x-3.5')} />
+          <span className="sr-only">Taking answers</span>
+        </button>
+        <span className="text-ink">{pastClose ? 'Closed (past its date)' : on ? 'Taking answers' : 'Closed'}</span>
+      </label>
+      <label className="inline-flex items-center gap-2 text-ink-muted">
+        Closes on
+        <input
+          type="date"
+          value={closesOn}
+          disabled={saving}
+          onChange={e => save(on, e.target.value)}
+          className="h-8 rounded-(--radius-control) border border-border bg-paper px-2 text-footnote text-ink"
+        />
+      </label>
+      {closesOn && (
+        <button type="button" disabled={saving} onClick={() => save(on, '')} className="text-ink-muted hover:text-ink">
+          No close date
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** ISO instant to the yyyy-mm-dd it falls on in India. */
+function toDateInput(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+}
 
 const EXPORT_BTN =
   'press inline-flex items-center gap-1.5 h-8 px-3 rounded-(--radius-control) bg-kinu/70 text-footnote text-ink-soft hover:bg-kinu hover:text-ink transition-colors pointer-coarse:h-11 pointer-coarse:px-4'

@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "GuildBoard",
     description:
       "SkillRev's monthly engineering guild. New tech, old tech, something you learned, a problem you're stuck on. Put it on the board, then talk it through.",
-    start_url: "/",
+    start_url: "/board",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

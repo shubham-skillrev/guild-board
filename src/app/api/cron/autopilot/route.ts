@@ -169,6 +169,15 @@ export async function GET(request: Request) {
     steps.push({ step: 'bytes', done: false, detail: errorText(err) })
   }
 
+  // ─── Visits: days older than six months fold into monthly totals ───
+  // (migration 038). Quiet unless something moved or it failed; before the
+  // migration the function is missing, which is not worth a warning.
+  if (!dry) {
+    const { data: moved, error } = await admin.rpc('rollup_user_visits')
+    if (error && error.code !== 'PGRST202') steps.push({ step: 'visits', done: false, detail: error.message })
+    else if (typeof moved === 'number' && moved > 0) steps.push({ step: 'visits', done: true, detail: `${moved} old days rolled into monthly totals` })
+  }
+
   for (const s of steps) if (!s.done && !dry) console.warn('cron/autopilot:', s.step, s.detail)
   return NextResponse.json({ dry, today: istDate(now), steps: steps.length ? steps : 'nothing to do today' })
 }

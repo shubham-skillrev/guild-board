@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { GUEST_BLOCKED_PAGES, GUEST_COOKIE, GUEST_READ_ONLY_ERROR } from '@/lib/guest'
+import { GUEST_BLOCKED_PAGES, GUEST_COOKIE, GUEST_COOKIE_OPTIONS, GUEST_READ_ONLY_ERROR } from '@/lib/guest'
 
 const isSupabaseConfigured = !!(
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -29,7 +29,7 @@ export async function proxy(request: NextRequest) {
     // hole: an unauthenticated request still gets a 404 from the handler.
     pathname.startsWith('/api/cron') ||
     pathname.startsWith('/_next') ||
-    pathname === '/' ||
+    pathname === '/about' ||
     pathname === '/login' ||
     // The guild building, every hour (public, a story with no live data).
     pathname === '/hours' ||
@@ -38,6 +38,7 @@ export async function proxy(request: NextRequest) {
     // checks the email domain itself and writes only with the service role.
     pathname === '/survey' ||
     pathname === '/api/survey' ||
+    pathname === '/api/survey/status' ||
     pathname === '/favicon.ico' ||
     isPwaAsset
 
@@ -61,6 +62,17 @@ export async function proxy(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
+
+  // The board is the front door. Members land on it; anyone signed out sees
+  // it read-only in guest mode (the pitch lives on /about). Set on the
+  // redirect itself, so the very first board render is already a guest one.
+  if (pathname === '/') {
+    const res = NextResponse.redirect(new URL('/board', request.url))
+    if (!user && request.cookies.get(GUEST_COOKIE)?.value !== '1') {
+      res.cookies.set(GUEST_COOKIE, '1', GUEST_COOKIE_OPTIONS)
+    }
+    return res
+  }
 
   // Guest mode - read-only browsing without a session. Pages load; the API
   // answers reads only. Page POSTs are server actions, which check auth

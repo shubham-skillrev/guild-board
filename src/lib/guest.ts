@@ -11,6 +11,16 @@
  */
 export const GUEST_COOKIE = 'gb_guest'
 
+/** One week, read-only. Shared by "Look around as a guest" and the proxy,
+ *  which turns it on for signed-out visitors arriving at `/`. */
+export const GUEST_COOKIE_OPTIONS = {
+  httpOnly: true,
+  sameSite: 'lax' as const,
+  secure: process.env.NODE_ENV === 'production',
+  path: '/',
+  maxAge: 60 * 60 * 24 * 7,
+}
+
 /** Stands in for `user.id` on guest reads. Matches no row, so "what have I
  *  voted for" style queries come back empty instead of needing a branch. */
 export const GUEST_USER_ID = '00000000-0000-0000-0000-000000000000'

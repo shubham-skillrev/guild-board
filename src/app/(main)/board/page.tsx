@@ -14,6 +14,7 @@ import { SubmitModal } from '@/components/topics/SubmitModal'
 import { ShareIntent } from '@/components/topics/ShareIntent'
 import { MeetingPill } from '@/components/layout/MeetingPill'
 import { OutcomesRecap } from '@/components/board/OutcomesRecap'
+import { SurveyCard } from '@/components/board/SurveyCard'
 import { BytesTeaser } from '@/components/board/BytesTeaser'
 import { TopContributors } from '@/components/board/TopContributors'
 import { botSays } from '@/lib/guildbot-host/voice'
@@ -180,6 +181,9 @@ export default function BoardPage() {
           ? 'grid grid-cols-1 gap-y-(--gap-section) items-start'
           : 'grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] gap-x-10 gap-y-(--gap-section) items-start'}>
           <div className="min-w-0 space-y-(--gap-section)">
+          {/* ─── Kers asking for the guild survey (until answered) ─── */}
+          <SurveyCard />
+
           {/* ─── What came of last cycle ─── */}
           <OutcomesRecap />
 

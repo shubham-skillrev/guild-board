@@ -7,6 +7,9 @@ export interface SurveyRow extends SurveyResponse {
   member: boolean
 }
 
+// Answers, the open/closed switch and the board card's status all read with
+// the service role: the tables have no member grants (migrations 037, 038).
+
 /**
  * Every answer to the current survey, newest first, with whether the person
  * already has an account. Service role: callers must have checked for an
@@ -39,4 +42,28 @@ export async function getSurveyRows(): Promise<SurveyRow[]> {
     nominee_why: r.nominee_why ?? '',
     member: members.has(r.email),
   }))
+}
+
+export interface SurveyState {
+  /** Taking answers right now: switched on and not past its close date. */
+  open: boolean
+  /** The admin switch alone, before the close date is applied. */
+  switchedOn: boolean
+  closesAt: string | null
+}
+
+/**
+ * Whether the current survey is taking answers. Before migration 038 there
+ * is no switch, so the survey counts as open.
+ */
+export async function getSurveyState(): Promise<SurveyState> {
+  const { data, error } = await createAdminClient()
+    .from('surveys')
+    .select('open, closes_at')
+    .eq('key', SURVEY_KEY)
+    .maybeSingle()
+  if (error || !data) return { open: true, switchedOn: true, closesAt: null }
+  const closesAt = (data.closes_at as string | null) ?? null
+  const pastClose = !!closesAt && new Date(closesAt).getTime() <= Date.now()
+  return { open: data.open && !pastClose, switchedOn: data.open, closesAt }
 }

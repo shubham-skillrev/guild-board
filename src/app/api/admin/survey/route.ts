@@ -1,8 +1,9 @@
-// ROUTE: GET /api/admin/survey
+// ROUTE: GET  /api/admin/survey  -> every answer as CSV (names and emails
+//                                   included), for the organisers' follow-up
+//        POST /api/admin/survey  -> { open: boolean, closes_at: ISO | null }:
+//                                   the survey's open/closed switch
 // AUTH: admin only
-// PURPOSE: Download every answer to the guild survey as CSV (names and
-//          emails included), for the organisers' own follow-up.
-// DB TABLES: survey_responses, users
+// DB TABLES: survey_responses, surveys, users
 // RLS: server client for identity; admin client for reads
 
 import { NextResponse } from 'next/server'
@@ -19,12 +20,42 @@ function cell(value: string | boolean): string {
   return `"${safe.replace(/"/g, '""')}"`
 }
 
-export async function GET() {
+async function isAdmin(): Promise<boolean> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return new NextResponse(null, { status: 404 })
+  if (!user) return false
   const { data: me } = await createAdminClient().from('users').select('role').eq('id', user.id).maybeSingle()
-  if (me?.role !== 'admin') return new NextResponse(null, { status: 404 })
+  return me?.role === 'admin'
+}
+
+export async function POST(request: Request) {
+  if (!(await isAdmin())) return new NextResponse(null, { status: 404 })
+
+  let body: { open?: unknown; closes_at?: unknown } = {}
+  try { body = await request.json() } catch { /* empty body */ }
+  if (typeof body.open !== 'boolean') return NextResponse.json({ error: 'open must be true or false' }, { status: 400 })
+  let closesAt: string | null = null
+  if (typeof body.closes_at === 'string' && body.closes_at) {
+    const d = new Date(body.closes_at)
+    if (Number.isNaN(d.getTime())) return NextResponse.json({ error: 'closes_at is not a date' }, { status: 400 })
+    closesAt = d.toISOString()
+  }
+
+  const { error } = await createAdminClient()
+    .from('surveys')
+    .upsert({ key: SURVEY_KEY, open: body.open, closes_at: closesAt, updated_at: new Date().toISOString() })
+  if (error) {
+    const missing = error.code === '42P01' || /surveys/.test(error.message)
+    return NextResponse.json(
+      { error: missing ? 'Apply migration 038 first: the survey switch lives there.' : error.message },
+      { status: 500 },
+    )
+  }
+  return NextResponse.json({ open: body.open, closes_at: closesAt })
+}
+
+export async function GET() {
+  if (!(await isAdmin())) return new NextResponse(null, { status: 404 })
 
   const rows = await getSurveyRows()
   const header = [
