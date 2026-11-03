@@ -1155,3 +1155,16 @@ body {
   body:has(#survey-report) [data-floating-prompt] { display: none !important; }
   body:has(#survey-report) main > div { padding: 0 !important; max-width: none !important; }
 }
+
+/* ═══ A soft glow for the one invitation on screen ═══
+   The board's "Volunteer to show something" while the demo slot is open: a
+   slow saffron breath around the button, nothing that moves the layout.
+   Still for anyone who asked for less motion. */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-saffron) 0%, transparent); }
+  50% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-saffron) 18%, transparent), 0 0 22px 2px color-mix(in oklab, var(--color-saffron) 30%, transparent); }
+}
+.glow-pulse { animation: glow-pulse 2.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .glow-pulse { animation: none; box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-saffron) 22%, transparent); }
+}

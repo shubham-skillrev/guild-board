@@ -211,7 +211,7 @@ export default function BoardPage() {
             {/* Cycle history. Secondary to the current board, so it sits with
                 the list it filters rather than at the top of the page. */}
             {allCycles.length > 1 && (
-              <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
+              <div className="flex items-center gap-1 mb-4 overflow-x-auto pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {allCycles.map(c => {
                   const isActive = c.id === viewingCycleId
                   const isCurrent = c.id === activeCycleId

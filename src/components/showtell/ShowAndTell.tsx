@@ -45,8 +45,8 @@ export function ShowAndTell() {
         </p>
       ) : (
         <Button
-          variant="secondary"
-          className="mt-3 w-full"
+          variant={data.demo ? 'secondary' : 'tinted'}
+          className={cn('mt-3 w-full', !data.demo && 'glow-pulse')}
           onClick={() => { if (!blockGuest()) setOpen(true) }}
         >
           Volunteer to show something

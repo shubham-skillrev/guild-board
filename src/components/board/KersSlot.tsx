@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { X } from '@phosphor-icons/react/dist/ssr'
 import { Kers } from '@/components/kers/Kers'
-import { Button } from '@/components/ui/Button'
 import { useGuestGate } from '@/components/auth/GuestGate'
 import { SpotlightInvite } from '@/components/showtell/SpotlightInvite'
 import { NudgeCard } from '@/components/board/NudgeCard'
@@ -14,7 +14,7 @@ import { AddLink } from '@/components/radar/RadarSection'
 import { useShowTell } from '@/components/showtell/useShowTell'
 import type { Step, StepKind } from '@/lib/guild/nextSteps'
 
-/* "Not now" puts a step away for a week. The survey gives up after three. */
+/* ✕ puts a step away for a week. The survey gives up after three. */
 const SNOOZE_DAYS = 7
 const SURVEY_MAX = 3
 const key = (k: StepKind) => `gb-slot:${k}`
@@ -63,9 +63,10 @@ export function KersSlot() {
   const notNow = (kind: StepKind) => { snooze(kind); advance() }
 
   const step = steps?.[0]
-  const more = (steps?.length ?? 0) - 1
 
   let card: React.ReactNode = null
+  const month = showTell?.cycle?.label ?? 'next'
+  const primary = 'press inline-flex h-8 shrink-0 items-center rounded-full bg-ink px-3.5 text-footnote font-medium text-parchment hover:bg-ink/85 pointer-coarse:h-10'
   if (step?.kind === 'invite') card = <SpotlightInvite onDone={advance} />
   else if (step?.kind === 'note') card = <NudgeCard onDone={advance} />
   else if (step?.kind === 'getting_started') card = <GettingStarted onDone={advance} />
@@ -73,32 +74,28 @@ export function KersSlot() {
     card = (
       <Ask
         title="Two minutes for the guild?"
-        body="Seven quick questions on what would make the monthly meeting worth your hour. Kers is counting the answers."
-        action={<Link href="/survey" className="press inline-flex h-8 items-center rounded-full bg-ink px-3.5 text-footnote font-medium text-parchment hover:bg-ink/85 pointer-coarse:h-10">Answer the survey</Link>}
-        onNotNow={() => notNow('survey')}
-        more={more}
+        body="Seven quick questions on what would make the meeting worth your hour."
+        action={<Link href="/survey" className={primary}>Answer the survey</Link>}
+        onHide={() => notNow('survey')}
       />
     )
   } else if (step?.kind === 'volunteer') {
+    const idea = shortIdea(step.idea)
     card = (
       <Ask
-        title={step.idea ? 'Remember what you said you could show?' : 'The demo slot is still open.'}
-        body={step.idea
-          ? `“${step.idea}”. The demo slot at the ${showTell?.cycle?.label ?? 'next'} meeting is still open, and ten minutes is all it takes.`
-          : `Ten minutes at the ${showTell?.cycle?.label ?? 'next'} meeting: a tool you use, a script that saves time, a bug that ate your week. No slides.`}
-        action={<Button className="h-8" onClick={() => { if (!blockGuest()) setModal('volunteer') }}>Take the demo slot</Button>}
-        onNotNow={() => notNow('volunteer')}
-        more={more}
+        title="The demo slot is still open"
+        body={idea ? `You said you could show “${idea}”. Ten minutes at the ${month} meeting.` : `Ten minutes at the ${month} meeting: a tool, a script, a bug that ate your week.`}
+        action={<button type="button" className={primary} onClick={() => { if (!blockGuest()) setModal('volunteer') }}>Take the slot</button>}
+        onHide={() => notNow('volunteer')}
       />
     )
   } else if (step?.kind === 'radar') {
     card = (
       <Ask
         title="Seen something new this month?"
-        body="Put one link on the Radar. The top three open the meeting, and it takes ten seconds."
-        action={<Button variant="secondary" className="h-8" onClick={() => { if (!blockGuest()) setModal('radar') }}>Add a link</Button>}
-        onNotNow={() => notNow('radar')}
-        more={more}
+        body="Put one link on the Radar. The top three open the meeting."
+        action={<button type="button" className={primary} onClick={() => { if (!blockGuest()) setModal('radar') }}>Add a link</button>}
+        onHide={() => notNow('radar')}
       />
     )
   }
@@ -133,21 +130,36 @@ export function KersSlot() {
   )
 }
 
-function Ask({ title, body, action, onNotNow, more }: { title: string; body: string; action: React.ReactNode; onNotNow: () => void; more: number }) {
+/** An idea as a short quote: no trailing full stop, at most ~60 characters. */
+function shortIdea(idea: string | null | undefined): string {
+  const t = (idea ?? '').trim().replace(/[.!\s]+$/, '')
+  return t.length > 60 ? `${t.slice(0, 57).trimEnd()}…` : t
+}
+
+/**
+ * The compact ask: one row on a desktop (Kers, the line, the button), the
+ * button under the text on a phone. The ✕ puts it away for a week.
+ */
+function Ask({ title, body, action, onHide }: { title: string; body: string; action: React.ReactNode; onHide: () => void }) {
   return (
-    <section aria-label={title} className="elev-1 rounded-(--radius-card) p-4 sm:p-5 flex items-center gap-4 sm:gap-5">
-      <Kers size={64} expression="nosy" follow className="shrink-0" />
-      <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-semibold tracking-[-0.01em] text-ink">{title}</p>
-        <p className="mt-1 text-footnote leading-relaxed text-ink-soft">{body}</p>
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {action}
-          <button type="button" onClick={onNotNow} className="press inline-flex h-8 items-center rounded-full px-3 text-footnote text-ink-muted hover:bg-kinu/60 hover:text-ink pointer-coarse:h-10">
-            Not now
-          </button>
-          {more > 0 && <span className="ml-auto text-meta text-ink-muted">Kers has {more} more idea{more === 1 ? '' : 's'}</span>}
+    <section aria-label={title} className="elev-1 relative flex items-center gap-3 rounded-(--radius-card) py-3 pl-3 pr-11 sm:gap-4 sm:pl-4">
+      <Kers size={40} expression="nosy" follow className="shrink-0" />
+      <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-footnote font-semibold text-ink">{title}</p>
+          <p className="line-clamp-2 text-meta leading-snug text-ink-soft sm:line-clamp-1">{body}</p>
         </div>
+        <div className="self-start sm:self-auto">{action}</div>
       </div>
+      <button
+        type="button"
+        onClick={onHide}
+        aria-label="Hide this for a week"
+        title="Hide for a week"
+        className="press-sm absolute right-2 top-2 grid size-8 place-items-center rounded-full text-ink-muted hover:bg-kinu/60 hover:text-ink"
+      >
+        <X className="size-4" />
+      </button>
     </section>
   )
 }
