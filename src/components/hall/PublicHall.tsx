@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { X } from '@phosphor-icons/react/dist/ssr'
-import { CrowdHall } from '@/components/hall/CrowdHall'
+import { HeartHall } from '@/components/hall/HeartHall'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Icon } from '@/components/ui/Icon'
 import { SparkButton } from '@/components/voting/SparkButton'
@@ -17,45 +17,45 @@ export interface SparkWindow {
 }
 
 /**
- * The guild as a crowd everyone can see: members are bigger and nearer the
- * middle the more they've done under their name. Members who haven't done
- * anything yet are unnamed dots at the edge. Pick someone to see what they've done (and
+ * The guild as a heart everyone can see: members are bigger and nearer the
+ * middle the more they've done under their name; new members are ringed and
+ * this month's presenters carry a mic. Pick someone to see what they've done (and
  * spark them, while the spark window is open).
  */
 export function PublicHall({ windows, spark }: { windows: PublicWindow[]; spark: SparkWindow | null }) {
   const [picked, setPicked] = useState<string | null>(null)
-  const pick = windows.find(w => w.key === picked && w.stats) ?? null
-  const dark = windows.filter(w => w.level === 'quiet' && !w.isYou).length
-  const lit = windows.filter(w => w.level !== 'quiet').length
+  const pick = windows.find(w => w.key === picked) ?? null
+  const newCount = windows.filter(w => w.isNew).length
   const you = windows.find(w => w.isYou)
 
   return (
     <section aria-labelledby="hall-title">
-      <h2 id="hall-title" className="sr-only">The guild crowd</h2>
-      <CrowdHall
-        dotQuiet
+      <h2 id="hall-title" className="sr-only">The guild</h2>
+      <HeartHall
         items={windows.map(w => ({
           key: w.key,
           level: w.level,
           seed: w.username,
-          name: w.username ? `@${w.username}` : null,
-          label: w.username ? `@${w.username}${w.isYou ? ' (you)' : ''}: ${LIT_LABEL[w.level]}` : 'Someone not lit yet',
+          name: `@${w.username}`,
+          label: `@${w.username}${w.isYou ? ' (you)' : ''}${w.isNew ? ', new' : ''}${w.presenting ? ', presenting this month' : ''}: ${LIT_LABEL[w.level]}`,
           selected: picked === w.key,
           you: w.isYou,
-          onClick: w.stats ? () => setPicked(picked === w.key ? null : w.key) : undefined,
+          isNew: w.isNew,
+          presenting: w.presenting,
+          onClick: () => setPicked(picked === w.key ? null : w.key),
         }))}
       />
-      <p className="mt-2 text-center text-meta text-ink-muted">
-        {lit} lit up · {dark} not yet. The bigger and nearer the middle, the more someone’s done for the guild. Pick anyone to see what.
+      <p className="mt-3 text-center text-meta text-ink-muted">
+        {windows.length} members{newCount ? ` · ${newCount} new (ringed)` : ''}. The bigger and nearer the middle, the more someone’s done for the guild. Pick anyone to see what.
       </p>
 
       {you && you.level === 'quiet' && (
         <p className="mt-3 rounded-(--radius-card) border border-border bg-paper px-4 py-3 text-footnote text-ink-soft">
-          You’re on the edge of the crowd for now, and only you can see which dot is you. One comment, one topic, or one Radar link moves you in.
+          You’re near the edge of the heart for now. One comment, one topic, or one Radar link moves you in.
         </p>
       )}
 
-      {pick && pick.stats && (
+      {pick && (
         <div className="mt-4 rounded-[20px] border border-border bg-paper p-5" aria-live="polite">
           <div className="flex items-start gap-4">
             <UserAvatar username={pick.username ?? ''} size={48} />

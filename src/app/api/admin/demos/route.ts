@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminId } from '@/lib/guild/staff'
 import { openCycle, passesUsed } from '@/lib/guild/demos'
+import { cancelDraws } from '@/lib/guild/draw'
 import { LIMITS, PASSES_PER_YEAR } from '@/lib/showtell'
 import { sendPushToUser } from '@/lib/push/send'
 
@@ -47,6 +48,8 @@ export async function POST(request: Request) {
       user_id: userId, kind: 'spotlight', status: 'invited', format: 'demo', note, cycle_id: cycleId, invited_by: adminId,
     })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    // A direct invitation overrides Kers' draw for the Spotlight this month.
+    if (cycleId) await cancelDraws(admin, cycleId, 'spotlight').catch(() => {})
 
     await sendPushToUser(userId, {
       title: 'You’re invited to the Spotlight',

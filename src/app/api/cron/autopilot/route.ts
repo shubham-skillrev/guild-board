@@ -15,6 +15,8 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { convertOldBytes } from '@/lib/bytes/briefs'
+import { runMonthlyDraw, tickDraws } from '@/lib/guild/draw'
+import { openCycle } from '@/lib/guild/demos'
 import { briefingInputs } from '@/lib/guild/briefings'
 import { refreshBriefing } from '@/lib/guild/kers'
 import { rejectIfNotCron, firstAdminId } from '@/lib/bytes/cron'
@@ -181,6 +183,24 @@ export async function GET(request: Request) {
       if (converted) steps.push({ step: 'briefs', done: true, detail: `${converted} older bytes turned into briefs${pending ? ', more tomorrow' : ''}` })
     } catch (err) {
       steps.push({ step: 'briefs', done: false, detail: errorText(err) })
+    }
+  }
+
+  // ─── Kers' draw for Show & Tell (migration 042) ───
+  // Draws once per slot per month, only while the meeting is more than three
+  // days away; then sends invitations after the admins' review day and moves
+  // past anyone who hasn't answered in three days.
+  if (!dry) {
+    try {
+      const open = await openCycle(admin)
+      if (open?.meeting_at && new Date(open.meeting_at).getTime() - Date.now() > 3 * 86_400_000) {
+        const made = await runMonthlyDraw(open.id)
+        if (made.length) steps.push({ step: 'draw', done: true, detail: `Kers drew for ${made.join(' and ')} (${open.label}); invitations go out after a day's review` })
+      }
+      const t = await tickDraws()
+      if (t.invited || t.expired) steps.push({ step: 'draw', done: true, detail: `${t.invited} invitation(s) sent, ${t.expired} unanswered moved on` })
+    } catch (err) {
+      steps.push({ step: 'draw', done: false, detail: errorText(err) })
     }
   }
 

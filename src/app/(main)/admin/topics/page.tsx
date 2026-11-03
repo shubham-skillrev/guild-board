@@ -10,6 +10,7 @@ import { topicsBriefing } from '@/lib/guild/runBriefing'
 import { KersBriefing } from '@/components/admin/pulse/KersBriefing'
 import { PipelineBoard, type PipelineTopic } from '@/components/admin/topics/PipelineBoard'
 import { ShowTellAdmin, type AdminDemo, type Suggestion } from '@/components/admin/ShowTellAdmin'
+import { DrawPanel, type DrawView } from '@/components/admin/topics/DrawPanel'
 import { SectionHeader } from '@/components/ui/Section'
 
 export const metadata: Metadata = { title: 'Topics & Show & Tell' }
@@ -43,6 +44,25 @@ export default async function TopicsPage() {
     getSurveyRows(),
     topicsBriefing().then(b => readBriefing('topics', b.fallback)),
   ])
+
+  const { data: drawRows } = meeting
+    ? await admin
+        .from('draws')
+        .select('id, kind, round, status, review_until, draw_picks(id, position, tickets, state, users!draw_picks_user_id_fkey(username))')
+        .eq('cycle_id', meeting.id)
+        .order('kind')
+        .order('round')
+    : { data: [] }
+  const draws: DrawView[] = (drawRows ?? []).map(d => ({
+    id: d.id,
+    kind: d.kind,
+    round: d.round,
+    status: d.status,
+    reviewUntil: d.review_until,
+    picks: ((d.draw_picks ?? []) as unknown as { id: string; position: number; tickets: number; state: string; users: { username: string } | null }[])
+      .sort((a, b) => a.position - b.position)
+      .map(p => ({ id: p.id, position: p.position, tickets: p.tickets, state: p.state, username: p.users?.username ?? '?' })),
+  }))
 
   const serialized = (topics ?? []).map(t => serializeTopic(t, adminId))
   const { data: signals } = serialized.length
@@ -90,6 +110,12 @@ export default async function TopicsPage() {
         <SectionHeader id="topics-pipeline" title={month ? `${month.label} topics` : 'Topics'} hint="Drag a card to move it, or use “Move to”. Ranked by votes in each column." />
         <PipelineBoard topics={pipeline} />
       </section>
+
+      <DrawPanel
+        draws={draws}
+        canDraw={!!meeting}
+        members={(members ?? []).map(m => ({ id: m.id, label: m.real_name ? `${m.real_name} (@${m.username})` : `@${m.username}` }))}
+      />
 
       <ShowTellAdmin
         meeting={meeting}

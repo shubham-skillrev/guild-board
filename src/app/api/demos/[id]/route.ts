@@ -13,7 +13,9 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { passesLeft, passesUsed } from '@/lib/guild/demos'
-import { LIMITS, SMALL_FORMATS, isFormat } from '@/lib/showtell'
+import { LIMITS, SMALL_FORMATS, formatLabel, isFormat } from '@/lib/showtell'
+import { onDrawAnswer } from '@/lib/guild/draw'
+import { postToSlack, escapeSlack, appLink } from '@/lib/slack/send'
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -25,7 +27,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   try { body = await request.json() } catch { /* empty body */ }
 
   const admin = createAdminClient()
-  const { data: demo } = await admin.from('demos').select('id, user_id, kind, status').eq('id', id).maybeSingle()
+  const { data: demo } = await admin.from('demos').select('id, user_id, kind, status, cycles(label), users!demos_user_id_fkey(username)').eq('id', id).maybeSingle()
   if (!demo || demo.user_id !== user.id) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const now = new Date().toISOString()
@@ -50,5 +52,22 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (!patch) return NextResponse.json({ error: 'That can’t be done to this one.' }, { status: 400 })
   const { error } = await admin.from('demos').update({ ...patch, updated_at: now }).eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (demo.status === 'invited') {
+    const accepted = patch.status === 'confirmed'
+    // Kers' draw moves on: a yes fills the slot, a pass invites the reserve.
+    await onDrawAnswer(id, accepted).catch(() => {})
+    // Only a yes is ever announced; passes stay private.
+    if (accepted) {
+      const who = (demo.users as unknown as { username: string } | null)?.username ?? 'someone'
+      const month = (demo.cycles as unknown as { label: string } | null)?.label ?? 'this month'
+      const what = typeof patch.title === 'string' ? ` with “${escapeSlack(patch.title)}”` : ` (${formatLabel(patch.format as string).toLowerCase()})`
+      await postToSlack({
+        text: demo.kind === 'spotlight'
+          ? `The draw is in: *@${escapeSlack(who)}* takes the Spotlight at the ${escapeSlack(month)} meeting${what}. See who else is on: ${appLink('/board', 'GuildBoard')}`
+          : `*@${escapeSlack(who)}* is demoing at the ${escapeSlack(month)} meeting${what}. ${appLink('/board', 'See the board')}`,
+      }).catch(() => false)
+    }
+  }
   return NextResponse.json({ ok: true })
 }

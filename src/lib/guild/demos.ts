@@ -21,14 +21,13 @@ export async function openCycle(admin: SupabaseClient): Promise<OpenCycle | null
   return data ?? null
 }
 
-/** Spotlight passes used this calendar year (India time). */
+/** Passes used this calendar year (India time), Spotlight and drawn demos alike. */
 export async function passesUsed(admin: SupabaseClient, userId: string): Promise<number> {
   const year = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }).slice(0, 4)
   const { count } = await admin
     .from('demos')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .eq('kind', 'spotlight')
     .eq('status', 'passed')
     .gte('responded_at', `${year}-01-01T00:00:00+05:30`)
   return count ?? 0

@@ -2,6 +2,8 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { isSystemUsername } from '@/lib/system/identity'
 import type { ActivityLevel } from '@/lib/people'
+import { isNewMember } from '@/lib/onboarding'
+import { openCycle } from '@/lib/guild/demos'
 
 /**
  * The public guild hall on the leaderboard: lit only by things everyone can
@@ -9,9 +11,9 @@ import type { ActivityLevel } from '@/lib/people'
  * picked), named comments, Show & Tell and Radar links. Never visits, never
  * anything anonymous, so the hall can't reveal who writes as a ghost.
  *
- * Quiet members are never named: their windows are sent without a username
- * at all, so not even the page source says who is dark. The viewer's own
- * window is the one exception, shown to them as "you".
+ * Everyone is in it, quiet members too (smaller, at the edge of the heart);
+ * people in their first two weeks are marked new, and this month's Show &
+ * Tell presenters carry a mic.
  */
 
 export interface PublicStats {
@@ -25,13 +27,14 @@ export interface PublicStats {
 }
 
 export interface PublicWindow {
-  /** Stable key only; not a user id for unnamed windows. */
   key: string
-  userId: string | null
-  username: string | null
+  userId: string
+  username: string
   level: ActivityLevel
-  stats: PublicStats | null
+  stats: PublicStats
   isYou: boolean
+  isNew: boolean
+  presenting: boolean
 }
 
 export const SCORE_WEIGHTS = { sparks: 3, picked: 2, topics: 1, comments: 1, demos: 5, radar: 1 } as const
@@ -45,14 +48,19 @@ function levelOf(score: number): ActivityLevel {
 
 export async function getPublicHall(viewerId: string | null): Promise<{ windows: PublicWindow[]; lit: PublicWindow[] }> {
   const admin = createAdminClient()
-  const [{ data: users }, { data: topics }, { data: sparks }, { data: comments }, { data: demos }, { data: radar }] = await Promise.all([
-    admin.from('users').select('id, username').eq('is_system', false),
+  const cycle = await openCycle(admin)
+  const [{ data: users }, { data: topics }, { data: sparks }, { data: comments }, { data: demos }, { data: radar }, { data: onNow }] = await Promise.all([
+    admin.from('users').select('id, username, created_at').eq('is_system', false),
     admin.from('topics').select('user_id, is_selected, is_anonymous').eq('is_deleted', false),
     admin.from('sparks').select('to_user_id'),
     admin.from('comments').select('user_id, is_anonymous').eq('is_deleted', false),
     admin.from('demos').select('user_id').in('status', ['confirmed', 'done']),
     admin.from('radar_links').select('user_id').eq('is_deleted', false),
+    cycle
+      ? admin.from('demos').select('user_id').eq('cycle_id', cycle.id).eq('status', 'confirmed')
+      : Promise.resolve({ data: [] as { user_id: string }[] }),
   ])
+  const presenting = new Set((onNow ?? []).map(d => d.user_id))
 
   const tally = <T,>(rows: T[] | null | undefined, key: (r: T) => string | null | false) => {
     const m = new Map<string, number>()
@@ -78,19 +86,19 @@ export async function getPublicHall(viewerId: string | null): Promise<{ windows:
         radar: radarN.get(u.id) ?? 0,
       }
       const score = (Object.keys(SCORE_WEIGHTS) as (keyof typeof SCORE_WEIGHTS)[]).reduce((n, k) => n + s[k] * SCORE_WEIGHTS[k], 0)
-      return { id: u.id, username: u.username as string, stats: { ...s, score } }
+      return { id: u.id, username: u.username as string, createdAt: u.created_at as string, stats: { ...s, score } }
     })
     .sort((a, b) => b.stats.score - a.stats.score || a.username.localeCompare(b.username))
 
-  let dark = 0
-  const windows: PublicWindow[] = rows.map(r => {
-    const level = levelOf(r.stats.score)
-    const isYou = r.id === viewerId
-    if (level === 'quiet' && !isYou) {
-      dark += 1
-      return { key: `dark-${dark}`, userId: null, username: null, level, stats: null, isYou: false }
-    }
-    return { key: r.id, userId: r.id, username: r.username, level, stats: r.stats, isYou }
-  })
+  const windows: PublicWindow[] = rows.map(r => ({
+    key: r.id,
+    userId: r.id,
+    username: r.username,
+    level: levelOf(r.stats.score),
+    stats: r.stats,
+    isYou: r.id === viewerId,
+    isNew: isNewMember(r.createdAt),
+    presenting: presenting.has(r.id),
+  }))
   return { windows, lit: windows.filter(w => w.level !== 'quiet') }
 }

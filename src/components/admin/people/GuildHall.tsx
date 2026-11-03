@@ -2,7 +2,8 @@
 
 import { Bell, DeviceMobile } from '@phosphor-icons/react/dist/ssr'
 import { cn } from '@/lib/utils/cn'
-import { CrowdHall } from '@/components/hall/CrowdHall'
+import { HeartHall } from '@/components/hall/HeartHall'
+import { isNewMember } from '@/lib/onboarding'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { levelLabel, type Person } from '@/lib/people'
 
@@ -13,8 +14,8 @@ function seen(day: string | null): string {
 }
 
 /**
- * The guild as a crowd: the more involved someone is, the bigger they are and
- * the nearer the middle; people who answered the survey without an account wait at
+ * The guild as a heart: the more involved someone is, the bigger they are and
+ * the nearer the middle; new members are ringed; people who answered the survey without an account wait at
  * the door. Pick someone (or a person at the door) to see them and nudge.
  */
 export function GuildHall({
@@ -34,12 +35,13 @@ export function GuildHall({
       {members.length === 0 ? (
         <p className="rounded-(--radius-card) border border-dashed border-border-strong p-8 text-center text-footnote text-ink-muted">No members match.</p>
       ) : (
-        <CrowdHall
+        <HeartHall
           items={members.map(p => ({
             key: p.key,
             level: p.level,
             seed: p.username ?? p.email,
-            name: p.name.replace(/^@/, '').split(/\s+/)[0],
+            name: p.username ? `${p.name} (@${p.username})` : p.name,
+            isNew: isNewMember(p.joined),
             label: `${p.name}, ${levelLabel(p.level)}, ${seen(p.lastSeen)}${p.app ? ', uses the app' : ''}${p.push ? ', notifications on' : ''}`,
             selected: selected.has(p.key),
             app: p.app,
@@ -81,7 +83,7 @@ export function GuildHall({
       <ul className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-meta text-ink-muted">
         <li className="inline-flex items-center gap-1"><DeviceMobile className="size-3" weight="bold" aria-hidden /> uses the app</li>
         <li className="inline-flex items-center gap-1"><Bell className="size-3" weight="bold" aria-hidden /> notifications on</li>
-        <li>Bigger and nearer the middle = more involved</li>
+        <li>Bigger and nearer the middle = more involved · mint ring = joined in the last two weeks</li>
       </ul>
       <p className="mt-1.5 text-meta text-ink-muted">
         Levels blend visits, votes, comments, posts (anonymous ones too) and demos over 60 days. No number behind them is shown.

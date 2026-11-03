@@ -52,7 +52,7 @@ export interface PulseFacts {
   weeks: Week[]
   cycle: { label: string; daysToMeeting: number | null; topics: number; votes: number; comments: number } | null
   survey: { open: boolean; answers: number; noAccount: number; couldDemo: number; nominations: number }
-  showTell: { spotlight: boolean; demo: boolean; invited: number; queued: number }
+  showTell: { spotlight: boolean; demo: boolean; invited: number; queued: number; draw: 'none' | 'review' | 'inviting' | 'failed' }
   radar: number
 }
 
@@ -120,14 +120,15 @@ export async function getPulseFacts(teamId?: string): Promise<PulseFacts> {
   }
 
   let cycleFacts: PulseFacts['cycle'] = null
-  let showTell: PulseFacts['showTell'] = { spotlight: false, demo: false, invited: 0, queued: 0 }
+  let showTell: PulseFacts['showTell'] = { spotlight: false, demo: false, invited: 0, queued: 0, draw: 'none' }
   let radar = 0
   if (cycle) {
-    const [{ data: topics }, { count: votes }, { data: demos }, { count: links }] = await Promise.all([
+    const [{ data: topics }, { count: votes }, { data: demos }, { count: links }, { data: draws }] = await Promise.all([
       admin.from('topics').select('id, user_id, comment_count').eq('cycle_id', cycle.id).eq('is_deleted', false).eq('is_system', false),
       admin.from('votes').select('id', { count: 'exact', head: true }).eq('cycle_id', cycle.id),
       admin.from('demos').select('kind, status, cycle_id, user_id').in('status', ['invited', 'proposed', 'confirmed']),
       admin.from('radar_links').select('id', { count: 'exact', head: true }).eq('cycle_id', cycle.id).eq('is_deleted', false),
+      admin.from('draws').select('kind, round, status').eq('cycle_id', cycle.id).eq('kind', 'spotlight').order('round', { ascending: false }).limit(1),
     ])
     const inTeam = <T extends { user_id: string }>(rows: T[]) => (teamId ? rows.filter(r => ids.has(r.user_id)) : rows)
     const ts = inTeam(topics ?? [])
@@ -144,6 +145,7 @@ export async function getPulseFacts(teamId?: string): Promise<PulseFacts> {
       demo: ds.some(d => d.kind === 'demo' && d.status === 'confirmed' && d.cycle_id === cycle.id),
       invited: ds.filter(d => d.status === 'invited').length,
       queued: ds.filter(d => d.kind === 'demo' && d.status === 'proposed').length,
+      draw: (['review', 'inviting', 'failed'] as const).find(st => st === draws?.[0]?.status) ?? 'none',
     }
     radar = links ?? 0
   }
@@ -176,7 +178,11 @@ export function pulseActions(f: PulseFacts): PulseAction[] {
   const out: PulseAction[] = []
   const meetingSoon = f.cycle?.daysToMeeting != null && f.cycle.daysToMeeting >= 0 && f.cycle.daysToMeeting <= 10
 
-  if (f.cycle && !f.showTell.spotlight) {
+  if (f.cycle && !f.showTell.spotlight && f.showTell.draw === 'review') {
+    out.push({ id: 'spotlight', text: 'Kers drew for the Spotlight: check his picks before the invitation goes out', href: '/admin/topics#admin-draw', weight: 100 })
+  } else if (f.cycle && !f.showTell.spotlight && f.showTell.draw === 'failed') {
+    out.push({ id: 'spotlight', text: `Kers' draw came up empty for ${f.cycle.label}: invite someone to the Spotlight`, href: '/admin/topics#showtell', weight: 100 })
+  } else if (f.cycle && !f.showTell.spotlight && f.showTell.draw !== 'inviting') {
     out.push({
       id: 'spotlight',
       text: f.showTell.invited

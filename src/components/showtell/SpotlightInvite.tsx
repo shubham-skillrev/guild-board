@@ -18,7 +18,7 @@ import { LIMITS, SMALL_FORMATS, type DemoFormat, type MyDemo } from '@/lib/showt
  */
 export function SpotlightInvite() {
   const { data, refresh } = useShowTell()
-  const invites = data?.mine.filter(d => d.kind === 'spotlight' && d.status === 'invited') ?? []
+  const invites = data?.mine.filter(d => d.status === 'invited') ?? []
   if (!invites.length) return null
   return (
     <>
@@ -32,6 +32,7 @@ export function SpotlightInvite() {
 function Invite({ invite, passesLeft, onDone }: { invite: MyDemo; passesLeft: number; onDone: () => void }) {
   const toast = useToast()
   const small = passesLeft === 0
+  const drawn = invite.note?.startsWith('Kers drew') ?? false
   const [format, setFormat] = useState<DemoFormat | null>(small ? 'lightning' : 'demo')
   const [title, setTitle] = useState('')
   const [busy, setBusy] = useState<'accept' | 'pass' | null>(null)
@@ -60,11 +61,18 @@ function Invite({ invite, passesLeft, onDone }: { invite: MyDemo; passesLeft: nu
       <div className="flex items-start gap-4 sm:gap-5">
         <Kers size={72} expression="excited" colour="proud" follow className="shrink-0" />
         <div className="min-w-0 flex-1">
-          <p className="eyebrow">Spotlight{invite.cycle_label ? ` · ${invite.cycle_label} meeting` : ''}</p>
-          <h2 className="mt-1.5 text-[17px] font-semibold tracking-[-0.01em] text-ink">The guild wants to see your work.</h2>
-          {invite.note && (
+          <p className="eyebrow">{invite.kind === 'spotlight' ? 'Spotlight' : 'Demo'}{invite.cycle_label ? ` · ${invite.cycle_label} meeting` : ''}</p>
+          <h2 className="mt-1.5 text-[17px] font-semibold tracking-[-0.01em] text-ink">
+            {drawn ? 'Kers drew your name from the guild hat.' : 'The guild wants to see your work.'}
+          </h2>
+          {invite.note && !drawn && (
             <p className="mt-2 text-footnote leading-relaxed text-ink-soft">
               Nominated because: <span className="text-ink">“{invite.note}”</span>
+            </p>
+          )}
+          {drawn && (
+            <p className="mt-2 text-footnote leading-relaxed text-ink-soft">
+              Fair and square, and only you know. Say yes and the guild hears about it; pass and nobody ever does.
             </p>
           )}
           <p className="mt-2 text-footnote leading-relaxed text-ink-muted">
