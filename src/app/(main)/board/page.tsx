@@ -16,6 +16,7 @@ import { MeetingPill } from '@/components/layout/MeetingPill'
 import { OutcomesRecap } from '@/components/board/OutcomesRecap'
 import { SurveyCard } from '@/components/board/SurveyCard'
 import { SpotlightInvite } from '@/components/showtell/SpotlightInvite'
+import { NudgeCard } from '@/components/board/NudgeCard'
 import { ShowAndTell } from '@/components/showtell/ShowAndTell'
 import { RadarTeaser } from '@/components/radar/RadarTeaser'
 import { BytesTeaser } from '@/components/board/BytesTeaser'
@@ -186,6 +187,9 @@ export default function BoardPage() {
           <div className="min-w-0 space-y-(--gap-section)">
           {/* ─── A Spotlight invitation, for whoever has one ─── */}
           <SpotlightInvite />
+
+          {/* ─── A note from an organiser, until closed ─── */}
+          <NudgeCard />
 
           {/* ─── Kers asking for the guild survey (until answered) ─── */}
           <SurveyCard />
