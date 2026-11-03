@@ -3,6 +3,8 @@ import type { Facts } from '@/lib/guild/kers'
 import { getPulseFacts, kersFacts, pulseActions, pulseFallback } from '@/lib/guild/pulse'
 import { getPeople } from '@/lib/guild/people'
 import { peopleBriefing } from '@/lib/guild/peopleBriefing'
+import { surveyBriefing } from '@/lib/guild/surveyBriefing'
+import { getSurveyRows } from '@/lib/surveyResults'
 
 export interface BriefingInputs {
   /** Cache key prefix: 'pulse', 'team:<id>', 'survey', 'people'. */
@@ -26,6 +28,9 @@ export async function briefingInputs(scope: string, teamId?: string): Promise<Br
       actions: actions.map(a => a.text),
       fallback: pulseFallback(facts, actions),
     }
+  }
+  if (scope === 'survey') {
+    return { scope: 'survey', ...surveyBriefing(await getSurveyRows()) }
   }
   if (scope === 'people') {
     const { people } = await getPeople()

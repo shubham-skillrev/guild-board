@@ -6,6 +6,7 @@ import { serializeTopic } from '@/lib/utils/anonymity'
 import { openCycle } from '@/lib/guild/demos'
 import { getSurveyRows } from '@/lib/surveyResults'
 import { AdminControls } from '@/components/admin/AdminControls'
+import { TopicEngagement, type EngagementRow } from '@/components/admin/TopicEngagement'
 import { ShowTellAdmin, type AdminDemo, type Suggestion } from '@/components/admin/ShowTellAdmin'
 import { PageHeader } from '@/components/ui/Section'
 import type { Cycle } from '@/types'
@@ -40,6 +41,23 @@ export default async function TopicsPage() {
     getSurveyRows(),
   ])
 
+  const serialized = (topics ?? []).map(t => serializeTopic(t, adminId))
+  const { data: signals } = serialized.length
+    ? await admin.from('topic_signals').select('topic_id').in('topic_id', serialized.map(t => t.id))
+    : { data: [] as { topic_id: string }[] }
+  const signalCount = new Map<string, number>()
+  for (const s of signals ?? []) signalCount.set(s.topic_id, (signalCount.get(s.topic_id) ?? 0) + 1)
+  const engagement: EngagementRow[] = serialized
+    .filter(t => !t.is_system)
+    .map(t => ({
+      id: t.id,
+      title: t.title,
+      by: t.author_username ? `@${t.author_username}` : 'GuildBot',
+      votes: t.vote_count ?? 0,
+      comments: t.comment_count ?? 0,
+      signals: signalCount.get(t.id) ?? 0,
+    }))
+
   const byEmail = new Map((members ?? []).map(m => [(m.email ?? '').toLowerCase(), m]))
   const suggestions: Suggestion[] = [
     ...survey.filter(r => r.nominee_name).map(r => ({
@@ -70,12 +88,8 @@ export default async function TopicsPage() {
       <PageHeader title="Topics & Show & Tell" subtitle={activeCycle ? `What ${activeCycle.label} will talk about, and who is showing what.` : 'No open month.'} />
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-x-10 gap-y-(--gap-section) items-start">
         <div className="min-w-0">
-          <AdminControls
-            cycles={cycles}
-            activeCycle={activeCycle}
-            topics={(topics ?? []).map(t => serializeTopic(t, adminId))}
-            show="topics"
-          />
+          <TopicEngagement rows={engagement} />
+          <AdminControls cycles={cycles} activeCycle={activeCycle} topics={serialized} show="topics" />
         </div>
         <ShowTellAdmin
           meeting={meeting}

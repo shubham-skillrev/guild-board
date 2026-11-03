@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils/cn'
 import { DEMO, JOIN_REASONS, ROLES, SURVEY_KEY, labelOf, type Role } from '@/lib/survey'
 import { pct, surveyStats, type Bar } from '@/lib/surveyStats'
 import type { SurveyRow, SurveyState } from '@/lib/surveyResults'
+import { KersBriefing, type BriefingView } from '@/components/admin/pulse/KersBriefing'
 
 /**
  * Survey results, as one report.
@@ -26,10 +27,13 @@ export function SurveyDashboard({
   rows,
   state,
   generatedAt,
+  briefing,
 }: {
   rows: SurveyRow[]
   state: SurveyState
   generatedAt: string
+  /** Kers' read of the results (the page reads the daily cache). */
+  briefing: BriefingView
 }) {
   const [role, setRole] = useState<Role | 'all'>('all')
   const [names, setNames] = useState(true)
@@ -95,6 +99,8 @@ export function SurveyDashboard({
         </div>
       </header>
 
+      <KersBriefing scope="survey" initial={briefing} className="mb-10 break-inside-avoid" />
+
       {rows.length === 0 ? (
         <EmptyState
           icon={ChartBar}
@@ -123,15 +129,24 @@ export function SurveyDashboard({
             </label>
           </div>
 
-          {/* ─── Headline numbers ─── */}
-          <section aria-label="Totals" className="mb-10 grid gap-3 sm:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
-            <div className="rounded-(--radius-card) border border-border bg-paper px-5 py-4 break-inside-avoid">
-              <p className="text-footnote text-ink-muted">Answers</p>
-              <p className="mt-1 text-[56px] leading-none font-semibold tracking-[-0.04em] text-ink">{stats.total}</p>
+          {/* ─── Headline: the count, then what people actually said ─── */}
+          <section aria-label="Headline" className="mb-10 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2.2fr)] break-inside-avoid">
+            <div className="flex flex-col justify-between rounded-[20px] bg-ink px-6 py-5 text-parchment">
+              <p className="text-footnote text-parchment/70">Answers{role === 'all' ? '' : ` from ${roleLabel.toLowerCase()}`}</p>
+              <p className="mt-2 text-[72px] leading-none font-semibold tracking-[-0.05em]">{stats.total}</p>
+              <p className="mt-3 text-footnote text-parchment/70">
+                {stats.newVoices} without an account · {stats.signedIn} signed in
+              </p>
             </div>
-            <Figure label="Without an account" value={stats.newVoices} of={stats.total} />
-            <Figure label="Could show something" value={stats.couldDemo} of={stats.total} />
-            <Figure label="Answered signed in" value={stats.signedIn} of={stats.total} />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Verdict label="Why they’d come" bar={topOf(stats, 'join')} total={stats.total} />
+              <Verdict label="Best time" bar={topOf(stats, 'slot')} total={stats.total} />
+              <div className="rounded-[20px] border border-border bg-paper px-5 py-4">
+                <p className="text-meta text-ink-muted">Could show something</p>
+                <p className="mt-2 text-[34px] leading-none font-semibold tracking-tight text-ink">{stats.couldDemo}</p>
+                <p className="mt-2 text-meta text-ink-muted">{stats.total ? pct(stats.couldDemo / stats.total) : '0%'} said yes or maybe: that’s the demo queue</p>
+              </div>
+            </div>
           </section>
 
           {/* ─── Per question ─── */}
@@ -314,14 +329,23 @@ function toDateInput(iso: string): string {
 const EXPORT_BTN =
   'press inline-flex items-center gap-1.5 h-8 px-3 rounded-(--radius-control) bg-kinu/70 text-footnote text-ink-soft hover:bg-kinu hover:text-ink transition-colors pointer-coarse:h-11 pointer-coarse:px-4'
 
-function Figure({ label, value, of }: { label: string; value: number; of: number }) {
+function topOf(stats: ReturnType<typeof surveyStats>, key: string): Bar | null {
+  return stats.questions.find(q => q.key === key)?.bars[0] ?? null
+}
+
+/** The winning answer to one question, said as a sentence. */
+function Verdict({ label, bar, total }: { label: string; bar: Bar | null; total: number }) {
   return (
-    <div className="rounded-(--radius-card) border border-border bg-paper/50 px-4 py-4 break-inside-avoid">
-      <p className="text-footnote text-ink-muted">{label}</p>
-      <p className="mt-2 flex items-baseline gap-2">
-        <span className="text-[26px] leading-none font-semibold tracking-tight text-ink">{value}</span>
-        {of > 0 && <span className="text-footnote text-ink-muted">{pct(value / of)}</span>}
-      </p>
+    <div className="rounded-[20px] border border-border bg-paper px-5 py-4">
+      <p className="text-meta text-ink-muted">{label}</p>
+      {bar ? (
+        <>
+          <p className="mt-2 text-[19px] leading-snug font-semibold tracking-[-0.01em] text-ink">{bar.label}</p>
+          <p className="mt-2 text-meta text-ink-muted">{bar.n} of {total} · {pct(bar.share)}</p>
+        </>
+      ) : (
+        <p className="mt-2 text-footnote text-ink-muted">No answers yet</p>
+      )}
     </div>
   )
 }
@@ -346,7 +370,11 @@ function BarList({ bars, total }: { bars: Bar[]; total: number }) {
           {/* Scaled to the biggest bar, so the leader fills the track. */}
           <span className="h-2.5">
             <span
-              className="block h-full rounded-r-[4px] bg-ink/70 transition-colors group-hover:bg-ink group-focus-visible:bg-ink print:bg-ink/70"
+              className={cn(
+                'block h-full rounded-r-[4px] transition-colors group-hover:bg-ink group-focus-visible:bg-ink',
+                // The leader carries the colour; the rest are context.
+                b.n === max ? 'bg-ink' : 'bg-ink/25',
+              )}
               style={{ width: `${Math.max((b.n / max) * 100, 2)}%` }}
             />
           </span>

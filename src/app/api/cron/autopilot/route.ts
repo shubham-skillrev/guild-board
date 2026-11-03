@@ -184,13 +184,15 @@ export async function GET(request: Request) {
     }
   }
 
-  // ─── Kers' morning briefing for Pulse (migration 040) ───
-  // One AI call a day, so the dashboard opens on a fresh read without ever
+  // ─── Kers' morning briefings: Pulse, People, Survey (migration 040) ───
+  // One AI call each a day, so the dashboard opens on a fresh read without ever
   // waiting on the model. Quiet when it works.
   if (!dry) {
     try {
-      const inputs = await briefingInputs('pulse')
-      if (inputs) await refreshBriefing(inputs.scope, inputs.facts, inputs.actions, inputs.fallback)
+      for (const scope of ['pulse', 'people', 'survey']) {
+        const inputs = await briefingInputs(scope)
+        if (inputs) await refreshBriefing(inputs.scope, inputs.facts, inputs.actions, inputs.fallback)
+      }
     } catch (err) {
       steps.push({ step: 'kers', done: false, detail: errorText(err) })
     }

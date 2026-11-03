@@ -8,6 +8,8 @@ import { CATEGORY_LABELS } from '@/lib/constants'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { RoastMeToggle } from '@/components/profile/RoastMeToggle'
 import { ProfileSwitch } from '@/components/profile/ProfileSwitch'
+import { MyYearCard } from '@/components/profile/MyYearCard'
+import { getMyYear, myYearLine } from '@/lib/guild/myYear'
 
 export const metadata: Metadata = { title: 'Your profile' }
 
@@ -35,11 +37,12 @@ async function getProfile() {
       .limit(20),
   ])
 
-  return { profile, topics: topics ?? [], sparksReceived: sparksReceived ?? [] }
+  const year = await getMyYear(user.id, profile?.email ?? '')
+  return { profile, topics: topics ?? [], sparksReceived: sparksReceived ?? [], year }
 }
 
 export default async function ProfilePage() {
-  const { profile, topics, sparksReceived } = await getProfile()
+  const { profile, topics, sparksReceived, year } = await getProfile()
 
   if (!profile) redirect('/login')
 
@@ -75,6 +78,8 @@ export default async function ProfilePage() {
       </div>
 
       {/* Your ideas */}
+      <MyYearCard year={year} line={myYearLine(year)} />
+
       <div className="mb-8 space-y-4">
         <RoastMeToggle initial={profile.roast_me === true} />
         <ProfileSwitch

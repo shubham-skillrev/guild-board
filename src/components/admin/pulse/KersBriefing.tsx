@@ -52,7 +52,7 @@ export function KersBriefing({ scope, initial, className }: { scope: string; ini
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-meta text-ink-muted">
             <span>{b.byAi ? 'Kers, from today’s numbers' : 'Kers’ quick read'}</span>
             {b.refreshesLeft > 0 && (
-              <button type="button" onClick={again} disabled={busy} className="press-sm inline-flex items-center gap-1 hover:text-ink disabled:opacity-50">
+              <button type="button" onClick={again} disabled={busy} className="print:hidden press-sm inline-flex items-center gap-1 hover:text-ink disabled:opacity-50">
                 <Icon icon={ArrowClockwise} size="sm" className={cn(busy && 'animate-spin')} />
                 {busy ? 'Thinking…' : `Ask again (${b.refreshesLeft} left today)`}
               </button>

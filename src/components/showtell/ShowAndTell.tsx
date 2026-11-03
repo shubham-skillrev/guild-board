@@ -43,7 +43,7 @@ export function ShowAndTell() {
         </p>
       ) : (
         <Button
-          variant="tinted"
+          variant="secondary"
           className="mt-3 w-full"
           onClick={() => { if (!blockGuest()) setOpen(true) }}
         >
