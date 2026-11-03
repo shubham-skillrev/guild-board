@@ -218,6 +218,11 @@ export async function GET(request: Request) {
     }
   }
 
+  // ─── Notifications older than 90 days go (migration 044) ───
+  if (!dry) {
+    await admin.from('notifications').delete().lt('created_at', new Date(Date.now() - 90 * 86_400_000).toISOString())
+  }
+
   // ─── Visits: days older than six months fold into monthly totals ───
   // (migration 038). Quiet unless something moved or it failed; before the
   // migration the function is missing, which is not worth a warning.

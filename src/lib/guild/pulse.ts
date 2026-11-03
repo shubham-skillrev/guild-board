@@ -186,7 +186,7 @@ export function pulseActions(f: PulseFacts): PulseAction[] {
     out.push({
       id: 'spotlight',
       text: f.showTell.invited
-        ? `${f.showTell.invited} Spotlight invite${f.showTell.invited === 1 ? ' is' : 's are'} waiting for an answer`
+        ? `${f.showTell.invited} invitation${f.showTell.invited === 1 ? ' is' : 's are'} waiting for an answer: send a personal Slack message (copy it on Topics)`
         : `No Spotlight for ${f.cycle.label} yet${f.survey.nominations ? `: ${plural(f.survey.nominations, 'nomination')} to pick from` : ''}`,
       href: '/admin/topics#showtell',
       weight: meetingSoon ? 100 : 80,

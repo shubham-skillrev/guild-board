@@ -116,6 +116,7 @@ export default async function TopicsPage() {
       {!staff.readOnly && <DrawPanel
         draws={draws}
         canDraw={!!meeting}
+        meeting={meeting?.label ?? null}
         members={(members ?? []).map(m => ({ id: m.id, label: m.real_name ? `${m.real_name} (@${m.username})` : `@${m.username}` }))}
       />}
 

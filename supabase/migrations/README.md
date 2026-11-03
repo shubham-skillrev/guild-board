@@ -54,6 +54,7 @@ run, or the repo stops describing the database.
 | 041 | `041_meetings.sql` | `meetings`: per month's meeting, the call link, agenda, notes captured in meeting mode, recording link and recap (+ when each went to Slack). Service role only | Yes — until applied the Run tab's agenda, meeting mode and recap can't save |
 | 042 | `042_kers_draw.sql` | `draws` + `draw_picks`: Kers' monthly draw for the Spotlight (and the Demo when nobody volunteered): two picks per slot (invite + silent reserve), a review day for admins, one redraw. Service role only | Yes — until applied Kers doesn't draw; admins invite directly as before |
 | 043 | `043_viewer_role_signup_source.sql` | `users.role` gains `viewer` (read-only control room: Pulse, People, Topics, Survey; never Run, nudges or Kers' draw); `users.signup_source` (survey / join / direct, recorded at first sign-in); drops `teams` and `users.team_id` (replaced by the viewer role, never used) | **Ship together with the code** — until applied the "Can see analytics" switch fails, and sign-ups record no source (they still work) |
+| 044 | `044_notifications.sql` | `notifications`: every notification a member is sent (push or not), for the bell and /notifications; 90 days, cleared by the daily cron. Service role only | Yes — until applied the bell stays empty and pushes still go out as before |
 
 > **028 and its code ship in the same deploy.** Apply 028 right after the code
 > goes live; never before. The old code reads `topics.user_id` and

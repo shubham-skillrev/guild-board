@@ -6,7 +6,7 @@ import { SectionHeader } from '@/components/ui/Section'
 import { Button } from '@/components/ui/Button'
 import { Input, Label } from '@/components/ui/Input'
 import { useToast } from '@/hooks/useToast'
-import { LIMITS, formatLabel, type DemoKind, type DemoStatus } from '@/lib/showtell'
+import { LIMITS, formatLabel, slackInvite, type DemoKind, type DemoStatus } from '@/lib/showtell'
 
 export interface AdminDemo {
   id: string
@@ -79,7 +79,7 @@ export function ShowTellAdmin({
 
   const invite = async () => {
     if (!memberId) return
-    if (await call('invite', { action: 'invite', user_id: memberId, note, cycle_id: meeting?.id }, 'Invitation sent')) {
+    if (await call('invite', { action: 'invite', user_id: memberId, note, cycle_id: meeting?.id }, 'Invitation sent. Copy a Slack message under “Waiting for an answer” to ask them personally.')) {
       setWho('')
       setNote('')
     }
@@ -185,6 +185,19 @@ export function ShowTellAdmin({
                   <p className="text-footnote leading-snug text-ink-soft">{d.title || d.note}{d.blurb ? ` · ${d.blurb}` : ''}</p>
                 )}
                 {!readOnly && <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {d.status === 'invited' && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() =>
+                        navigator.clipboard
+                          .writeText(slackInvite({ username: d.username, kind: d.kind, meeting: d.cycleLabel ?? meeting?.label ?? null, note: d.note }))
+                          .then(() => toast(`Copied. Paste it in a DM to @${d.username}.`, 'success'))
+                      }
+                    >
+                      Copy Slack message
+                    </Button>
+                  )}
                   {d.status === 'proposed' && meeting && (
                     <Button size="sm" variant="secondary" disabled={!!busy} onClick={() => call(d.id, { action: 'confirm', id: d.id, cycle_id: meeting.id }, `Booked for ${meeting.label}`)}>
                       Book for {meeting.label}

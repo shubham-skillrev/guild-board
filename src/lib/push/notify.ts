@@ -301,13 +301,9 @@ export async function notifyOnNewTopic(args: { topicId: string; actorId: string 
     text: SLACK.newTopic(topic.is_anonymous ? "a guild member" : author, truncate(topic.title, 140), topic.id, topic.category),
   });
 
-  // Broadcast to everyone with a subscription except the author.
-  const { data: subs } = await admin
-    .from("push_subscriptions")
-    .select("user_id")
-    .neq("user_id", args.actorId);
-
-  const userIds = Array.from(new Set((subs ?? []).map((s) => s.user_id)));
+  // Every member but the author: the inbox for everyone, the push for
+  // whoever has it on.
+  const userIds = await memberIds(admin, args.actorId);
   await Promise.all([
     slack,
     userIds.length
@@ -429,13 +425,21 @@ export async function notifyOnTopicSelected(args: { topicId: string }) {
   });
 }
 
-/** Push to every subscriber. Returns how many devices it reached. */
+/** Every member (not GuildBot), optionally but one. */
+async function memberIds(admin: Admin, excludeUserId?: string): Promise<string[]> {
+  let q = admin.from("users").select("id").eq("is_system", false);
+  if (excludeUserId) q = q.neq("id", excludeUserId);
+  const { data } = await q;
+  return (data ?? []).map((u) => u.id);
+}
+
+/**
+ * To every member: it lands in everyone's notification inbox, and pushes to
+ * whoever has notifications on. Returns how many devices it reached.
+ */
 async function broadcast(payload: Parameters<typeof sendPushToUsers>[1], excludeUserId?: string) {
   const admin = createAdminClient();
-  let q = admin.from("push_subscriptions").select("user_id");
-  if (excludeUserId) q = q.neq("user_id", excludeUserId);
-  const { data: subs } = await q;
-  const userIds = Array.from(new Set((subs ?? []).map((s) => s.user_id)));
+  const userIds = await memberIds(admin, excludeUserId);
   if (!userIds.length) return { sent: 0 };
   const { sent } = await sendPushToUsers(userIds, payload);
   return { sent };

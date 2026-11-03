@@ -7,6 +7,7 @@ import { DesktopNavLinks, MobileBottomNav } from "@/components/layout/NavLinks";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { UsernameSetupModal } from "@/components/auth/UsernameSetupModal";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Wordmark } from "@/components/ui/Wordmark";
 import { GuestBanner } from "@/components/layout/GuestBanner";
 import { isGuestSession } from "@/lib/supabase/viewer";
@@ -88,6 +89,7 @@ export default async function MainLayout({
                   </span>
                 </Link>
               )}
+              {profile && <NotificationBell />}
               <ThemeToggle />
               {isGuest ? (
                 <Link

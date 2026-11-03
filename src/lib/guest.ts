@@ -29,4 +29,4 @@ export const GUEST_READ_ONLY_ERROR = 'Guest mode is read-only. Sign in to take p
 
 /** Member pages a guest still cannot open: nothing to show without an account,
  *  or nothing a guest should see at all. */
-export const GUEST_BLOCKED_PAGES = ['/admin', '/profile']
+export const GUEST_BLOCKED_PAGES = ['/admin', '/profile', '/notifications']

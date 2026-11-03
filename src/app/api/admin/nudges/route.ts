@@ -48,7 +48,9 @@ export async function POST(request: Request) {
       user_id: p.userId, email: p.email, channel, body: text, segment, sent_by: adminId,
     })
     if (error) { skipped.push({ key: item.key, reason: error.message }); continue }
-    if (channel === 'push' && p.userId) {
+    // Through the push layer even without push on: it also lands in their
+    // notification inbox.
+    if (p.userId) {
       await sendPushToUser(p.userId, { title: `A note from ${from}`, body: text, url: '/board', tag: 'guild-nudge' }).catch(() => {})
     }
     sent.push(item.key)

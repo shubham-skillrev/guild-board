@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { useToast } from '@/hooks/useToast'
 import { cn } from '@/lib/utils/cn'
+import { slackInvite } from '@/lib/showtell'
 
 export interface DrawView {
   id: string
@@ -41,7 +42,7 @@ const STATUS: Record<DrawView['status'], string> = {
  * way to swap anyone or send the invitations early. The guild never sees
  * any of this; it only hears about people who said yes.
  */
-export function DrawPanel({ draws, members, canDraw }: { draws: DrawView[]; members: { id: string; label: string }[]; canDraw: boolean }) {
+export function DrawPanel({ draws, members, canDraw, meeting }: { draws: DrawView[]; members: { id: string; label: string }[]; canDraw: boolean; meeting: string | null }) {
   const router = useRouter()
   const toast = useToast()
   const [busy, setBusy] = useState<string | null>(null)
@@ -106,6 +107,19 @@ export function DrawPanel({ draws, members, canDraw }: { draws: DrawView[]; memb
                       <p className="truncate text-footnote text-ink">@{p.username} <span className="text-meta text-ink-muted">· {p.tickets} ticket{p.tickets === 1 ? '' : 's'}</span></p>
                       <p className={cn('text-meta', p.state === 'accepted' ? 'text-ink' : 'text-ink-muted')}>{p.position === 1 && p.state === 'waiting' ? 'First up' : STATE[p.state] ?? p.state}</p>
                     </div>
+                    {p.state === 'invited' && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          navigator.clipboard
+                            .writeText(slackInvite({ username: p.username, kind: d.kind, meeting, note: 'Kers drew your name.' }))
+                            .then(() => toast(`Copied. Paste it in a DM to @${p.username}.`, 'success'))
+                        }
+                      >
+                        Copy Slack message
+                      </Button>
+                    )}
                     {d.status === 'review' && (
                       <div className="flex shrink-0 items-center gap-1">
                         <select

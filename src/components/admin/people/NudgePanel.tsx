@@ -84,15 +84,19 @@ export function NudgePanel({
     }
   }
 
-  const setViewer = async (p: Person, viewer: boolean) => {
+  const setRole = async (p: Person, role: 'viewer' | 'user' | 'admin') => {
+    if (role === 'admin' && !window.confirm(`Make ${p.name} a guild admin? They'll be able to run everything, including nudges, the meeting and Kers' draw. Only someone with database access can undo this.`)) return
     const res = await fetch('/api/admin/roles', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_id: p.userId, viewer }),
+      body: JSON.stringify({ user_id: p.userId, role }),
     }).catch(() => null)
     const data = await res?.json().catch(() => ({}))
     if (res?.ok) {
-      toast(viewer ? `${p.name} can now see the analytics` : `${p.name} no longer sees the analytics`, 'success')
+      toast(
+        role === 'admin' ? `${p.name} is now an admin` : role === 'viewer' ? `${p.name} can now see the analytics` : `${p.name} no longer sees the analytics`,
+        'success',
+      )
       router.refresh()
     } else toast(data?.error ?? 'Could not change that', 'error')
   }
@@ -150,14 +154,19 @@ export function NudgePanel({
               <input
                 type="checkbox"
                 checked={one.isViewer}
-                onChange={e => setViewer(one, e.target.checked)}
+                onChange={e => setRole(one, e.target.checked ? 'viewer' : 'user')}
                 className="mt-0.5 size-4 accent-ink"
               />
               <span className="min-w-0">
                 <span className="block text-footnote text-ink">Can see the analytics</span>
-                <span className="block text-meta text-ink-muted">Pulse, People, Topics and Survey, read-only. No Run tab, no nudges, never Kers&apos; draw.</span>
+                <span className="block text-meta text-ink-muted">Pulse, People, Topics and Survey, read-only. No Run tab, no nudges, never Kers&apos; draw. They get a notification.</span>
               </span>
             </label>
+          )}
+          {!readOnly && one.member && one.userId && !one.isAdmin && (
+            <button type="button" onClick={() => setRole(one, 'admin')} className="mt-2 text-meta text-ink-muted underline-offset-2 hover:text-ink hover:underline">
+              Make admin…
+            </button>
           )}
           {one.isAdmin && <p className="mt-3 border-t border-border pt-3 text-meta text-ink-muted">Admin: sees and runs everything.</p>}
           <p className="mt-2 text-meta text-ink-muted">* Under their own name only.</p>

@@ -58,3 +58,24 @@ export interface MyDemo {
   note: string | null
   cycle_label: string | null
 }
+
+/**
+ * A personal Slack message for an invitation, for the organiser to paste
+ * into a DM: their voice, the reason, and where to answer. Real bot DMs can
+ * replace this once the Slack app has the scopes to send them.
+ */
+export function slackInvite(args: { username: string; kind: DemoKind; meeting: string | null; note: string | null }): string {
+  const drawn = !!args.note?.startsWith('Kers drew')
+  const slot = args.kind === 'spotlight' ? 'the Spotlight' : 'a demo slot'
+  const at = args.meeting ? `the ${args.meeting} guild meeting` : 'the next guild meeting'
+  const why = drawn
+    ? `Kers drew your name for ${slot} at ${at}.`
+    : args.note
+      ? `I'd love you to take ${slot} at ${at}: ${args.note.replace(/[.!\s]+$/, '')}.`
+      : `I'd love you to take ${slot} at ${at}.`
+  return [
+    `Hey @${args.username}! ${why}`,
+    'Ten minutes, any format, no slides needed: a tool you use, something you built, a bug that ate your week.',
+    'Say yes or pass on your board, no hard feelings either way: https://guildboard.skillrev.in/board',
+  ].join(' ')
+}
