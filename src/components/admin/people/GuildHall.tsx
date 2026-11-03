@@ -2,7 +2,7 @@
 
 import { Bell, DeviceMobile } from '@phosphor-icons/react/dist/ssr'
 import { cn } from '@/lib/utils/cn'
-import { HeartHall } from '@/components/hall/HeartHall'
+import { CircleHall } from '@/components/hall/CircleHall'
 import { isNewMember } from '@/lib/onboarding'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { levelLabel, type Person } from '@/lib/people'
@@ -14,7 +14,7 @@ function seen(day: string | null): string {
 }
 
 /**
- * The guild as a heart: the more involved someone is, the bigger they are and
+ * The guild as one round group: the more involved someone is, the bigger they are and
  * the nearer the middle; new members are ringed; people who answered the survey without an account wait at
  * the door. Pick someone (or a person at the door) to see them and nudge.
  */
@@ -35,7 +35,7 @@ export function GuildHall({
       {members.length === 0 ? (
         <p className="rounded-(--radius-card) border border-dashed border-border-strong p-8 text-center text-footnote text-ink-muted">No members match.</p>
       ) : (
-        <HeartHall
+        <CircleHall
           items={members.map(p => ({
             key: p.key,
             level: p.level,

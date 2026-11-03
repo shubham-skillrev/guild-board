@@ -82,12 +82,12 @@ export default async function LeaderboardPage() {
       <header className="mb-7">
         <h1 className="text-title-1 text-label">The guild hall</h1>
         <p className="mt-1.5 max-w-prose text-callout text-label-2">
-          The whole guild in one heart: the bigger you are and the nearer the middle, the more you’ve done for the guild. New members wear a mint ring. Move in: post a topic, comment, put a link on the
+          The whole guild in one circle: the bigger you are and the nearer the middle, the more you’ve done for the guild. New members wear a mint ring. Move in: post a topic, comment, put a link on the
           Radar, or show something at a meeting.
         </p>
         {spark && (
           <p className="mt-2 text-footnote font-medium text-ink">
-            The spark window is open: give your spark to someone who made this month better. Pick them in the heart.
+            The spark window is open: give your spark to someone who made this month better. Pick them in the circle.
           </p>
         )}
       </header>

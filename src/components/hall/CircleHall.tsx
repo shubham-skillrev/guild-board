@@ -7,7 +7,7 @@ import { UserAvatar } from '@/components/ui/UserAvatar'
 import { cn } from '@/lib/utils/cn'
 import type { ActivityLevel } from '@/lib/people'
 
-export interface HeartItem {
+export interface CircleItem {
   key: string
   level: ActivityLevel
   seed: string
@@ -27,53 +27,29 @@ export interface HeartItem {
 
 const RANK: Record<ActivityLevel, number> = { driving: 0, regular: 1, showing_up: 2, quiet: 3 }
 /** Avatar size as a share of its cell: the more involved, the fuller. */
-const FILL: Record<ActivityLevel, number> = { driving: 0.96, regular: 0.86, showing_up: 0.76, quiet: 0.64 }
+const FILL: Record<ActivityLevel, number> = { driving: 0.92, regular: 0.8, showing_up: 0.7, quiet: 0.58 }
 
-/* The heart, in unit space with y up: (x² + y² − 1)³ − x²y³ ≤ 0. It spans
-   roughly x ∈ [−1.14, 1.14], y ∈ [−1, 1.23]. */
-const X0 = -1.16, X1 = 1.16, Y0 = -1.02, Y1 = 1.26
-const CENTRE = { x: 0, y: 0.18 }
+/** The circle's widest; it shrinks to fit narrower screens. */
+const MAX_W = 480
 
-function inHeart(x: number, y: number): boolean {
-  const a = x * x + y * y - 1
-  return a * a * a - x * x * y * y * y <= 0
-}
+/* A disc in unit space. */
+const X0 = -1, X1 = 1, Y0 = -1, Y1 = 1
+const CENTRE = { x: 0, y: 0 }
 
-/** The heart's outline as a polygon, found by walking out from inside it. */
-function outline(steps = 160): { x: number; y: number }[] {
-  const o = { x: 0, y: 0.1 }
-  const pts: { x: number; y: number }[] = []
-  for (let i = 0; i < steps; i++) {
-    const t = (i / steps) * Math.PI * 2
-    let lo = 0, hi = 2
-    for (let k = 0; k < 30; k++) {
-      const mid = (lo + hi) / 2
-      if (inHeart(o.x + mid * Math.cos(t), o.y + mid * Math.sin(t))) lo = mid
-      else hi = mid
-    }
-    pts.push({ x: o.x + lo * Math.cos(t), y: o.y + lo * Math.sin(t) })
-  }
-  return pts
-}
-const OUTLINE = outline()
-
-/** Hex-grid points inside the heart at spacing s, nearest the centre first. */
-/** Avatars sit inside a slightly smaller heart, so the drawn outline frames them. */
-const INSET = 0.86
-
+/** Hex-grid points inside the disc at spacing s, nearest the centre first. */
 function cells(s: number): { x: number; y: number }[] {
   const out: { x: number; y: number }[] = []
   const dy = s * Math.sqrt(3) / 2
   let row = 0
   for (let y = Y0; y <= Y1; y += dy, row++) {
     for (let x = X0 + (row % 2 ? s / 2 : 0); x <= X1; x += s) {
-      if (inHeart(x / INSET, (y - CENTRE.y) / INSET + CENTRE.y)) out.push({ x, y })
+      if (x * x + y * y <= 1) out.push({ x, y })
     }
   }
   return out.sort((a, b) => Math.hypot(a.x - CENTRE.x, a.y - CENTRE.y) - Math.hypot(b.x - CENTRE.x, b.y - CENTRE.y))
 }
 
-/** The widest spacing that still fits everyone: the heart is always full. */
+/** The widest spacing that still fits everyone, so the circle is always full. */
 function fit(n: number) {
   let lo = 0.02, hi = 1.2
   for (let i = 0; i < 40; i++) {
@@ -85,20 +61,20 @@ function fit(n: number) {
 }
 
 /**
- * The guild as a heart: every member an avatar in one honeycomb shaped like
- * a heart, the most involved in the middle. The grid resizes to the head
- * count, so the heart keeps its shape as people join or leave; spare cells
- * are faint dots that hold the outline. Used by the admin People tab and the
+ * The guild as one round group: every member an avatar in a honeycomb, the
+ * most involved in the middle and largest, quieter members further out. The
+ * grid resizes to the head count and fills from the centre, so the group
+ * stays round as people join or leave. Used by the admin People tab and the
  * public guild hall.
  */
-export function HeartHall({ items }: { items: HeartItem[] }) {
+export function CircleHall({ items }: { items: CircleItem[] }) {
   const reduce = useReducedMotion()
   const outer = useRef<HTMLDivElement>(null)
-  const [width, setWidth] = useState(640)
+  const [width, setWidth] = useState(MAX_W)
   useEffect(() => {
     const el = outer.current
     if (!el) return
-    const ro = new ResizeObserver(([e]) => setWidth(Math.min(720, e.contentRect.width)))
+    const ro = new ResizeObserver(([e]) => setWidth(Math.min(MAX_W, e.contentRect.width)))
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
@@ -107,30 +83,21 @@ export function HeartHall({ items }: { items: HeartItem[] }) {
   const { s, points } = useMemo(() => fit(Math.max(sorted.length, 1)), [sorted.length])
 
   const unit = width / (X1 - X0)
-  const height = Math.round((Y1 - Y0) * unit)
   const cell = s * unit
+  // Only as tall as the cells in use (the grid fills from the centre, so a
+  // part-full disc would otherwise leave an empty band top and bottom).
+  const used = points.slice(0, sorted.length)
+  const yTop = used.reduce((m, p) => Math.max(m, p.y), -Infinity)
+  const yBottom = used.reduce((m, p) => Math.min(m, p.y), Infinity)
+  const height = Math.round((yTop - yBottom) * unit + cell)
   const toPx = (p: { x: number; y: number }) => ({
     left: Math.round((p.x - X0) * unit * 10) / 10,
-    top: Math.round((Y1 - p.y) * unit * 10) / 10,
+    top: Math.round(((yTop - p.y) * unit + cell / 2) * 10) / 10,
   })
 
   return (
-    <div ref={outer} className="w-full">
+    <div ref={outer} className="w-full py-8">
       <ul className="relative mx-auto" style={{ width, height }} aria-label={`${items.length} members`}>
-        {/* The heart itself, faint, so the shape reads at any head count. */}
-        <svg aria-hidden className="pointer-events-none absolute inset-0 overflow-visible" width={width} height={height}>
-          <path
-            d={OUTLINE.map((p, i) => {
-              const { left, top } = toPx(p)
-              return `${i ? 'L' : 'M'}${left},${top}`
-            }).join(' ') + ' Z'}
-            className="fill-kinu/40 stroke-border"
-            strokeWidth={1}
-          />
-        </svg>
-        {points.slice(sorted.length).map((p, i) => (
-          <li key={`spare-${i}`} aria-hidden className="absolute -translate-x-1/2 -translate-y-1/2 rounded-full bg-border" style={{ ...toPx(p), width: Math.max(4, cell * 0.16), height: Math.max(4, cell * 0.16) }} />
-        ))}
         {sorted.map((item, i) => {
           const size = Math.max(14, Math.round(cell * FILL[item.level]))
           const Tag = item.onClick ? 'button' : 'span'
