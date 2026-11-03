@@ -53,8 +53,9 @@ function isStandaloneMode() {
 /* Not on the landing page or sign-in. A first visit is for reading the pitch,
    and the card sat over its stat strip; asking to install an app nobody has
    tried yet is also the wrong order. It shows once they are inside. Nor on
-   /hours, the public page: strangers came for the building, not an app. */
-const QUIET_PATHS = new Set(["/", "/login", "/hours"]);
+   /hours, the public page: strangers came for the building, not an app.
+   Nor on /survey: it is two minutes long, and the card covered the form. */
+const QUIET_PATHS = new Set(["/", "/login", "/hours", "/survey"]);
 
 export function InstallPrompt() {
   const pathname = usePathname();

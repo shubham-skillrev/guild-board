@@ -17,7 +17,7 @@ function resolveAppOrigin(): string {
 // the OAuth redirect URL, so the Supabase redirect allowlist stays one exact
 // entry. Only known intents are accepted: this is not an open redirect.
 const INTENT_COOKIE = 'gb_intent'
-const INTENTS = new Set(['share'])
+const INTENTS = new Set(['share', 'survey'])
 
 export async function POST(request: Request) {
   const appOrigin = resolveAppOrigin()

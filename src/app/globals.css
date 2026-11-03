@@ -1139,3 +1139,19 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .gb-scene .gb-rain *, .gb-scene [data-part='strum'] { animation: none !important; }
 }
+
+/* ═══ Print: survey results ═══
+   "Save as PDF" on /admin/survey prints the report alone: the app's header,
+   footer and bottom nav drop out, and the bars keep their fill. */
+#survey-report { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+@media print {
+  @page { margin: 14mm; }
+  /* Everything that is not the report: overlays portalled into <body> (the
+     install card, the bottom nav), then the layout's header, banners and
+     footer around <main>. */
+  body:has(#survey-report) > :not(:has(#survey-report)) { display: none !important; }
+  body:has(#survey-report) :has(> main #survey-report) > :not(main) { display: none !important; }
+  body:has(#survey-report) main { padding: 0 !important; }
+  body:has(#survey-report) [data-floating-prompt] { display: none !important; }
+  body:has(#survey-report) main > div { padding: 0 !important; max-width: none !important; }
+}

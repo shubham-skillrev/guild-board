@@ -24,7 +24,8 @@ function resolveAppOrigin(request: Request): string {
   return `${proto}://${host}`
 }
 
-// Set by /api/auth/login when sign-in started from "Share a problem".
+// Set by /api/auth/login when sign-in started from "Share a problem" or from
+// "Fill with Google" on /survey.
 const INTENT_COOKIE = 'gb_intent'
 
 export async function GET(request: Request) {
@@ -32,6 +33,9 @@ export async function GET(request: Request) {
   const appOrigin = resolveAppOrigin(request)
   const intent = request.headers.get('cookie')?.match(/(?:^|;\s*)gb_intent=([^;]+)/)?.[1]
   const share = intent === 'share'
+  // Back to the survey with name and email filled in. A first sign-in still
+  // has a temporary username; the survey's "Open the board" asks for one.
+  const survey = intent === 'survey'
   // Every exit from here clears the intent, success or not.
   const redirect = (url: string) => {
     const res = NextResponse.redirect(url)
@@ -78,8 +82,11 @@ export async function GET(request: Request) {
       console.error('Insert Error details:', insertError)
       return redirect(`${appOrigin}/login?error=user_creation_failed`)
     }
+    if (survey) return redirect(`${appOrigin}/survey`)
     return redirect(`${appOrigin}/board?setup=username${share ? '&share=1' : ''}`)
   }
+
+  if (survey) return redirect(`${appOrigin}/survey`)
 
   if (!existingUser.username || existingUser.username.startsWith('user_')) {
     return redirect(`${appOrigin}/board?setup=username${share ? '&share=1' : ''}`)

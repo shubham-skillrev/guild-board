@@ -34,6 +34,10 @@ export async function proxy(request: NextRequest) {
     // The guild building, every hour (public, a story with no live data).
     pathname === '/hours' ||
     pathname.startsWith('/hours/') ||
+    // The guild survey: answered by people without an account too. The API
+    // checks the email domain itself and writes only with the service role.
+    pathname === '/survey' ||
+    pathname === '/api/survey' ||
     pathname === '/favicon.ico' ||
     isPwaAsset
 

@@ -9,6 +9,8 @@ import { ByteGenerator } from '@/components/admin/ByteGenerator'
 import { SystemTopicsPanel } from '@/components/admin/SystemTopicsPanel'
 import { ThemePanel } from '@/components/admin/ThemePanel'
 import { AnnouncePanel } from '@/components/admin/AnnouncePanel'
+import { SurveyPanel } from '@/components/admin/SurveyPanel'
+import { getSurveyRows } from '@/lib/surveyResults'
 import { PageHeader, SectionHeader } from '@/components/ui/Section'
 import type { Cycle } from '@/types'
 
@@ -27,7 +29,7 @@ async function getAdminData() {
 
   if (profile?.role !== 'admin') return null
 
-  const [{ data: cycles }, { data: allTopics }] = await Promise.all([
+  const [{ data: cycles }, { data: allTopics }, surveyRows] = await Promise.all([
     supabase
       .from('cycles')
       .select('*')
@@ -40,11 +42,13 @@ async function getAdminData() {
       .select('*, users!topics_user_id_fkey(username)')
       .eq('is_deleted', false)
       .order('score', { ascending: false }),
+    getSurveyRows(),
   ])
 
   return {
     cycles: cycles ?? [],
     allTopics: (allTopics ?? []).map(t => serializeTopic(t, user.id)),
+    surveyRows,
   }
 }
 
@@ -52,7 +56,7 @@ export default async function AdminPage() {
   const data = await getAdminData()
   if (!data) notFound()
 
-  const { cycles, allTopics } = data
+  const { cycles, allTopics, surveyRows } = data
   const activeCycle = cycles.find(c => c.status === 'open') ?? cycles[0] ?? null
   const activeCycleTopics = activeCycle
     ? allTopics.filter((t: any) => t.cycle_id === activeCycle.id)
@@ -86,6 +90,7 @@ export default async function AdminPage() {
         </div>
 
         <aside className="min-w-0 space-y-(--gap-section) lg:sticky lg:top-20">
+          <SurveyPanel rows={surveyRows} />
           <ByteGenerator />
 
           <section aria-labelledby="admin-cycles">

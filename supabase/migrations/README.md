@@ -47,6 +47,7 @@ run, or the repo stops describing the database.
 | 034 | `034_board_presence.sql` | presence allowed on `board:*` channels as well as `topic:*` (anonymous tab counts, for GuildBot noticing a crowd) | Yes — replaces one policy; until applied the board just has no presence |
 | 035 | `035_guildbot_reactions.sql` | `guildbot_messages.reaction`: GuildBot's sticker on the message his reply answers (fixed set) | Yes — additive; until applied, stickers show live but aren't kept |
 | 036 | `036_focus_presence.sql` | members-only presence on `focus:guild`: an anonymous count of running focus timers (`{ s, since, look }`, no ids) | Yes — additive; until applied /focus counts only you |
+| 037 | `037_survey_responses.sql` | `survey_responses`: answers to the public `/survey` (name, @skillrev.dev email, one row per email per survey run, `verified` when signed in; service role only) | **Ship together with the survey code** — until applied every survey submit fails |
 
 > **028 and its code ship in the same deploy.** Apply 028 right after the code
 > goes live; never before. The old code reads `topics.user_id` and
