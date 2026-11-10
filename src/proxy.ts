@@ -63,7 +63,12 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // getClaims verifies the session JWT locally against the project's cached
+  // public key (ES256), and only goes to Supabase Auth when the token needs
+  // refreshing. getUser made a network round trip on every request, pages,
+  // RSC prefetches and every API call alike, before any real work started.
+  const { data: claimsData } = await supabase.auth.getClaims()
+  const user = claimsData?.claims?.sub ? { id: claimsData.claims.sub } : null
 
   // The board is the front door. Members land on it; anyone signed out sees
   // it read-only in guest mode (the pitch lives on /about). Set on the

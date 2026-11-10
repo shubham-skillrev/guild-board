@@ -21,8 +21,11 @@ export interface Viewer {
  */
 export async function getViewer(): Promise<Viewer> {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user) return { supabase, user: { id: user.id }, isGuest: false }
+  // Read-only callers: a locally verified JWT is enough (RLS checks the same
+  // token again on every query), and it skips a round trip to Supabase Auth.
+  const { data } = await supabase.auth.getClaims()
+  const userId = data?.claims?.sub
+  if (userId) return { supabase, user: { id: userId }, isGuest: false }
 
   if (await isGuestSession()) {
     return { supabase: createAdminClient(), user: { id: GUEST_USER_ID }, isGuest: true }

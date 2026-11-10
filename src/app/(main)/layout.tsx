@@ -19,14 +19,15 @@ import { VisitBeacon } from "@/components/layout/VisitBeacon";
 async function getUser() {
   try {
     const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return null;
+    // Local JWT check (see src/proxy.ts): the proxy already refreshed the
+    // session on this request, so this costs no round trip to Supabase Auth.
+    const { data: claimsData } = await supabase.auth.getClaims();
+    const userId = claimsData?.claims?.sub;
+    if (!userId) return null;
     const { data } = await supabase
       .from("users")
       .select("username, role")
-      .eq("id", user.id)
+      .eq("id", userId)
       .single();
     return data;
   } catch {
