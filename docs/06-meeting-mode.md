@@ -20,6 +20,8 @@ Planned 2026-11-12 (grill session). Progress is tracked at the bottom.
 |---|---|
 | Phasing | P1 presenter screen → P2 audience (poll, word cloud) → P3 Boss Round |
 | Who runs it | `admin` only: starts meeting mode, edits Kers' drafts in the Run tab, moves segments, opens activities. No "lead" or "organiser" role |
+| One presenter | The admin who starts meeting mode is the presenter (`meetings.presenter_id`). Only they move segments and open activities. Another admin opening `/meet/present` gets it read-only, with "Take over" for when the presenter drops off the call |
+| Admins take part too | Every admin, the presenter included, joins `/meet` like any member and votes, types words and plays the Boss Round. Their answers count the same and are just as anonymous. The presenter uses their phone or a second tab, so the shared screen stays clean |
 | Setting | Fully remote. Attendees on laptops or phones |
 | Scale | ~20 now, 60 max. Stress-tested at 60 before the first real meeting |
 | How people join | A banner on the website while the meeting is live. No link in the call chat, QR code or short code |
@@ -85,7 +87,7 @@ closes when the admin moves on.
 
 **Data**
 - Each agenda item gains `prep: { points: string[], opener: string, ask: uuid[] }`.
-- `meetings` gains `current_segment` and `segment_started_at`. `started_at` /
+- `meetings` gains `presenter_id`, `current_segment` and `segment_started_at`. `started_at` /
   `ended_at` already exist.
 
 ---
@@ -177,7 +179,8 @@ closes when the admin moves on.
 - [ ] Choose the target meeting for P1, and for P2 + P3
 
 ### Phase 1: Presenter mode
-- [ ] Migration: `meetings.current_segment`, `segment_started_at`; `prep` on agenda items
+- [ ] Migration: `meetings.presenter_id`, `current_segment`, `segment_started_at`; `prep` on agenda items
+- [ ] Presenter lock: read-only `/meet/present` for other admins, "Take over"
 - [ ] Kers prep generation (points, opener, "who to ask") and its trigger
 - [ ] Run tab: edit Kers' prep per segment
 - [ ] "Start meeting mode" card on the board (admins, from 3 h before)
