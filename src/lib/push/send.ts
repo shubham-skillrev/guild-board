@@ -47,7 +47,7 @@ function kindOf(payload: PushPayload): string {
 
 /**
  * Keep a notification in each member's inbox (migration 044), push or not:
- * the bell in the top bar shows these. Quiet if the table isn't there yet.
+ * the bell in the top bar shows these. Loud if the table isn't there yet.
  */
 async function store(userIds: string[], payload: PushPayload) {
   if (!userIds.length) return;
@@ -59,7 +59,14 @@ async function store(userIds: string[], payload: PushPayload) {
     url: payload.url?.slice(0, 500) ?? null,
   }));
   const { error } = await createAdminClient().from("notifications").insert(rows);
-  if (error && error.code !== "42P01" && error.code !== "PGRST205") console.warn("notifications: store failed", error.message);
+  if (!error) return;
+  // A missing table used to be skipped quietly, and that hid an unapplied
+  // migration 044 for days: pushes went out, inboxes stayed empty.
+  if (error.code === "42P01" || error.code === "PGRST205") {
+    console.error("notifications: table missing - apply supabase/migrations/044_notifications.sql");
+  } else {
+    console.warn("notifications: store failed", error.message);
+  }
 }
 
 /** Push to one member's devices, and keep it in their notification inbox. */

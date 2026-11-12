@@ -824,7 +824,7 @@ function WelcomeCard({ text, onOpen, onDismiss }: { text: string; onOpen: () => 
       ref={ref}
       role="status"
       // Just above his corner: 5.25rem + ~4.4rem on a phone, 0.75rem + ~5rem on md.
-      className="fixed right-4 bottom-[10.25rem] md:right-6 md:bottom-[6.5rem] z-(--z-overlay) w-[min(18rem,calc(100vw-2rem))] animate-fade-up"
+      className="fixed right-4 bottom-[10.25rem] md:right-6 md:bottom-[6.5rem] z-(--z-kers) w-[min(18rem,calc(100vw-2rem))] animate-fade-up"
     >
       <div className="relative rounded-(--radius-card) border border-border bg-paper shadow-lg">
         <button type="button" onClick={onOpen} className="block w-full text-left px-3.5 pt-3 pb-3">

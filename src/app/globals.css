@@ -153,6 +153,7 @@
      still be confirmed. */
   --z-chrome: 30;    /* sticky header, bottom nav */
   --z-overlay: 40;   /* the single floating slot */
+  --z-kers: 45;      /* Kers and whatever he says: over the slot (meeting pill), under sheets */
   --z-scrim: 50;     /* sheets, modals, their backdrop */
   --z-toast: 60;     /* transient confirmations, never blocking */
 

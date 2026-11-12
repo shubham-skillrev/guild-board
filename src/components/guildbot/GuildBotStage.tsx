@@ -153,7 +153,7 @@ export function GuildBotStage({
     <>
       <div
         className={cn(
-          'fixed flex items-end z-(--z-overlay) transition-transform duration-300 motion-reduce:transition-none',
+          'fixed flex items-end z-(--z-kers) transition-transform duration-300 motion-reduce:transition-none',
           'right-2 bottom-20 md:right-4 md:bottom-2',
           dodge !== null && '-translate-x-24 -translate-y-16',
         )}
