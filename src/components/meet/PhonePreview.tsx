@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { MeetRoom, type MeetRoomOffline } from '@/components/meet/MeetRoom'
 import { cleanWord, type MeetView, type PublicActivity, type RoomState } from '@/lib/meet/activity'
+import type { MeetPost, PresenterNotes, PublicSegment } from '@/lib/meeting'
 import { addAnswer } from '@/lib/meet/rehearse'
 
 /**
@@ -11,12 +12,16 @@ import { addAnswer } from '@/lib/meet/rehearse'
  * It is the real /meet room (MeetRoom) offline: no network, no channel.
  * The room is the rehearsal's current activity; an answer here goes back to
  * the presenter screen (`onAnswer`) and lands on top of the sample answers.
+ * It is the presenter's own phone: the segment's cards, and their notes.
  */
 export function PhonePreview({
   cycleId,
   label,
   segment,
   activity,
+  agenda,
+  posts,
+  notes,
   participants,
   mine,
   onAnswer,
@@ -25,6 +30,9 @@ export function PhonePreview({
   label: string
   segment: string
   activity: PublicActivity | null
+  agenda: PublicSegment[]
+  posts: Record<string, MeetPost>
+  notes: PresenterNotes | null
   participants: number
   /** This phone's answers so far, by activity id. */
   mine: Record<string, Record<string, unknown>[]>
@@ -46,6 +54,9 @@ export function PhonePreview({
     member: 'you',
     joined: { kind: 'member', name: null },
     mine: activity && mine[activity.id] ? { activityId: activity.id, values: mine[activity.id] } : null,
+    agenda,
+    posts,
+    notes,
   }
 
   const offline: MeetRoomOffline = useMemo(

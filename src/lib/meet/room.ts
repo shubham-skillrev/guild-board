@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase/server'
 import { MEET_EVENT, meetingChannel } from '@/lib/realtime/channels'
 import { openCycle } from '@/lib/guild/demos'
 import { isBlocked } from '@/lib/meet/profanity'
-import { meetingLive } from '@/lib/meeting'
+import { agendaPostIds, meetingLive, phoneAgenda } from '@/lib/meeting'
+import { meetPosts } from '@/lib/guild/meetingPrep'
 import {
   aggregate,
   BLOCKED_MESSAGE,
@@ -48,6 +49,8 @@ export interface MeetingRow {
   started_at: string | null
   ended_at: string | null
   current_segment?: string | null
+  agenda?: unknown
+  presenter_id?: string | null
 }
 
 export function isLive(m: MeetingRow | null | undefined, now = Date.now()): boolean {
@@ -288,6 +291,13 @@ export async function meetView(admin: Admin, userId: string | null, guestToken: 
   const room = await readRoom(admin, m.cycle.id, m.row)
   if (!room) return { ...view, ready: false, room: { cycleId: m.cycle.id, live: isLive(m.row), participants: 0, segment: null, activity: null, warm: false, at: new Date().toISOString() } }
   view.room = room
+  if (room.live) {
+    // The cards on every phone; the notes only on the presenter's (phoneAgenda checks who's asking).
+    const { agenda, notes } = phoneAgenda(m.row.agenda, userId, m.row.presenter_id)
+    view.agenda = agenda
+    view.notes = notes
+    view.posts = await meetPosts(agendaPostIds(agenda))
+  }
   const p = room.live ? await findParticipant(admin, m.cycle.id, userId, guestToken) : null
   if (p) {
     view.joined = { kind: p.kind, name: p.name }

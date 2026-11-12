@@ -64,9 +64,33 @@ If the post is one-sided, the host's framing names the other side.
   `Radar: who do we trust with our code?`, not `Radar`. Keep `Wrap` and `Kers' Boss Round`.
 - **Detail** (under 300): what the host and room need. Radar: items separated by ` · `, each with its most concrete fact. Topic: who opens it, the two sides in one sentence, how it touches us. No links (the screen shows the post).
 
+### Cue and cards: what the room sees
+
+The shared screen shows each segment's **title**, one **cue** line and its
+**cards**; every phone shows the same cards between polls (docs/06, "Cue and
+cards"). Instructions to the host never go there: they're the notes (section 4).
+
+- **Cue** (under 90 characters; the code allows 120): what the room does now.
+  `Vote first, then we read them.` · `One word on your phone: the tool you'd refuse to give up.`
+  Not a summary, not a note to the host ("Lightning rules if a slot is empty…" is a note).
+- **Cards** (up to 6; aim for 2–4): the segment's real content, one idea each.
+
+| Kind | Shape | Use it for | Tint |
+|---|---|---|---|
+| `news` | `{ title, source, url, why, from? }` | Each Radar item: its real link from the board or digest, one concrete line on why. `from: "member"` shows "A member's pick" | indigo |
+| `post` | `{ postId }` | A board post, drawn with the board's own card (ghost posts keep their ghost handle) | the board's card |
+| `slot` | `{ label, status: invited \| confirmed \| open, text? }` | Show & Tell: Spotlight, Demo, lightning tours. Never a name the board doesn't show | wisteria |
+| `side` | `{ label, text }` | The Topic's two sides, fair to both | vermillion, matcha |
+| `note` | `{ title, text? }` | The examples a post gives, the clinic's rule, the Wrap's asks. Content, not stage directions | matcha, wisteria, indigo |
+
+An agenda without cards still works: its `topicIds` show as post cards, else
+its detail as text.
+
 ## 4. The presenter script (Kers' prep)
 
-Per segment: one **opener** and **2–3 points**. The host reads them from the shared screen.
+Per segment: one **opener** and **2–3 points**. Only the presenter sees them:
+on their own phone in the room (`/meet`, signed in as the one presenting) and
+in Rehearse. Never on the shared screen, never sent to anyone else.
 
 **Opener** (under 200 characters; the code allows 240)
 - A question or provocation answerable in one line from your own experience. Never a summary, never "Today we'll discuss".
@@ -103,6 +127,8 @@ Per segment: one **opener** and **2–3 points**. The host reads them from the s
 | Poll: 💥 Bursts / 📉 Slow deflate / 🚀 Still booming / 🤷 Tech stays, business crashes | Options overlap: a burst *is* the business crashing | 💥 Pops, dot-com style / 📉 Slow deflate / 🚀 Still booming |
 | Detail: "Spotlight: @someone" (not confirmed) | Invents a commitment | "Spotlight and Demo: invites out, neither confirmed yet. If a slot is empty, run a lightning desk tour…" |
 | Point: "@sudo voted for this, ask them." | Names a voter on a shared screen | (who to ask stays in `prep.ask`, server only) |
+| Cue: "Lightning rules if a slot is empty: share your screen…" | A host instruction on the shared screen | Cue: "Share your screen: three minutes, one trick we should steal." The rule goes in the notes |
+| Note card: "Read the three examples aloud" | A stage direction, not content | Three note cards: "Git history: a linked list", "MongoDB indexes: B-trees", … |
 
 ---
 
@@ -113,9 +139,15 @@ What each model returns (the code validates, cuts to the limits in `src/lib/meet
 ```jsonc
 // Agenda drafting (draftAgenda). Ids, kinds and minutes come from the skeleton and can't change.
 {
-  "radar": ["link:<uuid>", "byte:<uuid>", "byte:<uuid>"],   // keys from radar_candidates, up to 3
-  "segments": [{ "id": "radar", "title": "string ≤80", "detail": "string ≤400" }]
+  "radar": [{ "key": "link:<uuid>", "why": "string ≤180" }],   // keys from radar_candidates, up to 3
+  "segments": [{
+    "id": "topic", "title": "string ≤80", "detail": "string ≤400", "cue": "string ≤120",
+    "cards": [{ "kind": "side", "label": "≤40", "text": "≤180" }, { "kind": "note", "title": "≤120", "text": "≤180" }]
+  }]
 }
+// The server builds the news cards (from the picks: real titles and links), the
+// post cards (topicIds) and the Show & Tell slots itself; the model's cards are
+// only sides and notes.
 
 // Prep drafting (draftPrep). One entry per segment id given.
 {
@@ -129,6 +161,8 @@ Stored per segment in `meetings.agenda` (what the Run tab saves, `mergeAgenda`):
 {
   "id": "topic", "kind": "topic", "title": "…", "detail": "…", "minutes": 16,
   "topicIds": ["<post uuid>"],
+  "cue": "Vote first. Then: which tool you use every day disappears first if it pops?",
+  "cards": [{ "kind": "post", "postId": "<post uuid>" }, { "kind": "side", "label": "The tech stays", "text": "…" }],
   "prep": { "points": ["…"], "opener": "…", "by": "kers" | "admin", "at": "<iso>", "ask": ["<user uuid>"] }
 }
 ```
@@ -142,7 +176,9 @@ Stored per segment in `meetings.agenda` (what the Run tab saves, `mergeAgenda`):
 ```text
 You draft the agenda for a 60-minute, fully remote monthly guild meeting at a software company. Engineers, QA, PMs, scrum masters and DevOps attend. Most listen and never unmute; the agenda's job is to give them a reason to.
 
-You are given a fixed skeleton of segments (id, kind, minutes) and the month's material: the theme, Radar candidates (links members posted and items from the news digest, with votes), the board's posts (title, text, category, votes, comments, whether anonymous, whether an admin selected it), and who is confirmed for Show & Tell. Keep every segment id, kind and minutes exactly as given. For each segment write a title and a detail. Also pick up to 3 Radar items from the candidates by key.
+You are given a fixed skeleton of segments (id, kind, minutes) and the month's material: the theme, Radar candidates (links members posted and items from the news digest, with votes), the board's posts (title, text, category, votes, comments, whether anonymous, whether an admin selected it), and who is confirmed for Show & Tell. Keep every segment id, kind and minutes exactly as given. For each segment write a title, a detail, a cue and any cards it needs. Also pick up to 3 Radar items from the candidates by key, each with one line on why it matters.
+
+What the room sees: the shared screen shows each segment's title, its cue and its cards, and every phone shows the same cards between polls. The host's notes are written separately and never shown.
 
 Picking the Radar:
 - Votes first. On a tie, a member's link beats a digest item: a member putting something forward is what we want more of.
@@ -161,13 +197,20 @@ Details (under 300 characters), what the host and the room need to know:
 - Problem clinic: the problem posts by title, or, with none, that the room sets the agenda through the word cloud.
 - Never invent a fact, number, name, link or confirmation. Use only what is in the input.
 
+The cue (under 90 characters): one line telling the room what to do now, on top of the screen. "Vote first, then we read them." "One word on your phone: the tool you'd refuse to give up." An instruction to the room, never a note to the host and never a summary.
+
+Cards, the segment's real content (at most 4 per segment; the server adds the Radar's news cards from your picks, the board's posts and the Show & Tell slots itself, so never write those):
+- side: for the Topic, the two sides of the debate, each a label under 30 characters ("The tech stays") and one line under 120 characters in its defence. Fair to both.
+- note: a short title and an optional line, for what the room needs in front of it: the examples a post gives, the clinic's rule, the Wrap's three asks. Content, not stage directions: "Git history: a linked list", not "Read the examples aloud".
+- Radar why (under 120 characters): the item's most concrete fact, from its summary.
+
 Return JSON only, in the shape asked for.
 ```
 
 ### Prep drafting (Kers' presenter script)
 
 ```text
-You are Kers, the mascot of a monthly engineering guild meeting. You write the presenter script the host reads from a shared screen: for each agenda segment, one opener and 2 or 3 talking points. The meeting is remote and most people stay muted. Your script is judged by one thing: did quiet people talk, vote or type?
+You are Kers, the mascot of a monthly engineering guild meeting. You write the presenter's notes, which only the host sees, on their own phone: for each agenda segment, one opener and 2 or 3 talking points. The shared screen already shows the segment's title, a one-line cue and its cards (the news, the posts, the sides), so the notes carry what the screen doesn't: what to say and what to raise. The meeting is remote and most people stay muted. Your script is judged by one thing: did quiet people talk, vote or type?
 
 The opener (under 200 characters) is the first thing the host says.
 - A question or a provocation the room can answer in one line, from their own experience. Never a summary of the post, never "Today we'll discuss".

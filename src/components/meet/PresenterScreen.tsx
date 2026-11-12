@@ -3,23 +3,23 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowFatUp, ArrowsIn, ArrowsOut, CaretLeft, CaretRight, ChatCircle, Play, Stop } from '@phosphor-icons/react/dist/ssr'
+import { ArrowsIn, ArrowsOut, CaretLeft, CaretRight, Play, Stop } from '@phosphor-icons/react/dist/ssr'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { cn } from '@/lib/utils/cn'
 import { OVERLAY_PRIORITY, useOverlaySlot } from '@/components/ui/OverlaySlot'
-import { ActivityHero, ActivityReady, segmentActivity } from '@/components/meet/ActivityPanel'
+import { ActivityHero, ActivityReady, ActivityResults, segmentActivity } from '@/components/meet/ActivityPanel'
 import { AgendaProgress } from '@/components/meet/AgendaProgress'
 import { PresenterKers } from '@/components/meet/PresenterKers'
 import { bossPhase } from '@/lib/meet/boss'
 import { REHEARSE_ROOM, rehearseActivity, withAnswer } from '@/lib/meet/rehearse'
 import { PhonePreview } from '@/components/meet/PhonePreview'
-import type { PublicActivity } from '@/lib/meet/activity'
+import { SegmentCards } from '@/components/meet/SegmentCards'
+import { stageFor, type PublicActivity } from '@/lib/meet/activity'
 import { useMeetingLive, useSecond } from '@/components/meet/useMeetingLive'
-import { earlyStartWarning, KIND_LABELS, meetingLive, type MeetingState, type Segment } from '@/lib/meeting'
-import type { PresenterPost } from '@/lib/guild/meetingPrep'
+import { earlyStartWarning, KIND_LABELS, meetingLive, presenterNotes, publicSegments, segmentCards, type MeetingState, type MeetPost, type Segment } from '@/lib/meeting'
 
 /** Where the screen is when migration 045 isn't applied (or in rehearsal): this browser only. */
 const localKey = (cycleId: string, rehearsing: boolean) => `${rehearsing ? 'gb-meet-rehearse' : 'gb-meet'}:${cycleId}`
@@ -33,7 +33,7 @@ function readLocal(key: string): LocalPos | null {
   }
 }
 
-/** Whether Kers' notes for the presenter are on screen (P toggles; kept per browser). */
+/** Whether the presenter's notes show in rehearsal (P toggles; kept per browser). Never on the live screen. */
 const NOTES_KEY = 'gb-meet-notes'
 
 /** An activity's state in rehearsal: local only, never sent. */
@@ -49,24 +49,28 @@ type RehearsedState = Record<string, { status: PublicActivity['status']; openedA
  *            seeds, never names); the presenter's few controls fade in on
  *            hover ("Take over" for another admin)
  *   stage    the hero. With an open or closed activity: its question and the
- *            answers (ActivityHero). Otherwise: the segment's title and Kers'
- *            opener, its board posts as small cards, and an activity waiting
- *            to open (ActivityReady, the one saffron button)
- *   notes    Kers' talking points, small and dim, for the presenter (P hides)
+ *            answers (ActivityHero), the cards stepping back to a strip under
+ *            a poll. Otherwise: the segment's eyebrow, title and one-line cue,
+ *            its cards (SegmentCards: news, the board's posts, slots, sides,
+ *            notes), and an activity waiting to open (ActivityReady, the one
+ *            saffron button)
+ *   notes    never on the live screen: the talking points go to the
+ *            presenter's own phone (/meet). In rehearsal only, they show
+ *            here, small (P hides), and the phone preview is the presenter's
  *   footer   one thin line with a dot per segment, evenly spaced, no text;
  *            subtle Back / Next either side, and Kers, small, at the end
  *
  * Only the presenter moves it (← → or PageUp/PageDown for a clicker, the
  * arrows, the dots); everyone else follows (the meeting channel, polling
- * as the fallback). Esc leaves, F goes full screen, P shows or hides the
- * notes. The place lives on the server, so a refresh resumes it.
+ * as the fallback). Esc leaves, F goes full screen; in rehearsal P shows
+ * or hides the notes and M the phone. The place lives on the server, so a refresh resumes it.
  *
  * Rehearsal (`rehearsal` set, /meet/present?rehearse=1): the same screen on
  * the real agenda and prep, the day before. Nothing is live and nothing is
  * written: the place is kept in this browser, "Open" fills the activity
  * with sample answers (lib/meet/rehearse.ts), and no action reaches the API.
  */
-export function PresenterScreen({ initial, posts, rehearsal }: { initial: MeetingState; posts: Record<string, PresenterPost>; rehearsal?: Record<string, PublicActivity> }) {
+export function PresenterScreen({ initial, posts, rehearsal }: { initial: MeetingState; posts: Record<string, MeetPost>; rehearsal?: Record<string, PublicActivity> }) {
   const { state, busy, call, optimistic, now } = useMeetingLive(initial)
   return <PresenterView state={state} busy={busy} call={call} optimistic={optimistic} now={now} serverNow={initial.serverNow} posts={posts} rehearsal={rehearsal} />
 }
@@ -96,7 +100,7 @@ export function PresenterView({
   now: () => number
   /** The server's time in the page's props, so the first render agrees. */
   serverNow: string
-  posts: Record<string, PresenterPost>
+  posts: Record<string, MeetPost>
   /** Rehearsal: each segment's activity as seeded, keyed by segment id. Nothing goes live. */
   rehearsal?: Record<string, PublicActivity>
   onExit?: () => void
@@ -137,6 +141,8 @@ export function PresenterView({
 
   // Rehearsal: opening and closing happen here only, and the phone preview's answers stay here.
   const [rehearsed, setRehearsed] = useState<RehearsedState>({})
+  /** Which closed activity the presenter put back in the hero ("Show results big"), by id and close time. */
+  const [big, setBig] = useState<string | null>(null)
   const [phone, setPhone] = useState(true)
   const [mine, setMine] = useState<Record<string, Record<string, unknown>[]>>({})
   const onAnswer = useCallback((id: string, values: Record<string, unknown>[]) => setMine(m => ({ ...m, [id]: values })), [])
@@ -235,12 +241,20 @@ export function PresenterView({
     )
   }
 
-  const hero = activity && activity.status !== 'ready' ? activity : null
-  const ready = activity && activity.status === 'ready' ? activity : null
-  const segPosts = hero ? [] : (seg.topicIds ?? []).map(id => posts[id]).filter(Boolean)
-  const opener = seg.prep?.opener?.trim() || null
-  const points = notes && presenting ? seg.prep?.points ?? [] : []
+  // Closed: the cards come back, the results go small under them, unless the presenter asked for them big.
+  const bigKey = activity && activity.status === 'closed' ? `${activity.id}:${activity.openedAt ?? ''}` : null
+  const stage = stageFor(activity, !!bigKey && big === bigKey)
+  const hero = stage.hero === 'activity' ? activity : null
+  const ready = stage.strip === 'ready' ? activity : null
+  const results = stage.strip === 'results' ? activity : null
+  const cards = segmentCards(seg)
+  const cue = seg.cue?.trim() || null
+  // An agenda written before cue and cards: its detail, as before.
+  const fallback = !cue && !seg.cards?.length ? seg.detail : ''
+  // The presenter's notes: rehearsal only. The live screen is shared.
+  const prep = rehearsing && notes && !ended ? seg.prep : null
   const longTitle = seg.title.length > 48
+  const sidePad = rehearsing && phone ? 'pr-[420px]' : ''
 
   return (
     <Shell>
@@ -268,7 +282,7 @@ export function PresenterView({
             {rehearsing && (
               <Button variant="ghost" onClick={() => setPhone(on => !on)} aria-pressed={phone} title="M">{phone ? 'Hide phone' : 'Phone preview'}</Button>
             )}
-            {presenting && seg.prep?.points.length ? (
+            {rehearsing && seg.prep?.points.length ? (
               <Button variant="ghost" onClick={toggleNotes} aria-pressed={notes} title="P">{notes ? 'Hide notes' : 'Notes'}</Button>
             ) : null}
             {presenting && !rehearsing && !last && <Button variant="ghost" icon={Stop} disabled={!!busy} onClick={end}>End</Button>}
@@ -281,7 +295,7 @@ export function PresenterView({
       </header>
 
       {/* ─── Stage ─── */}
-      <main aria-live="polite" className="mx-auto flex min-h-0 w-full max-w-[1280px] flex-1 flex-col px-10 pb-6 pt-6">
+      <main aria-live="polite" className={cn('mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col px-14 pb-4 pt-6', sidePad)}>
         {ended ? (
           <div className="my-auto">
             <h1 className="text-[clamp(40px,2.9vw,56px)] font-semibold leading-[1.08] tracking-[-0.03em] text-ink">
@@ -290,25 +304,34 @@ export function PresenterView({
             <Link href="/admin/run#run-recap" className="mt-8 inline-block text-[17px] text-ink underline underline-offset-4">Write the recap</Link>
           </div>
         ) : hero ? (
-          <ActivityHero key={hero.id} segment={seg} activity={hero} participants={participants} presenting={presenting} now={now} call={act} busy={rehearsing ? null : busy} />
+          <div className="flex min-h-0 flex-1 flex-col">
+            <ActivityHero key={hero.id} segment={seg} activity={hero} participants={participants} presenting={presenting} now={now} call={act} busy={rehearsing ? null : busy} onBack={hero.status === 'closed' ? () => setBig(null) : undefined} />
+            {/* Under a poll the cards step back to a strip: the debate's sides, the Radar's three, still in view. */}
+            {hero.kind === 'poll' && cards.length > 0 && <SegmentCards cards={cards} posts={posts} size="strip" className="mt-6 shrink-0" />}
+          </div>
         ) : (
-          <div key={seg.id} className="animate-fade-up flex min-h-0 flex-1 flex-col">
-            <div className="my-auto">
-              <p className="eyebrow">{KIND_LABELS[seg.kind]}</p>
+          <div key={seg.id} className="my-auto flex flex-col py-4">
+            <div className="animate-fade-up shrink-0">
+              <p className="eyebrow flex items-center gap-3">
+                <span>{KIND_LABELS[seg.kind]}</span>
+                <span aria-hidden className="h-px w-6 bg-border-strong" />
+                <span className="tabular text-ink-muted">{idx + 1} of {agenda.length}</span>
+              </p>
               <h1
                 className={cn(
-                  'mt-3 max-w-[30ch] font-semibold tracking-[-0.03em] text-ink text-balance',
+                  'mt-3 max-w-[36ch] font-semibold tracking-[-0.03em] text-ink text-balance',
                   longTitle ? 'text-[clamp(36px,2.5vw,48px)] leading-[1.12]' : 'text-[clamp(40px,2.9vw,56px)] leading-[1.08]',
                 )}
               >
                 {seg.title}
               </h1>
-              {opener ? (
-                <blockquote className="mt-6 max-w-[46rem] rounded-2xl rounded-bl-md border border-border bg-sumi px-5 py-3.5 text-[clamp(18px,1.12vw,22px)] leading-[1.45] text-ink-soft text-pretty">
-                  {opener}
-                </blockquote>
-              ) : seg.detail ? (
-                <p className="mt-6 max-w-[60ch] text-[clamp(18px,1.15vw,22px)] leading-relaxed text-ink-soft">{seg.detail}</p>
+              {cue ? (
+                <p className="mt-5 flex max-w-[60rem] items-start gap-3.5 text-[clamp(20px,1.3vw,25px)] leading-[1.4] text-ink-soft text-pretty">
+                  <span aria-hidden className="mt-[0.55em] size-2.5 shrink-0 rounded-full bg-matcha shadow-[0_0_0_5px_color-mix(in_oklab,var(--color-matcha)_16%,transparent)]" />
+                  {cue}
+                </p>
+              ) : fallback ? (
+                <p className="mt-6 max-w-[60ch] text-[clamp(18px,1.15vw,22px)] leading-relaxed text-ink-soft">{fallback}</p>
               ) : null}
 
               {!live && !ended && (
@@ -318,35 +341,30 @@ export function PresenterView({
                   <p className="ml-3 text-footnote text-ink-muted">The room opens on everyone’s phone when you start.</p>
                 </div>
               )}
-              {ready && (
-                <div className="mt-8">
-                  <ActivityReady activity={ready} presenting={presenting} call={act} busy={rehearsing ? null : busy} />
-                </div>
-              )}
             </div>
 
-            {segPosts.length > 0 && (
-              <ul className="grid shrink-0 gap-4 pt-8" style={{ gridTemplateColumns: `repeat(${Math.min(segPosts.length, 3)}, minmax(0, 28rem))` }}>
-                {segPosts.map(p => (
-                  <li key={p.id} className="elev-1 rounded-(--radius-card) px-5 py-4">
-                    <p className="eyebrow">From the board</p>
-                    <p className="mt-1.5 line-clamp-2 text-heading text-ink">{p.title}</p>
-                    <p className="mt-2 flex items-center gap-4 text-footnote text-ink-muted">
-                      <span className="inline-flex items-center gap-1.5"><Icon icon={ArrowFatUp} size="sm" /> <span className="tabular">{p.voteCount}</span></span>
-                      <span className="inline-flex items-center gap-1.5"><Icon icon={ChatCircle} size="sm" /> <span className="tabular">{p.commentCount}</span></span>
-                    </p>
-                  </li>
-                ))}
-              </ul>
+            {cards.length > 0 && <SegmentCards cards={cards} posts={posts} size="screen" className="mt-12" />}
+
+            {ready && (
+              <div className={cn('shrink-0 animate-fade-up', cards.length ? 'mt-10' : 'mt-8')}>
+                <ActivityReady activity={ready} presenting={presenting} call={act} busy={rehearsing ? null : busy} />
+              </div>
+            )}
+            {results && (
+              <div className={cn('shrink-0 animate-fade-up', cards.length ? 'mt-10' : 'mt-8')}>
+                <ActivityResults activity={results} size="screen" presenting={presenting} call={act} busy={rehearsing ? null : busy} onBig={() => setBig(bigKey)} />
+              </div>
             )}
           </div>
         )}
 
-        {points.length > 0 && !ended && (
-          <aside aria-label="Kers’ notes for the presenter" className="mt-6 max-w-[64rem] shrink-0 border-t border-border pt-4">
-            <ul className="space-y-1">
-              {points.map((pt, i) => (
-                <li key={i} className="flex gap-3 text-[15px] leading-relaxed text-ink-muted">
+        {prep && (prep.opener || prep.points.length > 0) && (
+          <aside aria-label="Your notes (rehearsal only)" className="mt-4 max-w-[72rem] shrink-0 rounded-(--radius-card) border border-dashed border-border-strong px-5 py-3">
+            <p className="eyebrow">Your notes · only you see these (your phone, live)</p>
+            {prep.opener && <p className="mt-1.5 text-[15px] leading-relaxed text-ink-soft"><span className="font-medium text-ink">Say: </span>{prep.opener}</p>}
+            <ul className="mt-1 space-y-0.5">
+              {prep.points.map((pt, i) => (
+                <li key={i} className="flex gap-3 text-[14px] leading-relaxed text-ink-muted">
                   <span aria-hidden className="mt-[0.7em] size-1 shrink-0 rounded-full bg-ink-muted/70" />
                   {pt}
                 </li>
@@ -362,7 +380,10 @@ export function PresenterView({
           cycleId={meeting.cycleId}
           label={state.cycle.label}
           segment={seg.id}
-          activity={activity?.status === 'open' ? activity : null}
+          activity={activity && activity.status !== 'ready' ? activity : null}
+          agenda={publicSegments(agenda)}
+          posts={posts}
+          notes={presenterNotes(agenda, 'rehearsal', 'rehearsal')}
           participants={participants}
           mine={mine}
           onAnswer={onAnswer}

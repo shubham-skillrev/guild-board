@@ -14,6 +14,25 @@ const KIND_NAME: Record<ActivityKind, string> = { poll: 'Poll', cloud: 'Word clo
 const KIND_ICON: Record<ActivityKind, PhosphorIcon> = { poll: ChartBar, cloud: CloudSun, boss: Code }
 const EASE = 'ease-[cubic-bezier(0.23,1,0.32,1)]'
 
+/**
+ * Soft colour, one hue per poll option and per cloud word: the guild's own
+ * tokens at low alpha, so the screen has colour without a second accent.
+ * Saffron stays the presenter's button. Full class strings (Tailwind scans them).
+ */
+const PASTELS = [
+  { bar: 'bg-indigo-jp/[0.13]', lead: 'bg-indigo-jp/[0.22]', edge: 'border-indigo-jp/25', dot: 'bg-indigo-jp', pill: 'bg-indigo-jp/[0.09] border-indigo-jp/20', top: 'bg-indigo-jp/[0.2] border-indigo-jp/45' },
+  { bar: 'bg-matcha/[0.13]', lead: 'bg-matcha/[0.22]', edge: 'border-matcha/25', dot: 'bg-matcha', pill: 'bg-matcha/[0.09] border-matcha/20', top: 'bg-matcha/[0.2] border-matcha/45' },
+  { bar: 'bg-wisteria/[0.13]', lead: 'bg-wisteria/[0.22]', edge: 'border-wisteria/25', dot: 'bg-wisteria', pill: 'bg-wisteria/[0.09] border-wisteria/20', top: 'bg-wisteria/[0.2] border-wisteria/45' },
+  { bar: 'bg-vermillion/[0.1]', lead: 'bg-vermillion/[0.18]', edge: 'border-vermillion/25', dot: 'bg-vermillion', pill: 'bg-vermillion/[0.07] border-vermillion/20', top: 'bg-vermillion/[0.16] border-vermillion/40' },
+] as const
+
+/** A word's pastel: stable per word, so it keeps its colour as the cloud reflows. */
+function wordTone(word: string) {
+  let h = 0
+  for (let i = 0; i < word.length; i++) h = (h * 31 + word.charCodeAt(i)) >>> 0
+  return PASTELS[h % PASTELS.length]
+}
+
 type Call = (action: string, payload?: Record<string, unknown>, done?: string) => Promise<unknown>
 
 /** The segment's activity, if it has one (any status). */
@@ -40,7 +59,7 @@ export function ActivityReady({
 }) {
   const name = KIND_NAME[activity.kind]
   return (
-    <section aria-label={name} className="elev-1 flex max-w-[46rem] items-center gap-4 rounded-(--radius-card) px-5 py-4">
+    <section aria-label={name} className="elev-1 flex max-w-[56rem] items-center gap-4 rounded-(--radius-card) px-5 py-4">
       <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-(--radius-control) bg-fill text-ink-soft">
         <Icon icon={KIND_ICON[activity.kind]} size="md" />
       </span>
@@ -54,6 +73,102 @@ export function ActivityReady({
         </Button>
       ) : (
         <p className="shrink-0 text-footnote text-ink-muted">Opens soon</p>
+      )}
+    </section>
+  )
+}
+
+/**
+ * A closed activity, small: the final result under the segment's cards
+ * (stageFor in lib/meet/activity.ts), and on top of the cards on a phone.
+ * Poll: the split as thin bars in each option's colour, the winner bold.
+ * Cloud: the top words as pastel pills. Boss: the pass rate and Kers'
+ * verdict. The presenter gets "Show results big" and "Reopen", both quiet.
+ */
+export function ActivityResults({
+  activity: a,
+  size,
+  presenting = false,
+  call,
+  busy = null,
+  onBig,
+}: {
+  activity: PublicActivity
+  size: 'screen' | 'phone'
+  presenting?: boolean
+  call?: Call
+  busy?: string | null
+  onBig?: () => void
+}) {
+  const screen = size === 'screen'
+  const name = KIND_NAME[a.kind]
+  const counts = a.counts ?? a.options.map(() => 0)
+  const votes = counts.reduce((n, c) => n + c, 0)
+  const top = votes ? Math.max(...counts) : -1
+  const { passed = 0, trying = 0, pct = 0 } = a.tally ?? {}
+  const summary =
+    a.kind === 'poll' ? `${votes} ${votes === 1 ? 'vote' : 'votes'}`
+    : a.kind === 'cloud' ? `${a.answered} ${a.answered === 1 ? 'person' : 'people'} · ${a.total} ${a.total === 1 ? 'word' : 'words'}`
+    : `${passed} of ${trying} passed`
+  return (
+    <section aria-label={`${name} results`} className={cn('rounded-(--radius-card) border border-border bg-paper', screen ? 'max-w-[72rem] px-6 py-4' : 'px-4 py-3.5')}>
+      <div className="flex items-center gap-3">
+        <span aria-hidden className={cn('grid shrink-0 place-items-center rounded-(--radius-control) bg-fill text-ink-soft', screen ? 'size-9' : 'size-7')}>
+          <Icon icon={KIND_ICON[a.kind]} size={screen ? 'md' : 'sm'} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className={cn('font-mono uppercase tracking-[0.14em] text-ink-muted', screen ? 'text-[12px]' : 'text-[11px]')}>
+            {name} · results · <span className="tabular">{summary}</span>
+          </p>
+          <p className={cn('truncate font-semibold tracking-[-0.012em] text-ink', screen ? 'text-[18px]' : 'text-[15px]')}>{a.prompt}</p>
+        </div>
+        {presenting && call && (
+          <div className="flex shrink-0 items-center gap-1 opacity-70 transition-opacity duration-200 hover:opacity-100 focus-within:opacity-100">
+            {onBig && <Button variant="secondary" onClick={onBig}>Show results big</Button>}
+            <Button variant="ghost" disabled={!!busy} onClick={() => call('open_activity', { activity_id: a.id })}>Reopen</Button>
+          </div>
+        )}
+      </div>
+
+      {a.kind === 'poll' && (
+        <ul className={cn('grid gap-x-8', screen ? 'mt-3 gap-y-1.5' : 'mt-3 gap-y-2')} style={screen && a.options.length === 4 ? { gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' } : screen ? { maxWidth: '44rem' } : undefined}>
+          {a.options.map((o, i) => {
+            const share = votes ? counts[i] / votes : 0
+            const lead = counts[i] === top && top > 0
+            const tone = PASTELS[i % PASTELS.length]
+            return (
+              <li key={i} className={cn('flex items-center gap-3', screen ? 'text-[15px]' : 'text-[13px]')}>
+                <span className={cn('min-w-0 truncate', screen ? 'w-[46%]' : 'w-[48%]', lead ? 'font-semibold text-ink' : 'text-ink-soft')}>{o}</span>
+                <span className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-fill">
+                  <span className={cn('block h-full rounded-full', tone.dot, lead ? 'opacity-80' : 'opacity-45')} style={{ width: `${share * 100}%` }} />
+                </span>
+                <span className={cn('num w-11 shrink-0 text-right', lead ? 'font-semibold text-ink' : 'text-ink-muted')}>{Math.round(share * 100)}%</span>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {a.kind === 'cloud' && (
+        <ul aria-label="Top words" className="mt-3 flex flex-wrap items-center gap-2">
+          {(a.words ?? []).slice(0, screen ? 8 : 6).map((w, i) => (
+            <li
+              key={w.word}
+              className={cn('whitespace-nowrap rounded-full border px-3 leading-[1.7] text-ink', wordTone(w.word).pill, i === 0 ? 'font-semibold' : '', screen ? (i === 0 ? 'text-[20px]' : 'text-[15px]') : i === 0 ? 'text-[16px]' : 'text-[13px]')}
+            >
+              {w.word}
+              {w.n > 1 && <span className="ml-1.5 text-[0.8em] text-ink-muted tabular">{w.n}</span>}
+            </li>
+          ))}
+          {!(a.words ?? []).length && <li className="text-footnote text-ink-muted">No words this time.</li>}
+        </ul>
+      )}
+      {a.kind === 'boss' && (
+        <div className="mt-3 flex items-center gap-4">
+          <p className={cn('num shrink-0 font-semibold tracking-[-0.03em] text-matcha', screen ? 'text-[34px]' : 'text-[26px]')}>{trying ? `${pct}%` : '–'}</p>
+          <p className={cn('rounded-2xl rounded-bl-md border border-border bg-sumi px-3.5 py-2 leading-snug text-ink text-pretty', screen ? 'text-[16px]' : 'text-[13px]')}>
+            <span className="sr-only">Kers’ verdict: </span>{bossVerdict(pct, trying)}
+          </p>
+        </div>
       )}
     </section>
   )
@@ -80,6 +195,7 @@ export function ActivityHero({
   now,
   call,
   busy,
+  onBack,
 }: {
   segment: Segment
   activity: PublicActivity
@@ -88,6 +204,8 @@ export function ActivityHero({
   now: () => number
   call: Call
   busy: string | null
+  /** Closed and shown big: back to the segment's cards. */
+  onBack?: () => void
 }) {
   const t = useTicking(a.status === 'open' && a.kind === 'poll', now)
   const open = a.status === 'open'
@@ -115,7 +233,10 @@ export function ActivityHero({
                 {a.kind === 'boss' ? 'Close the round' : 'Close'}
               </Button>
             ) : (
-              <Button variant="ghost" disabled={!!busy} onClick={() => call('open_activity', { activity_id: a.id })}>Open again</Button>
+              <span className="flex items-center gap-1">
+                {onBack && <Button variant="ghost" onClick={onBack}>Back to the cards</Button>}
+                <Button variant="ghost" disabled={!!busy} onClick={() => call('open_activity', { activity_id: a.id })}>Reopen</Button>
+              </span>
             )}
           </div>
         )}
@@ -146,23 +267,25 @@ function PollBars({ activity, at }: { activity: PublicActivity; at: number }) {
   const shown = pollRevealed(activity, at)
   const top = shown && total ? Math.max(...counts) : -1
   return (
-    <div className="max-w-[60rem]">
-      <ul className="space-y-3">
+    <div className="max-w-[72rem]">
+      <ul className="space-y-3.5">
         {activity.options.map((o, i) => {
           const share = shown && total ? counts[i] / total : 0
           const lead = counts[i] === top && top > 0
+          const tone = PASTELS[i % PASTELS.length]
           return (
             <li
               key={i}
-              className={cn('relative overflow-hidden rounded-(--radius-card) border bg-paper transition-colors duration-500', lead ? 'border-ink/30' : 'border-border')}
+              className={cn('relative overflow-hidden rounded-(--radius-card) border bg-paper transition-colors duration-500', lead ? tone.edge : 'border-border')}
             >
-              {/* The bar sits behind the text, as on the board's poll card. */}
+              {/* The bar sits behind the text, as on the board's poll card, in the option's own soft colour. */}
               <span
                 aria-hidden
-                className={cn('absolute inset-y-0 left-0 transition-[width,background-color] duration-[900ms] motion-reduce:transition-none', EASE, lead ? 'bg-ink/[0.11]' : 'bg-ink/[0.05]')}
+                className={cn('absolute inset-y-0 left-0 transition-[width,background-color] duration-[900ms] motion-reduce:transition-none', EASE, lead ? tone.lead : tone.bar)}
                 style={{ width: `${share * 100}%` }}
               />
-              <span className="relative flex min-h-[60px] items-center gap-6 px-5 py-2.5">
+              <span className="relative flex min-h-[68px] items-center gap-5 px-6 py-2.5">
+                <span aria-hidden className={cn('size-2.5 shrink-0 rounded-full', tone.dot)} />
                 <span className={cn('min-w-0 flex-1 text-[clamp(18px,1.15vw,22px)] leading-snug tracking-[-0.012em] text-balance', lead ? 'font-semibold text-ink' : 'text-ink-soft')}>{o}</span>
                 <span className={cn('num shrink-0 text-[clamp(20px,1.3vw,26px)] transition-opacity duration-500', shown ? 'opacity-100' : 'opacity-0', lead ? 'font-semibold text-ink' : 'text-ink-muted')}>
                   <Tween value={Math.round(share * 100)} />%
@@ -269,6 +392,7 @@ function WordCloud({ activity }: { activity: PublicActivity }) {
           ...row.map(({ w, size: px }) => {
             const weight = (px - CLOUD_MIN) / (CLOUD_MAX - CLOUD_MIN)
             const top = w.word === leader.word && leader.n > 1
+            const tone = wordTone(w.word)
             return (
               <li
                 key={w.word}
@@ -276,12 +400,12 @@ function WordCloud({ activity }: { activity: PublicActivity }) {
                   'gb-word-land whitespace-nowrap rounded-full border px-[0.6em] py-[0.14em] leading-[1.15] tracking-[-0.02em] transition-[font-size,background-color,color,border-color] duration-700 motion-reduce:transition-none',
                   EASE,
                   top
-                    ? 'border-ink bg-ink font-semibold text-parchment'
+                    ? cn(tone.top, 'font-semibold text-ink')
                     : weight > 0.45
-                      ? 'border-border-strong bg-paper font-semibold text-ink'
+                      ? cn(tone.pill, 'font-semibold text-ink')
                       : weight > 0.15
-                        ? 'border-border bg-paper font-medium text-ink'
-                        : 'border-border bg-paper text-ink-soft',
+                        ? cn(tone.pill, 'font-medium text-ink')
+                        : cn(tone.pill, 'text-ink-soft'),
                 )}
                 style={{ fontSize: `${Math.round(px * scale)}px` }}
               >
@@ -313,8 +437,8 @@ function BossTally({ activity, participants }: { activity: PublicActivity; parti
   const tryingDots = Math.round((trying / room) * shown)
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="grid max-w-[60rem] grid-cols-2 gap-4">
-        <div className="elev-1 flex flex-col rounded-(--radius-card) px-6 pb-6 pt-5">
+      <div className="grid max-w-[72rem] grid-cols-2 gap-5">
+        <div className="flex flex-col rounded-(--radius-card) border border-matcha/20 bg-matcha/[0.06] px-6 pb-6 pt-5 dark:bg-matcha/[0.1]">
           <p className="eyebrow">Passed every test</p>
           {blank ? (
             // "–" until someone passes: a quiet dash at the number's height, not a big 0%.
@@ -333,7 +457,7 @@ function BossTally({ activity, participants }: { activity: PublicActivity; parti
             </div>
           </div>
         </div>
-        <div className="elev-1 flex flex-col rounded-(--radius-card) px-6 pb-6 pt-5">
+        <div className="flex flex-col rounded-(--radius-card) border border-indigo-jp/15 bg-indigo-jp/[0.05] px-6 pb-6 pt-5 dark:bg-indigo-jp/[0.09]">
           <p className="eyebrow">The room</p>
           <ul aria-hidden className="mt-4 flex flex-wrap content-start gap-2">
             {Array.from({ length: shown }, (_, i) => (

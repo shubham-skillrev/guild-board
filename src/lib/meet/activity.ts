@@ -13,6 +13,7 @@
  */
 
 import { bossProblem } from './boss.ts'
+import type { MeetPost, PresenterNotes, PublicSegment } from '../meeting.ts'
 
 export type ActivityKind = 'poll' | 'cloud' | 'boss'
 export type ActivityStatus = 'ready' | 'open' | 'closed'
@@ -108,6 +109,15 @@ export interface MeetView {
   joined: { kind: 'member' | 'guest'; name: string | null } | null
   /** Their answers to the open activity. */
   mine: Mine | null
+  /**
+   * While live: the agenda as every phone may see it (cue and cards, never
+   * prep), so a phone shows the segment on screen between activities.
+   */
+  agenda?: PublicSegment[]
+  /** The board posts those cards show. */
+  posts?: Record<string, MeetPost>
+  /** The presenter's own notes: set only when this person is who presents (lib/meeting.ts phoneAgenda). */
+  notes?: PresenterNotes | null
 }
 
 /** Whatever the presenter or the seed stored as options, as strings. */
@@ -245,4 +255,26 @@ export function pollRevealed(activity: Pick<PublicActivity, 'kind' | 'status' | 
   if (activity.kind !== 'poll' || activity.status === 'closed') return true
   if (activity.status !== 'open' || !activity.openedAt) return false
   return now - new Date(activity.openedAt).getTime() >= POLL_REVEAL_MS
+}
+
+/**
+ * What the presenter screen puts where for a segment's activity:
+ *
+ *   none / ready   the segment's cards are the hero; a ready activity waits
+ *                  in the strip under them with its "Open" button
+ *   open           the activity is the hero (the question and the live answers)
+ *   closed         the cards come back as the hero and the strip shows the
+ *                  final results, small; `big` (the presenter's "Show results
+ *                  big") puts the closed activity back in the hero
+ *
+ * The phone follows the same rule: an open activity takes it over; closed,
+ * it's back to the cards with a small results card on top.
+ */
+export type Stage = { hero: 'cards' | 'activity'; strip: 'ready' | 'results' | null }
+
+export function stageFor(activity: Pick<PublicActivity, 'status'> | null | undefined, big = false): Stage {
+  if (!activity) return { hero: 'cards', strip: null }
+  if (activity.status === 'open') return { hero: 'activity', strip: null }
+  if (activity.status === 'ready') return { hero: 'cards', strip: 'ready' }
+  return big ? { hero: 'activity', strip: null } : { hero: 'cards', strip: 'results' }
 }

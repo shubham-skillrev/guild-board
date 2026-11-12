@@ -8,9 +8,8 @@
 
 import { BLOCKED_MESSAGE, type MeetView, type Mine, type PublicActivity, type RoomState } from '@/lib/meet/activity'
 import { timedOut, type CaseResult } from '@/lib/meet/boss'
-import { cleanAgenda, type MeetingState, type Segment } from '@/lib/meeting'
+import { cleanAgenda, presenterNotes, publicSegments, type MeetingState, type MeetPost, type Segment } from '@/lib/meeting'
 import november from '../../../../docs/agendas/2026-11.json'
-import type { PresenterPost } from '@/lib/guild/meetingPrep'
 import type { PhoneDemo } from '@/components/meet/PhoneActivity'
 
 export const CYCLE = 'mock-cycle'
@@ -27,11 +26,48 @@ const NOVEMBER = november as unknown as { cycle: string; meetingAt: string; agen
 
 export const AGENDA: Segment[] = cleanAgenda(NOVEMBER.agenda)
 
-/** The board posts the agenda links to, as the presenter shows them (titles from docs/agendas/2026-11.md; counts invented). */
-export const POSTS: Record<string, PresenterPost> = {
-  '5919d1ce-d4e0-48c3-8908-0e39bea53188': { id: '5919d1ce-d4e0-48c3-8908-0e39bea53188', title: 'Voice-driven development and dev environment setups', description: '', voteCount: 6, commentCount: 3 },
-  '61f7a2f7-621b-4b74-b406-39f95844a935': { id: '61f7a2f7-621b-4b74-b406-39f95844a935', title: 'AI Bubble Bust: AI Technology vs. AI as a Business', description: '', voteCount: 14, commentCount: 11 },
-  '4968007c-cbf8-4a0a-94f3-458b313a389d': { id: '4968007c-cbf8-4a0a-94f3-458b313a389d', title: 'Data structures in unexpected places', description: '', voteCount: 8, commentCount: 4 },
+/**
+ * The board posts the agenda's cards show, as GET /api/meet sends them
+ * (lib/guild/meetingPrep.ts meetPosts): read from the board on 12 Nov. The
+ * two ghost posts keep a ghost handle (made up here); counts as they were.
+ */
+const post = (p: Omit<MeetPost, 'is_selected' | 'status' | 'is_system'> & Partial<MeetPost>): MeetPost => ({ is_selected: false, status: 'active', is_system: false, ...p })
+export const POSTS: Record<string, MeetPost> = {
+  '5919d1ce-d4e0-48c3-8908-0e39bea53188': post({
+    id: '5919d1ce-d4e0-48c3-8908-0e39bea53188',
+    title: 'Voice-driven development and dev environment setups',
+    description: '**Why**\nSimon Willison shipped a new newsletter index feature for his blog built almost entirely using his voice. As developers adopt alternative input mechanisms and customized tooling, what does your daily dev environment look like and what trick should everyone steal?',
+    category: 'take',
+    author_username: 'guildbot',
+    is_system: true,
+    created_at: '2026-10-10T04:06:40.491Z',
+    vote_count: 1,
+    comment_count: 0,
+  }),
+  '61f7a2f7-621b-4b74-b406-39f95844a935': post({
+    id: '61f7a2f7-621b-4b74-b406-39f95844a935',
+    title: 'AI Bubble Bust: AI Technology vs. AI as a Business',
+    description: '**Why**\nMany worry AI stocks are overpriced and could crash. But a market crash does not mean AI is going away. The technology is useful and still improving. The risk is in the business: companies are spending huge amounts and it is unclear they will earn it back.',
+    category: 'take',
+    is_selected: true,
+    status: 'selected',
+    author_username: 'ghost_3fa1c2',
+    created_at: '2026-11-09T08:55:10.041Z',
+    vote_count: 1,
+    comment_count: 0,
+  }),
+  '4968007c-cbf8-4a0a-94f3-458b313a389d': post({
+    id: '4968007c-cbf8-4a0a-94f3-458b313a389d',
+    title: 'Data structures in unexpected places',
+    description: "**What it's about**\n\nWe often stick to standard maps and lists, but certain problems become trivial with specialized layouts.",
+    category: 'learned',
+    is_selected: true,
+    status: 'selected',
+    author_username: 'ghost_9b04de',
+    created_at: '2026-10-16T05:58:48.878Z',
+    vote_count: 0,
+    comment_count: 0,
+  }),
 }
 
 interface ActivitySpec {
@@ -89,6 +125,8 @@ export interface Knobs {
   dark: boolean
   /** The rehearsal: /meet/present?rehearse=1 on this agenda (open the activities with the screen's own button). */
   rehearse: boolean
+  /** Whose phone: the presenter's (their notes show) or a guest's / member's (never). */
+  as: 'member' | 'presenter'
 }
 
 export const PHONE_STATES = ['auto', 'guest', 'waiting', 'poll', 'voted', 'cloud', 'blocked', 'boss', 'boss-results', 'boss-error', 'watch', 'notlive'] as const
@@ -111,6 +149,7 @@ export function readKnobs(q: URLSearchParams): Knobs {
     sim: q.get('sim') === '1',
     dark: q.get('dark') === '1',
     rehearse: q.get('rehearse') === '1',
+    as: pick(q.get('as'), ['member', 'presenter'], 'member'),
   }
 }
 
@@ -324,6 +363,10 @@ export function buildPhone(k: Knobs, t0: number, now: number): PhoneSetup {
     member: p === 'guest' ? null : 'riya',
     joined: p === 'guest' ? null : p === 'blocked' ? { kind: 'guest', name: 'Kabir' } : { kind: 'member', name: null },
     mine,
+    // As GET /api/meet sends them: the cards to everyone, the notes only to who presents.
+    agenda: room.live ? publicSegments(AGENDA) : undefined,
+    posts: room.live ? POSTS : undefined,
+    notes: room.live ? presenterNotes(AGENDA, k.as === 'presenter' ? ME : 'mock-member', ME) : null,
   }
   return { view, room, demo }
 }

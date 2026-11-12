@@ -5,7 +5,7 @@ import { AGENDA_SYSTEM, exampleFor, PREP_SYSTEM, type ReferenceAgenda } from './
 import { cleanAgenda, totalMinutes } from './meeting.ts'
 
 const guide = readFileSync(new URL('../../docs/07-agenda-and-script-guide.md', import.meta.url), 'utf8')
-type Stored = { id: string; kind: string; title: string; detail: string; minutes: number; topicIds: string[]; prep: { points: string[]; opener: string; by: string; at: string | null; ask: string[] } }
+type Stored = { id: string; kind: string; title: string; detail: string; minutes: number; topicIds: string[]; cue?: string; cards?: { kind: string; url?: string }[]; prep: { points: string[]; opener: string; by: string; at: string | null; ask: string[] } }
 const reference = JSON.parse(readFileSync(new URL('../../docs/agendas/2026-11.json', import.meta.url), 'utf8')) as Omit<ReferenceAgenda, 'agenda'> & { agenda: Stored[] }
 
 test('the guide quotes both system prompts word for word', () => {
@@ -29,6 +29,10 @@ test('the reference meets its own standard', () => {
     for (const p of prep.points) assert.ok(p.length < 180, `${s.id}: point too long`)
     assert.ok(s.title.length < 60, `${s.id}: title too long`)
     assert.ok(s.detail.length < 300, `${s.id}: detail too long`)
+    // What the room sees: a short cue, and 1-4 cards of real content.
+    assert.ok(s.cue && s.cue.length <= 90, `${s.id}: cue missing or over 90`)
+    assert.ok(s.cards && s.cards.length >= 1 && s.cards.length <= 4, `${s.id}: 1-4 cards`)
+    for (const c of s.cards ?? []) if (c.kind === 'news') assert.match(c.url ?? '', /^https:\/\//, `${s.id}: news card without a link`)
   }
   // Who to ask is never committed.
   for (const s of reference.agenda) assert.deepEqual(s.prep.ask, [])
@@ -44,4 +48,7 @@ test('exampleFor carries the activity and only adds prep when asked', () => {
   assert.match(withPrep, /AI by 2028\?/)
   assert.match(withPrep, /opener/)
   assert.doesNotMatch(without, /opener/)
+  // The agenda model sees the cue and cards it has to write.
+  assert.match(without, /"cue"/)
+  assert.match(without, /"side"/)
 })

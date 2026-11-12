@@ -45,7 +45,6 @@ export function TopicCard({
   // payload that predates the anonymity serializer.
   const isOwner = topic.is_owner ?? currentUserId === topic.user_id
   const canVote = phase === 'open' && !isOwner
-  const categoryTone = CATEGORY_TONE[topic.category] ?? 'saffron'
   const commentCount = (topic as Topic & { comment_count?: number }).comment_count ?? 0
   const signalCounts = topic.signal_counts ?? NO_COUNTS
   const mySignals = topic.my_signals ?? NO_SIGNALS
@@ -70,7 +69,8 @@ export function TopicCard({
      title, a short blurb, and one quiet footer of counts. Flex column so the
      footer sits on the bottom edge and lines up across a grid row. */
   const cardClassName = cn(
-    'group flex flex-col h-full bg-paper border border-border rounded-(--radius-card) p-5 transition-[border-color,box-shadow,transform]',
+    TOPIC_CARD_CLASS,
+    'transition-[border-color,box-shadow,transform]',
     'hover:border-border-strong hover:shadow-[0_12px_32px_-16px_var(--shadow-tint-strong)]',
     topic.is_selected && 'border-saffron/40',
     votePending && 'opacity-75',
@@ -78,45 +78,8 @@ export function TopicCard({
 
   const pill = 'press inline-flex items-center gap-1.5 h-8 px-3 rounded-full border text-[13px] font-medium transition-colors pointer-coarse:h-10 disabled:cursor-not-allowed'
 
-  const cardContent = (
+  const footer = (
     <>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {/* Kinds always show: a mixed board is scanned by kind. The old
-              categories only outside Problem Month. */}
-          {(!FOCUS_FORMAT || kindOf(topic.category)) && (
-            <Badge tone={categoryTone} dot>{CATEGORY_LABELS[topic.category]}</Badge>
-          )}
-          {topic.is_selected && <Badge tone="saffron">On the agenda</Badge>}
-          {topic.status === 'carry_forward' && <Badge tone="indigo">Returning</Badge>}
-          {/* Votes happen on the topic page, where there is room for the bars. */}
-          {topic.poll && (
-            <span className="inline-flex items-center gap-1 text-[12px] text-cha" title={topic.poll.question}>
-              <ChartBar className="w-3.5 h-3.5" />
-              Poll · <span className="tabular-nums">{topic.poll.total_votes}</span>
-            </span>
-          )}
-        </div>
-        {!FOCUS_FORMAT && (
-          <span className={cn('font-mono text-[12px] tabular-nums pt-0.5', rank <= 3 ? 'text-saffron' : 'text-cha')}>
-            #{rank}
-          </span>
-        )}
-      </div>
-
-      <h3 className="mt-3.5 text-[16px] font-semibold leading-snug tracking-[-0.015em] text-ink line-clamp-3">
-        {topic.title}
-      </h3>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-cha line-clamp-2">
-        {problemBlurb(topic.description)}
-      </p>
-
-      <div className="mt-2.5 flex items-center gap-1.5 text-[12px] text-cha">
-        <AuthorMark username={topic.author_username} isSystem={topic.is_system} />
-        <span aria-hidden>·</span>
-        <time dateTime={topic.created_at} className="shrink-0">{timeAgo(topic.created_at)}</time>
-      </div>
-
       {/* mt-auto: whatever the text height, the counts sit on the bottom edge. */}
       {/* One row, never wrapping: the counts on the left, replies pinned right. */}
       <div className="mt-auto pt-4 flex items-center gap-1.5">
@@ -167,7 +130,82 @@ export function TopicCard({
 
   return (
     <Link href={`/board/${topic.id}`} className={cardClassName}>
-      {cardContent}
+      <TopicCardHead topic={topic} rank={rank} />
+      {footer}
     </Link>
   )
 }
+
+/** What TopicCardHead reads from a post: the board list's Topic, or a meeting card's MeetPost. */
+export type TopicFace = Pick<Topic, 'id' | 'title' | 'description' | 'created_at' | 'is_selected' | 'is_system' | 'author_username'> & {
+  category: string
+  status: string
+  poll?: Topic['poll']
+}
+
+/**
+ * The top of the board's card: kind, title, blurb, who and when. The board
+ * (TopicCard) and the meeting's post cards (components/meet/SegmentCards)
+ * both draw it, so a post looks the same wherever it shows.
+ */
+export function TopicCardHead({ topic, rank }: { topic: TopicFace; rank?: number }) {
+  const categoryTone = CATEGORY_TONE[topic.category] ?? 'saffron'
+  return (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Kinds always show: a mixed board is scanned by kind. The old
+              categories only outside Problem Month. */}
+          {(!FOCUS_FORMAT || kindOf(topic.category)) && (
+            <Badge tone={categoryTone} dot>{CATEGORY_LABELS[topic.category]}</Badge>
+          )}
+          {topic.is_selected && <Badge tone="saffron">On the agenda</Badge>}
+          {topic.status === 'carry_forward' && <Badge tone="indigo">Returning</Badge>}
+          {/* Votes happen on the topic page, where there is room for the bars. */}
+          {topic.poll && (
+            <span className="inline-flex items-center gap-1 text-[12px] text-cha" title={topic.poll.question}>
+              <ChartBar className="w-3.5 h-3.5" />
+              Poll · <span className="tabular-nums">{topic.poll.total_votes}</span>
+            </span>
+          )}
+        </div>
+        {!FOCUS_FORMAT && rank !== undefined && (
+          <span className={cn('font-mono text-[12px] tabular-nums pt-0.5', rank <= 3 ? 'text-saffron' : 'text-cha')}>
+            #{rank}
+          </span>
+        )}
+      </div>
+
+      <h3 className="mt-3.5 text-[16px] font-semibold leading-snug tracking-[-0.015em] text-ink line-clamp-3">
+        {topic.title}
+      </h3>
+      <p className="mt-1.5 text-[13px] leading-relaxed text-cha line-clamp-2">
+        {problemBlurb(topic.description)}
+      </p>
+
+      <div className="mt-2.5 flex items-center gap-1.5 text-[12px] text-cha">
+        <AuthorMark username={topic.author_username} isSystem={topic.is_system} />
+        <span aria-hidden>·</span>
+        <time dateTime={topic.created_at} className="shrink-0">{timeAgo(topic.created_at)}</time>
+      </div>
+    </>
+  )
+}
+
+/** The board card's counts, read-only: upvotes and replies, on the bottom edge (meeting cards). */
+export function TopicCardCounts({ votes, comments }: { votes: number; comments: number }) {
+  return (
+    <div className="mt-auto pt-4 flex items-center gap-1.5">
+      <span className="inline-flex items-center gap-1.5 h-8 px-1.5 text-[13px] text-ink-soft" title="Upvotes">
+        <ArrowFatUp className="w-3.5 h-3.5" />
+        <span className="tabular-nums font-semibold">{votes}</span>
+      </span>
+      <span className="ml-auto shrink-0 pl-2 text-[13px] text-cha tabular-nums">
+        {comments === 0 ? 'No replies yet' : `${comments} ${comments === 1 ? 'reply' : 'replies'}`}
+      </span>
+    </div>
+  )
+}
+
+/** The board card's shell, for a card drawn outside the board list (meeting mode). */
+export const TOPIC_CARD_CLASS = 'group flex flex-col h-full bg-paper border border-border rounded-(--radius-card) p-5'

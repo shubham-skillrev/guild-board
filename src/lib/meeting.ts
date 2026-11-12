@@ -32,15 +32,44 @@ export interface Prep {
   at: string | null
 }
 
+/**
+ * What a segment shows, as cards (docs/06-meeting-mode.md, "Cue and cards"):
+ * on the shared screen under the cue, and on every phone between activities.
+ * Public: nothing here may name anyone the board doesn't already name.
+ *
+ *   news  a Radar item: its title, where it's from, the link (phones open
+ *         it), and one line on why it matters
+ *   post  a board post, drawn with the board's own card (fetched server-side,
+ *         ghost posts keep their ghost handle)
+ *   slot  a Show & Tell slot: "Spotlight", invited / confirmed / open, and an
+ *         optional line (never a name the board doesn't show)
+ *   side  one side of the Topic's debate, with its one-liner
+ *   note  anything else, short: a title and an optional line
+ */
+export type Card =
+  | { kind: 'news'; title: string; source: string; url?: string; why: string; from?: 'member' | 'digest' }
+  | { kind: 'post'; postId: string }
+  | { kind: 'slot'; label: string; status: SlotStatus; text?: string }
+  | { kind: 'side'; label: string; text: string }
+  | { kind: 'note'; title: string; text?: string }
+
+export type CardKind = Card['kind']
+export type SlotStatus = 'invited' | 'confirmed' | 'open'
+
 export interface Segment {
   id: string
   kind: SegmentKind
   title: string
-  /** What's in it: the Radar's three links, who's demoing, the topic. */
+  /** What's in it, in a sentence or two: the Slack agenda and the Run tab. Not on the shared screen once there are cards. */
   detail: string
   minutes: number
-  /** The board posts this segment is about (the top topic, the clinic's problems). */
+  /** The board posts this segment is about (the top topic, the clinic's problems): Kers' prep and "who to ask". */
   topicIds?: string[]
+  /** One short line on top of the shared screen: what the room does now ("Vote first, then we read them."). */
+  cue?: string
+  /** The segment's real content (see Card). Missing: its topicIds as post cards, else its detail as text. */
+  cards?: Card[]
+  /** The presenter's notes: never on the shared screen, and only ever sent to the presenter. */
   prep?: Prep | null
 }
 
@@ -126,7 +155,11 @@ export function meetingLive(m: { startedAt: string | null; endedAt: string | nul
 }
 
 export const MEETING_MINUTES = 60
-export const LIMITS = { title: 80, detail: 400, note: 300, owner: 60, recap: 4000, segments: 12, notes: 200, point: 200, opener: 240, points: 3, topics: 3 } as const
+export const LIMITS = {
+  title: 80, detail: 400, note: 300, owner: 60, recap: 4000, segments: 12, notes: 200, point: 200, opener: 240, points: 3, topics: 3,
+  // Cue and cards: the shared screen fits six cards and a one-line cue at 1920 x 1080.
+  cue: 120, cards: 6, cardTitle: 120, cardText: 180, source: 60, label: 40, url: 500,
+} as const
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -149,9 +182,99 @@ export function cleanAgenda(raw: unknown): Segment[] {
       detail: str(r.detail, LIMITS.detail),
       minutes: Number.isFinite(minutes) ? Math.min(60, Math.max(1, minutes)) : 5,
       topicIds,
+      ...(str(r.cue, LIMITS.cue) ? { cue: str(r.cue, LIMITS.cue) } : {}),
+      ...(Array.isArray(r.cards) ? { cards: cleanCards(r.cards) } : {}),
       prep: cleanPrep(r.prep),
     }
   })
+}
+
+const SLOT_STATUSES: SlotStatus[] = ['invited', 'confirmed', 'open']
+
+/** A link a phone may open: http(s) only, else nothing. */
+export function cleanUrl(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined
+  const u = v.trim()
+  if (u.length > LIMITS.url || !/^https?:\/\/[^\s]+$/i.test(u)) return undefined
+  try {
+    return new URL(u).protocol.startsWith('http') ? u : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** One card as the editor, the file or the model sent it, cut down. Null when it isn't a card. */
+export function cleanCard(raw: unknown): Card | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  switch (r.kind) {
+    case 'news': {
+      const title = str(r.title, LIMITS.cardTitle)
+      if (!title) return null
+      const url = cleanUrl(r.url)
+      const from = r.from === 'member' || r.from === 'digest' ? r.from : undefined
+      return { kind: 'news', title, source: str(r.source, LIMITS.source), ...(url ? { url } : {}), why: str(r.why, LIMITS.cardText), ...(from ? { from } : {}) }
+    }
+    case 'post':
+      return typeof r.postId === 'string' && UUID.test(r.postId) ? { kind: 'post', postId: r.postId } : null
+    case 'slot': {
+      const label = str(r.label, LIMITS.label)
+      if (!label) return null
+      const text = str(r.text, LIMITS.cardText)
+      return { kind: 'slot', label, status: SLOT_STATUSES.includes(r.status as SlotStatus) ? (r.status as SlotStatus) : 'open', ...(text ? { text } : {}) }
+    }
+    case 'side': {
+      const label = str(r.label, LIMITS.label)
+      const text = str(r.text, LIMITS.cardText)
+      return label && text ? { kind: 'side', label, text } : null
+    }
+    case 'note': {
+      const title = str(r.title, LIMITS.cardTitle)
+      if (!title) return null
+      const text = str(r.text, LIMITS.cardText)
+      return { kind: 'note', title, ...(text ? { text } : {}) }
+    }
+    default:
+      return null
+  }
+}
+
+export function cleanCards(raw: unknown): Card[] {
+  return Array.isArray(raw) ? raw.map(cleanCard).filter((c): c is Card => !!c).slice(0, LIMITS.cards) : []
+}
+
+/**
+ * What a segment shows: its cards, or for an agenda written before cards
+ * existed, its board posts as post cards. Empty means the screen falls back
+ * to the segment's detail.
+ */
+export function segmentCards(s: Pick<Segment, 'cards' | 'topicIds'>): Card[] {
+  if (s.cards?.length) return s.cards
+  return (s.topicIds ?? []).map(postId => ({ kind: 'post', postId }) as Card)
+}
+
+/** Every post a card or a segment points at, for one fetch. */
+export function agendaPostIds(agenda: Pick<Segment, 'cards' | 'topicIds'>[]): string[] {
+  return [...new Set(agenda.flatMap(s => [...(s.topicIds ?? []), ...segmentCards(s).flatMap(c => (c.kind === 'post' ? [c.postId] : []))]))]
+}
+
+/** A segment as every phone may see it: no prep, ever (the presenter's notes go separately, to them alone). */
+export type PublicSegment = Pick<Segment, 'id' | 'kind' | 'title' | 'minutes'> & { cue: string | null; cards: Card[]; detail: string }
+
+export function publicSegments(agenda: Segment[]): PublicSegment[] {
+  return agenda.map(s => ({ id: s.id, kind: s.kind, title: s.title, minutes: s.minutes, cue: s.cue ?? null, cards: segmentCards(s), detail: s.cards?.length ? '' : s.detail }))
+}
+
+/**
+ * The presenter's notes for their own phone: the opener and the talking
+ * points per segment, and only when `viewerId` is who presents. Anyone else
+ * (a member, a guest, another admin) gets null.
+ */
+export type PresenterNotes = Record<string, { opener: string; points: string[] }>
+
+export function presenterNotes(agenda: Segment[], viewerId: string | null, presenterId: string | null | undefined): PresenterNotes | null {
+  if (!viewerId || !presenterId || viewerId !== presenterId) return null
+  return Object.fromEntries(agenda.filter(s => s.prep && (s.prep.opener || s.prep.points.length)).map(s => [s.id, { opener: s.prep!.opener, points: s.prep!.points }]))
 }
 
 /** A prep as the editor or the model sent it, cut down. Null when there's nothing in it. */
@@ -175,4 +298,32 @@ export function cleanNote(raw: unknown): Omit<Note, 'id' | 'at'> | null {
 
 export function totalMinutes(agenda: Segment[]): number {
   return agenda.reduce((n, s) => n + s.minutes, 0)
+}
+
+/**
+ * What a phone gets of the agenda as stored (`ask` and all): every segment's
+ * cue and cards, and the presenter's notes only if `viewerId` presents.
+ */
+export function phoneAgenda(stored: unknown, viewerId: string | null, presenterId: string | null | undefined): { agenda: PublicSegment[]; notes: PresenterNotes | null } {
+  const agenda = cleanAgenda(stored)
+  return { agenda: publicSegments(agenda), notes: presenterNotes(agenda, viewerId, presenterId) }
+}
+
+/**
+ * A board post as a meeting card draws it: the fields the board's own card
+ * shows (components/topics/TopicCard.tsx TopicCardFace), with the author as
+ * the board shows it to everyone else: a ghost post keeps its ghost handle.
+ */
+export interface MeetPost {
+  id: string
+  title: string
+  description: string
+  category: string
+  is_selected: boolean
+  status: string
+  author_username: string
+  is_system: boolean
+  created_at: string
+  vote_count: number
+  comment_count: number
 }

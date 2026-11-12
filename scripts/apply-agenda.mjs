@@ -4,8 +4,12 @@
  * docs/07-agenda-and-script-guide.md) into the month's `meetings.agenda`,
  * exactly as the Run tab stores it (lib/guild/meeting.ts mergeAgenda):
  *
- *   { id, kind, title, detail, minutes, topicIds,
+ *   { id, kind, title, detail, minutes, topicIds, cue?, cards?,
  *     prep: { points, opener, by: 'admin', at, ask } }
+ *
+ * `cue` is the one line on the shared screen, `cards` the segment's content
+ * (news / post / slot / side / note, docs/07); `prep` is the presenter's
+ * notes, which only reach the presenter.
  *
  * `by: 'admin'` so Kers never redrafts over it. `ask` ("who to ask") is
  * worked out here, never kept in the file: the members who voted on or
@@ -26,7 +30,8 @@ import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
 
 // Mirrors lib/meeting.ts.
-const LIMITS = { title: 80, detail: 400, point: 200, opener: 240, points: 3, topics: 3, segments: 12 }
+const LIMITS = { title: 80, detail: 400, point: 200, opener: 240, points: 3, topics: 3, segments: 12, cue: 120, cards: 6, cardTitle: 120, cardText: 180, source: 60, label: 40, url: 500 }
+const SLOT_STATUSES = ['invited', 'confirmed', 'open']
 const KINDS = ['warmup', 'radar', 'showtell', 'topic', 'clinic', 'boss', 'wrap', 'custom']
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ASK_MAX = 20
@@ -66,6 +71,11 @@ function check(agenda) {
     if (!Number.isInteger(s.minutes) || s.minutes < 1 || s.minutes > 60) errors.push(`${at}: minutes must be 1-60`)
     const topics = s.topicIds ?? []
     if (topics.length > LIMITS.topics || topics.some(t => !UUID.test(t))) errors.push(`${at}: topicIds must be up to ${LIMITS.topics} post ids`)
+    if (s.cue !== undefined && (typeof s.cue !== 'string' || s.cue.length > LIMITS.cue)) errors.push(`${at}: cue must be a string up to ${LIMITS.cue} characters`)
+    if (s.cards !== undefined) {
+      if (!Array.isArray(s.cards) || s.cards.length > LIMITS.cards) errors.push(`${at}: up to ${LIMITS.cards} cards`)
+      for (const [i, c] of (Array.isArray(s.cards) ? s.cards : []).entries()) errors.push(...checkCard(c).map(e => `${at} card ${i + 1}: ${e}`))
+    }
     const p = s.prep
     if (p) {
       if (!Array.isArray(p.points) || p.points.length > LIMITS.points) errors.push(`${at}: up to ${LIMITS.points} points`)
@@ -75,6 +85,43 @@ function check(agenda) {
     }
   }
   return errors
+}
+
+/** One card against lib/meeting.ts cleanCard: what it would drop or cut, as errors. */
+function checkCard(c) {
+  const errs = []
+  const text = (v, max, name, required) => {
+    if (v === undefined || v === '') { if (required) errs.push(`${name} is required`); return }
+    if (typeof v !== 'string' || v.length > max) errs.push(`${name} must be a string up to ${max} characters`)
+  }
+  switch (c?.kind) {
+    case 'news':
+      text(c.title, LIMITS.cardTitle, 'title', true)
+      text(c.source, LIMITS.source, 'source')
+      text(c.why, LIMITS.cardText, 'why')
+      if (c.url !== undefined && !(typeof c.url === 'string' && /^https?:\/\/\S+$/i.test(c.url) && c.url.length <= LIMITS.url)) errs.push('url must be an http(s) link')
+      if (c.from !== undefined && !['member', 'digest'].includes(c.from)) errs.push('from must be member or digest')
+      break
+    case 'post':
+      if (!UUID.test(c.postId ?? '')) errs.push('postId must be a post id')
+      break
+    case 'slot':
+      text(c.label, LIMITS.label, 'label', true)
+      if (!SLOT_STATUSES.includes(c.status)) errs.push(`status must be ${SLOT_STATUSES.join(' / ')}`)
+      text(c.text, LIMITS.cardText, 'text')
+      break
+    case 'side':
+      text(c.label, LIMITS.label, 'label', true)
+      text(c.text, LIMITS.cardText, 'text', true)
+      break
+    case 'note':
+      text(c.title, LIMITS.cardTitle, 'title', true)
+      text(c.text, LIMITS.cardText, 'text')
+      break
+    default:
+      errs.push(`unknown kind ${c?.kind}`)
+  }
+  return errs
 }
 
 async function main() {
@@ -93,7 +140,7 @@ async function main() {
   if (meeting?.started_at && !meeting?.ended_at) throw new Error(`${cycle.label}'s meeting has started: change it in the Run tab instead.`)
 
   // The posts must be this month's, and not deleted.
-  const topicIds = [...new Set(ref.agenda.flatMap(s => s.topicIds ?? []))]
+  const topicIds = [...new Set(ref.agenda.flatMap(s => [...(s.topicIds ?? []), ...(s.cards ?? []).filter(c => c.kind === 'post').map(c => c.postId)]))]
   const posts = new Map()
   if (topicIds.length) {
     const { data, error } = await db.from('topics').select('id, title').in('id', topicIds).eq('cycle_id', cycle.id).eq('is_deleted', false)
@@ -136,6 +183,8 @@ async function main() {
       detail: (s.detail ?? '').trim(),
       minutes: s.minutes,
       topicIds: ids,
+      ...(s.cue ? { cue: s.cue.trim() } : {}),
+      ...(s.cards ? { cards: s.cards } : {}),
       prep: s.prep ? { points: s.prep.points.map(p => p.trim()), opener: s.prep.opener.trim(), by: 'admin', at, ask } : null,
     }
   })
@@ -146,6 +195,8 @@ async function main() {
   for (const s of agenda) {
     console.log(`  ${String(s.minutes).padStart(2)}m  ${s.kind.padEnd(8)} ${s.id.padEnd(10)} ${s.title}`)
     for (const id of s.topicIds) console.log(`             post: ${posts.get(id)}`)
+    if (s.cue) console.log(`             cue: ${s.cue}`)
+    for (const c of s.cards ?? []) console.log(`             card ${c.kind}: ${c.kind === 'post' ? posts.get(c.postId) : c.title ?? c.label}`)
     if (s.prep) console.log(`             opener: ${s.prep.opener}\n             ${s.prep.points.length} points, ask ${s.prep.ask.length}`)
   }
   const before = Array.isArray(meeting?.agenda) ? meeting.agenda : []

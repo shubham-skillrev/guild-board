@@ -79,7 +79,7 @@ function Mock() {
     (patch: Patch) => {
       apply(patch)
       // The view and the frame's own toolbar state stay local; everything else is the room.
-      const shared = Object.fromEntries(Object.entries(patch).filter(([key]) => key !== 'view' && key !== 'phone'))
+      const shared = Object.fromEntries(Object.entries(patch).filter(([key]) => key !== 'view' && key !== 'phone' && key !== 'as'))
       if (Object.keys(shared).length) channel.current?.postMessage({ type: 'knobs', patch: shared } satisfies SyncMessage)
     },
     [apply],
@@ -195,7 +195,7 @@ function MockPhone({ k, answers, onAnswer }: { k: Knobs; answers: Answers; onAns
   const t0 = useT0(k, now)
   const setup = useMemo(() => buildPhone(k, t0, now), [k, t0, now])
   // The room re-made every second; the phone itself only re-mounts when its state changes.
-  const mountKey = `${k.phone}:${k.seg}:${k.act}:${k.boss}:${k.meet}`
+  const mountKey = `${k.phone}:${k.seg}:${k.act}:${k.boss}:${k.meet}:${k.as}`
   const withMine = (view: MeetView): MeetView => {
     const id = view.room?.activity?.id
     return id && answers[id] && k.phone === 'auto' ? { ...view, mine: { activityId: id, values: answers[id] } } : view
@@ -338,6 +338,7 @@ function Toolbar({ k, set }: { k: Knobs; set: (p: Partial<Record<keyof Knobs, st
         <Pick label="Boss" value={k.boss} options={['intro', 'running', 'verdict']} labels={['intro (Kers’ dare)', 'running (no clock)', 'closed (verdict)']} disabled={segKind !== 'boss'} onChange={v => set({ boss: v })} />
         <Pick label="Pass %" value={String(k.pct)} options={['0', '40', '62', '100']} disabled={segKind !== 'boss'} onChange={v => set({ pct: v })} />
         <Pick label="Phone" value={k.phone} options={[...PHONE_STATES]} disabled={k.view === 'presenter' || k.view === 'board'} onChange={v => set({ phone: v })} />
+        <Pick label="Phone as" value={k.as} options={['member', 'presenter']} labels={['a member or guest', 'the presenter (notes)']} disabled={k.view === 'presenter' || k.view === 'board'} onChange={v => set({ as: v })} />
       </div>
       <div className="mt-2.5 flex gap-4 border-t border-border pt-2.5">
         <Check label="Simulate" on={k.sim} onChange={v => set({ sim: v })} />

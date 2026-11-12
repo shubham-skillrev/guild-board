@@ -7,7 +7,7 @@ import { RADAR_TOP } from '@/lib/radar'
 import { formatLabel } from '@/lib/showtell'
 import { escapeSlack, extLink, appLink } from '@/lib/slack/send'
 import { OUTCOME_LABELS } from '@/lib/constants'
-import { cleanAgenda, LIMITS, type Meeting, type Prep, type Segment } from '@/lib/meeting'
+import { cleanAgenda, cleanCards, cleanUrl, LIMITS, type Card, type Meeting, type Prep, type Segment } from '@/lib/meeting'
 import { AGENDA_SCHEMA, AGENDA_SYSTEM, exampleFor, type ReferenceAgenda } from '@/lib/meetingPrompts'
 import reference from '../../../docs/agendas/2026-11.json'
 
@@ -91,6 +91,7 @@ interface RadarCandidate {
   title: string
   about: string
   source: string
+  url: string
   votes: number
   from: 'member' | 'digest'
 }
@@ -112,7 +113,7 @@ export async function draftAgenda(cycleId: string, viewerId: string): Promise<Se
     admin.from('radar_links').select('id, title, note, url, vote_count').eq('cycle_id', cycleId).eq('is_deleted', false).order('vote_count', { ascending: false }).limit(6),
     admin
       .from('bytes')
-      .select('id, source_title, source_name, summary, interest_count, byte_digests!inner(status)')
+      .select('id, source_title, source_name, url, summary, interest_count, byte_digests!inner(status)')
       .eq('byte_digests.status', 'published')
       .gte('created_at', cycle?.opens_at ?? cycle?.created_at ?? new Date(Date.now() - 31 * 86_400_000).toISOString())
       .gt('interest_count', 0)
@@ -125,8 +126,8 @@ export async function draftAgenda(cycleId: string, viewerId: string): Promise<Se
   const domain = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return '' } }
   // Votes first; on a tie a member's link beats a digest byte (the stable sort keeps links ahead).
   const candidates: RadarCandidate[] = [
-    ...(links ?? []).map(l => ({ key: `link:${l.id}`, title: l.title, about: l.note ?? '', source: domain(l.url), votes: l.vote_count ?? 0, from: 'member' as const })),
-    ...(bytes ?? []).map(b => ({ key: `byte:${b.id}`, title: b.source_title, about: b.summary ?? '', source: b.source_name ?? '', votes: b.interest_count ?? 0, from: 'digest' as const })),
+    ...(links ?? []).map(l => ({ key: `link:${l.id}`, title: l.title, about: l.note ?? '', source: domain(l.url), url: l.url, votes: l.vote_count ?? 0, from: 'member' as const })),
+    ...(bytes ?? []).map(b => ({ key: `byte:${b.id}`, title: b.source_title, about: b.summary ?? '', source: b.source_name ?? '', url: b.url ?? '', votes: b.interest_count ?? 0, from: 'digest' as const })),
   ].sort((a, b) => b.votes - a.votes)
   const radar = candidates.slice(0, RADAR_TOP).map(r => r.title)
 
@@ -142,12 +143,17 @@ export async function draftAgenda(cycleId: string, viewerId: string): Promise<Se
   // The first-run format (docs/06-meeting-mode.md): 60 minutes, with Kers'
   // warm-up and Boss Round. Ids are stable per kind; the activity seed
   // (scripts/seed-meeting-activities.mjs) finds segments by kind either way.
+  // Cards the server builds from real data, never the model: the Radar's news (with real links), Show & Tell's slots, the posts.
+  const news = (c: RadarCandidate): Card => ({ kind: 'news', title: c.title.slice(0, LIMITS.cardTitle), source: c.source.slice(0, LIMITS.source), ...(cleanUrl(c.url) ? { url: c.url } : {}), why: noLinks(c.about).replace(/\s+/g, ' ').slice(0, LIMITS.cardText), from: c.from })
+  const slotCard = (s: typeof slots.spotlight, label: string): Card =>
+    s ? { kind: 'slot', label, status: 'confirmed', text: `@${s.username}: ${s.title || formatLabel(s.format)}`.slice(0, LIMITS.cardText) } : { kind: 'slot', label, status: 'open', text: 'Not confirmed yet: a lightning desk tour if it stays open.' }
+  const posts = (ids: string[]): Card[] => ids.map(postId => ({ kind: 'post', postId }))
   const plain: Segment[] = [
     { id: 'warmup', kind: 'warmup', title: 'Warm-up', minutes: 2, detail: 'Kers opens the room: one word for your week so far' },
-    { id: 'radar', kind: 'radar', title: 'Radar', minutes: 5, detail: radar.length ? radar.join(' · ') : 'Three things that shipped this month (vote on the Bytes page)' },
-    { id: 'showtell', kind: 'showtell', title: 'Show & Tell', minutes: 15, detail: `${slot(slots.spotlight, 'Spotlight')} · ${slot(slots.demo, 'Demo')}` },
-    { id: 'topic', kind: 'topic', title: top ? top.title : 'Top topic', minutes: 18, detail: top ? opener(top) : 'The most-voted topic on the board', topicIds: top ? [top.id] : [] },
-    { id: 'clinic', kind: 'clinic', title: 'Problem clinic', minutes: 8, detail: problems.length ? problems.map(p => p.title).join(' · ') : 'One or two real blockers from the board', topicIds: problems.map(p => p.id) },
+    { id: 'radar', kind: 'radar', title: 'Radar', minutes: 5, detail: radar.length ? radar.join(' · ') : 'Three things that shipped this month (vote on the Bytes page)', cards: candidates.slice(0, RADAR_TOP).map(news) },
+    { id: 'showtell', kind: 'showtell', title: 'Show & Tell', minutes: 15, detail: `${slot(slots.spotlight, 'Spotlight')} · ${slot(slots.demo, 'Demo')}`, cards: [slotCard(slots.spotlight, 'Spotlight'), slotCard(slots.demo, 'Demo')] },
+    { id: 'topic', kind: 'topic', title: top ? top.title : 'Top topic', minutes: 18, detail: top ? opener(top) : 'The most-voted topic on the board', topicIds: top ? [top.id] : [], cards: posts(top ? [top.id] : []) },
+    { id: 'clinic', kind: 'clinic', title: 'Problem clinic', minutes: 8, detail: problems.length ? problems.map(p => p.title).join(' · ') : 'One or two real blockers from the board', topicIds: problems.map(p => p.id), cards: posts(problems.map(p => p.id)) },
     { id: 'boss', kind: 'boss', title: 'Kers’ Boss Round', minutes: 8, detail: 'Kers dares the room to write some code' },
     { id: 'wrap', kind: 'wrap', title: 'Wrap', minutes: 4, detail: 'Decisions, owners, and who shows something next month' },
   ]
@@ -171,7 +177,7 @@ export async function draftAgenda(cycleId: string, viewerId: string): Promise<Se
     show_and_tell: { spotlight: slots.spotlight ? { by: `@${slots.spotlight.username}`, title: slots.spotlight.title } : 'not confirmed', demo: slots.demo ? { by: `@${slots.demo.username}`, title: slots.demo.title } : 'not confirmed' },
   }
 
-  const framed = await aiJson<{ radar?: unknown; segments?: { id?: unknown; title?: unknown; detail?: unknown }[] }>({
+  const framed = await aiJson<Framed>({
     label: 'kers: meeting agenda',
     system: AGENDA_SYSTEM,
     prompt: [
@@ -185,24 +191,41 @@ export async function draftAgenda(cycleId: string, viewerId: string): Promise<Se
     // An admin is watching "Building…".
     timeoutMs: 25_000,
   }).catch(() => null)
-  return framed ? applyFraming(plain, framed, new Set(candidates.map(c => c.key))) : plain
+  return framed ? applyFraming(plain, framed, candidates, news) : plain
 }
 
+type Framed = { radar?: unknown; segments?: { id?: unknown; title?: unknown; detail?: unknown; cue?: unknown; cards?: unknown }[] }
+
 /**
- * The model's framing over the plain agenda: only a title and detail per
- * known segment, cut to the limits and stripped of links. The Radar's detail
- * is taken only if it picked real candidates (none: the plain list stays).
+ * The model's framing over the plain agenda: a title, detail and cue per
+ * known segment, cut to the limits and stripped of links, and the cards it
+ * may write (sides and notes only). The Radar's news cards are built here
+ * from the candidates it picked (real titles and links, its one line on
+ * why), never from its text; slots and posts stay as the server built them.
  */
-function applyFraming(plain: Segment[], framed: { radar?: unknown; segments?: { id?: unknown; title?: unknown; detail?: unknown }[] }, keys: Set<string>): Segment[] {
-  const picks = Array.isArray(framed.radar) ? framed.radar.filter((k): k is string => typeof k === 'string' && keys.has(k)) : []
+function applyFraming(plain: Segment[], framed: Framed, candidates: RadarCandidate[], news: (c: RadarCandidate) => Card): Segment[] {
+  const byKey = new Map(candidates.map(c => [c.key, c]))
+  const picks = (Array.isArray(framed.radar) ? framed.radar : [])
+    .map(p => (typeof p === 'string' ? { key: p, why: '' } : p && typeof p === 'object' ? (p as { key?: unknown; why?: unknown }) : null))
+    .filter((p): p is { key: string; why?: unknown } => !!p && typeof p.key === 'string' && byKey.has(p.key))
   const byId = new Map((framed.segments ?? []).filter(f => typeof f?.id === 'string').map(f => [f.id as string, f]))
   const text = (v: unknown, max: number) => (typeof v === 'string' ? noLinks(v).replace(/\s+/g, ' ').slice(0, max).trim() : '')
   return plain.map(s => {
     const f = byId.get(s.id)
-    if (!f) return s
+    let cards = s.cards ?? []
+    if (s.kind === 'radar' && picks.length) {
+      cards = picks.slice(0, RADAR_TOP).map(p => {
+        const card = news(byKey.get(p.key)!)
+        const why = text(p.why, LIMITS.cardText)
+        return card.kind === 'news' && why ? { ...card, why } : card
+      })
+    }
+    if (!f) return { ...s, cards }
+    const written = cleanCards(f.cards).filter(c => c.kind === 'side' || c.kind === 'note').map(c => (c.kind === 'side' ? { ...c, text: noLinks(c.text) } : c.kind === 'note' ? { ...c, text: c.text && noLinks(c.text) } : c))
     const title = text(f.title, LIMITS.title)
     const detail = s.kind === 'radar' && !picks.length ? '' : text(f.detail, LIMITS.detail)
-    return { ...s, title: title || s.title, detail: detail || s.detail }
+    const cue = text(f.cue, LIMITS.cue)
+    return { ...s, title: title || s.title, detail: detail || s.detail, ...(cue ? { cue } : {}), cards: [...cards, ...written].slice(0, LIMITS.cards) }
   })
 }
 

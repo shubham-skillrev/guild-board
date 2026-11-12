@@ -9,8 +9,11 @@ import { Wordmark } from '@/components/ui/Wordmark'
 import { OVERLAY_PRIORITY, useOverlaySlot } from '@/components/ui/OverlaySlot'
 import { useToast } from '@/hooks/useToast'
 import { PhoneActivity, type PhoneDemo } from '@/components/meet/PhoneActivity'
+import { ActivityResults } from '@/components/meet/ActivityPanel'
+import { SegmentCards } from '@/components/meet/SegmentCards'
+import { KIND_LABELS, type MeetPost, type PresenterNotes, type PublicSegment } from '@/lib/meeting'
 import { newerRoom, useMeetingChannel } from '@/components/meet/useMeetingChannel'
-import type { MeetView, Mine, RoomState } from '@/lib/meet/activity'
+import type { MeetView, Mine, PublicActivity, RoomState } from '@/lib/meet/activity'
 
 /** Without the live channel. With it, a slow poll still catches anything missed. */
 const POLL_MS = 3000
@@ -29,10 +32,15 @@ async function post(body: Record<string, unknown>) {
  *   not live     Kers asleep: the room opens when the meeting does
  *   joining      members go straight in (one automatic join under their
  *                account); guests type a name first
- *   waiting      "Kers is setting up…" and how many are in, until the first
- *                activity opens
- *   activity     the open poll or word cloud (PhoneActivity)
- *   between      "Watch the screen"
+ *   activity     the open poll, word cloud or Boss Round (PhoneActivity)
+ *   between      what's on the shared screen now (PhoneSegment): the
+ *                segment's title, cue and cards (news opens its source, a
+ *                post its board page), and what's next. An activity opening
+ *                swaps it in; closing it swaps the cards back
+ *   waiting      "Kers is setting up…": only with no agenda to show
+ *
+ * The presenter's own phone also shows "Your notes" (the opener and talking
+ * points): the server sends them to that one person only (MeetView.notes).
  *
  * The room arrives on `meeting:{cycle_id}` (at most once a second); while the
  * channel is down it's polled every 3 s. Nothing here shows anyone else's
@@ -170,13 +178,30 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
     ) : (
       <GuestJoin busy={joining} error={joinError} onJoin={join} />
     )
-  } else if (room?.activity?.status === 'open') {
-    body = <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={send} toast={toast} demo={offline?.demo} />
-  } else if (!room?.warm) {
-    body = <Notice kers="thinking" title="Kers is setting up…" text={people(room?.participants ?? 0)} />
   } else {
-    const verdict = room?.activity?.kind === 'boss' && room.activity.status === 'closed'
-    body = <Notice kers="watching" title="Watch the screen." text={verdict ? 'The round is closed. Kers’ verdict is on the screen.' : 'The next poll or word cloud shows up here when it opens.'} />
+    const segIdx = view.agenda?.findIndex(s => s.id === room?.segment) ?? -1
+    const seg = segIdx >= 0 ? view.agenda![segIdx] : null
+    const notes = seg ? view.notes?.[seg.id] ?? null : null
+    if (room?.activity?.status === 'open') {
+      body = (
+        <div key={`act-${room.activity.id}`} className="gb-swap-in">
+          <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={send} toast={toast} demo={offline?.demo} />
+          {notes && <YourNotes notes={notes} />}
+        </div>
+      )
+    } else if (seg) {
+      const closed = room?.activity?.status === 'closed' && room.activity.segmentId === seg.id ? room.activity : null
+      body = (
+        <div key={`seg-${seg.id}:${closed?.id ?? ''}`} className="gb-swap-in">
+          <PhoneSegment seg={seg} index={segIdx} count={view.agenda!.length} next={view.agenda![segIdx + 1] ?? null} posts={view.posts ?? {}} notes={notes} results={closed} />
+        </div>
+      )
+    } else if (!room?.warm) {
+      body = <Notice kers="thinking" title="Kers is setting up…" text={people(room?.participants ?? 0)} />
+    } else {
+      const verdict = room?.activity?.kind === 'boss' && room.activity.status === 'closed'
+      body = <Notice kers="watching" title="Watch the screen." text={verdict ? 'The round is closed. Kers’ verdict is on the screen.' : 'The next poll or word cloud shows up here when it opens.'} />
+    }
   }
 
   return (
@@ -197,6 +222,60 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
         <div className="flex flex-1 flex-col">{body}</div>
       </main>
     </div>
+  )
+}
+
+/**
+ * Between activities: what the shared screen shows, on the phone. The cards
+ * are tappable (a source, a board post, in a new tab), and the next segment
+ * is a line at the bottom so nobody wonders what's coming.
+ */
+function PhoneSegment({ seg, index, count, next, posts, notes, results }: { seg: PublicSegment; index: number; count: number; next: PublicSegment | null; posts: Record<string, MeetPost>; notes: PresenterNotes[string] | null; results: PublicActivity | null }) {
+  return (
+    <section aria-label={`Now: ${seg.title}`} className="pt-5">
+      <p className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
+        <span className="relative flex size-1.5" aria-hidden>
+          <span className="absolute inset-0 rounded-full bg-matcha opacity-60 motion-safe:animate-ping" />
+          <span className="relative size-1.5 rounded-full bg-matcha" />
+        </span>
+        On screen now · {KIND_LABELS[seg.kind]} · <span className="tabular">{index + 1}/{count}</span>
+      </p>
+      <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance">{seg.title}</h1>
+      {seg.cue && <p className="mt-2 text-[15px] leading-relaxed text-ink-soft text-pretty">{seg.cue}</p>}
+      {/* The presenter's own phone: their notes first, it's what they glance at. */}
+      {notes && <YourNotes notes={notes} />}
+      {results && <div className="mt-4"><ActivityResults activity={results} size="phone" /></div>}
+      {seg.cards.length > 0 ? (
+        <SegmentCards cards={seg.cards} posts={posts} size="phone" className="mt-5" />
+      ) : seg.detail ? (
+        <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">{seg.detail}</p>
+      ) : null}
+      <p className="mt-8 border-t border-border pt-4 text-footnote text-ink-muted">
+        {next ? <>Up next: <span className="text-ink-soft">{next.title}</span></> : 'Last one. Thanks for coming.'}
+      </p>
+      <p className="mt-1 text-footnote text-ink-muted">Polls and word clouds open here when the presenter starts them.</p>
+    </section>
+  )
+}
+
+/** The presenter's own phone only: what to say and raise (never on the shared screen). */
+function YourNotes({ notes }: { notes: PresenterNotes[string] }) {
+  if (!notes.opener && !notes.points.length) return null
+  return (
+    <aside aria-label="Your notes" className="mt-4 rounded-(--radius-card) border border-dashed border-border-strong bg-sumi/60 px-4 py-3.5">
+      <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">Your notes · only you see these</p>
+      {notes.opener && <p className="mt-2 text-[14px] leading-relaxed text-ink"><span className="font-medium">Say: </span>{notes.opener}</p>}
+      {notes.points.length > 0 && (
+        <ul className="mt-2 space-y-1.5">
+          {notes.points.map((p, i) => (
+            <li key={i} className="flex gap-2.5 text-[14px] leading-relaxed text-ink-soft">
+              <span aria-hidden className="mt-[0.65em] size-1 shrink-0 rounded-full bg-ink-muted" />
+              {p}
+            </li>
+          ))}
+        </ul>
+      )}
+    </aside>
   )
 }
 

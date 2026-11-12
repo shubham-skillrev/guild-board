@@ -76,7 +76,9 @@ closes when the admin moves on.
   locally; "Open" fills an activity with sample answers over ~25 s
   (`lib/meet/rehearse.ts`), so the poll reveal, the cloud and the Boss Round
   can be practised. `M` shows a phone preview beside it (the real `/meet`
-  room, offline) whose answers land on the screen. Also linked from the Run
+  room, offline, as the presenter's own phone: cards and notes) whose
+  answers land on the screen. The dev mock (`/meet/mock`) shows a phone as
+  a member or as the presenter (`as=presenter`). Also linked from the Run
   tab (agenda builder and Meeting mode).
 - **Start meeting** marks the meeting live (`meetings.started_at`). Members
   and guests then see the "Meeting is live, join the room" banner on the
@@ -87,11 +89,19 @@ closes when the admin moves on.
 
 **Presenter screen** (`/meet/present`, full screen, admin only)
 - No clock. The presenter finishes each item or skips it.
-- The hero: an open or closed activity (its question and the answers), or
-  else the segment's title and Kers' opener, large. Its board posts show as
-  small cards, and not at all while an activity is open.
-- Kers' talking points: small and dim at the bottom, for the presenter;
-  `P` hides or shows them (kept per browser), since the screen is shared.
+- Top: a small eyebrow (kind, "3 of 8"), the title, and one **cue** line:
+  what the room does now ("Vote first, then we read them."). See "Cue and
+  cards" below.
+- The hero: the segment's **cards** in a grid (1-4 across, soft tint per
+  kind, staggered in), with an activity waiting to open under them (the one
+  saffron button). Open, the activity is the hero (its question and the
+  live answers), and under a poll the cards step back to a strip. Closed,
+  the cards come back and the result goes small under them (the final
+  split, the top words, or the pass rate and Kers' verdict), with quiet
+  **Show results big** and **Reopen** (`stageFor` in `lib/meet/activity.ts`).
+- The presenter's notes (opener and talking points) are **never** on the
+  shared screen: they go to the presenter's own phone (below). In Rehearse
+  they show at the bottom (`P` hides them).
 - Progress: one thin line with a dot per segment, evenly spaced, no labels.
   The current dot is larger; the presenter can click a dot to jump.
 - ← / → (PageUp / PageDown for a clicker) move segments; subtle arrows sit at
@@ -100,8 +110,21 @@ closes when the admin moves on.
   when the presenter moves on, the Boss Round dare), never about time.
 - Everything fits 1920 × 1080 with no scrolling. GuildBoard's own language,
   at a calm size: the wordmark and mono eyebrows, sans titles (~48–56 px),
-  Kers' opener in his chat bubble, poll options as the board's poll rows,
-  word-cloud words as pills, the room as anonymous avatar seeds (never names).
+  the cue with a small mint dot, poll options as the board's poll rows with a
+  soft colour each, word-cloud words as pastel pills, the room as anonymous
+  avatar seeds (never names).
+
+**Cue and cards** (the agenda's shape: [07-agenda-and-script-guide.md](./07-agenda-and-script-guide.md), section 3)
+- Each segment may carry `cue` (one line, ≤ 120, aim ≤ 90) and `cards` (≤ 6):
+  `news` (title, source, link, why), `post` (a board post, drawn with the
+  board's own card, `TopicCardHead`; ghost posts keep their ghost handle),
+  `slot` (Show & Tell: label and invited / confirmed / open), `side` (the
+  Topic's two sides), `note` (anything else, short). `lib/meeting.ts` `Card`.
+- Instructions to the host are never cards and never the cue: they're notes.
+- Old agendas without cards still render: their posts as post cards, else
+  the detail as text.
+- The posts are read server-side (`meetPosts` in `lib/guild/meetingPrep.ts`)
+  for the presenter and for every phone.
 
 **Kers' prep** (the standard and prompts: [07-agenda-and-script-guide.md](./07-agenda-and-script-guide.md))
 - Drafted from each segment's topic (post, comments, votes) when the agenda is
@@ -124,7 +147,17 @@ closes when the admin moves on.
 - Guests type a name and get a meeting-scoped token in a cookie. No account.
 - Joining only works while the meeting is live.
 - The waiting area shows "Kers is setting up…" and how many people are in.
-- The phone shows whatever activity is open, otherwise "Watch the screen".
+- The phone mirrors the screen. Between activities it shows the segment on
+  screen now: title, cue and the same cards (news opens its source, a post
+  its board page, both in a new tab), and "Up next". An activity opening
+  swaps it in with a short transition; closed, the cards come back with a
+  small results card on top. "Kers is setting up…" only shows with no agenda.
+- **The presenter's own phone** (signed in as the one presenting) also
+  shows **Your notes**: the opener and talking points for the segment.
+  `GET /api/meet` sends them only when the session's user is
+  `meetings.presenter_id` (`phoneAgenda` in `lib/meeting.ts`); everyone else
+  gets the agenda without prep, and the broadcast (`RoomState`) never
+  carries the agenda at all. Tested in `lib/meeting.test.ts`.
 
 **Opinion poll**
 - 2–4 options. One vote each; it can be changed until the poll closes.
@@ -303,6 +336,11 @@ the presenter's tally in `ActivityPanel.tsx` and Kers in `PresenterKers.tsx`.
   stage once the presenter closes the round.
 - The editor keeps its code in the browser's `localStorage` per activity, so
   a refresh doesn't lose it. Tab indents; Esc then Tab leaves the editor.
+- The editor is CodeMirror 6 (`components/meet/BossEditor.tsx`): JavaScript
+  highlighting in the guild's soft token colours, line numbers, wrapping,
+  closing brackets. Loaded only when a Boss Round is on screen (a plain
+  textarea until then, or if it fails). 16 px on touch, no autocorrect.
+  Read-only once the round is closed.
 
 ### After the meeting
 - [ ] Activity results into the recap draft

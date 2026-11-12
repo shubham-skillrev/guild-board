@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { aggregate, cleanResponse, cleanWord, pollRevealed, type ActivityRow } from './activity.ts'
+import { aggregate, cleanResponse, cleanWord, pollRevealed, stageFor, type ActivityRow } from './activity.ts'
 
 const poll: ActivityRow = { id: 'a', cycle_id: 'c', segment_id: 'radar', kind: 'poll', prompt: 'Q?', options: ['Yes', 'No', 'Maybe'], config: {}, status: 'open', opened_at: '2026-11-12T10:00:00Z', closed_at: null }
 const cloud: ActivityRow = { ...poll, id: 'b', kind: 'cloud', options: [] }
@@ -75,4 +75,13 @@ test('a cleaned word is still checked as typed', async () => {
   for (const typed of ['sh!t', 'a$$', 'f*ck', 'b!tch']) {
     assert.equal(isBlocked(typed) || isBlocked(cleanWord(typed) ?? ''), true, typed)
   }
+})
+
+test('stageFor: cards unless open; closed brings the cards back with the results small', () => {
+  assert.deepEqual(stageFor(null), { hero: 'cards', strip: null })
+  assert.deepEqual(stageFor({ status: 'ready' }), { hero: 'cards', strip: 'ready' })
+  assert.deepEqual(stageFor({ status: 'open' }), { hero: 'activity', strip: null })
+  assert.deepEqual(stageFor({ status: 'open' }, true), { hero: 'activity', strip: null })
+  assert.deepEqual(stageFor({ status: 'closed' }), { hero: 'cards', strip: 'results' })
+  assert.deepEqual(stageFor({ status: 'closed' }, true), { hero: 'activity', strip: null })
 })

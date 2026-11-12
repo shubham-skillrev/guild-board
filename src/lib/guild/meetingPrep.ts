@@ -2,7 +2,8 @@ import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { aiJson } from '@/lib/ai'
 import { saveMeeting } from '@/lib/guild/meeting'
-import { cleanPrep, KIND_LABELS, MEET_LEAD_MS, type Prep, type Segment } from '@/lib/meeting'
+import { agendaPostIds, cleanPrep, KIND_LABELS, MEET_LEAD_MS, type MeetPost, type Prep, type Segment } from '@/lib/meeting'
+import { serializeTopic } from '@/lib/utils/anonymity'
 import { exampleFor, PREP_SCHEMA, PREP_SYSTEM, type ReferenceAgenda } from '@/lib/meetingPrompts'
 import { BOSS_LINE } from '@/lib/meet/boss'
 import reference from '../../../docs/agendas/2026-11.json'
@@ -178,18 +179,42 @@ export async function ensurePrepBeforeMeeting(cycle: { id: string; meeting_at: s
   if ((await readAgenda(cycle.id)).some(s => needsPrep(s, now))) await draftPrep(cycle.id)
 }
 
-/** The board posts on the presenter screen: title, text and counts. No names. */
-export interface PresenterPost {
-  id: string
-  title: string
-  description: string
-  voteCount: number
-  commentCount: number
+/**
+ * The board posts the agenda's cards point at, as the board's own card draws
+ * them (MeetPost): for the presenter screen and every phone in the room. The
+ * author is what the board shows anyone else: a ghost post keeps its ghost
+ * handle (serializeTopic, as viewed by nobody in particular), so a card never
+ * names someone the board doesn't.
+ */
+export async function meetPosts(ids: string[]): Promise<Record<string, MeetPost>> {
+  if (!ids.length) return {}
+  const { data } = await createAdminClient()
+    .from('topics')
+    .select('id, user_id, is_anonymous, title, description, category, is_selected, status, created_at, vote_count, comment_count, users!topics_user_id_fkey(username)')
+    .in('id', ids)
+    .eq('is_deleted', false)
+  return Object.fromEntries(
+    (data ?? []).map(raw => {
+      const t = serializeTopic(raw, '')
+      const post: MeetPost = {
+        id: t.id,
+        title: t.title,
+        description: (t.description ?? '').slice(0, 600),
+        category: t.category,
+        is_selected: !!t.is_selected,
+        status: t.status,
+        author_username: t.author_username ?? 'unknown',
+        is_system: !!t.is_system,
+        created_at: t.created_at,
+        vote_count: t.vote_count ?? 0,
+        comment_count: t.comment_count ?? 0,
+      }
+      return [t.id, post]
+    }),
+  )
 }
 
-export async function presenterPosts(agenda: Segment[]): Promise<Record<string, PresenterPost>> {
-  const ids = [...new Set(agenda.flatMap(s => s.topicIds ?? []))]
-  if (!ids.length) return {}
-  const { data } = await createAdminClient().from('topics').select('id, title, description, vote_count, comment_count').in('id', ids).eq('is_deleted', false)
-  return Object.fromEntries((data ?? []).map(t => [t.id, { id: t.id, title: t.title, description: t.description ?? '', voteCount: t.vote_count ?? 0, commentCount: t.comment_count ?? 0 }]))
+/** The posts behind an agenda's cards and segments. */
+export function presenterPosts(agenda: Segment[]): Promise<Record<string, MeetPost>> {
+  return meetPosts(agendaPostIds(agenda))
 }

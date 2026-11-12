@@ -109,6 +109,15 @@ export function AgendaBuilder({ initial, posts = [] }: { initial: Meeting; posts
                     </label>
                   </div>
                   <Textarea aria-label="Details" rows={2} maxLength={LIMITS.detail} value={s.detail} onChange={e => update(s.id, { detail: e.target.value })} className="font-sans text-footnote" />
+                  <Input
+                    aria-label="Cue on the shared screen"
+                    placeholder="Cue on the shared screen, one line (e.g. Vote first, then we read them.)"
+                    value={s.cue ?? ''}
+                    maxLength={LIMITS.cue}
+                    onChange={e => update(s.id, { cue: e.target.value })}
+                    className="text-footnote"
+                  />
+                  {s.cards?.length ? <p className="text-footnote text-ink-muted">{s.cards.length} {s.cards.length === 1 ? 'card' : 'cards'} on screen (edit them in the agenda file, docs/07)</p> : null}
                   <PrepEditor
                     segment={s}
                     posts={posts}
