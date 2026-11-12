@@ -122,14 +122,14 @@
       "id": "boss",
       "kind": "boss",
       "title": "Kers' Boss Round",
-      "detail": "Sum of the even numbers, in JavaScript, in your own browser. Eight minutes. The screen shows only the % who pass: no names, no code.",
+      "detail": "Sum of the even numbers, in JavaScript, in your own browser. It runs until the presenter closes it. The screen shows only the % who pass: no names, no code.",
       "minutes": 8,
       "topicIds": [],
       "prep": {
         "points": [
           "The problem: sumEvens(nums). Six tests, including an empty array and negative numbers. Run the tests as often as you like.",
           "Nobody sees your code or your name, only the pass rate. Admins play too, presenter included.",
-          "At time, read Kers' verdict. Under half passing? Ask the room what tripped them: the empty array or the negatives."
+          "When most of the room has had a go, close the round and Kers gives his verdict. Under half passing? Ask the room what tripped them: the empty array or the negatives."
         ],
         "opener": "You lot tell me what to write all day. Let’s see if you can still code.",
         "by": "admin",
