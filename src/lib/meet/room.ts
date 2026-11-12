@@ -7,6 +7,7 @@ import { MEET_EVENT, meetingChannel } from '@/lib/realtime/channels'
 import { openCycle } from '@/lib/guild/demos'
 import { isBlocked } from '@/lib/meet/profanity'
 import { BOSS_GRACE_MS, BOSS_MS } from '@/lib/meet/boss'
+import { meetingLive } from '@/lib/meeting'
 import {
   aggregate,
   BLOCKED_MESSAGE,
@@ -39,8 +40,6 @@ type Admin = ReturnType<typeof createAdminClient>
 export const MEET_COOKIE = 'gb_meet'
 /** A guest's token outlives no meeting: 6 h, and cleared at the end anyway. */
 const COOKIE_MAX_AGE = 6 * 3600
-/** A meeting nobody ended stops counting as live after this long. */
-const LIVE_MAX_MS = 8 * 3_600_000
 /** More guests than this in one meeting is someone scripting the join. */
 const GUEST_CAP = 150
 /** The broadcast throttle's gap (meeting_live_claim). */
@@ -53,7 +52,7 @@ export interface MeetingRow {
 }
 
 export function isLive(m: MeetingRow | null | undefined, now = Date.now()): boolean {
-  return !!m?.started_at && !m.ended_at && now - new Date(m.started_at).getTime() < LIVE_MAX_MS
+  return meetingLive(m ? { startedAt: m.started_at, endedAt: m.ended_at } : null, now)
 }
 
 /** Whether an error only means migration 046 isn't applied. */

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useToast } from '@/hooks/useToast'
-import type { Meeting, MeetingState } from '@/lib/meeting'
+import { meetingLive, type Meeting, type MeetingState } from '@/lib/meeting'
 import type { RoomState } from '@/lib/meet/activity'
 import { newerRoom, useMeetingChannel } from '@/components/meet/useMeetingChannel'
 
@@ -31,6 +31,9 @@ export function useMeetingLive(initial: MeetingState) {
   const skew = useRef(0)
   // Bumped by every write, so a poll that left before it can't undo it.
   const seq = useRef(0)
+  // Writes still on their way: a poll sent now could read the meeting from
+  // before them (a goto not yet saved) and flip the screen back, so none goes.
+  const inflight = useRef(0)
   const cycleId = initial.cycle.id
 
   const accept = useCallback((next: MeetingState) => {
@@ -49,7 +52,7 @@ export function useMeetingLive(initial: MeetingState) {
 
   const onRoom = useCallback((room: RoomState) => {
     const m = latest.current.meeting
-    const moved = room.segment !== m.currentSegment || room.live !== (!!m.startedAt && !m.endedAt)
+    const moved = room.segment !== m.currentSegment || room.live !== meetingLive(m)
     setState(s => ({ ...s, room: newerRoom(s.room, room) }))
     if (moved) fetchNow.current()
   }, [])
@@ -58,7 +61,7 @@ export function useMeetingLive(initial: MeetingState) {
   useEffect(() => {
     let alive = true
     const tick = async () => {
-      if (document.hidden) return
+      if (document.hidden || inflight.current > 0) return
       const mine = seq.current
       try {
         const res = await fetch(`/api/admin/meeting?cycle_id=${cycleId}`, { cache: 'no-store' })
@@ -87,6 +90,7 @@ export function useMeetingLive(initial: MeetingState) {
   const call = useCallback(
     async <T = Partial<MeetingState>>(action: string, payload: Record<string, unknown> = {}, done?: string): Promise<T | null> => {
       const mine = ++seq.current
+      inflight.current++
       setBusy(action)
       try {
         const res = await fetch('/api/admin/meeting', {
@@ -107,6 +111,7 @@ export function useMeetingLive(initial: MeetingState) {
         toast(err instanceof Error ? err.message : 'Could not do that', 'error')
         return null
       } finally {
+        inflight.current--
         setBusy(null)
       }
     },

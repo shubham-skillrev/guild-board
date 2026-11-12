@@ -22,9 +22,16 @@ test('cleanResponse checks the answer against its activity', () => {
   assert.equal(cleanResponse(poll, { option: 3 }).ok, false)
   assert.equal(cleanResponse(poll, { option: '1' }).ok, true)
   assert.equal(cleanResponse(poll, { option: 1.5 }).ok, false)
+  // Number(null), Number('') and Number(false) are 0: none of them is a vote for the first option.
+  for (const option of [null, '', false, true, [1], ' 1', '-1', undefined]) assert.equal(cleanResponse(poll, { option }).ok, false, JSON.stringify(option))
   assert.deepEqual(cleanResponse(cloud, { word: ' Busy ' }), { ok: true, value: { word: 'busy' } })
   assert.equal(cleanResponse(cloud, { word: '   ' }).ok, false)
   assert.equal(cleanResponse({ kind: 'boss', options: [], config: { problem: 1 } }, { passed: true }).ok, false)
+  const boss = { kind: 'boss' as const, options: [], config: { problem: 1 } }
+  assert.deepEqual(cleanResponse(boss, { passed: true, tests: 6, of: 6 }), { ok: true, value: { passed: true, tests: 6, of: 6 } })
+  assert.equal(cleanResponse(boss, { passed: false, tests: null, of: 6 }).ok, false)
+  assert.equal(cleanResponse(boss, { passed: true, tests: 5, of: 6 }).ok, false)
+  assert.equal(cleanResponse(boss, { passed: true, tests: 4, of: 4 }).ok, false)
 })
 
 test('poll aggregate counts one vote per participant', () => {

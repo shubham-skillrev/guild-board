@@ -8,7 +8,7 @@ import { Kers } from '@/components/kers/Kers'
 import { Icon } from '@/components/ui/Icon'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
-import { MEET_LEAD_MS, MEET_TAIL_MS, type MeetingState } from '@/lib/meeting'
+import { MEET_LEAD_MS, MEET_TAIL_MS, meetingLive, type MeetingState } from '@/lib/meeting'
 
 function until(ms: number): string {
   if (ms <= 0) return 'now'
@@ -47,7 +47,7 @@ export function StartMeetingCard() {
   if (!isAdmin || !s || now === null || !s.cycle.meeting_at) return null
   const { meeting } = s
   const at = new Date(s.cycle.meeting_at).getTime()
-  const live = !!meeting.startedAt && !meeting.endedAt
+  const live = meetingLive(meeting, now)
   if (meeting.endedAt) return null
   if (!live && (now < at - MEET_LEAD_MS || now > at + MEET_TAIL_MS)) return null
 

@@ -90,6 +90,18 @@ export interface MeetingState {
 export const MEET_LEAD_MS = 3 * 3_600_000
 /** ...and until this long after its planned start, unless it was ended. */
 export const MEET_TAIL_MS = 4 * 3_600_000
+/** A meeting nobody ended stops counting as live after this long. */
+export const MEET_LIVE_MAX_MS = 8 * 3_600_000
+
+/**
+ * Whether meeting mode is on: started, not ended, and not one left running
+ * from long ago (a test start nobody ended). The one rule for the server,
+ * /meet and the admin screens, so the presenter never sees "live" while the
+ * room is shut.
+ */
+export function meetingLive(m: { startedAt: string | null; endedAt: string | null } | null | undefined, now = Date.now()): boolean {
+  return !!m?.startedAt && !m.endedAt && now - new Date(m.startedAt).getTime() < MEET_LIVE_MAX_MS
+}
 
 export const MEETING_MINUTES = 60
 export const LIMITS = { title: 80, detail: 400, note: 300, owner: 60, recap: 4000, segments: 12, notes: 200, point: 200, opener: 240, points: 3, topics: 3 } as const

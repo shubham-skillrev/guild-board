@@ -29,7 +29,10 @@ const LEET_I: Record<string, string> = { '0': 'o', '1': 'i', '3': 'e', '4': 'a',
 const LEET_L: Record<string, string> = { ...LEET_I, '1': 'l', '|': 'l' }
 
 /** Cyrillic and other letters that look Latin. */
-const HOMOGLYPHS: Record<string, string> = { 'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x', 'к': 'k', 'і': 'i', 'ј': 'j', 'ѕ': 's', 'ԁ': 'd', 'ɡ': 'g', 'ս': 'u', 'ν': 'v', 'ο': 'o', 'α': 'a' }
+const HOMOGLYPHS: Record<string, string> = { 'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x', 'к': 'k', 'і': 'i', 'ј': 'j', 'ѕ': 's', 'ԁ': 'd', 'ɡ': 'g', 'ս': 'u', 'ν': 'v', 'ο': 'o', 'α': 'a',
+  // Latin letters NFKD leaves alone: f with a hook, and small capitals ("fᴜck").
+  'ƒ': 'f', 'ᴀ': 'a', 'ʙ': 'b', 'ᴄ': 'c', 'ᴅ': 'd', 'ᴇ': 'e', 'ꜰ': 'f', 'ɢ': 'g', 'ʜ': 'h', 'ɪ': 'i', 'ᴊ': 'j', 'ᴋ': 'k', 'ʟ': 'l',
+  'ᴍ': 'm', 'ɴ': 'n', 'ᴏ': 'o', 'ᴘ': 'p', 'ʀ': 'r', 'ꜱ': 's', 'ᴛ': 't', 'ᴜ': 'u', 'ᴠ': 'v', 'ᴡ': 'w', 'ʏ': 'y', 'ᴢ': 'z' }
 
 /**
  * Lower-cased, accents and zero-width characters gone, full-width folded,
@@ -65,12 +68,13 @@ const EN_EXACT = [
   'ass', 'arse', 'tit', 'titty', 'titties', 'boob', 'boobies', 'cum', 'anal', 'sex', 'sexy', 'penis', 'vagina', 'rape', 'raped',
   'rapist', 'piss', 'pissed', 'dick', 'cock', 'prick', 'retard', 'retarded', 'shag', 'fag', 'fuk', 'fuker', 'fukin', 'fuking',
   'wank', 'stfu', 'gtfo', 'wtf', 'fml', 'mf', 'milf', 'horny', 'nude', 'nudes', 'cunt',
+  'fuq', 'phuk', 'phuck', 'mofo', 'kunt',
 ]
 /** Blocked at the start of a word ("cunts", "cunty"), not inside one (Scunthorpe). */
 const EN_PREFIX = ['cunt']
 
 /** Words and names that contain a root and are fine. Removed before the anywhere check. */
-const ALLOW = ['kshitij', 'shital', 'ashit', 'shiitake', 'shitake', 'snigger']
+const ALLOW = ['kshitij', 'shitij', 'shital', 'ashit', 'dikshit', 'mishit', 'shiitake', 'shitake', 'snigger']
 
 const anywhere = EN_ANYWHERE.map(w => new RegExp(runs(w)))
 const exact = EN_EXACT.map(w => new RegExp(`^(?:${runs(w)})(?:e?s)?$`))
@@ -152,9 +156,28 @@ function tokens(text: string): string[] {
   return out
 }
 
+// ─── Masked on purpose ("f**k", "sh*t", "a**") ────────────────────────────
+
+/** What a mask can stand in for: the word, plus the usual endings. */
+const MASKABLE = ['fuck', 'shit', 'bitch', 'cunt', 'dick', 'cock', 'ass', 'arse', 'asshole', 'twat', 'slut', 'whore', 'pussy', 'porn', 'bastard', 'wanker', 'chutiya', 'chod']
+  .flatMap(w => ['', 's', 'y', 'ty', 'er', 'ers', 'ed', 'in', 'ing'].map(end => w + end))
+
+/**
+ * A token with `*` or `#` in it, read as a pattern where each mask is one
+ * letter: blocked when it spells a MASKABLE word exactly. Three characters
+ * at least, so "c#", "f#" and "A*" (languages, an algorithm) pass.
+ */
+function masked(token: string): boolean {
+  if (!/[*#]/.test(token)) return false
+  const t = [...token].map(c => (c === '*' || c === '#' ? '*' : LEET_I[c] ?? c)).join('').replace(/[^\p{L}*]/gu, '')
+  if (t.length < 3 || !/\p{L}/u.test(t)) return false
+  const re = new RegExp(`^${t.replace(/\*/g, '[a-z]')}$`)
+  return MASKABLE.some(w => re.test(w))
+}
+
 /** Whether Kers drops this entry. */
 export function isBlocked(text: string): boolean {
   const base = baseForm(text)
   if (DEVANAGARI.some(w => base.includes(w))) return true
-  return tokens(base).some(t => readings(t).some(blockedWord))
+  return tokens(base).some(t => masked(t) || readings(t).some(blockedWord))
 }

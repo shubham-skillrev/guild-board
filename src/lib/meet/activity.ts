@@ -139,6 +139,12 @@ export function cleanWord(raw: unknown): string | null {
   return cut || null
 }
 
+/** A whole number as sent: a number, or digits in a string. Anything else (null, "", true, [1]) is NaN, not 0. */
+function whole(v: unknown): number {
+  if (typeof v === 'number') return Number.isInteger(v) ? v : NaN
+  return typeof v === 'string' && /^\d{1,3}$/.test(v) ? Number(v) : NaN
+}
+
 export type Cleaned = { ok: true; value: Record<string, unknown> } | { ok: false; error: string }
 
 /** An answer as sent by a phone, checked against its activity. Profanity is checked by the caller. */
@@ -146,7 +152,7 @@ export function cleanResponse(activity: Pick<ActivityRow, 'kind' | 'options'> & 
   const r = objectOf(raw)
   switch (activity.kind) {
     case 'poll': {
-      const option = Number(r.option)
+      const option = whole(r.option)
       const n = optionsOf(activity.options).length
       return Number.isInteger(option) && option >= 0 && option < n ? { ok: true, value: { option } } : { ok: false, error: 'Pick one of the options.' }
     }
@@ -158,8 +164,8 @@ export function cleanResponse(activity: Pick<ActivityRow, 'kind' | 'options'> & 
       // A run's result only, never the code: { passed, tests, of }.
       const problem = bossProblem(activity.config)
       if (!problem) return { ok: false, error: 'This Boss Round has no problem set.' }
-      const tests = Number(r.tests)
-      const of = Number(r.of)
+      const tests = whole(r.tests)
+      const of = whole(r.of)
       const fits = Number.isInteger(tests) && of === problem.cases.length && tests >= 0 && tests <= of
       if (!fits || typeof r.passed !== 'boolean' || r.passed !== (tests === of)) return { ok: false, error: 'That result doesn’t add up. Run the tests again.' }
       return { ok: true, value: { passed: r.passed, tests, of } }

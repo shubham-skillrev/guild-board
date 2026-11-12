@@ -13,7 +13,7 @@ import { AgendaProgress } from '@/components/meet/AgendaProgress'
 import { PresenterKers } from '@/components/meet/PresenterKers'
 import { bossPhase } from '@/lib/meet/boss'
 import { useMeetingLive, useSecond } from '@/components/meet/useMeetingLive'
-import { clock, KIND_LABELS, type MeetingState, type Segment } from '@/lib/meeting'
+import { clock, KIND_LABELS, meetingLive, type MeetingState, type Segment } from '@/lib/meeting'
 import type { PresenterPost } from '@/lib/guild/meetingPrep'
 
 /** Where the screen is when migration 045 isn't applied: this browser only. */
@@ -48,7 +48,7 @@ export function PresenterScreen({ initial, posts }: { initial: MeetingState; pos
   const router = useRouter()
   const { state, meeting, busy, call, optimistic, now } = useMeetingLive(initial)
   const agenda = meeting.agenda
-  const live = !!meeting.startedAt && !meeting.endedAt
+  const live = meetingLive(meeting)
   const ended = !!meeting.endedAt
   const local = !meeting.presenterReady
   const t = useSecond(live, now, initial.serverNow)

@@ -1,4 +1,4 @@
-import { BOSS_TEST_MS, judge, timedOut, WORKER_SOURCE, type BossProblem, type CaseResult, type WorkerAsk, type WorkerReply } from '@/lib/meet/boss'
+import { BOSS_TEST_MS, judge, timedOut, WORKER_SOURCE, type BossProblem, type CaseResult, type WorkerAsk, type WorkerReply } from './boss.ts'
 
 /**
  * Runs the Boss Round's tests in the attendee's own browser, off the main

@@ -49,10 +49,29 @@ export function MeetRoom({ initial }: { initial: MeetView }) {
   // Hold the floating slot while the meeting is on: no install or push prompt over a poll.
   useOverlaySlot('meet-room', OVERLAY_PRIORITY.presenter, live)
 
+  // Answers sent, and still on their way. A pull that left before one (or
+  // while one is out) has stale answers, so it keeps the ones on screen.
+  const writes = useRef(0)
+  const pending = useRef(0)
+  const send = useCallback(async (body: Record<string, unknown>) => {
+    writes.current++
+    pending.current++
+    try {
+      return await post(body)
+    } finally {
+      pending.current--
+    }
+  }, [])
+
   const refresh = useCallback(async () => {
+    const before = writes.current
     try {
       const res = await fetch('/api/meet', { cache: 'no-store' })
-      if (res.ok) setView(await res.json())
+      if (!res.ok) return
+      const next: MeetView = await res.json()
+      const stale = before !== writes.current || pending.current > 0
+      // A broadcast may have brought a newer room than this pull.
+      setView(v => ({ ...next, room: next.room && v.room ? newerRoom(v.room, next.room) : next.room, mine: stale ? v.mine : next.mine }))
     } catch {
       /* offline for a moment */
     }
@@ -130,7 +149,7 @@ export function MeetRoom({ initial }: { initial: MeetView }) {
       <GuestJoin busy={joining} error={joinError} onJoin={join} />
     )
   } else if (room?.activity?.status === 'open') {
-    body = <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={post} toast={toast} serverAt={room.at} />
+    body = <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={send} toast={toast} serverAt={room.at} />
   } else if (!room?.warm) {
     body = <Notice kers="thinking" title="Kers is setting up…" text={people(room?.participants ?? 0)} />
   } else {

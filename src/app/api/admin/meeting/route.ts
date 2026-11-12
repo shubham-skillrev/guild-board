@@ -32,7 +32,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminId } from '@/lib/guild/staff'
 import { agendaMessage, draftAgenda, draftRecap, getMeeting, mergeAgenda, missing045, openCycle, recapMessage, saveMeeting } from '@/lib/guild/meeting'
 import { draftPrep, ensurePrepBeforeMeeting } from '@/lib/guild/meetingPrep'
-import { cleanNote, LIMITS, type MeetingState } from '@/lib/meeting'
+import { cleanNote, LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
 import { closeActivity, closeOpenActivities, closeRoom, nudgeRoom, openActivity, readRoom } from '@/lib/meet/room'
 import { isSlackConfigured, postToSlack } from '@/lib/slack/send'
 
@@ -126,7 +126,8 @@ export async function POST(request: Request) {
     case 'start': {
       const m = await getMeeting(cycle.id)
       if (!m.agenda.length) return NextResponse.json({ error: 'Save an agenda first.' }, { status: 400 })
-      const live = !!m.startedAt && !m.endedAt
+      // A start left running from long ago (a test nobody ended) starts afresh.
+      const live = meetingLive(m)
       // Already running with someone else presenting: join them read-only.
       if (live && m.presenterId && m.presenterId !== adminId) return NextResponse.json(await state(cycle, adminId))
       const first = m.agenda[0].id
@@ -151,7 +152,7 @@ export async function POST(request: Request) {
     }
     case 'goto': {
       const m = await getMeeting(cycle.id)
-      if (!m.startedAt || m.endedAt) return NextResponse.json({ error: 'Meeting mode isn’t on.' }, { status: 409 })
+      if (!meetingLive(m)) return NextResponse.json({ error: 'Meeting mode isn’t on.' }, { status: 409 })
       if (!m.presenterReady) return NextResponse.json({ error: 'Apply migration 045 first.' }, { status: 500 })
       if (m.presenterId !== adminId) return NextResponse.json({ error: 'Someone else is presenting. Take over first.', ...(await state(cycle, adminId)) }, { status: 409 })
       if (!m.agenda.some(s => s.id === body.segment)) return NextResponse.json({ error: 'No such segment' }, { status: 400 })
@@ -172,7 +173,7 @@ export async function POST(request: Request) {
     case 'open_activity':
     case 'close_activity': {
       const m = await getMeeting(cycle.id)
-      if (!m.startedAt || m.endedAt) return NextResponse.json({ error: 'Meeting mode isn’t on.' }, { status: 409 })
+      if (!meetingLive(m)) return NextResponse.json({ error: 'Meeting mode isn’t on.' }, { status: 409 })
       if (m.presenterId !== adminId) return NextResponse.json({ error: 'Someone else is presenting. Take over first.', ...(await state(cycle, adminId)) }, { status: 409 })
       if (body.action === 'close_activity') await closeActivity(createAdminClient(), cycle.id, body.activity_id)
       else {

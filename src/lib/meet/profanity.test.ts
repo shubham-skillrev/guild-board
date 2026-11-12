@@ -64,3 +64,19 @@ test('names and Indian words with a root inside pass', () => {
 test('ordinary one-word answers pass', () => {
   allows(['tired', 'busy', 'meetings', 'kubernetes', 'c++', 'node.js', 'flaky tests', 'on-call', 'deploys', 'productive', 'chaos', 'sleepy', '🚀', 'खुश', 'थकान'])
 })
+
+test('masked on purpose', () => {
+  blocks(['f**k', 'sh*t', 's#it', 'a**', 'b**ch', 'sh**', 'f*cking', 'c*nt', 'd*ck', 'p*ssy', 'ch*tiya'])
+})
+
+test('more look-alikes and spellings', () => {
+  blocks(['ƒuck', 'fᴜck', 'ꜱʜɪᴛ', 'fuq', 'phuk', 'mofo', 'kunt'])
+})
+
+test('a mask alone is not a swear: languages, algorithms, markdown', () => {
+  allows(['c#', 'f#', 'A*', '*nix', '#1', '#rust', '**', 'd*mn', 'h*ll', 'c*de', '**kotlin**', '*important*', 'fix#123'])
+})
+
+test('Indian surnames and cricket words with a root inside pass', () => {
+  allows(['Dikshit', 'dikshit', 'Shitij', 'mishit', 'Kshitija'])
+})

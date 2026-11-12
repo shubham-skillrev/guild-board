@@ -9,7 +9,7 @@ import { Icon } from '@/components/ui/Icon'
 import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/utils/cn'
 import { useMeetingLive, useSecond } from '@/components/meet/useMeetingLive'
-import { clock, LIMITS, type MeetingState } from '@/lib/meeting'
+import { clock, LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
 
 /**
  * The meeting, live, for the admin running it: one segment at a time with
@@ -28,7 +28,7 @@ export function MeetingMode({ initial }: { initial: MeetingState }) {
   const [owner, setOwner] = useState('')
   const [decision, setDecision] = useState(false)
 
-  const live = !!meeting.startedAt && !meeting.endedAt
+  const live = meetingLive(meeting)
   const local = !meeting.presenterReady
   const presenting = live && (local || meeting.presenterId === state.me)
   const agenda = meeting.agenda
