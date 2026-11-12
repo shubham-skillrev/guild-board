@@ -82,6 +82,10 @@ export function StartMeetingCard() {
   }
 
   const rehearse = async () => {
+    if (s.meeting.rehearsalReady === false) {
+      toast('Live rehearsal needs migration 047 applied in Supabase first.', 'error')
+      return
+    }
     setBusy(true)
     try {
       const res = await fetch('/api/admin/meeting', {
@@ -168,7 +172,7 @@ export function StartMeetingCardView({ s, now, busy, onStart, onRehearse }: { s:
           <button
             type="button"
             className={quiet}
-            disabled={busy || meeting.rehearsalReady === false}
+            disabled={busy}
             onClick={onRehearse}
             title={meeting.rehearsalReady === false ? 'Apply migration 047 first' : 'Run it for real with phones; answers are deleted after'}
           >
