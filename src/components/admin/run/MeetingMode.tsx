@@ -9,7 +9,7 @@ import { Icon } from '@/components/ui/Icon'
 import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/utils/cn'
 import { useMeetingLive } from '@/components/meet/useMeetingLive'
-import { LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
+import { earlyStartWarning, LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
 
 /**
  * The meeting, live, for the admin running it: one segment at a time (no
@@ -84,7 +84,12 @@ export function MeetingMode({ initial }: { initial: MeetingState }) {
           <Link href="/meet/present" className="press inline-flex h-8 items-center gap-1.5 rounded-full bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink">
             <Icon icon={Presentation} size="sm" /> Presenter screen
           </Link>
-          {!live && !meeting.endedAt && <Button icon={Play} disabled={!!busy} onClick={async () => { if (await call('start', {}, 'Meeting started')) { setLocalIdx(0) } }}>Start the meeting</Button>}
+          {!live && !meeting.endedAt && (
+            <Link href="/meet/present?rehearse=1" className="press inline-flex h-8 items-center rounded-full bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink">
+              Rehearse
+            </Link>
+          )}
+          {!live && !meeting.endedAt && <Button icon={Play} disabled={!!busy} onClick={async () => { const warning = earlyStartWarning(state.cycle.meeting_at, now()); if (warning && !window.confirm(warning)) return; if (await call('start', {}, 'Meeting started')) { setLocalIdx(0) } }}>Start the meeting</Button>}
           {live && <Button variant="secondary" icon={Stop} disabled={!!busy} onClick={() => call('end', {}, 'Meeting ended: the recap is on the Run tab')}>End the meeting</Button>}
           {meeting.endedAt && <Link href="/admin/run#run-recap" className="press inline-flex h-8 items-center rounded-(--radius-control) bg-ink px-3 text-footnote font-medium text-parchment">Write the recap →</Link>}
         </div>

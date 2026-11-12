@@ -8,7 +8,9 @@ import { Kers } from '@/components/kers/Kers'
 import { Icon } from '@/components/ui/Icon'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
-import { MEET_LEAD_MS, MEET_TAIL_MS, meetingLive, type MeetingState } from '@/lib/meeting'
+import { Modal } from '@/components/ui/Modal'
+import { Button } from '@/components/ui/Button'
+import { earlyStartWarning, MEET_REHEARSE_MS, MEET_TAIL_MS, meetingLive, type MeetingState } from '@/lib/meeting'
 
 function until(ms: number): string {
   if (ms <= 0) return 'now'
@@ -17,10 +19,14 @@ function until(ms: number): string {
 }
 
 /**
- * "Start meeting mode": the card at the top of the board for admins, from
- * 3 h before the meeting until it ends. Starting it marks the meeting live
- * and makes this admin the presenter, then opens /meet/present. Once it's
- * live it says who presents and opens the screen (read-only for others).
+ * The meeting card at the top of the board for admins, from the day before
+ * the meeting (MEET_REHEARSE_MS) until it ends. Two actions: "Rehearse"
+ * opens the presenter screen in rehearsal (/meet/present?rehearse=1: the
+ * real agenda and prep, sample answers, nothing written, nothing live), and
+ * "Start meeting" marks it live and makes this admin the presenter, then
+ * opens /meet/present. More than 3 h early, Start asks first: going live a
+ * day early by accident is the risk. Once it's live it says who presents and
+ * opens the screen (read-only for others).
  *
  * Loading it also asks the server to draft any of Kers' prep still missing
  * (?prep=1): the "3 h before at the latest" trigger.
@@ -32,6 +38,7 @@ export function StartMeetingCard() {
   const [s, setS] = useState<MeetingState | null>(null)
   const [busy, setBusy] = useState(false)
   const [now, setNow] = useState<number | null>(null)
+  const [asking, setAsking] = useState<string | null>(null)
 
   useEffect(() => {
     if (!isAdmin) return
@@ -46,7 +53,13 @@ export function StartMeetingCard() {
 
   if (!isAdmin || !s || now === null) return null
 
-  const start = async () => {
+  const start = async (confirmed = false) => {
+    const warning = earlyStartWarning(s.cycle.meeting_at, Date.now())
+    if (warning && !confirmed) {
+      setAsking(warning)
+      return
+    }
+    setAsking(null)
     setBusy(true)
     try {
       const res = await fetch('/api/admin/meeting', {
@@ -63,7 +76,23 @@ export function StartMeetingCard() {
     }
   }
 
-  return <StartMeetingCardView s={s} now={now} busy={busy} onStart={start} />
+  return (
+    <>
+      <StartMeetingCardView s={s} now={now} busy={busy} onStart={() => start()} />
+      {asking && (
+        <Modal title="Start the meeting now?" onClose={() => setAsking(null)} className="max-w-md">
+          <div className="space-y-4 p-5">
+            <p className="text-footnote leading-relaxed text-ink-soft">{asking}</p>
+            <p className="text-footnote leading-relaxed text-ink-muted">To practise, use Rehearse instead: it shows the real agenda and changes nothing.</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setAsking(null)}>Not yet</Button>
+              <Button variant="danger" onClick={() => start(true)}>Start it now</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
+  )
 }
 
 /** The card from the meeting's state (the dev mock, /meet/mock, renders it with fake state). */
@@ -73,12 +102,13 @@ export function StartMeetingCardView({ s, now, busy, onStart }: { s: MeetingStat
   const at = new Date(s.cycle.meeting_at).getTime()
   const live = meetingLive(meeting, now)
   if (meeting.endedAt) return null
-  if (!live && (now < at - MEET_LEAD_MS || now > at + MEET_TAIL_MS)) return null
+  if (!live && (now < at - MEET_REHEARSE_MS || now > at + MEET_TAIL_MS)) return null
 
   const time = new Date(at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' })
   const prepped = meeting.agenda.filter(x => x.prep && (x.prep.points.length || x.prep.opener)).length
 
   const button = 'press inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-ink px-3.5 text-footnote font-medium text-parchment hover:bg-ink/85 disabled:opacity-40 pointer-coarse:h-10'
+  const quiet = 'press inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-kinu/70 px-3.5 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink pointer-coarse:h-10'
 
   let title: string
   let body: string
@@ -94,12 +124,15 @@ export function StartMeetingCardView({ s, now, busy, onStart }: { s: MeetingStat
   } else {
     title = `The meeting is ${until(at - now)}, at ${time}`
     body = prepped
-      ? `Kers has prep for ${prepped} of ${meeting.agenda.length} segments. Share your screen, then start.`
-      : 'Kers is still on his prep. Share your screen, then start.'
+      ? `Kers has prep for ${prepped} of ${meeting.agenda.length} segments. Rehearse it now; on the day, share your screen and start.`
+      : 'Kers is still on his prep. Rehearse it now; on the day, share your screen and start.'
     action = (
-      <button type="button" className={button} disabled={busy} onClick={onStart}>
-        <Icon icon={Play} size="sm" weight="fill" /> {busy ? 'Starting…' : 'Start meeting mode'}
-      </button>
+      <div className="flex shrink-0 gap-2">
+        <Link href="/meet/present?rehearse=1" className={quiet}>Rehearse</Link>
+        <button type="button" className={button} disabled={busy} onClick={onStart}>
+          <Icon icon={Play} size="sm" weight="fill" /> {busy ? 'Starting…' : 'Start meeting'}
+        </button>
+      </div>
     )
   }
 

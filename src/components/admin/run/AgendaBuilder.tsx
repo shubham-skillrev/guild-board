@@ -156,8 +156,15 @@ export function AgendaBuilder({ initial, posts = [] }: { initial: Meeting; posts
             {busy === 'draft_prep' ? 'Kers is drafting…' : 'Draft Kers’ prep'}
           </Button>
           <Link
+            href="/meet/present?rehearse=1"
+            title="The presenter screen on this agenda, with sample answers. Nothing goes live."
+            className="press ml-auto inline-flex h-8 items-center gap-1.5 rounded-(--radius-control) bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink pointer-coarse:h-11"
+          >
+            Rehearse
+          </Link>
+          <Link
             href="/admin/run/meeting"
-            className="press ml-auto inline-flex h-8 items-center gap-1.5 rounded-(--radius-control) bg-ink px-3 text-footnote font-medium text-parchment hover:bg-ink/85 pointer-coarse:h-11"
+            className="press inline-flex h-8 items-center gap-1.5 rounded-(--radius-control) bg-ink px-3 text-footnote font-medium text-parchment hover:bg-ink/85 pointer-coarse:h-11"
           >
             <Icon icon={Play} size="sm" weight="fill" /> Meeting mode
           </Link>

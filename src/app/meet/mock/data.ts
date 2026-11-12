@@ -8,7 +8,8 @@
 
 import { BLOCKED_MESSAGE, type MeetView, type Mine, type PublicActivity, type RoomState } from '@/lib/meet/activity'
 import { timedOut, type CaseResult } from '@/lib/meet/boss'
-import type { MeetingState, Segment } from '@/lib/meeting'
+import { cleanAgenda, type MeetingState, type Segment } from '@/lib/meeting'
+import november from '../../../../docs/agendas/2026-11.json'
 import type { PresenterPost } from '@/lib/guild/meetingPrep'
 import type { PhoneDemo } from '@/components/meet/PhoneActivity'
 
@@ -16,117 +17,21 @@ export const CYCLE = 'mock-cycle'
 const ME = 'mock-admin'
 const OTHER = 'mock-other-admin'
 const iso = (ms: number) => new Date(ms).toISOString()
-const prep = (opener: string, points: string[]) => ({ opener, points, by: 'kers' as const, at: '2026-11-12T08:00:00.000Z' })
 
-export const AGENDA: Segment[] = [
-  {
-    id: 'seg-warmup',
-    kind: 'warmup',
-    title: 'Warm-up',
-    detail: 'Kers opens the room. One word each, before anything serious.',
-    minutes: 2,
-    prep: prep('Phones out. One word for your week. I’ll pretend not to judge.', [
-      'Zero stakes: this is to check everyone can join and tap.',
-      'Read the two biggest words out loud and move on.',
-    ]),
-  },
-  {
-    id: 'seg-radar',
-    kind: 'radar',
-    title: 'Radar: eMudhra intermediate CA compromise · KV-cache exposure in the GLM-5.3 Worker',
-    detail: 'Two stories about trusting someone else’s infrastructure: a CA we chain to, and a hosted model leaking cached prompts across tenants.',
-    minutes: 5,
-    topicIds: ['post-emudhra', 'post-kvcache'],
-    prep: prep('Both of these are about trust. Who here has pasted company code into a chatbot this week?', [
-      'eMudhra: an intermediate CA was misused to issue certs; check what in our stack chains to it.',
-      'GLM-5.3 Worker: cached KV blocks were readable across tenants for ~36 hours.',
-      'Ask the room which of the two would actually change how they work.',
-    ]),
-  },
-  {
-    id: 'seg-showtell',
-    kind: 'showtell',
-    title: 'Show & Tell: Spotlight + Demo',
-    detail: 'This month’s Spotlight, then a 7-minute demo of the new deploy previews.',
-    minutes: 15,
-    prep: prep('Eyes on the presenter. Phones can rest for fifteen minutes.', [
-      'Spotlight first: keep it to 6 minutes, questions after.',
-      'Demo: ask what broke while building it, not just what works.',
-    ]),
-  },
-  {
-    id: 'seg-topic',
-    kind: 'topic',
-    title: 'AI Bubble Bust',
-    detail: 'AI technology vs AI as a business: is the money running out, or just moving?',
-    minutes: 18,
-    topicIds: ['post-bubble'],
-    prep: prep('Pick a side before anyone talks you out of it.', [
-      'Separate the tech (still getting better) from the business (burning cash).',
-      'The board post’s top comment: “the dot-com crash didn’t kill the internet.”',
-      'If “bursts” wins, ask what in our own roadmap assumes it won’t.',
-    ]),
-  },
-  {
-    id: 'seg-clinic',
-    kind: 'clinic',
-    title: 'Problem clinic',
-    detail: 'The biggest words are the clinic’s agenda. Two problems from the board to start.',
-    minutes: 8,
-    topicIds: ['post-flaky', 'post-review'],
-    prep: prep('One word: what’s slowing you down? The biggest one gets solved first.', [
-      'Start with whatever is biggest in the cloud, not the board posts.',
-      'Flaky e2e tests have three upvotes and no owner yet.',
-    ]),
-  },
-  {
-    id: 'seg-boss',
-    kind: 'boss',
-    title: 'Kers’ Boss Round',
-    detail: 'Problem #1: sum of the even numbers, on your own device. It runs until the presenter closes it.',
-    minutes: 8,
-    prep: prep('One function, your own device. Kers is keeping score.', [
-      'Code runs on their device; only pass or fail comes back.',
-      'Close the round when most have had a go; read the verdict, then move to the wrap.',
-    ]),
-  },
-  {
-    id: 'seg-wrap',
-    kind: 'wrap',
-    title: 'Wrap: decisions, owners, next month',
-    detail: 'What we decided, who owns it, and what goes on next month’s board.',
-    minutes: 4,
-    prep: prep('Three decisions, three owners, then everyone can go.', [
-      'Read back the decisions from the notes; name an owner for each.',
-      'Next meeting: second Thursday, same time.',
-    ]),
-  },
-]
+/**
+ * November's real agenda (docs/agendas/2026-11.json, the reference the user
+ * reviews): its segments, Kers' prep and openers, and its activities. Only
+ * the answers below are invented. The file is read, never changed here.
+ */
+const NOVEMBER = november as unknown as { cycle: string; meetingAt: string; agenda: Segment[]; activities: { segment: string; kind: PublicActivity['kind']; prompt: string; options: string[]; config?: Record<string, unknown> }[] }
 
+export const AGENDA: Segment[] = cleanAgenda(NOVEMBER.agenda)
+
+/** The board posts the agenda links to, as the presenter shows them (titles from docs/agendas/2026-11.md; counts invented). */
 export const POSTS: Record<string, PresenterPost> = {
-  'post-emudhra': {
-    id: 'post-emudhra',
-    title: 'eMudhra’s intermediate CA was compromised. Do we chain to it anywhere?',
-    description: 'Mis-issued certs for a handful of Indian bank domains. Browsers are distrusting the intermediate next week. Worth checking our partner integrations.',
-    voteCount: 9,
-    commentCount: 4,
-  },
-  'post-kvcache': {
-    id: 'post-kvcache',
-    title: 'KV-cache exposure in the GLM-5.3 Worker',
-    description: 'Prompt prefixes were shared across tenants through the cache for about a day and a half. Anyone using the hosted endpoint for code review?',
-    voteCount: 7,
-    commentCount: 6,
-  },
-  'post-bubble': {
-    id: 'post-bubble',
-    title: 'Is the AI bubble about to burst?',
-    description: 'Capex is at record highs and revenue isn’t. But the models keep getting better. Is this 2000 all over again, or is “bubble” the wrong word?',
-    voteCount: 14,
-    commentCount: 11,
-  },
-  'post-flaky': { id: 'post-flaky', title: 'Our e2e suite fails one run in five', description: 'Mostly timing. Retries hide it, nobody owns it.', voteCount: 3, commentCount: 2 },
-  'post-review': { id: 'post-review', title: 'PRs wait two days for review', description: 'Small PRs too. Is it the rota or the size?', voteCount: 5, commentCount: 3 },
+  '5919d1ce-d4e0-48c3-8908-0e39bea53188': { id: '5919d1ce-d4e0-48c3-8908-0e39bea53188', title: 'Voice-driven development and dev environment setups', description: '', voteCount: 6, commentCount: 3 },
+  '61f7a2f7-621b-4b74-b406-39f95844a935': { id: '61f7a2f7-621b-4b74-b406-39f95844a935', title: 'AI Bubble Bust: AI Technology vs. AI as a Business', description: '', voteCount: 14, commentCount: 11 },
+  '4968007c-cbf8-4a0a-94f3-458b313a389d': { id: '4968007c-cbf8-4a0a-94f3-458b313a389d', title: 'Data structures in unexpected places', description: '', voteCount: 8, commentCount: 4 },
 }
 
 interface ActivitySpec {
@@ -140,11 +45,11 @@ interface ActivitySpec {
   config?: Record<string, unknown>
 }
 
-const WEEK_WORDS: [string, number][] = [
-  ['hectic', 7], ['busy', 5], ['deadline', 4], ['thak gaya', 4], ['chill', 3], ['jugaad', 3], ['sprint', 3],
-  ['on-call', 2], ['productive', 2], ['meh', 2], ['chaotic', 2], ['mast', 2], ['release', 2], ['caffeine', 2],
-  ['kal dekhenge', 1], ['sorted', 1], ['refactor', 1], ['learning', 1], ['tired', 1], ['jhakaas', 1],
-  ['slow', 1], ['vibe coding', 1], ['standups', 1], ['bug bash', 1], ['ekdum fresh', 1], ['node.js', 1],
+const TOOL_WORDS: [string, number][] = [
+  ['vs code', 7], ['terminal', 5], ['cursor', 4], ['coffee', 4], ['git', 3], ['vim', 3], ['raycast', 3],
+  ['tmux', 2], ['notion', 2], ['chatgpt', 2], ['postman', 2], ['docker', 2], ['claude', 2], ['figma', 2],
+  ['mechanical keyboard', 1], ['jetbrains', 1], ['obsidian', 1], ['zsh', 1], ['second monitor', 1], ['chai', 1],
+  ['warp', 1], ['spotify', 1], ['copilot', 1], ['headphones', 1], ['grep', 1], ['jq', 1],
 ]
 const BLOCKER_WORDS: [string, number][] = [
   ['flaky tests', 6], ['code review', 5], ['meetings', 4], ['scope creep', 3], ['context switching', 3], ['ci', 3],
@@ -152,24 +57,21 @@ const BLOCKER_WORDS: [string, number][] = [
   ['legacy', 1], ['kubernetes', 1], ['jira', 1], ['dependencies', 1], ['prod bugs', 1], ['clarity', 1],
   ['merge conflicts', 1], ['infra', 1], ['hiring', 1], ['deadlines', 1], ['sab urgent hai', 1], ['docs', 1], ['c++', 1],
 ]
-
-export const ACTIVITIES: Record<string, ActivitySpec> = {
-  'seg-warmup': { kind: 'cloud', prompt: 'One word for your week so far', words: WEEK_WORDS },
-  'seg-radar': {
-    kind: 'poll',
-    prompt: 'Would you send production code to a hosted AI model?',
-    options: ['Yes, freely', 'Only with an enterprise contract', 'Only self-hosted', 'Never'],
-    shares: [0.14, 0.43, 0.31, 0.12],
-  },
-  'seg-topic': {
-    kind: 'poll',
-    prompt: 'AI by 2028?',
-    options: ['💥 Bursts', '📉 Slow deflate', '🚀 Still booming', '🤷 Tech stays, business crashes'],
-    shares: [0.16, 0.34, 0.12, 0.38],
-  },
-  'seg-clinic': { kind: 'cloud', prompt: 'One word: your biggest blocker this month', words: BLOCKER_WORDS },
-  'seg-boss': { kind: 'boss', prompt: 'Sum of the even numbers', config: { problem: 1 } },
+/** Invented answers, per segment: what a room of 20 might say. */
+const SAMPLE: Record<string, Pick<ActivitySpec, 'shares' | 'words'>> = {
+  warmup: { words: TOOL_WORDS },
+  radar: { shares: [0.14, 0.43, 0.31, 0.12] },
+  topic: { shares: [0.27, 0.48, 0.25] },
+  clinic: { words: BLOCKER_WORDS },
 }
+
+export const ACTIVITIES: Record<string, ActivitySpec> = Object.fromEntries(
+  NOVEMBER.activities.map(a => [a.segment, { kind: a.kind, prompt: a.prompt, options: a.options, config: a.config, ...SAMPLE[a.segment] }]),
+)
+
+/** Segment ids by kind, for the phone states that want one. */
+const byKind = (kind: Segment['kind']) => AGENDA.find(s => s.kind === kind)?.id ?? AGENDA[0].id
+const SEG = { warmup: byKind('warmup'), topic: byKind('topic'), clinic: byKind('clinic'), boss: byKind('boss') }
 
 /** Every knob the toolbar (and the URL) sets. */
 export interface Knobs {
@@ -185,6 +87,8 @@ export interface Knobs {
   pres: 'me' | 'other'
   sim: boolean
   dark: boolean
+  /** The rehearsal: /meet/present?rehearse=1 on this agenda (open the activities with the screen's own button). */
+  rehearse: boolean
 }
 
 export const PHONE_STATES = ['auto', 'guest', 'waiting', 'poll', 'voted', 'cloud', 'blocked', 'boss', 'boss-results', 'boss-error', 'watch', 'notlive'] as const
@@ -193,7 +97,7 @@ export type PhoneState = (typeof PHONE_STATES)[number]
 const pick = <T extends string>(v: string | null, all: readonly T[], d: T): T => (all.includes(v as T) ? (v as T) : d)
 
 export function readKnobs(q: URLSearchParams): Knobs {
-  const seg = Math.min(AGENDA.length, Math.max(1, Number(q.get('seg')) || 4))
+  const seg = Math.min(AGENDA.length, Math.max(1, Number(q.get('seg')) || 1))
   return {
     view: pick(q.get('view'), ['presenter', 'phone', 'both', 'board'], 'presenter'),
     seg,
@@ -206,6 +110,7 @@ export function readKnobs(q: URLSearchParams): Knobs {
     pres: pick(q.get('pres'), ['me', 'other'], 'me'),
     sim: q.get('sim') === '1',
     dark: q.get('dark') === '1',
+    rehearse: q.get('rehearse') === '1',
   }
 }
 
@@ -303,7 +208,7 @@ export function buildState(k: Knobs, t0: number, now: number): MeetingState {
     ? { cycleId: CYCLE, live: true, participants: k.n, segment: seg.id, activity, warm: true, at: iso(now) }
     : null
   return {
-    cycle: { id: CYCLE, label: 'November', meeting_at: iso(t0 - before * 1000 - into * 1000) },
+    cycle: { id: CYCLE, label: 'November', meeting_at: k.meet === 'pre' ? NOVEMBER.meetingAt : iso(t0 - before * 1000 - into * 1000) },
     me: ME,
     presenterName: k.pres === 'other' ? 'ananya' : 'you',
     serverNow: iso(t0),
@@ -362,14 +267,14 @@ function phoneSegment(k: Knobs): string {
   switch (k.phone) {
     case 'poll':
     case 'voted':
-      return ACTIVITIES[seg]?.kind === 'poll' ? seg : 'seg-topic'
+      return ACTIVITIES[seg]?.kind === 'poll' ? seg : SEG.topic
     case 'cloud':
     case 'blocked':
-      return ACTIVITIES[seg]?.kind === 'cloud' ? seg : 'seg-warmup'
+      return ACTIVITIES[seg]?.kind === 'cloud' ? seg : SEG.warmup
     case 'boss':
     case 'boss-results':
     case 'boss-error':
-      return 'seg-boss'
+      return SEG.boss
     default:
       return seg
   }
@@ -400,9 +305,9 @@ export function buildPhone(k: Knobs, t0: number, now: number): PhoneSetup {
   const id = activity?.id ?? ''
   let mine: Mine | null = null
   let demo: PhoneDemo | undefined
-  if (p === 'voted') mine = { activityId: id, values: [{ option: 3 }] }
+  if (p === 'voted') mine = { activityId: id, values: [{ option: 1 }] }
   if (p === 'cloud' || p === 'blocked') {
-    const two = segId === 'seg-clinic' ? ['flaky tests', 'meetings'] : ['jugaad', 'deadline']
+    const two = segId === SEG.clinic ? ['flaky tests', 'meetings'] : ['vs code', 'coffee']
     mine = { activityId: id, values: two.map(word => ({ word })) }
   }
   if (p === 'blocked') demo = { refused: BLOCKED_MESSAGE }
@@ -421,4 +326,14 @@ export function buildPhone(k: Knobs, t0: number, now: number): PhoneSetup {
     mine,
   }
   return { view, room, demo }
+}
+
+/** What the rehearsal page loads: each segment's activity as seeded, ready, with no answers. */
+export function rehearsalActivities(): Record<string, PublicActivity> {
+  return Object.fromEntries(
+    Object.entries(ACTIVITIES).map(([segId, a]) => [
+      segId,
+      { id: `rehearse-${segId}`, segmentId: segId, kind: a.kind, prompt: a.prompt, options: a.options ?? [], config: a.config ?? {}, status: 'ready', openedAt: null, closedAt: null, answered: 0, total: 0, counts: null, words: null, tally: null } satisfies PublicActivity,
+    ]),
+  )
 }

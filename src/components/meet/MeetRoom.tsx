@@ -186,7 +186,7 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
           <Wordmark />
         </Link>
         {live && room && (
-          <p className="ml-auto font-mono text-[12px] tabular text-ink-muted">{room.participants} in the room</p>
+          <p className="ml-auto text-footnote text-ink-muted"><span className="tabular text-ink">{room.participants}</span> in the room</p>
         )}
       </header>
       <main className="mx-auto flex w-full max-w-[440px] flex-1 flex-col px-4 py-8">

@@ -8,13 +8,19 @@ import { StartMeetingCardView } from '@/components/meet/StartMeetingCard'
 import { MeetingLiveBannerView } from '@/components/layout/MeetingLiveBanner'
 import { OVERLAY_PRIORITY, useOverlaySlot } from '@/components/ui/OverlaySlot'
 import { cn } from '@/lib/utils/cn'
-import { BLOCKED_MESSAGE, cleanWord, CLOUD_MAX_WORDS, type MeetView } from '@/lib/meet/activity'
+import { BLOCKED_MESSAGE, cleanWord, type MeetView } from '@/lib/meet/activity'
+import { addAnswer, withAnswer } from '@/lib/meet/rehearse'
 import type { MeetingState } from '@/lib/meeting'
-import { AGENDA, buildPhone, buildState, PHONE_STATES, POSTS, readKnobs, type Knobs } from './data'
+import { ACTIVITIES, AGENDA, buildPhone, buildState, PHONE_STATES, POSTS, readKnobs, rehearsalActivities, type Knobs } from './data'
 
 const PHONE_W = 375
 const PHONE_H = 740
 const noop = () => {}
+const SYNC = 'gb-meet-mock'
+type Patch = Partial<Record<keyof Knobs, string | number | boolean>>
+/** The phone's own answers, by activity: what POST /api/meet would have stored for this one person. */
+type Answers = Record<string, Record<string, unknown>[]>
+type SyncMessage = { type: 'knobs'; patch: Patch } | { type: 'answer'; activityId: string; values: Record<string, unknown>[] }
 const subscribeNothing = () => noop
 
 /**
@@ -40,17 +46,48 @@ function Mock() {
   useOverlaySlot('meet-mock', OVERLAY_PRIORITY.presenter, true)
   const [hud, setHud] = useState(q.get('hud') !== '0')
 
-  const set = useCallback(
-    (patch: Partial<Record<keyof Knobs, string | number | boolean>>) => {
-      const next = new URLSearchParams(q.toString())
+  // One mock room across the page and its frames ("both" is a presenter
+  // iframe beside a phone iframe): knob changes and the phone's answers go
+  // out on a BroadcastChannel, and every frame applies them, so opening a
+  // poll on the presenter puts it on the phone, and a vote on the phone
+  // moves the presenter's bar. The URL stays each frame's state.
+  const apply = useCallback(
+    (patch: Patch) => {
+      const next = new URLSearchParams(window.location.search)
       for (const [key, v] of Object.entries(patch)) {
         if (v === false || v === '' || v === undefined) next.delete(key)
         else next.set(key, v === true ? '1' : String(v))
       }
       router.replace(`${path}?${next.toString()}`, { scroll: false })
     },
-    [q, router, path],
+    [router, path],
   )
+  const [answers, setAnswers] = useState<Answers>({})
+  const channel = useRef<BroadcastChannel | null>(null)
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return
+    const ch = new BroadcastChannel(SYNC)
+    channel.current = ch
+    ch.onmessage = (e: MessageEvent<SyncMessage>) => {
+      const m = e.data
+      if (m.type === 'knobs') apply(m.patch)
+      if (m.type === 'answer') setAnswers(a => ({ ...a, [m.activityId]: m.values }))
+    }
+    return () => { ch.close(); channel.current = null }
+  }, [apply])
+  const set = useCallback(
+    (patch: Patch) => {
+      apply(patch)
+      // The view and the frame's own toolbar state stay local; everything else is the room.
+      const shared = Object.fromEntries(Object.entries(patch).filter(([key]) => key !== 'view' && key !== 'phone'))
+      if (Object.keys(shared).length) channel.current?.postMessage({ type: 'knobs', patch: shared } satisfies SyncMessage)
+    },
+    [apply],
+  )
+  const answer = useCallback((activityId: string, values: Record<string, unknown>[]) => {
+    setAnswers(a => ({ ...a, [activityId]: values }))
+    channel.current?.postMessage({ type: 'answer', activityId, values } satisfies SyncMessage)
+  }, [])
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', k.dark)
@@ -67,26 +104,24 @@ function Mock() {
     return () => window.removeEventListener('keydown', onKey)
   }, [frame])
 
-  if (frame === 'presenter') return <MockPresenter k={k} set={set} />
-  if (frame === 'phone') return <MockPhone k={k} />
+  // The dev overlay's "N" badge sits on the progress line in screenshots: hidden in frames and with hud=0.
+  const quietDev = frame || !hud ? <style>{'nextjs-portal{display:none!important}'}</style> : null
 
-  // The frames get the same knobs, minus the toolbar's own.
-  const frameSrc = (which: string) => {
-    const p = new URLSearchParams(q.toString())
-    p.set('frame', which)
-    p.delete('hud')
-    return `${path}?${p.toString()}`
-  }
+  if (frame === 'presenter') return <>{quietDev}<MockPresenter k={k} set={set} answers={answers} /></>
+  if (frame === 'phone') return <>{quietDev}<MockPhone k={k} answers={answers} onAnswer={answer} /></>
 
   return (
     <>
-      {k.view === 'presenter' && <MockPresenter k={k} set={set} />}
+      {quietDev}
+      {k.view === 'presenter' && <MockPresenter k={k} set={set} answers={answers} />}
       {k.view === 'phone' && (
         <div className="fixed inset-0 flex items-center justify-center bg-kinu/60">
-          <PhoneFrame src={frameSrc('phone')} />
+          <FrameSrc which="phone">{src => <PhoneFrame src={src} />}</FrameSrc>
         </div>
       )}
-      {k.view === 'both' && <Both presenterSrc={frameSrc('presenter')} phoneSrc={frameSrc('phone')} />}
+      {k.view === 'both' && (
+        <FrameSrc which="presenter">{presenterSrc => <FrameSrc which="phone">{phoneSrc => <Both presenterSrc={presenterSrc} phoneSrc={phoneSrc} />}</FrameSrc>}</FrameSrc>
+      )}
       {k.view === 'board' && <MockBoard k={k} />}
       {hud && <Toolbar k={k} set={set} />}
     </>
@@ -111,10 +146,29 @@ function useT0(k: Knobs, now: number): number {
   return t0.at
 }
 
-function MockPresenter({ k, set }: { k: Knobs; set: (p: Partial<Record<keyof Knobs, string | number | boolean>>) => void }) {
+/**
+ * A frame's URL, taken once: the frames follow the room over the channel,
+ * so a knob change doesn't reload them (and lose the phone's typing).
+ */
+function FrameSrc({ which, children }: { which: string; children: (src: string) => React.ReactNode }) {
+  const [src] = useState(() => {
+    const p = new URLSearchParams(window.location.search)
+    p.set('frame', which)
+    p.delete('hud')
+    return `${window.location.pathname}?${p.toString()}`
+  })
+  return <>{children(src)}</>
+}
+
+function MockPresenter({ k, set, answers }: { k: Knobs; set: (p: Patch) => void; answers: Answers }) {
   const now = useNow()
   const t0 = useT0(k, now)
-  const state: MeetingState = useMemo(() => buildState(k, t0, now), [k, t0, now])
+  const state: MeetingState = useMemo(() => {
+    const s = buildState(k, t0, now)
+    const a = s.room?.activity
+    // The phone's own answers, on top of the fake room's.
+    return a && s.room ? { ...s, room: { ...s.room, activity: withAnswer(a, answers[a.id]) } } : s
+  }, [k, t0, now, answers])
   const clockNow = useCallback(() => Date.now(), [])
 
   // The presenter's writes, answered here: moving and opening change the knobs, the rest do nothing.
@@ -132,20 +186,26 @@ function MockPresenter({ k, set }: { k: Knobs; set: (p: Partial<Record<keyof Kno
     [set],
   )
 
-  return <PresenterView state={state} busy={null} call={call} optimistic={noop} now={clockNow} serverNow={state.serverNow} posts={POSTS} onExit={noop} />
+  const rehearsal = useMemo(() => (k.rehearse ? rehearsalActivities() : undefined), [k.rehearse])
+  return <PresenterView state={state} busy={null} call={call} optimistic={noop} now={clockNow} serverNow={state.serverNow} posts={POSTS} rehearsal={rehearsal} onExit={noop} />
 }
 
-function MockPhone({ k }: { k: Knobs }) {
+function MockPhone({ k, answers, onAnswer }: { k: Knobs; answers: Answers; onAnswer: (activityId: string, values: Record<string, unknown>[]) => void }) {
   const now = useNow()
   const t0 = useT0(k, now)
   const setup = useMemo(() => buildPhone(k, t0, now), [k, t0, now])
   // The room re-made every second; the phone itself only re-mounts when its state changes.
   const mountKey = `${k.phone}:${k.seg}:${k.act}:${k.boss}:${k.meet}`
-  const [init, setInit] = useState<{ key: string; view: MeetView }>(() => ({ key: mountKey, view: setup.view }))
-  if (init.key !== mountKey) setInit({ key: mountKey, view: setup.view })
+  const withMine = (view: MeetView): MeetView => {
+    const id = view.room?.activity?.id
+    return id && answers[id] && k.phone === 'auto' ? { ...view, mine: { activityId: id, values: answers[id] } } : view
+  }
+  const [init, setInit] = useState<{ key: string; view: MeetView }>(() => ({ key: mountKey, view: withMine(setup.view) }))
+  if (init.key !== mountKey) setInit({ key: mountKey, view: withMine(setup.view) })
   const initial = init.key === mountKey ? init.view : setup.view
 
-  const words = useRef<string[]>([])
+  const mine = useRef(answers)
+  useEffect(() => { mine.current = answers })
   const offline: MeetRoomOffline = useMemo(
     () => ({
       room: setup.room,
@@ -159,21 +219,22 @@ function MockPhone({ k }: { k: Knobs }) {
           return { ...view, member: name ? null : view.member, joined: { kind: name ? 'guest' : 'member', name } }
         }
         const id = String(body.activity_id)
-        const value = (body.value ?? {}) as Record<string, unknown>
+        let value = (body.value ?? {}) as Record<string, unknown>
+        const kind = setup.room.activity?.kind ?? 'poll'
         if ('word' in value) {
           // Stand-in for the server's filter: anything with a * or "badword" is refused.
           const w = cleanWord(value.word)
           if (!w) throw new Error('Type a word first.')
           if (/\*|badword/.test(String(value.word))) return { ok: true, blocked: true, message: BLOCKED_MESSAGE }
-          const before = view.mine?.activityId === id ? view.mine.values.map(v => String(v.word)) : []
-          if (!words.current.length) words.current = before
-          if (!words.current.includes(w)) words.current = [...words.current, w].slice(0, CLOUD_MAX_WORDS)
-          return { ok: true, mine: { activityId: id, values: words.current.map(word => ({ word })) } }
+          value = { word: w }
         }
-        return { ok: true, mine: { activityId: id, values: [value] } }
+        const before = mine.current[id] ?? (view.mine?.activityId === id ? view.mine.values : [])
+        const values = addAnswer(kind, before, value)
+        onAnswer(id, values)
+        return { ok: true, mine: { activityId: id, values } }
       },
     }),
-    [setup.room, setup.demo, initial],
+    [setup.room, setup.demo, initial, onAnswer],
   )
 
   return <MeetRoom key={mountKey} initial={initial} offline={offline} />
@@ -234,7 +295,8 @@ function MockBoard({ k }: { k: Knobs }) {
     <div className="min-h-dvh bg-parchment text-ink">
       <MeetingLiveBannerView />
       <div className="mx-auto max-w-3xl space-y-8 px-5 py-10 md:px-10">
-        {card('2 h 10 m before, Kers prepped 5 of 7', before(somePrep, 130 * 60_000))}
+        {card('The day before: Rehearse, or Start (asks first)', before(AGENDA, 20 * 3_600_000))}
+        {card('2 h 10 m before, Kers prepped 5 of 8', before(somePrep, 130 * 60_000))}
         {card('40 min before, no prep yet', before(noPrep, 40 * 60_000))}
         {card('Starting now, all prepped', before(AGENDA, 0))}
         {card('No agenda saved', before([], 90 * 60_000))}
@@ -251,7 +313,8 @@ function MockBoard({ k }: { k: Knobs }) {
 const SEG_LABELS = AGENDA.map((s, i) => `${i + 1} · ${s.title.split(':')[0]}`)
 
 function Toolbar({ k, set }: { k: Knobs; set: (p: Partial<Record<keyof Knobs, string | number | boolean>>) => void }) {
-  const activityless = k.seg === 3 || k.seg === 7
+  const segKind = AGENDA[k.seg - 1]?.kind
+  const activityless = !ACTIVITIES[AGENDA[k.seg - 1]?.id]
   return (
     <div className="fixed bottom-28 right-4 z-[2147483000] w-[300px] rounded-[16px] border border-border-strong bg-paper/95 p-3 text-[13px] text-ink shadow-xl backdrop-blur">
       <div className="mb-2 flex items-center">
@@ -272,13 +335,14 @@ function Toolbar({ k, set }: { k: Knobs; set: (p: Partial<Record<keyof Knobs, st
           onChange={v => set({ act: v })}
         />
         <Pick label="People" value={String(k.n)} options={['1', '8', '20', '40', '60']} onChange={v => set({ n: v })} />
-        <Pick label="Boss" value={k.boss} options={['intro', 'running', 'verdict']} labels={['intro (Kers’ dare)', 'running (no clock)', 'closed (verdict)']} disabled={k.seg !== 6} onChange={v => set({ boss: v })} />
-        <Pick label="Pass %" value={String(k.pct)} options={['0', '40', '62', '100']} disabled={k.seg !== 6} onChange={v => set({ pct: v })} />
+        <Pick label="Boss" value={k.boss} options={['intro', 'running', 'verdict']} labels={['intro (Kers’ dare)', 'running (no clock)', 'closed (verdict)']} disabled={segKind !== 'boss'} onChange={v => set({ boss: v })} />
+        <Pick label="Pass %" value={String(k.pct)} options={['0', '40', '62', '100']} disabled={segKind !== 'boss'} onChange={v => set({ pct: v })} />
         <Pick label="Phone" value={k.phone} options={[...PHONE_STATES]} disabled={k.view === 'presenter' || k.view === 'board'} onChange={v => set({ phone: v })} />
       </div>
       <div className="mt-2.5 flex gap-4 border-t border-border pt-2.5">
         <Check label="Simulate" on={k.sim} onChange={v => set({ sim: v })} />
         <Check label="Dark" on={k.dark} onChange={v => set({ dark: v })} />
+        <Check label="Rehearse" on={k.rehearse} onChange={v => set({ rehearse: v })} />
       </div>
     </div>
   )

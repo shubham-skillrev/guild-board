@@ -67,10 +67,23 @@ closes when the admin moves on.
 ## Phase 1: Presenter mode
 
 **Entry**
-- From 3 h before the meeting, admins see a glowing "Start meeting mode" card
-  at the top of the board, with Kers.
-- Starting it marks the meeting live (`meetings.started_at`). Members and
-  guests then see the "Meeting is live, join the room" banner on the site.
+- From the day before (24 h, `MEET_REHEARSE_MS`), admins see a glowing
+  meeting card at the top of the board, with Kers, and two actions:
+  **Rehearse** and **Start meeting**.
+- **Rehearse** opens `/meet/present?rehearse=1`: the full presenter screen on
+  the real agenda, prep and seeded activities. Nothing goes live: no
+  `started_at`, no presenter, no banner, no write to the API. Segments move
+  locally; "Open" fills an activity with sample answers over ~25 s
+  (`lib/meet/rehearse.ts`), so the poll reveal, the cloud and the Boss Round
+  can be practised. `M` shows a phone preview beside it (the real `/meet`
+  room, offline) whose answers land on the screen. Also linked from the Run
+  tab (agenda builder and Meeting mode).
+- **Start meeting** marks the meeting live (`meetings.started_at`). Members
+  and guests then see the "Meeting is live, join the room" banner on the
+  site. More than 3 h before the meeting (`MEET_LEAD_MS`) it asks first ("The
+  meeting is tomorrow at 11:00. Start it now? Everyone will see the live
+  banner."), on the board card, the presenter screen and the Run tab. Start
+  stays admin-only on the server.
 
 **Presenter screen** (`/meet/present`, full screen, admin only)
 - No clock. The presenter finishes each item or skips it.
@@ -85,7 +98,10 @@ closes when the admin moves on.
   either end of the line. Esc leaves, F goes full screen. A refresh resumes in place.
 - Kers, small, at the end of the line: a speech bubble now and then (a cheer
   when the presenter moves on, the Boss Round dare), never about time.
-- Everything fits 1920 × 1080 with no scrolling.
+- Everything fits 1920 × 1080 with no scrolling. GuildBoard's own language,
+  at a calm size: the wordmark and mono eyebrows, sans titles (~48–56 px),
+  Kers' opener in his chat bubble, poll options as the board's poll rows,
+  word-cloud words as pills, the room as anonymous avatar seeds (never names).
 
 **Kers' prep** (the standard and prompts: [07-agenda-and-script-guide.md](./07-agenda-and-script-guide.md))
 - Drafted from each segment's topic (post, comments, votes) when the agenda is
@@ -197,6 +213,7 @@ closes when the admin moves on.
 - [x] "Start meeting mode" card on the board (admins, from 3 h before)
 - [x] `/meet/present`: segment view, progress line, keyboard nav, resume (countdown and overtime removed 2026-11-12)
 - [x] Kers reactions on the presenter screen
+- [x] Rehearse from the day before (`?rehearse=1`, phone preview); Start asks first when > 3 h early
 - [ ] Screenshot check on a 1080p share
 
 Built (2026-11-12): migration `045_meeting_presenter.sql`; `/meet/present`
@@ -209,6 +226,13 @@ by "Build from the board" or by hand in the Run tab. Admin screens poll every
 3 s for now (`components/meet/useMeetingLive.ts`); Phase 2 adds the
 `meeting:{id}` channel there and renders its activity in
 `components/meet/ActivityPanel.tsx`.
+
+**Dev mock** (`/meet/mock`, dev only): November's real agenda
+(`docs/agendas/2026-11.json`, read only; answers invented). `view=both`
+puts the presenter beside a phone, synced over a `BroadcastChannel`: open
+or close on the presenter and the phone follows; vote, add a word or run
+the Boss Round tests on the phone and the presenter's counts move.
+`rehearse=1` shows the rehearsal screen with its phone preview.
 
 ### Phase 2: Audience
 - [x] Migration: `meeting_participants`, `meeting_activities`, `meeting_responses`; realtime policy for `meeting:{id}`

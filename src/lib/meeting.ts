@@ -86,8 +86,30 @@ export interface MeetingState {
   room?: RoomState | null
 }
 
-/** Admins see "Start meeting mode" on the board from this long before the meeting. */
+/** Admins see the meeting card on the board (Rehearse, Start) from this long before: the day before. */
+export const MEET_REHEARSE_MS = 24 * 3_600_000
+/**
+ * Inside this long before the meeting, "Start" just starts it; earlier, it
+ * asks first (going live a day early by accident is the risk). It is also
+ * the "3 h before at the latest" trigger for drafting Kers' prep.
+ */
 export const MEET_LEAD_MS = 3 * 3_600_000
+
+/**
+ * What to ask before starting a meeting that's still more than MEET_LEAD_MS
+ * away, or null when it's close enough (or has no date) to just start.
+ */
+export function earlyStartWarning(meetingAt: string | null | undefined, now = Date.now()): string | null {
+  if (!meetingAt) return null
+  const at = new Date(meetingAt).getTime()
+  if (!Number.isFinite(at) || at - now <= MEET_LEAD_MS) return null
+  const day = new Date(at).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+  const today = new Date(now).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+  const tomorrow = new Date(now + 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+  const time = new Date(at).toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' })
+  const when = day === today ? `today at ${time}` : day === tomorrow ? `tomorrow at ${time}` : `on ${new Date(at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', day: 'numeric', month: 'long' })} at ${time}`
+  return `The meeting is ${when}. Start it now? Everyone will see the live banner.`
+}
 /** ...and until this long after its planned start, unless it was ended. */
 export const MEET_TAIL_MS = 4 * 3_600_000
 /** A meeting nobody ended stops counting as live after this long. */

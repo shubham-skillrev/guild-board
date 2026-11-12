@@ -1,15 +1,18 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Play } from '@phosphor-icons/react/dist/ssr'
+import { ChartBar, CloudSun, Code, Play } from '@phosphor-icons/react/dist/ssr'
+import type { Icon as PhosphorIcon } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/Button'
+import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/utils/cn'
 import { pollRevealed, type ActivityKind, type PublicActivity } from '@/lib/meet/activity'
 import { bossProblem, bossVerdict } from '@/lib/meet/boss'
 import { KIND_LABELS, type MeetingState, type Segment } from '@/lib/meeting'
 
 const KIND_NAME: Record<ActivityKind, string> = { poll: 'Poll', cloud: 'Word cloud', boss: 'Boss Round' }
-const EASE = 'ease-[cubic-bezier(0.22,1,0.36,1)]'
+const KIND_ICON: Record<ActivityKind, PhosphorIcon> = { poll: ChartBar, cloud: CloudSun, boss: Code }
+const EASE = 'ease-[cubic-bezier(0.23,1,0.32,1)]'
 
 type Call = (action: string, payload?: Record<string, unknown>, done?: string) => Promise<unknown>
 
@@ -20,9 +23,9 @@ export function segmentActivity(state: MeetingState, segment: Segment): PublicAc
 }
 
 /**
- * An activity that hasn't opened yet, as a quiet strip under the segment:
- * what the room will be asked, and for the presenter the one "Open" button
- * (the screen's single saffron action).
+ * An activity that hasn't opened yet, as a board-style card under the
+ * segment: what the room will be asked, and for the presenter the one
+ * "Open" button (the screen's single saffron action).
  */
 export function ActivityReady({
   activity,
@@ -36,13 +39,14 @@ export function ActivityReady({
   busy: string | null
 }) {
   const name = KIND_NAME[activity.kind]
-  const problem = activity.kind === 'boss' ? bossProblem(activity.config) : null
   return (
-    <section aria-label={name} className="flex max-w-[64rem] items-center gap-8 rounded-[24px] border border-border bg-paper px-7 py-6">
+    <section aria-label={name} className="elev-1 flex max-w-[46rem] items-center gap-4 rounded-(--radius-card) px-5 py-4">
+      <span aria-hidden className="grid size-10 shrink-0 place-items-center rounded-(--radius-control) bg-fill text-ink-soft">
+        <Icon icon={KIND_ICON[activity.kind]} size="md" />
+      </span>
       <div className="min-w-0 flex-1">
-        <p className="font-mono text-[13px] uppercase tracking-[0.18em] text-ink-muted">{name} · on everyone’s phone once it opens</p>
-        <p className="mt-2 text-[clamp(22px,1.6vw,30px)] font-medium leading-snug tracking-[-0.015em] text-ink text-balance">{activity.prompt}</p>
-        {problem && <p className="mt-1.5 text-[17px] text-ink-muted">Code runs on their own devices; only pass or fail comes back.</p>}
+        <p className="eyebrow">{name} · on everyone’s phone once it opens</p>
+        <p className="mt-1 text-[clamp(17px,1.05vw,20px)] font-semibold leading-snug tracking-[-0.015em] text-ink text-balance">{activity.prompt}</p>
       </div>
       {presenting ? (
         <Button icon={Play} disabled={!!busy} onClick={() => call('open_activity', { activity_id: activity.id })} className="shrink-0">
@@ -57,10 +61,11 @@ export function ActivityReady({
 
 /**
  * An open or closed activity, as the hero of the presenter screen
- * (docs/06-meeting-mode.md): the question large, then the answers as they
- * come in: poll bars (hidden for the first 8 s, so the first votes don't
- * steer the rest), the word cloud (live from the start), or the Boss Round's
- * pass rate. Closed, it shows the final result; the presenter may open it
+ * (docs/06-meeting-mode.md): the question, then the answers as they come in:
+ * poll options as the board's poll rows with their bars filling (hidden for
+ * the first 8 s, so the first votes don't steer the rest), the word cloud as
+ * pills that pop in, or the Boss Round's pass rate and a dot per person in
+ * the room. Closed, it shows the final result; the presenter may open it
  * again. The Boss Round has no clock: it runs until the presenter closes it,
  * and Kers' verdict shows once it's closed.
  *
@@ -86,15 +91,23 @@ export function ActivityHero({
 }) {
   const t = useTicking(a.status === 'open' && a.kind === 'poll', now)
   const open = a.status === 'open'
-  const status = open ? `${a.answered} of ${participants} ${a.kind === 'boss' ? 'trying' : 'answered'}` : `closed · ${a.answered} ${a.kind === 'boss' ? 'tried' : 'answered'}`
+  const counted = a.kind === 'boss' ? `${a.answered} of ${participants} trying` : `${a.answered} of ${participants} answered`
   const problem = a.kind === 'boss' ? bossProblem(a.config) : null
+  const where = KIND_LABELS[segment.kind] === KIND_NAME[a.kind] ? KIND_NAME[a.kind] : `${KIND_LABELS[segment.kind]} · ${KIND_NAME[a.kind]}`
 
   return (
     <section aria-label={KIND_NAME[a.kind]} className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-8 items-center gap-3">
-        <p className="font-mono text-[14px] uppercase tracking-[0.18em] text-ink-muted">
-          {KIND_LABELS[segment.kind] === KIND_NAME[a.kind] ? KIND_NAME[a.kind] : `${KIND_LABELS[segment.kind]} · ${KIND_NAME[a.kind]}`} · <span className="tabular">{status}</span>
-        </p>
+      <div className="flex h-9 items-center gap-4">
+        <p className="eyebrow">{where}</p>
+        <span className="inline-flex h-7 items-center gap-2 rounded-full bg-fill px-3 font-mono text-[13px] tabular text-ink-soft">
+          {open && (
+            <span aria-hidden className="relative flex size-2">
+              <span className="absolute inset-0 rounded-full bg-matcha opacity-60 motion-safe:animate-ping" />
+              <span className="relative size-2 rounded-full bg-matcha" />
+            </span>
+          )}
+          {open ? counted : `Closed · ${a.answered} ${a.kind === 'boss' ? 'tried' : 'answered'}`}
+        </span>
         {presenting && (
           <div className="ml-auto opacity-60 transition-opacity duration-200 hover:opacity-100 focus-within:opacity-100">
             {open ? (
@@ -107,16 +120,16 @@ export function ActivityHero({
           </div>
         )}
       </div>
-      <h1 className="mt-4 max-w-[30ch] text-[clamp(40px,3.4vw,64px)] font-semibold leading-[1.06] tracking-[-0.03em] text-ink text-balance">{a.prompt}</h1>
+      <h1 className="mt-3 max-w-[34ch] text-[clamp(32px,2.3vw,44px)] font-semibold leading-[1.12] tracking-[-0.025em] text-ink text-balance">{a.prompt}</h1>
       {problem ? (
-        <p className="mt-4 max-w-[64ch] text-[clamp(18px,1.25vw,22px)] leading-relaxed text-ink-soft">
-          {problem.description} <span className="whitespace-nowrap font-mono text-ink">{problem.signature}</span>
+        <p className="mt-3 max-w-[70ch] text-[clamp(17px,1vw,19px)] leading-relaxed text-ink-soft">
+          {problem.description} <span className="whitespace-nowrap rounded-(--radius-control) bg-fill px-2 py-0.5 font-mono text-[0.9em] text-ink">{problem.signature}</span>
           <span className="text-ink-muted"> · {problem.cases.length} tests</span>
         </p>
       ) : open ? (
-        <p className="mt-3 text-[17px] text-ink-muted">On your phone or laptop: open GuildBoard and join the room.</p>
+        <p className="mt-2 text-[16px] text-ink-muted">On your phone or laptop: open GuildBoard and join the room.</p>
       ) : null}
-      <div className="mt-10 flex min-h-0 flex-1 flex-col">
+      <div className="mt-8 flex min-h-0 flex-1 flex-col">
         {a.kind === 'poll' && <PollBars activity={a} at={t ?? 0} />}
         {a.kind === 'cloud' && <WordCloud activity={a} />}
         {a.kind === 'boss' && <BossTally activity={a} participants={participants} />}
@@ -125,40 +138,42 @@ export function ActivityHero({
   )
 }
 
-// ─── Poll ───
+// ─── Poll: the board's poll rows, big ───
 
 function PollBars({ activity, at }: { activity: PublicActivity; at: number }) {
   const counts = activity.counts ?? activity.options.map(() => 0)
   const total = counts.reduce((n, c) => n + c, 0)
   const shown = pollRevealed(activity, at)
   const top = shown && total ? Math.max(...counts) : -1
-  const long = activity.options.some(o => o.length > 32)
   return (
-    <div className="max-w-[88rem]">
-      <ul className={cn(long ? 'space-y-6' : 'space-y-8')}>
+    <div className="max-w-[60rem]">
+      <ul className="space-y-3">
         {activity.options.map((o, i) => {
           const share = shown && total ? counts[i] / total : 0
           const lead = counts[i] === top && top > 0
           return (
-            <li key={i}>
-              <div className="flex items-baseline gap-6">
-                <span className={cn('min-w-0 flex-1 leading-snug tracking-[-0.01em] text-balance', long ? 'text-[clamp(20px,1.5vw,28px)]' : 'text-[clamp(22px,1.7vw,32px)]', lead ? 'font-semibold text-ink' : 'text-ink-soft')}>{o}</span>
-                <span className={cn('shrink-0 font-mono text-[clamp(24px,1.9vw,36px)] tabular tracking-[-0.02em] transition-opacity duration-500', shown ? 'opacity-100' : 'opacity-0', lead ? 'text-ink' : 'text-ink-muted')}>
+            <li
+              key={i}
+              className={cn('relative overflow-hidden rounded-(--radius-card) border bg-paper transition-colors duration-500', lead ? 'border-ink/30' : 'border-border')}
+            >
+              {/* The bar sits behind the text, as on the board's poll card. */}
+              <span
+                aria-hidden
+                className={cn('absolute inset-y-0 left-0 transition-[width,background-color] duration-[900ms] motion-reduce:transition-none', EASE, lead ? 'bg-ink/[0.11]' : 'bg-ink/[0.05]')}
+                style={{ width: `${share * 100}%` }}
+              />
+              <span className="relative flex min-h-[60px] items-center gap-6 px-5 py-2.5">
+                <span className={cn('min-w-0 flex-1 text-[clamp(18px,1.15vw,22px)] leading-snug tracking-[-0.012em] text-balance', lead ? 'font-semibold text-ink' : 'text-ink-soft')}>{o}</span>
+                <span className={cn('num shrink-0 text-[clamp(20px,1.3vw,26px)] transition-opacity duration-500', shown ? 'opacity-100' : 'opacity-0', lead ? 'font-semibold text-ink' : 'text-ink-muted')}>
                   <Tween value={Math.round(share * 100)} />%
                 </span>
-              </div>
-              <div className="mt-2.5 h-3.5 overflow-hidden rounded-full bg-kinu/80">
-                <div
-                  className={cn('h-full rounded-full transition-[width,background-color] duration-[900ms] motion-reduce:transition-none', EASE, lead ? 'bg-ink' : 'bg-ink/35')}
-                  style={{ width: `${share * 100}%` }}
-                />
-              </div>
+              </span>
             </li>
           )
         })}
       </ul>
       {activity.status === 'open' && !shown && (
-        <p className="mt-8 font-mono text-[17px] tabular text-ink-muted" aria-live="polite">
+        <p className="mt-5 font-mono text-[16px] tabular text-ink-muted" aria-live="polite">
           {total} {total === 1 ? 'vote' : 'votes'} in · the bars show in a moment
         </p>
       )}
@@ -166,10 +181,10 @@ function PollBars({ activity, at }: { activity: PublicActivity; at: number }) {
   )
 }
 
-// ─── Word cloud ───
+// ─── Word cloud: pills ───
 
-const CLOUD_MIN = 26
-const CLOUD_MAX = 96
+const CLOUD_MIN = 18
+const CLOUD_MAX = 64
 /** Below this, the top word isn't "big": two votes for one word shouldn't fill the screen. */
 const CLOUD_FLOOR = 5
 
@@ -193,10 +208,11 @@ export function cloudWeight(n: number, top: number): number {
 export function cloudRows<T extends { word: string; n: number }>(words: T[], width: number, height: number): { rows: { w: T; size: number }[][]; scale: number } {
   const top = words[0]?.n ?? 1
   const sized = words.map(w => ({ w, size: CLOUD_MIN + (CLOUD_MAX - CLOUD_MIN) * cloudWeight(w.n, top) }))
-  const gap = 36
-  const est = (x: { w: T; size: number }) => x.w.word.length * x.size * 0.56 + gap
+  const gap = 14
+  // A pill: the word, plus 0.6em padding each side and its border.
+  const est = (x: { w: T; size: number }) => x.w.word.length * x.size * 0.56 + x.size * 1.2 + gap
   const total = sized.reduce((s, x) => s + est(x), 0)
-  let count = Math.max(1, Math.min(7, Math.ceil(total / (width * 0.82))))
+  let count = Math.max(1, Math.min(7, Math.ceil(total / (width * 0.8))))
   if (count > 1 && count % 2 === 0) count += 1
   // Centre out: middle row first, then above, below, above...
   const mid = Math.floor(count / 2)
@@ -215,7 +231,7 @@ export function cloudRows<T extends { word: string; n: number }>(words: T[], wid
     return out
   })
   // Overflow: shrink everything by the worst of width and height.
-  const rowH = centred.map(row => Math.max(CLOUD_MIN, ...row.map(x => x.size)) * 1.2 + 8)
+  const rowH = centred.map(row => Math.max(CLOUD_MIN, ...row.map(x => x.size)) * 1.5 + 14)
   const tallest = rowH.reduce((a, b) => a + b, 0)
   const widest = Math.max(...widths)
   const scale = Math.min(1, height > 0 ? height / tallest : 1, width > 0 ? (width * 0.98) / widest : 1)
@@ -233,30 +249,39 @@ function WordCloud({ activity }: { activity: PublicActivity }) {
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
   if (!words.length) {
     return (
       <div ref={box} className="flex min-h-0 flex-1 items-center justify-center">
-        <p className="text-[22px] text-ink-muted">Waiting for the first word…</p>
+        <p className="text-[20px] text-ink-muted">Waiting for the first word…</p>
       </div>
     )
   }
   const { rows, scale } = cloudRows(words, size.w, size.h)
+  const leader = words[0]
   // One list, rows split by full-width breaks: a word that changes row moves
   // rather than re-mounting, so only a new word plays its landing.
   return (
     <div ref={box} className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden">
-      <ul aria-label="Words so far" className="flex flex-wrap items-baseline justify-center gap-x-9 gap-y-2">
+      <ul aria-label="Words so far" className="flex flex-wrap items-center justify-center gap-3">
         {rows.flatMap((row, r) => [
           ...(r > 0 ? [<li key={`row-${r}`} aria-hidden className="h-0 basis-full" />] : []),
           ...row.map(({ w, size: px }) => {
             const weight = (px - CLOUD_MIN) / (CLOUD_MAX - CLOUD_MIN)
+            const top = w.word === leader.word && leader.n > 1
             return (
               <li
                 key={w.word}
                 className={cn(
-                  'gb-word-land whitespace-nowrap leading-[1.2] tracking-[-0.025em] transition-[font-size,color] duration-700 motion-reduce:transition-none',
+                  'gb-word-land whitespace-nowrap rounded-full border px-[0.6em] py-[0.14em] leading-[1.15] tracking-[-0.02em] transition-[font-size,background-color,color,border-color] duration-700 motion-reduce:transition-none',
                   EASE,
-                  weight > 0.55 ? 'font-semibold text-ink' : weight > 0.2 ? 'font-medium text-ink' : 'text-ink-soft',
+                  top
+                    ? 'border-ink bg-ink font-semibold text-parchment'
+                    : weight > 0.45
+                      ? 'border-border-strong bg-paper font-semibold text-ink'
+                      : weight > 0.15
+                        ? 'border-border bg-paper font-medium text-ink'
+                        : 'border-border bg-paper text-ink-soft',
                 )}
                 style={{ fontSize: `${Math.round(px * scale)}px` }}
               >
@@ -273,41 +298,67 @@ function WordCloud({ activity }: { activity: PublicActivity }) {
 
 // ─── Boss Round ───
 
-/** The pass rate, large; "–" until someone has passed. No clock: Kers' verdict shows once it's closed. */
+/**
+ * The pass rate ("–" until someone passes), and the room as a dot per
+ * person: passed, still trying, or watching. Anonymous: the dots are just
+ * counts drawn as dots. No clock: Kers' verdict shows once it's closed.
+ */
 function BossTally({ activity, participants }: { activity: PublicActivity; participants: number }) {
   const { passed = 0, trying = 0, pct = 0 } = activity.tally ?? {}
   const closed = activity.status === 'closed'
   const blank = !closed && passed === 0
+  const room = Math.max(participants, trying, 1)
+  const shown = Math.min(room, 60)
+  const passedDots = Math.round((passed / room) * shown)
+  const tryingDots = Math.round((trying / room) * shown)
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-end gap-16">
-        <div className="relative">
+      <div className="grid max-w-[60rem] grid-cols-2 gap-4">
+        <div className="elev-1 flex flex-col rounded-(--radius-card) px-6 pb-6 pt-5">
+          <p className="eyebrow">Passed every test</p>
           {blank ? (
             // "–" until someone passes: a quiet dash at the number's height, not a big 0%.
-            <p role="img" aria-label="Nobody has passed yet" className="flex h-[clamp(108px,9.9vw,187px)] items-center">
-              <span className="block h-2 w-28 rounded-full bg-ink-muted/30" />
+            <p role="img" aria-label="Nobody has passed yet" className="mt-3 flex h-[clamp(72px,5.4vw,104px)] items-center">
+              <span className="block h-2 w-24 rounded-full bg-ink-muted/30" />
             </p>
           ) : (
-            <p className="font-mono text-[clamp(120px,11vw,208px)] leading-[0.9] tabular tracking-[-0.06em] text-ink"><Tween value={pct} />%</p>
+            <p className="num relative mt-3 text-[clamp(72px,6vw,116px)] leading-[0.92] tracking-[-0.05em] text-ink">
+              <Tween value={pct} />%
+              {closed && trying > 0 && pct >= 50 && <Confetti />}
+            </p>
           )}
-          {closed && trying > 0 && pct >= 50 && <Confetti />}
+          <div className="mt-auto pt-6">
+            <div className="h-2.5 overflow-hidden rounded-full bg-fill">
+              <div className={cn('h-full rounded-full bg-matcha transition-[width] duration-[900ms] motion-reduce:transition-none', EASE)} style={{ width: `${blank ? 0 : pct}%` }} />
+            </div>
+          </div>
         </div>
-        <div className="pb-3">
-          <p className="text-[clamp(22px,1.6vw,30px)] leading-snug text-ink">
-            passed every test
-          </p>
-          <p className="mt-2 font-mono text-[17px] tabular text-ink-muted">
-            <Tween value={passed} /> passed · <Tween value={trying} /> {trying === 1 ? 'person' : 'people'} trying{participants ? ` of ${participants}` : ''}
+        <div className="elev-1 flex flex-col rounded-(--radius-card) px-6 pb-6 pt-5">
+          <p className="eyebrow">The room</p>
+          <ul aria-hidden className="mt-4 flex flex-wrap content-start gap-2">
+            {Array.from({ length: shown }, (_, i) => (
+              <li
+                key={i}
+                className={cn(
+                  'size-5 rounded-full transition-colors duration-700',
+                  i < passedDots ? 'bg-matcha' : i < tryingDots ? 'border-2 border-ink/45' : 'bg-fill-strong',
+                )}
+              />
+            ))}
+          </ul>
+          <p className="mt-auto flex flex-wrap gap-x-5 gap-y-1 pt-4 font-mono text-[15px] tabular text-ink-muted">
+            <span className="inline-flex items-center gap-2"><span aria-hidden className="size-3 rounded-full bg-matcha" /><Tween value={passed} /> passed</span>
+            <span className="inline-flex items-center gap-2"><span aria-hidden className="size-3 rounded-full border-2 border-ink/45" /><Tween value={Math.max(0, trying - passed)} /> still trying</span>
+            <span className="inline-flex items-center gap-2"><span aria-hidden className="size-3 rounded-full bg-fill-strong" /><Tween value={Math.max(0, participants - trying)} /> watching</span>
           </p>
         </div>
-      </div>
-      <div className="mt-8 h-3 max-w-[88rem] overflow-hidden rounded-full bg-kinu/80">
-        <div className={cn('h-full rounded-full bg-ink transition-[width] duration-[900ms] motion-reduce:transition-none', EASE)} style={{ width: `${blank ? 0 : pct}%` }} />
       </div>
       {closed && (
-        <figure className="gb-verdict mt-10 max-w-[60rem]">
-          <blockquote className="text-[clamp(28px,2.2vw,40px)] font-medium leading-snug tracking-[-0.02em] text-ink text-balance">“{bossVerdict(pct, trying)}”</blockquote>
-          <figcaption className="mt-2 font-mono text-[14px] uppercase tracking-[0.18em] text-ink-muted">Kers’ verdict</figcaption>
+        <figure className="gb-verdict mt-6 max-w-[46rem]">
+          <figcaption className="eyebrow">Kers’ verdict</figcaption>
+          <blockquote className="mt-2 inline-block rounded-2xl rounded-bl-md border border-border bg-sumi px-5 py-3.5 text-[clamp(20px,1.4vw,26px)] font-medium leading-snug text-ink text-balance">
+            {bossVerdict(pct, trying)}
+          </blockquote>
         </figure>
       )}
     </div>
@@ -328,7 +379,7 @@ function Confetti() {
     }
   })
   return (
-    <span aria-hidden className="pointer-events-none absolute left-1/2 top-1/2">
+    <span aria-hidden className="pointer-events-none absolute left-1/3 top-1/2">
       {bits.map((b, i) => (
         <span
           key={i}

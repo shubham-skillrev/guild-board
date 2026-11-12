@@ -72,7 +72,7 @@ export function PresenterKers({
       <p
         aria-live="polite"
         className={cn(
-          'pointer-events-none absolute bottom-full right-2 mb-1 w-max max-w-[24rem] origin-bottom-right rounded-[18px] rounded-br-[6px] border border-border bg-paper px-4 py-2.5 text-[17px] leading-snug text-ink shadow-[0_10px_30px_-14px_var(--shadow-tint-strong)]',
+          'pointer-events-none absolute bottom-full right-2 mb-1 w-max max-w-[24rem] origin-bottom-right rounded-2xl rounded-br-md border border-border bg-sumi px-4 py-2.5 text-[17px] leading-snug text-ink shadow-[0_8px_24px_var(--shadow-tint)]',
           'transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-opacity',
           mood.line ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-1 scale-95 opacity-0',
         )}
