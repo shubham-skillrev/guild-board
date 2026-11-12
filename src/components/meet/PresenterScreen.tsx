@@ -22,7 +22,7 @@ import { PhonePreview } from '@/components/meet/PhonePreview'
 import { SegmentCards, SlideText } from '@/components/meet/SegmentCards'
 import type { PublicActivity } from '@/lib/meet/activity'
 import { useMeetingLive, useSecond } from '@/components/meet/useMeetingLive'
-import { activityKeyFor, earlyStartWarning, isRealCard, meetingLive, presenterNotes, publicSegments, sectionsOf, segmentCards, slideKind, type MeetingState, type MeetPost, type Segment } from '@/lib/meeting'
+import { activityKeyFor, earlyStartWarning, isRealCard, meetingDone, meetingLive, presenterNotes, publicSegments, sectionsOf, segmentCards, slideKind, type MeetingState, type MeetPost, type Segment } from '@/lib/meeting'
 
 /** Where the screen is when migration 045 isn't applied (or in rehearsal): this browser only. */
 const localKey = (cycleId: string, rehearsing: boolean) => `${rehearsing ? 'gb-meet-rehearse' : 'gb-meet'}:${cycleId}`
@@ -108,7 +108,7 @@ export function PresenterView({
   const meeting = state.meeting
   const agenda = meeting.agenda
   const live = rehearsing || meetingLive(meeting)
-  const ended = !rehearsing && !!meeting.endedAt
+  const ended = !rehearsing && meetingDone(meeting, state.cycle.meeting_at)
   const local = rehearsing || !meeting.presenterReady
   const posKey = localKey(meeting.cycleId, rehearsing)
   // Kers' Boss Round intro (its first 20 s) and rehearsal's sample answers; nothing on screen counts time.

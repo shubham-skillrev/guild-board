@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/hooks/useToast'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import { earlyStartWarning, MEET_REHEARSE_MS, MEET_TAIL_MS, meetingLive, type MeetingState } from '@/lib/meeting'
+import { earlyStartWarning, MEET_REHEARSE_MS, MEET_TAIL_MS, meetingDone, meetingLive, type MeetingState } from '@/lib/meeting'
 
 function until(ms: number): string {
   if (ms <= 0) return 'now'
@@ -101,7 +101,7 @@ export function StartMeetingCardView({ s, now, busy, onStart }: { s: MeetingStat
   const { meeting } = s
   const at = new Date(s.cycle.meeting_at).getTime()
   const live = meetingLive(meeting, now)
-  if (meeting.endedAt) return null
+  if (meetingDone(meeting, s.cycle.meeting_at)) return null
   if (!live && (now < at - MEET_REHEARSE_MS || now > at + MEET_TAIL_MS)) return null
 
   const time = new Date(at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' })

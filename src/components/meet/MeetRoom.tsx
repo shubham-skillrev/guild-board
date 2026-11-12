@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { OVERLAY_PRIORITY, useOverlaySlot } from '@/components/ui/OverlaySlot'
 import { useToast } from '@/hooks/useToast'
+import { useAuth } from '@/hooks/useAuth'
 import { PhoneActivity } from '@/components/meet/PhoneActivity'
 import { ActivityResults } from '@/components/meet/ActivityPanel'
 import { SegmentCards, SlideText } from '@/components/meet/SegmentCards'
@@ -61,6 +62,7 @@ export interface MeetRoomOffline {
 
 export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: MeetRoomOffline }) {
   const toast = useToast()
+  const { isAdmin } = useAuth()
   const [view, setView] = useState(initial)
   const [joining, setJoining] = useState(false)
   const [joinError, setJoinError] = useState<string | null>(null)
@@ -162,8 +164,15 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
   let body: React.ReactNode
   if (!live) {
     body = (
-      <Notice kers="sleepy" title="No meeting on right now." text="When the guild meets, the room opens here.">
-        <Link href="/board" className="mt-6 inline-block text-footnote text-ink underline underline-offset-2">Back to the board</Link>
+      <Notice kers="sleepy" title="No meeting on right now." text={isAdmin ? 'This is the room people join on their phones. It opens when you start meeting mode from the presenter screen.' : 'When the guild meets, the room opens here.'}>
+        {isAdmin ? (
+          <div className="mt-6 flex justify-center gap-2">
+            <Link href="/meet/present?rehearse=1" className="press inline-flex h-8 items-center rounded-full bg-kinu/70 px-3.5 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink">Rehearse</Link>
+            <Link href="/meet/present" className="press inline-flex h-8 items-center rounded-full bg-ink px-3.5 text-footnote font-medium text-parchment hover:bg-ink/85">Presenter screen</Link>
+          </div>
+        ) : (
+          <Link href="/board" className="mt-6 inline-block text-footnote text-ink underline underline-offset-2">Back to the board</Link>
+        )}
       </Notice>
     )
   } else if (!view.ready) {

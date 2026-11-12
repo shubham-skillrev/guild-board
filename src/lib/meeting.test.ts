@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { activityKeyFor, cleanAgenda, cleanCards, cleanMeme, earlyStartWarning, MEET_LEAD_MS, MEET_LIVE_MAX_MS, meetingLive, phoneAgenda, publicSegments, sectionsOf, segmentCards, slideKind } from './meeting.ts'
+import { activityKeyFor, cleanAgenda, cleanCards, cleanMeme, earlyStartWarning, MEET_LEAD_MS, MEET_LIVE_MAX_MS, meetingDone, meetingLive, phoneAgenda, publicSegments, sectionsOf, segmentCards, slideKind } from './meeting.ts'
 
 test('meetingLive: started, not ended, not left running from long ago', () => {
   const now = Date.parse('2026-11-12T12:00:00Z')
@@ -121,4 +121,20 @@ test('November: every slide reaches phones without notes, memes included', () =>
   assert.equal(view.agenda.length, stored.length)
   assert.ok(view.agenda.some(s => s.slide === 'meme' && s.meme?.panels?.length))
   assert.ok(view.agenda.every(s => !('prep' in s)))
+})
+
+test('meetingDone: a test start and End the day before does not count', () => {
+  const at = '2026-11-13T05:30:00Z'
+  const atMs = Date.parse(at)
+  const iso = (ms: number) => new Date(ms).toISOString()
+  // Started and ended 18 h early: a dry run, not the meeting.
+  assert.equal(meetingDone({ startedAt: iso(atMs - 18 * 3_600_000), endedAt: iso(atMs - 17 * 3_600_000) }, at), false)
+  // Started on the day and ended: done.
+  assert.equal(meetingDone({ startedAt: iso(atMs - 10 * 60_000), endedAt: iso(atMs + 3_600_000) }, at), true)
+  // Started just inside the lead window: done.
+  assert.equal(meetingDone({ startedAt: iso(atMs - MEET_LEAD_MS + 60_000), endedAt: iso(atMs) }, at), true)
+  // Never ended: not done.
+  assert.equal(meetingDone({ startedAt: iso(atMs), endedAt: null }, at), false)
+  // No meeting date: trust ended_at.
+  assert.equal(meetingDone({ startedAt: iso(atMs), endedAt: iso(atMs) }, null), true)
 })

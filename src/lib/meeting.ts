@@ -209,6 +209,18 @@ export function meetingLive(m: { startedAt: string | null; endedAt: string | nul
   return !!m?.startedAt && !m.endedAt && now - new Date(m.startedAt).getTime() < MEET_LIVE_MAX_MS
 }
 
+/**
+ * Whether this month's meeting has actually happened and ended. A test start
+ * and End well before the meeting (more than MEET_LEAD_MS early) doesn't
+ * count, so it can't hide the board card or the presenter's Start button.
+ */
+export function meetingDone(m: { startedAt: string | null; endedAt: string | null } | null | undefined, meetingAt: string | null | undefined): boolean {
+  if (!m?.endedAt) return false
+  const at = meetingAt ? new Date(meetingAt).getTime() : NaN
+  if (!Number.isFinite(at) || !m.startedAt) return true
+  return new Date(m.startedAt).getTime() >= at - MEET_LEAD_MS
+}
+
 export const MEETING_MINUTES = 60
 export const LIMITS = {
   title: 80, detail: 400, note: 300, owner: 60, recap: 4000, segments: 40, notes: 200, point: 200, opener: 240, points: 3, topics: 3,
