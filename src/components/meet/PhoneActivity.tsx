@@ -182,8 +182,9 @@ function PhoneCloud({ activity, mine, onMine, post, toast, demo }: Props) {
 }
 
 /**
- * Kers' Boss Round: the problem, one plain editor (the same on a phone and a
- * laptop) and "Run tests". No clock: it runs until the presenter closes it,
+ * Kers' Boss Round: the problem, one editor (BossEditor, CodeMirror with
+ * JavaScript highlighting, the same on a phone and a laptop; a plain
+ * textarea while it loads) and "Run tests". Read-only once closed. No clock: it runs until the presenter closes it,
  * and then this person sees "Watch the screen" for Kers' verdict. The
  * tests run in a Web Worker on this device (lib/meet/bossRunner.ts); each
  * run's result replaces the last one on the screen. The code stays here (and
@@ -198,6 +199,14 @@ function PhoneBoss({ activity, mine, onMine, post, toast, demo }: Props) {
   const [fatal, setFatal] = useState<string | null>(demo?.fatal ?? null)
   const seeded = !!demo?.code
   const escaped = useRef(false)
+  const readOnly = activity.status !== 'open'
+  // CodeMirror, loaded only now that a Boss Round is on screen; the plain textarea until then, or if it fails.
+  const [Editor, setEditor] = useState<typeof import('./BossEditor').BossEditor | null>(null)
+  useEffect(() => {
+    let on = true
+    import('./BossEditor').then(m => { if (on) setEditor(() => m.BossEditor) }).catch(() => {})
+    return () => { on = false }
+  }, [])
 
   // Their code survives a refresh.
   useEffect(() => {
@@ -273,26 +282,35 @@ function PhoneBoss({ activity, mine, onMine, post, toast, demo }: Props) {
         <span className="text-ink-muted">function </span>{problem.signature}
       </p>
 
-      <label htmlFor="boss-code" className="sr-only">Your code</label>
-      <Textarea
-        id="boss-code"
-        value={code}
-        onChange={e => edit(e.target.value)}
-        onKeyDown={onKeyDown}
-        rows={9}
-        wrap="off"
-        spellCheck={false}
-        autoCorrect="off"
-        autoCapitalize="off"
-        autoComplete="off"
-        data-gramm="false"
-        aria-describedby="boss-code-hint"
-        className="mt-4 min-h-40 overflow-x-auto leading-relaxed [tab-size:2] pointer-coarse:text-[16px]"
-      />
+      {Editor ? (
+        <div className="mt-4">
+          <Editor value={code} onChange={edit} readOnly={readOnly} label="Your code" describedBy="boss-code-hint" />
+        </div>
+      ) : (
+        <>
+          <label htmlFor="boss-code" className="sr-only">Your code</label>
+          <Textarea
+            id="boss-code"
+            value={code}
+            onChange={e => edit(e.target.value)}
+            onKeyDown={onKeyDown}
+            readOnly={readOnly}
+            rows={9}
+            wrap="off"
+            spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="off"
+            autoComplete="off"
+            data-gramm="false"
+            aria-describedby="boss-code-hint"
+            className="mt-4 min-h-40 overflow-x-auto font-mono leading-relaxed [tab-size:2] pointer-coarse:text-[16px]"
+          />
+        </>
+      )}
       <p id="boss-code-hint" className="sr-only">Tab indents. Press Escape, then Tab, to leave the editor.</p>
 
       <div className="mt-3 flex items-center gap-3">
-        <Button icon={Play} onClick={run} disabled={running || !code.trim()}>{running ? 'Running…' : 'Run tests'}</Button>
+        <Button icon={Play} onClick={run} disabled={running || readOnly || !code.trim()}>{running ? 'Running…' : 'Run tests'}</Button>
         <p className="min-w-0 flex-1 text-footnote text-ink-muted" aria-live="polite">
           {status}
         </p>
