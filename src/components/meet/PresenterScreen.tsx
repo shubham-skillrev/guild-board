@@ -3,17 +3,17 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ArrowRight, ArrowsIn, ArrowsOut, Play, Stop } from '@phosphor-icons/react/dist/ssr'
+import { ArrowsIn, ArrowsOut, CaretLeft, CaretRight, Play, Stop } from '@phosphor-icons/react/dist/ssr'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/utils/cn'
 import { OVERLAY_PRIORITY, useOverlaySlot } from '@/components/ui/OverlaySlot'
-import { ActivityPanel } from '@/components/meet/ActivityPanel'
+import { ActivityHero, ActivityReady, segmentActivity } from '@/components/meet/ActivityPanel'
 import { AgendaProgress } from '@/components/meet/AgendaProgress'
 import { PresenterKers } from '@/components/meet/PresenterKers'
 import { bossPhase } from '@/lib/meet/boss'
 import { useMeetingLive, useSecond } from '@/components/meet/useMeetingLive'
-import { clock, KIND_LABELS, meetingLive, type MeetingState, type Segment } from '@/lib/meeting'
+import { KIND_LABELS, meetingLive, type MeetingState, type Segment } from '@/lib/meeting'
 import type { PresenterPost } from '@/lib/guild/meetingPrep'
 
 /** Where the screen is when migration 045 isn't applied: this browser only. */
@@ -28,21 +28,29 @@ function readLocal(cycleId: string): LocalPos | null {
   }
 }
 
+/** Whether Kers' notes for the presenter are on screen (P toggles; kept per browser). */
+const NOTES_KEY = 'gb-meet-notes'
+
 /**
  * The presenter screen (/meet/present), shared full screen on the call.
+ * Minimal on purpose: only what the room needs to see, and no clock (the
+ * meeting goes at the presenter's pace: finish an item, or skip it).
  *
- *   header     the month, the meeting clock, who presents ("Take over")
- *   stage      the segment: kind, title, detail, its board posts, then its
- *              activity (ActivityPanel: poll bars or word cloud, with the
- *              presenter's "Open" button) and Kers' prep: the opener and
- *              2-3 talking points
- *   side       the segment's countdown (overtime past zero) and Kers
- *   footer     agenda progress (weighted bar + dots) and Back / Next
+ *   header   the month and how many are in the room, quiet; the presenter's
+ *            few controls fade in on hover ("Take over" for another admin)
+ *   stage    the hero. With an open or closed activity: its question and the
+ *            answers (ActivityHero: poll bars, word cloud, Boss pass rate).
+ *            Otherwise: the segment's title and Kers' opener, large, its
+ *            board posts small, and an activity waiting to open
+ *            (ActivityReady, the one saffron button)
+ *   notes    Kers' talking points, small and dim, for the presenter (P hides)
+ *   footer   one thin line with a dot per segment, evenly spaced, no text;
+ *            subtle Back / Next either side, and Kers, small, at the end
  *
  * Only the presenter moves it (← → or PageUp/PageDown for a clicker, the
- * buttons, the dots); everyone else follows (the meeting channel, polling
- * as the fallback). Esc leaves, F goes full screen. The place lives on the
- * server, so a refresh resumes it.
+ * arrows, the dots); everyone else follows (the meeting channel, polling
+ * as the fallback). Esc leaves, F goes full screen, P shows or hides the
+ * notes. The place lives on the server, so a refresh resumes it.
  */
 export function PresenterScreen({ initial, posts }: { initial: MeetingState; posts: Record<string, PresenterPost> }) {
   const { state, busy, call, optimistic, now } = useMeetingLive(initial)
@@ -82,6 +90,7 @@ export function PresenterView({
   const live = meetingLive(meeting)
   const ended = !!meeting.endedAt
   const local = !meeting.presenterReady
+  // Only for Kers' Boss Round intro (its first 20 s); nothing on screen counts time.
   const t = useSecond(live, now, serverNow)
   // Hold the floating slot so no install or push prompt lands on the share.
   useOverlaySlot('presenter', OVERLAY_PRIORITY.presenter, true)
@@ -93,15 +102,25 @@ export function PresenterView({
     return () => clearTimeout(id)
   }, [local, meeting.cycleId])
 
+  const [notes, setNotes] = useState(true)
+  useEffect(() => {
+    const id = setTimeout(() => {
+      try { setNotes(localStorage.getItem(NOTES_KEY) !== '0') } catch {}
+    }, 0)
+    return () => clearTimeout(id)
+  }, [])
+  const toggleNotes = useCallback(() => {
+    setNotes(on => {
+      try { localStorage.setItem(NOTES_KEY, on ? '0' : '1') } catch {}
+      return !on
+    })
+  }, [])
+
   const segmentId = local ? localPos?.segment : meeting.currentSegment
   const idx = Math.max(0, agenda.findIndex(s => s.id === segmentId))
   const seg: Segment | undefined = agenda[idx]
-  const startIso = (local ? localPos?.at : meeting.segmentStartedAt) ?? meeting.startedAt
-  const secondsIn = live && startIso ? Math.max(0, (t - new Date(startIso).getTime()) / 1000) : 0
-  const remaining = seg ? seg.minutes * 60 - secondsIn : 0
-  const over = live && remaining < 0
-  const bossActivity = state.room?.activity
-  const boss = live && seg && bossActivity?.segmentId === seg.id ? bossPhase(bossActivity, t) : null
+  const activity = live && seg ? segmentActivity(state, seg) : null
+  const boss = activity ? bossPhase(activity, t) : null
   const presenting = live && (local || meeting.presenterId === state.me)
   const last = idx === agenda.length - 1
 
@@ -154,10 +173,11 @@ export function PresenterView({
         else router.push('/admin/run/meeting')
       }
       else if (e.key === 'f' || e.key === 'F') fullscreen()
+      else if (e.key === 'p' || e.key === 'P') toggleNotes()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [go, idx, router, fullscreen, onExit])
+  }, [go, idx, router, fullscreen, onExit, toggleNotes])
 
   if (!agenda.length || !seg) {
     return (
@@ -171,41 +191,38 @@ export function PresenterView({
     )
   }
 
-  const meetingClock = live && meeting.startedAt ? clock((t - new Date(meeting.startedAt).getTime()) / 1000) : null
-  const segPosts = (seg.topicIds ?? []).map(id => posts[id]).filter(Boolean)
-  const prep = seg.prep && (seg.prep.points.length || seg.prep.opener) ? seg.prep : null
+  const hero = activity && activity.status !== 'ready' ? activity : null
+  const ready = activity && activity.status === 'ready' ? activity : null
+  const segPosts = hero ? [] : (seg.topicIds ?? []).map(id => posts[id]).filter(Boolean)
+  const opener = seg.prep?.opener?.trim() || null
+  const points = notes && presenting ? seg.prep?.points ?? [] : []
+  const longTitle = seg.title.length > 48
 
   return (
     <Shell>
-      {/* ─── Header ─── */}
-      <header className="flex h-16 shrink-0 items-center gap-4 border-b border-border px-10">
+      {/* ─── Header: quiet, the controls fade in on hover ─── */}
+      <header className="flex h-16 shrink-0 items-center gap-4 px-12">
         <p className="text-[15px] text-ink-muted">
           <span className="font-medium text-ink">{state.cycle.label} guild meeting</span>
-          {meetingClock && <span className="font-mono tabular"> · {meetingClock} in</span>}
-          {live && state.room && (
-            <span className="font-mono tabular"> · {state.room.participants} in the room</span>
-          )}
+          {live && state.room && <span className="tabular"> · {state.room.participants} in the room</span>}
           {ended && ' · ended'}
         </p>
-        <div className="ml-auto flex items-center gap-2">
-          {live && !local && (
-            presenting ? (
-              <span className="text-footnote text-ink-muted">You’re presenting</span>
-            ) : (
-              <>
-                <span className="text-footnote text-ink-muted">
-                  {state.presenterName ? `@${state.presenterName} is presenting` : 'Nobody is presenting'} · view only
-                </span>
-                <Button variant="secondary" disabled={!!busy} onClick={() => call('take_over', {}, 'You’re presenting now')}>
-                  {state.presenterName ? 'Take over' : 'Present'}
-                </Button>
-              </>
-            )
+        <div className={cn('ml-auto flex items-center gap-1.5', presenting && 'opacity-40 transition-opacity duration-200 hover:opacity-100 focus-within:opacity-100')}>
+          {live && !local && !presenting && (
+            <>
+              <span className="mr-1.5 text-footnote text-ink-muted">
+                {state.presenterName ? `@${state.presenterName} is presenting` : 'Nobody is presenting'} · view only
+              </span>
+              <Button variant="secondary" disabled={!!busy} onClick={() => call('take_over', {}, 'You’re presenting now')}>
+                {state.presenterName ? 'Take over' : 'Present'}
+              </Button>
+            </>
           )}
-          {live && local && <span className="text-footnote text-ink-muted">Apply migration 045 so other admins can follow along</span>}
-          {presenting && !last && (
-            <Button variant="ghost" icon={Stop} disabled={!!busy} onClick={end}>End</Button>
-          )}
+          {live && local && <span className="mr-1.5 text-footnote text-ink-muted">Apply migration 045 so other admins can follow along</span>}
+          {presenting && seg.prep?.points.length ? (
+            <Button variant="ghost" onClick={toggleNotes} aria-pressed={notes} title="P">{notes ? 'Hide notes' : 'Notes'}</Button>
+          ) : null}
+          {presenting && !last && <Button variant="ghost" icon={Stop} disabled={!!busy} onClick={end}>End</Button>}
           <Button variant="ghost" icon={isFull ? ArrowsIn : ArrowsOut} onClick={fullscreen} aria-label={isFull ? 'Leave full screen' : 'Full screen'} />
           <Link href="/admin/run/meeting" className="press inline-flex h-8 items-center rounded-full px-3 text-footnote text-ink-muted hover:bg-kinu/60 hover:text-ink">
             Esc
@@ -213,96 +230,113 @@ export function PresenterView({
         </div>
       </header>
 
-      {/* ─── Stage and side ─── */}
-      <main className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(300px,26vw)] gap-12 px-10 py-10">
-        <section aria-live="polite" className="flex min-h-0 min-w-0 flex-col overflow-y-auto">
-          <p className="font-mono text-[14px] uppercase tracking-[0.18em] text-ink-muted">
-            {String(idx + 1).padStart(2, '0')} / {String(agenda.length).padStart(2, '0')} · {KIND_LABELS[seg.kind]} · {seg.minutes} min
-          </p>
-          <h1 className="mt-4 text-[clamp(40px,4vw,72px)] font-semibold leading-[1.05] tracking-[-0.035em] text-ink text-balance">{seg.title}</h1>
-          {seg.detail && <p className="mt-4 max-w-[60ch] text-[clamp(18px,1.3vw,24px)] leading-relaxed text-ink-soft">{seg.detail}</p>}
+      {/* ─── Stage ─── */}
+      <main aria-live="polite" className="flex min-h-0 flex-1 flex-col px-12 pb-6 pt-6 xl:px-24">
+        {ended ? (
+          <div className="my-auto">
+            <h1 className="text-[clamp(56px,5.6vw,104px)] font-semibold leading-[1.02] tracking-[-0.04em] text-ink">That’s the meeting.</h1>
+            <Link href="/admin/run#run-recap" className="mt-8 inline-block text-[17px] text-ink underline underline-offset-4">Write the recap</Link>
+          </div>
+        ) : hero ? (
+          <ActivityHero
+            key={hero.id}
+            segment={seg}
+            activity={hero}
+            participants={state.room?.participants ?? 0}
+            presenting={presenting}
+            now={now}
+            call={call}
+            busy={busy}
+          />
+        ) : (
+          <div key={seg.id} className="animate-fade-up flex min-h-0 flex-1 flex-col">
+            <div className="my-auto">
+              <p className="font-mono text-[14px] uppercase tracking-[0.18em] text-ink-muted">{KIND_LABELS[seg.kind]}</p>
+              <h1
+                className={cn(
+                  'mt-5 max-w-[24ch] font-semibold tracking-[-0.04em] text-ink text-balance',
+                  longTitle ? 'text-[clamp(40px,3.4vw,64px)] leading-[1.06]' : 'text-[clamp(56px,5.6vw,108px)] leading-[1.0]',
+                )}
+              >
+                {seg.title}
+              </h1>
+              {opener ? (
+                <p className="mt-8 max-w-[44ch] text-[clamp(26px,2.1vw,40px)] leading-[1.25] tracking-[-0.02em] text-ink-soft text-balance">“{opener}”</p>
+              ) : seg.detail ? (
+                <p className="mt-8 max-w-[52ch] text-[clamp(20px,1.5vw,28px)] leading-relaxed text-ink-soft">{seg.detail}</p>
+              ) : null}
 
-          {segPosts.length > 0 && (
-            <ul className="mt-8 grid max-w-[72rem] gap-3" style={{ gridTemplateColumns: `repeat(${Math.min(segPosts.length, 2)}, minmax(0, 1fr))` }}>
-              {segPosts.map(p => (
-                <li key={p.id} className="rounded-[20px] border border-border bg-paper px-6 py-5">
-                  <p className="text-[clamp(18px,1.25vw,22px)] font-medium leading-snug text-ink">{p.title}</p>
-                  {p.description && <p className="mt-2 line-clamp-4 text-[17px] leading-relaxed text-ink-soft">{p.description}</p>}
-                  <p className="mt-3 font-mono text-[13px] tabular text-ink-muted">
-                    {p.voteCount} {p.voteCount === 1 ? 'vote' : 'votes'} · {p.commentCount} {p.commentCount === 1 ? 'comment' : 'comments'}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <ActivityPanel segment={seg} state={state} presenting={presenting} now={now} call={call} busy={busy} />
-
-          {prep && (
-            <div className="mt-10 max-w-[72rem] border-t border-border pt-6">
-              <p className="font-mono text-[13px] uppercase tracking-[0.18em] text-ink-muted">Kers’ prep</p>
-              {prep.opener && <p className="mt-3 text-[clamp(22px,1.7vw,30px)] leading-snug tracking-[-0.01em] text-ink">“{prep.opener}”</p>}
-              {prep.points.length > 0 && (
-                <ul className="mt-5 space-y-2.5">
-                  {prep.points.map((pt, i) => (
-                    <li key={i} className="flex gap-3 text-[clamp(17px,1.2vw,21px)] leading-relaxed text-ink-soft">
-                      <span aria-hidden className="mt-[0.7em] size-1.5 shrink-0 rounded-full bg-ink-muted" />
-                      {pt}
-                    </li>
-                  ))}
-                </ul>
+              {!live && !ended && (
+                <div className="mt-12 flex items-center gap-6">
+                  <Button icon={Play} disabled={!!busy} onClick={start}>{busy === 'start' ? 'Starting…' : 'Start meeting mode'}</Button>
+                  <p className="text-[17px] text-ink-muted">The room opens on everyone’s phone when you do.</p>
+                </div>
+              )}
+              {ready && (
+                <div className="mt-12">
+                  <ActivityReady activity={ready} presenting={presenting} call={call} busy={busy} />
+                </div>
               )}
             </div>
-          )}
-        </section>
 
-        <aside className="flex min-h-0 flex-col">
-          <div className="rounded-[28px] border border-border bg-paper p-8">
-            {live ? (
-              <>
-                <p className={cn('font-mono text-[clamp(64px,7vw,128px)] leading-none tabular tracking-[-0.04em]', over ? 'text-vermillion' : 'text-ink')}>
-                  {over ? '+' : ''}{clock(remaining)}
-                </p>
-                <p className={cn('mt-3 text-[17px]', over ? 'text-vermillion' : 'text-ink-muted')}>{over ? 'over time' : 'left in this segment'}</p>
-              </>
-            ) : ended ? (
-              <>
-                <p className="text-[28px] font-semibold tracking-[-0.02em] text-ink">That’s the meeting.</p>
-                <Link href="/admin/run#run-recap" className="mt-4 inline-block text-footnote text-ink underline underline-offset-2">Write the recap</Link>
-              </>
-            ) : (
-              <>
-                <p className="font-mono text-[clamp(64px,7vw,128px)] leading-none tabular tracking-[-0.04em] text-ink-muted">{clock(seg.minutes * 60)}</p>
-                <p className="mt-3 text-[17px] text-ink-muted">Starts when meeting mode does</p>
-                <Button icon={Play} className="mt-6" disabled={!!busy} onClick={start}>
-                  {busy === 'start' ? 'Starting…' : 'Start meeting mode'}
-                </Button>
-              </>
-            )}
-          </div>
-          <PresenterKers className="mt-auto pt-6" segmentKey={seg.id} remaining={remaining} live={live} ended={ended} boss={boss} />
-        </aside>
-      </main>
-
-      {/* ─── Progress and moving on ─── */}
-      <footer className="flex shrink-0 items-end gap-10 border-t border-border px-10 py-6">
-        <div className="min-w-0 flex-1">
-          <AgendaProgress agenda={agenda} index={idx} secondsIn={secondsIn} onPick={presenting ? go : undefined} />
-        </div>
-        {presenting && (
-          <div className="flex shrink-0 gap-2">
-            <Button variant="secondary" icon={ArrowLeft} disabled={idx === 0} onClick={() => go(idx - 1)}>Back</Button>
-            {last ? (
-              <Button icon={Stop} disabled={!!busy} onClick={end}>End meeting</Button>
-            ) : (
-              <Button onClick={() => go(idx + 1)}>
-                Next <Icon icon={ArrowRight} size="sm" />
-              </Button>
+            {segPosts.length > 0 && (
+              <ul className="grid max-w-[88rem] shrink-0 gap-4 pt-10" style={{ gridTemplateColumns: `repeat(${Math.min(segPosts.length, 3)}, minmax(0, 30rem))` }}>
+                {segPosts.map(p => (
+                  <li key={p.id} className="rounded-[18px] border border-border bg-paper px-5 py-4">
+                    <p className="line-clamp-2 text-[17px] font-medium leading-snug text-ink">{p.title}</p>
+                    <p className="mt-2 font-mono text-[13px] tabular text-ink-muted">
+                      From the board · {p.voteCount} {p.voteCount === 1 ? 'vote' : 'votes'} · {p.commentCount} {p.commentCount === 1 ? 'comment' : 'comments'}
+                    </p>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         )}
+
+        {points.length > 0 && !ended && (
+          <aside aria-label="Kers’ notes for the presenter" className="mt-6 max-w-[64rem] shrink-0 border-t border-border pt-4">
+            <ul className="space-y-1">
+              {points.map((pt, i) => (
+                <li key={i} className="flex gap-3 text-[15px] leading-relaxed text-ink-muted">
+                  <span aria-hidden className="mt-[0.7em] size-1 shrink-0 rounded-full bg-ink-muted/70" />
+                  {pt}
+                </li>
+              ))}
+            </ul>
+          </aside>
+        )}
+      </main>
+
+      {/* ─── The line, the arrows, Kers ─── */}
+      <footer className="flex h-20 shrink-0 items-center gap-5 pl-12 pr-8 xl:pl-24">
+        {presenting && (
+          <NavArrow label="Back" icon={CaretLeft} disabled={idx === 0} onClick={() => go(idx - 1)} />
+        )}
+        <AgendaProgress agenda={agenda} index={idx} onPick={presenting ? go : undefined} className="min-w-0 flex-1" />
+        {presenting && (last ? (
+          <Button variant="secondary" icon={Stop} disabled={!!busy} onClick={end}>End meeting</Button>
+        ) : (
+          <NavArrow label="Next" icon={CaretRight} onClick={() => go(idx + 1)} />
+        ))}
+        <PresenterKers className="-mb-2 ml-3 shrink-0" segmentKey={seg.id} live={live} ended={ended} boss={boss} />
       </footer>
     </Shell>
+  )
+}
+
+function NavArrow({ label, icon, disabled, onClick }: { label: string; icon: typeof CaretLeft; disabled?: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={`${label} (${label === 'Back' ? '←' : '→'})`}
+      disabled={disabled}
+      onClick={onClick}
+      className="press-sm inline-flex size-8 shrink-0 items-center justify-center rounded-full text-ink-muted opacity-50 transition-[opacity,background-color,color] duration-200 hover:bg-kinu/70 hover:text-ink hover:opacity-100 focus-visible:opacity-100 disabled:pointer-events-none disabled:opacity-15"
+    >
+      <Icon icon={icon} size="sm" weight="bold" />
+    </button>
   )
 }
 

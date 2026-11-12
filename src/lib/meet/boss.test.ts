@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { BOSS_MS, BOSS_PROBLEMS, bossPhase, bossProblem, bossVerdict, deepEqual, judge, summarise, WORKER_SOURCE, type BossProblem, type WorkerReply } from './boss.ts'
+import { BOSS_INTRO_MS, BOSS_PROBLEMS, bossPhase, bossProblem, bossVerdict, deepEqual, judge, summarise, WORKER_SOURCE, type BossProblem, type WorkerReply } from './boss.ts'
 import { aggregate, cleanResponse, type ActivityRow } from './activity.ts'
 
 /**
@@ -127,12 +127,13 @@ test('boss aggregate: pass rate of those trying, one run per person', () => {
   assert.equal(aggregate(boss, many).tally?.pct, 99)
 })
 
-test('Kers: intro, then running, then a verdict by pass rate', () => {
+test('Kers: intro, then running until it is closed, then a verdict by pass rate', () => {
   const opened = new Date(boss.opened_at!).getTime()
   const a = { kind: 'boss' as const, status: 'open' as const, openedAt: boss.opened_at, tally: { passed: 5, trying: 8, pct: 62 } }
   assert.deepEqual(bossPhase(a, opened + 1000), { phase: 'intro' })
-  assert.deepEqual(bossPhase(a, opened + BOSS_MS - 60_000), { phase: 'running', left: 60 })
-  assert.deepEqual(bossPhase(a, opened + BOSS_MS), { phase: 'verdict', pct: 62, trying: 8 })
+  assert.deepEqual(bossPhase(a, opened + BOSS_INTRO_MS), { phase: 'running' })
+  // No clock: an hour in, still running until the presenter closes it.
+  assert.deepEqual(bossPhase(a, opened + 3_600_000), { phase: 'running' })
   assert.deepEqual(bossPhase({ ...a, status: 'closed' }, opened + 1000), { phase: 'verdict', pct: 62, trying: 8 })
   assert.equal(bossPhase({ ...a, status: 'ready' }, opened), null)
   assert.equal(bossVerdict(62, 8), '62% of you can still code. I’m mildly impressed.')

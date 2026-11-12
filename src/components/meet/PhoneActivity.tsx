@@ -9,7 +9,7 @@ import { Input, Textarea } from '@/components/ui/Input'
 import { useToast } from '@/hooks/useToast'
 import { cn } from '@/lib/utils/cn'
 import { CLOUD_MAX_WORDS, CLOUD_WORD_MAX, type Mine, type PublicActivity } from '@/lib/meet/activity'
-import { BOSS_MS, bossProblem, callText, showValue, summarise, type CaseResult } from '@/lib/meet/boss'
+import { bossProblem, callText, showValue, summarise, type CaseResult } from '@/lib/meet/boss'
 import { runBoss } from '@/lib/meet/bossRunner'
 
 type Post = (body: Record<string, unknown>) => Promise<{ ok?: boolean; blocked?: boolean; message?: string; mine?: Mine }>
@@ -21,8 +21,6 @@ interface Props {
   onMine: (mine: Mine) => void
   post: Post
   toast: Toast
-  /** The server's time when this room state was made: the Boss Round's clock follows it. */
-  serverAt?: string
   /** The dev mock (/meet/mock) only: local state to start from. */
   demo?: PhoneDemo
 }
@@ -183,16 +181,15 @@ function PhoneCloud({ activity, mine, onMine, post, toast, demo }: Props) {
   )
 }
 
-const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-
 /**
  * Kers' Boss Round: the problem, one plain editor (the same on a phone and a
- * laptop), an 8-minute countdown from when it opened, and "Run tests". The
+ * laptop) and "Run tests". No clock: it runs until the presenter closes it,
+ * and then this person sees "Watch the screen" for Kers' verdict. The
  * tests run in a Web Worker on this device (lib/meet/bossRunner.ts); each
  * run's result replaces the last one on the screen. The code stays here (and
  * in this browser's storage, so a refresh keeps it).
  */
-function PhoneBoss({ activity, mine, onMine, post, toast, serverAt, demo }: Props) {
+function PhoneBoss({ activity, mine, onMine, post, toast, demo }: Props) {
   const problem = bossProblem(activity.config)
   const storeKey = `gb-boss:${activity.id}`
   const [code, setCode] = useState(demo?.code ?? problem?.starter ?? '')
@@ -200,24 +197,7 @@ function PhoneBoss({ activity, mine, onMine, post, toast, serverAt, demo }: Prop
   const [results, setResults] = useState<CaseResult[] | null>(demo?.results ?? null)
   const [fatal, setFatal] = useState<string | null>(demo?.fatal ?? null)
   const seeded = !!demo?.code
-  const [left, setLeft] = useState<number | null>(null)
   const escaped = useRef(false)
-
-  // The clock: the server's, via the skew when this mounted.
-  useEffect(() => {
-    if (!activity.openedAt) return
-    const skew = serverAt ? new Date(serverAt).getTime() - Date.now() : 0
-    const end = new Date(activity.openedAt).getTime() + BOSS_MS
-    const tick = () => setLeft(Math.max(0, Math.ceil((end - (Date.now() + skew)) / 1000)))
-    const first = setTimeout(tick, 0)
-    const id = setInterval(tick, 1000)
-    return () => {
-      clearTimeout(first)
-      clearInterval(id)
-    }
-    // serverAt moves with every room update; the skew is taken once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activity.openedAt])
 
   // Their code survives a refresh.
   useEffect(() => {
@@ -233,7 +213,6 @@ function PhoneBoss({ activity, mine, onMine, post, toast, serverAt, demo }: Prop
 
   if (!problem) return <p className="m-auto py-10 text-center text-footnote text-ink-muted">Kers forgot to pick a problem. Watch the screen.</p>
 
-  const timeUp = left === 0
   const last = mine?.values[0]
   const sent = last && typeof last.tests === 'number' ? { tests: last.tests as number, of: Number(last.of), passed: last.passed === true } : null
 
@@ -257,7 +236,7 @@ function PhoneBoss({ activity, mine, onMine, post, toast, serverAt, demo }: Prop
   }
 
   const run = async () => {
-    if (running || timeUp) return
+    if (running) return
     setRunning(true)
     setFatal(null)
     setResults([])
@@ -285,11 +264,8 @@ function PhoneBoss({ activity, mine, onMine, post, toast, serverAt, demo }: Prop
   return (
     <div>
       <div className="mt-2 flex items-center gap-2.5">
-        <Kers size={36} colour="meeting" expression={timeUp ? 'smug' : 'nosy'} motion="idle" />
+        <Kers size={36} colour="meeting" expression="nosy" motion="idle" />
         <p className="font-mono text-[12px] uppercase tracking-[0.16em] text-ink-muted">Kers’ Boss Round</p>
-        <p className={cn('ml-auto font-mono text-[15px] tabular', left !== null && left <= 60 ? 'text-vermillion' : 'text-ink')} aria-label={left === null ? undefined : `${clock(left)} left`}>
-          {left === null ? '' : clock(left)}
-        </p>
       </div>
       <Prompt>{problem.title}</Prompt>
       <p className="mt-2 text-footnote leading-relaxed text-ink-soft">{problem.description}</p>
@@ -311,15 +287,14 @@ function PhoneBoss({ activity, mine, onMine, post, toast, serverAt, demo }: Prop
         autoComplete="off"
         data-gramm="false"
         aria-describedby="boss-code-hint"
-        readOnly={timeUp}
         className="mt-4 min-h-40 overflow-x-auto leading-relaxed [tab-size:2] pointer-coarse:text-[16px]"
       />
       <p id="boss-code-hint" className="sr-only">Tab indents. Press Escape, then Tab, to leave the editor.</p>
 
       <div className="mt-3 flex items-center gap-3">
-        <Button icon={Play} onClick={run} disabled={running || timeUp || !code.trim()}>{running ? 'Running…' : 'Run tests'}</Button>
+        <Button icon={Play} onClick={run} disabled={running || !code.trim()}>{running ? 'Running…' : 'Run tests'}</Button>
         <p className="min-w-0 flex-1 text-footnote text-ink-muted" aria-live="polite">
-          {timeUp ? 'Time. Watch the screen for Kers’ verdict.' : status}
+          {status}
         </p>
       </div>
 

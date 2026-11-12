@@ -8,12 +8,12 @@ import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/utils/cn'
-import { useMeetingLive, useSecond } from '@/components/meet/useMeetingLive'
-import { clock, LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
+import { useMeetingLive } from '@/components/meet/useMeetingLive'
+import { LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
 
 /**
- * The meeting, live, for the admin running it: one segment at a time with
- * its countdown, the agenda down the side, and a capture box for notes,
+ * The meeting, live, for the admin running it: one segment at a time (no
+ * clock: the presenter finishes an item or skips it), the agenda down the side, and a capture box for notes,
  * decisions and owners that feed the recap. The segment is the shared one
  * (the presenter screen's, migration 045), so this follows /meet/present;
  * the presenter can move it from here too, with the buttons or arrow keys
@@ -23,7 +23,6 @@ export function MeetingMode({ initial }: { initial: MeetingState }) {
   const { state, meeting, busy, call, optimistic, now } = useMeetingLive(initial)
   const label = state.cycle.label
   const [localIdx, setLocalIdx] = useState(0)
-  const [localStart, setLocalStart] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [owner, setOwner] = useState('')
   const [decision, setDecision] = useState(false)
@@ -34,14 +33,12 @@ export function MeetingMode({ initial }: { initial: MeetingState }) {
   const agenda = meeting.agenda
   const idx = local ? localIdx : Math.max(0, agenda.findIndex(s => s.id === meeting.currentSegment))
   const seg = agenda[idx]
-  const t = useSecond(live, now, initial.serverNow)
 
   const go = (to: number) => {
     if (!presenting || to < 0 || to >= agenda.length || to === idx) return
     const at = new Date(now()).toISOString()
     if (local) {
       setLocalIdx(to)
-      setLocalStart(at)
       return
     }
     optimistic({ currentSegment: agenda[to].id, segmentStartedAt: at })
@@ -68,11 +65,6 @@ export function MeetingMode({ initial }: { initial: MeetingState }) {
     )
   }
 
-  const segStart = (local ? localStart : meeting.segmentStartedAt) ?? meeting.startedAt
-  const remaining = live && segStart ? seg.minutes * 60 - (t - new Date(segStart).getTime()) / 1000 : seg.minutes * 60
-  const over = remaining < 0
-  const elapsedTotal = live && meeting.startedAt ? (t - new Date(meeting.startedAt).getTime()) / 1000 : 0
-
   const add = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!text.trim()) return
@@ -85,14 +77,14 @@ export function MeetingMode({ initial }: { initial: MeetingState }) {
       <div className="flex flex-wrap items-center gap-3">
         <Link href="/admin/run" className="inline-flex items-center gap-1 text-footnote text-ink-muted hover:text-ink"><Icon icon={ArrowLeft} size="sm" /> Run</Link>
         <p className="text-footnote text-ink-muted">
-          {label} meeting{live ? ` · ${clock(elapsedTotal)} in` : meeting.endedAt ? ' · ended' : ''}
+          {label} meeting{live ? ' · live' : meeting.endedAt ? ' · ended' : ''}
           {live && !local && !presenting && ` · @${state.presenterName ?? 'someone'} is presenting`}
         </p>
         <div className="ml-auto flex gap-2">
           <Link href="/meet/present" className="press inline-flex h-8 items-center gap-1.5 rounded-full bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink">
             <Icon icon={Presentation} size="sm" /> Presenter screen
           </Link>
-          {!live && !meeting.endedAt && <Button icon={Play} disabled={!!busy} onClick={async () => { if (await call('start', {}, 'Meeting started')) { setLocalIdx(0); setLocalStart(new Date(now()).toISOString()) } }}>Start the meeting</Button>}
+          {!live && !meeting.endedAt && <Button icon={Play} disabled={!!busy} onClick={async () => { if (await call('start', {}, 'Meeting started')) { setLocalIdx(0) } }}>Start the meeting</Button>}
           {live && <Button variant="secondary" icon={Stop} disabled={!!busy} onClick={() => call('end', {}, 'Meeting ended: the recap is on the Run tab')}>End the meeting</Button>}
           {meeting.endedAt && <Link href="/admin/run#run-recap" className="press inline-flex h-8 items-center rounded-(--radius-control) bg-ink px-3 text-footnote font-medium text-parchment">Write the recap →</Link>}
         </div>
@@ -103,15 +95,12 @@ export function MeetingMode({ initial }: { initial: MeetingState }) {
           {/* The segment on now. */}
           <section aria-live="polite" className="relative overflow-hidden rounded-[24px] bg-ink p-6 text-parchment sm:p-8">
             <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-parchment/60">
-              {String(idx + 1).padStart(2, '0')} of {String(agenda.length).padStart(2, '0')} · {seg.minutes} min
+              {String(idx + 1).padStart(2, '0')} of {String(agenda.length).padStart(2, '0')}
             </p>
             <h2 className="mt-3 text-[28px] sm:text-[36px] font-semibold leading-tight tracking-[-0.03em]">{seg.title}</h2>
             {seg.detail && <p className="mt-3 max-w-prose text-[15px] leading-relaxed text-parchment/80">{seg.detail}</p>}
-            <p className={cn('mt-6 font-mono text-[44px] sm:text-[56px] leading-none tabular', over ? 'text-[#ff9a7a]' : 'text-parchment')}>
-              {over ? '+' : ''}{clock(remaining)}
-            </p>
-            <p className="mt-1 text-meta text-parchment/60">{live ? (over ? 'over time' : 'left') : 'starts when you start the meeting'}</p>
-            <Kers size={84} expression={over ? 'dramatic' : 'excited'} className="absolute bottom-4 right-4 max-sm:hidden" />
+            {!live && <p className="mt-6 text-meta text-parchment/60">Starts when you start the meeting</p>}
+            <Kers size={64} expression="excited" className="absolute bottom-4 right-4 max-sm:hidden" />
           </section>
 
           {presenting && <div className="flex gap-2">

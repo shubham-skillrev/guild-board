@@ -122,7 +122,7 @@ function MockPresenter({ k, set }: { k: Knobs; set: (p: Partial<Record<keyof Kno
     async <T,>(action: string, payload: Record<string, unknown> = {}): Promise<T | null> => {
       if (action === 'goto') {
         const i = AGENDA.findIndex(s => s.id === payload.segment)
-        if (i >= 0) set({ seg: i + 1, time: 'ontime', act: 'ready', boss: 'intro' })
+        if (i >= 0) set({ seg: i + 1, act: 'ready', boss: 'intro' })
       } else if (action === 'open_activity') set({ act: 'fresh' })
       else if (action === 'close_activity') set({ act: 'closed', boss: 'verdict' })
       else if (action === 'start' || action === 'take_over') set({ meet: 'live', pres: 'me' })
@@ -272,8 +272,7 @@ function Toolbar({ k, set }: { k: Knobs; set: (p: Partial<Record<keyof Knobs, st
           onChange={v => set({ act: v })}
         />
         <Pick label="People" value={String(k.n)} options={['1', '8', '20', '40', '60']} onChange={v => set({ n: v })} />
-        <Pick label="Time" value={k.time} options={['ontime', '1min', 'over']} labels={['on time', '1 min left', 'overtime']} onChange={v => set({ time: v })} />
-        <Pick label="Boss" value={k.boss} options={['intro', 'running', 'verdict']} disabled={k.seg !== 6} onChange={v => set({ boss: v })} />
+        <Pick label="Boss" value={k.boss} options={['intro', 'running', 'verdict']} labels={['intro (Kers’ dare)', 'running (no clock)', 'closed (verdict)']} disabled={k.seg !== 6} onChange={v => set({ boss: v })} />
         <Pick label="Pass %" value={String(k.pct)} options={['0', '40', '62', '100']} disabled={k.seg !== 6} onChange={v => set({ pct: v })} />
         <Pick label="Phone" value={k.phone} options={[...PHONE_STATES]} disabled={k.view === 'presenter' || k.view === 'board'} onChange={v => set({ phone: v })} />
       </div>

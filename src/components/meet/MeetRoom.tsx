@@ -58,8 +58,8 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
   const room = view.room
   const live = !!room?.live
   const joined = !!view.joined
-  // Hold the floating slot while the meeting is on: no install or push prompt over a poll.
-  useOverlaySlot('meet-room', OVERLAY_PRIORITY.presenter, live)
+  // Hold the floating slot: no install or push prompt over a poll, the join form or the waiting room.
+  useOverlaySlot('meet-room', OVERLAY_PRIORITY.presenter, true)
 
   // Answers sent, and still on their way. A pull that left before one (or
   // while one is out) has stale answers, so it keeps the ones on screen.
@@ -171,11 +171,12 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
       <GuestJoin busy={joining} error={joinError} onJoin={join} />
     )
   } else if (room?.activity?.status === 'open') {
-    body = <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={send} toast={toast} serverAt={room.at} demo={offline?.demo} />
+    body = <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={send} toast={toast} demo={offline?.demo} />
   } else if (!room?.warm) {
     body = <Notice kers="thinking" title="Kers is setting up…" text={people(room?.participants ?? 0)} />
   } else {
-    body = <Notice kers="watching" title="Watch the screen." text="The next poll or word cloud shows up here when it opens." />
+    const verdict = room?.activity?.kind === 'boss' && room.activity.status === 'closed'
+    body = <Notice kers="watching" title="Watch the screen." text={verdict ? 'The round is closed. Kers’ verdict is on the screen.' : 'The next poll or word cloud shows up here when it opens.'} />
   }
 
   return (

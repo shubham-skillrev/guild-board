@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useOverlaySlot, OVERLAY_PRIORITY } from "@/components/ui/OverlaySlot";
 import { useAuth } from "@/hooks/useAuth";
 import { subscribePush, unsubscribePush } from "@/app/actions/push";
@@ -20,6 +21,9 @@ function urlBase64ToUint8Array(base64String: string) {
 
 export function PushOptIn() {
   const { supabaseUser, isLoading } = useAuth();
+  // Never over the meeting room or the presenter's shared screen.
+  const pathname = usePathname();
+  const onMeet = pathname === "/meet" || pathname.startsWith("/meet/");
   const [supported, setSupported] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>("default");
   const [hasSub, setHasSub] = useState<boolean | null>(null);
@@ -102,6 +106,7 @@ export function PushOptIn() {
   };
 
   const eligible =
+    !onMeet &&
     !isLoading &&
     !!supabaseUser &&
     supported &&

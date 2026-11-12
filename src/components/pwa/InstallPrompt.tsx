@@ -54,8 +54,11 @@ function isStandaloneMode() {
    and the card sat over its stat strip; asking to install an app nobody has
    tried yet is also the wrong order. It shows once they are inside. Nor on
    /hours, the public page: strangers came for the building, not an app.
-   Nor on /survey: it is two minutes long, and the card covered the form. */
+   Nor on /survey: it is two minutes long, and the card covered the form.
+   Nor anywhere under /meet: the meeting room and the presenter's shared
+   screen (they hold the slot too; this is the belt to their braces). */
 const QUIET_PATHS = new Set(["/", "/login", "/hours", "/survey", "/join", "/about"]);
+const quiet = (path: string) => QUIET_PATHS.has(path) || path === "/meet" || path.startsWith("/meet/");
 
 export function InstallPrompt() {
   const pathname = usePathname();
@@ -120,7 +123,7 @@ export function InstallPrompt() {
   const hasSlot = useOverlaySlot(
     "installPrompt",
     OVERLAY_PRIORITY.installPrompt,
-    !standalone && visible && !QUIET_PATHS.has(pathname),
+    !standalone && visible && !quiet(pathname),
   );
   if (!hasSlot) return null;
 

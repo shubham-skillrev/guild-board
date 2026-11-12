@@ -80,7 +80,7 @@ export interface MeetingState {
   /** The caller, so the screen knows whether it presents. */
   me: string
   presenterName: string | null
-  /** For the countdown: the client corrects its clock by this. */
+  /** The client corrects its clock by this (the poll reveal, Kers' Boss Round intro). */
   serverNow: string
   /** The audience (migration 046): who's in, the segment's activity and its answers. Null before 046. */
   room?: RoomState | null
@@ -142,22 +142,6 @@ export function cleanPrep(raw: unknown): Prep | null {
   // An admin who cleared it meant it: keep the empty prep so Kers doesn't refill it.
   if (!points.length && !opener && by !== 'admin') return null
   return { points, opener, by, at: typeof r.at === 'string' ? r.at : null }
-}
-
-/** Where the meeting is, as a fraction of the planned minutes (0..1). */
-export function agendaProgress(agenda: Segment[], index: number, secondsIntoSegment: number): number {
-  const total = totalMinutes(agenda)
-  if (!total || index < 0) return 0
-  const before = agenda.slice(0, index).reduce((n, s) => n + s.minutes, 0)
-  const seg = agenda[index]
-  const within = seg ? Math.min(seg.minutes, Math.max(0, secondsIntoSegment / 60)) : 0
-  return Math.min(1, (before + within) / total)
-}
-
-/** m:ss for a countdown (sign shown by the caller). */
-export function clock(seconds: number): string {
-  const s = Math.abs(Math.round(seconds))
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 
 export function cleanNote(raw: unknown): Omit<Note, 'id' | 'at'> | null {

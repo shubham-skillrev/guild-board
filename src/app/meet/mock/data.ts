@@ -7,7 +7,7 @@
  */
 
 import { BLOCKED_MESSAGE, type MeetView, type Mine, type PublicActivity, type RoomState } from '@/lib/meet/activity'
-import { BOSS_MS, timedOut, type CaseResult } from '@/lib/meet/boss'
+import { timedOut, type CaseResult } from '@/lib/meet/boss'
 import type { MeetingState, Segment } from '@/lib/meeting'
 import type { PresenterPost } from '@/lib/guild/meetingPrep'
 import type { PhoneDemo } from '@/components/meet/PhoneActivity'
@@ -83,11 +83,11 @@ export const AGENDA: Segment[] = [
     id: 'seg-boss',
     kind: 'boss',
     title: 'Kers’ Boss Round',
-    detail: 'Problem #1: sum of the even numbers. Eight minutes, on your own device.',
+    detail: 'Problem #1: sum of the even numbers, on your own device. It runs until the presenter closes it.',
     minutes: 8,
-    prep: prep('Eight minutes, one function, your own device. Kers is keeping score.', [
+    prep: prep('One function, your own device. Kers is keeping score.', [
       'Code runs on their device; only pass or fail comes back.',
-      'Read the verdict out at time, then move to the wrap.',
+      'Close the round when most have had a go; read the verdict, then move to the wrap.',
     ]),
   },
   {
@@ -178,7 +178,6 @@ export interface Knobs {
   /** `fresh`: opened when the knob was set, on the real clock (the 8 s reveal, Kers' 20 s intro play out). */
   act: 'ready' | 'fresh' | 'hidden' | 'live' | 'closed'
   n: number
-  time: 'ontime' | '1min' | 'over'
   boss: 'intro' | 'running' | 'verdict'
   pct: number
   phone: PhoneState
@@ -200,7 +199,6 @@ export function readKnobs(q: URLSearchParams): Knobs {
     seg,
     act: pick(q.get('act'), ['ready', 'fresh', 'hidden', 'live', 'closed'], 'live'),
     n: Math.min(200, Math.max(1, Number(q.get('n')) || 20)),
-    time: pick(q.get('time'), ['ontime', '1min', 'over'], 'ontime'),
     boss: pick(q.get('boss'), ['intro', 'running', 'verdict'], 'running'),
     pct: Math.min(100, Math.max(0, Number(q.get('pct') ?? 62) || 0)),
     phone: pick(q.get('phone'), PHONE_STATES, 'auto'),
@@ -243,7 +241,7 @@ export function buildActivity(k: Knobs, segId: string, t0: number, now: number):
   if (spec.kind === 'boss' && k.act !== 'ready' && !fresh) {
     if (k.boss === 'intro') { status = 'open'; openedAt = iso(now - 6000); closedAt = null }
     else if (k.boss === 'running') { status = 'open'; openedAt = iso(t0 - 190_000); closedAt = null }
-    else { status = 'closed'; openedAt = iso(t0 - BOSS_MS - 5000); closedAt = iso(t0 - 5000) }
+    else { status = 'closed'; openedAt = iso(t0 - 6 * 60_000); closedAt = iso(t0 - 5000) }
   }
   const a: PublicActivity = {
     id: `mock-${segId}`,
@@ -293,17 +291,11 @@ export function buildActivity(k: Knobs, segId: string, t0: number, now: number):
   return a
 }
 
-/** Seconds left in the segment, by the time knob. */
-function remainingFor(k: Knobs, seg: Segment): number {
-  if (k.time === '1min') return 55
-  if (k.time === 'over') return -150
-  return Math.round(seg.minutes * 60 * 0.6)
-}
-
 export function buildState(k: Knobs, t0: number, now: number): MeetingState {
   const seg = AGENDA[k.seg - 1]
   const before = AGENDA.slice(0, k.seg - 1).reduce((s, x) => s + x.minutes * 60, 0)
-  const into = seg.minutes * 60 - remainingFor(k, seg)
+  // Some way into the segment: nothing on screen counts it, but the stamps want a time.
+  const into = Math.round(seg.minutes * 60 * 0.4)
   const segStart = t0 - into * 1000
   const live = k.meet === 'live'
   const activity = live ? buildActivity(k, seg.id, t0, now) : null

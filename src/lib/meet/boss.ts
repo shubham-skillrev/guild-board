@@ -13,12 +13,8 @@
 
 import type { PublicActivity } from './activity.ts'
 
-/** How long the round runs from the moment it opens. */
-export const BOSS_MS = 8 * 60_000
 /** Each test gets this long before its worker is killed. */
 export const BOSS_TEST_MS = 2000
-/** Answers are still taken this long after time, for a run that was mid-flight. */
-export const BOSS_GRACE_MS = 30_000
 /** Kers' intro line shows this long after the round opens. */
 export const BOSS_INTRO_MS = 20_000
 export const BOSS_LINE = 'You lot tell me what to write all day. Let’s see if you can still code.'
@@ -217,19 +213,21 @@ export function callText(p: BossProblem, c: BossCase): string {
 
 export type BossPhase =
   | { phase: 'intro' }
-  | { phase: 'running'; left: number }
+  | { phase: 'running' }
   | { phase: 'verdict'; pct: number; trying: number }
 
-/** Where an open or closed Boss Round is, by the server's clock. Null when not on. */
+/**
+ * Where a Boss Round is. No clock: it runs until the presenter closes it (or
+ * moves on, which closes it), and the verdict is in once it's closed. Kers'
+ * intro line has the first 20 s. Null when not on.
+ */
 export function bossPhase(a: Pick<PublicActivity, 'kind' | 'status' | 'openedAt' | 'tally'>, now: number): BossPhase | null {
   if (a.kind !== 'boss' || a.status === 'ready' || !a.openedAt) return null
-  const elapsed = now - new Date(a.openedAt).getTime()
-  if (a.status === 'open' && elapsed < BOSS_INTRO_MS) return { phase: 'intro' }
-  if (a.status === 'open' && elapsed < BOSS_MS) return { phase: 'running', left: Math.ceil((BOSS_MS - elapsed) / 1000) }
-  return { phase: 'verdict', pct: a.tally?.pct ?? 0, trying: a.tally?.trying ?? 0 }
+  if (a.status === 'closed') return { phase: 'verdict', pct: a.tally?.pct ?? 0, trying: a.tally?.trying ?? 0 }
+  return now - new Date(a.openedAt).getTime() < BOSS_INTRO_MS ? { phase: 'intro' } : { phase: 'running' }
 }
 
-/** Kers' verdict at time, by the share of those trying who passed every test. */
+/** Kers' verdict once the round is closed, by the share of those trying who passed every test. */
 export function bossVerdict(pct: number, trying: number): string {
   if (trying === 0) return 'Nobody even tried. I’ll take that as a compliment.'
   if (pct === 0) return '0%. Fine. I’ll keep writing your code, then.'

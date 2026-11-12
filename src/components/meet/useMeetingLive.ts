@@ -21,7 +21,8 @@ const SLOW_POLL_MS = 15_000
  * segment, ended it) triggers a fetch at once. While the channel is down
  * the whole state is polled every 3 s; while it's up, every 15 s.
  *
- * The server's clock drives every countdown: `now()` is the browser's clock
+ * The server's clock drives the timed bits (the poll's 8 s reveal, Kers' Boss
+ * Round intro): `now()` is the browser's clock
  * corrected by the offset seen on the last response.
  */
 export function useMeetingLive(initial: MeetingState) {
@@ -124,7 +125,8 @@ export function useMeetingLive(initial: MeetingState) {
 }
 
 /**
- * The time, ticking once a second while `on`, for countdowns. Starts from
+ * The time, ticking once a second while `on` (the presenter screen uses it
+ * for Kers' Boss Round intro; nothing on screen shows a clock). Starts from
  * `from` (the server's time in the page's props) so the server render and
  * the first client render agree.
  */

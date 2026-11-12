@@ -5,18 +5,11 @@ import { Kers, type KersEyes, type KersMotion } from '@/components/kers/Kers'
 import type { KersColour } from '@/components/kers/look'
 import type { Expression } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
-import { BOSS_LINE, bossVerdict, type BossPhase } from '@/lib/meet/boss'
+import { BOSS_LINE, type BossPhase } from '@/lib/meet/boss'
 
 const CHEER_MS = 3200
 
 const CHEERS = ['Done. Next.', 'That one went well. Mostly.', 'Moving on, like professionals.', 'Segment survived.', 'Good. Keep going.']
-const NUDGES = [
-  'That’s time. I’m only saying.',
-  'A minute over. Still only saying.',
-  'Two minutes over. Now I’m saying it louder.',
-  'Three over. I can wrap this up for you.',
-  'We are well into someone else’s segment.',
-]
 
 interface Mood {
   expression: Expression
@@ -27,15 +20,15 @@ interface Mood {
 }
 
 /**
- * Kers in the corner of the presenter screen. He cheers (a hop, happy eyes)
- * when a segment closes, gets restless with a minute left, and fidgets and
- * nudges once a segment overruns, louder each minute. In the Boss Round he
- * dares the room when it opens and gives his verdict by pass rate at time.
- * Nothing he says names anyone.
+ * Kers, small, in the corner of the presenter screen. Most of the time he
+ * just sits there. He says something only now and then, in a bubble that
+ * comes and goes: a cheer (a hop, happy eyes) when the presenter moves on,
+ * his dare while a Boss Round's intro is on, and a reaction once it's closed
+ * (the verdict itself is on the stage). Nothing he says names anyone, and
+ * nothing he does is about time: the meeting goes at the presenter's pace.
  */
 export function PresenterKers({
   segmentKey,
-  remaining,
   live,
   ended,
   boss,
@@ -43,8 +36,6 @@ export function PresenterKers({
 }: {
   /** Changes when the presenter moves on: that's his cue to cheer. */
   segmentKey: string | null
-  /** Seconds left in the segment (negative once over). */
-  remaining: number
   live: boolean
   ended: boolean
   /** The current segment's Boss Round, if it's on (lib/meet/boss.ts bossPhase). */
@@ -73,31 +64,30 @@ export function PresenterKers({
   else if (boss?.phase === 'intro') mood = { expression: 'smug', colour: 'smug', motion: 'hop', special: null, line: BOSS_LINE }
   else if (boss?.phase === 'verdict') mood = verdictMood(boss.pct, boss.trying)
   else if (cheer !== null) mood = { expression: 'excited', colour: 'proud', motion: 'hop', special: 'happy', line: CHEERS[cheer] }
-  else if (remaining < 0) {
-    const over = Math.floor(-remaining / 60)
-    mood = { expression: 'dramatic', colour: 'dramatic', motion: 'walk', special: null, line: NUDGES[Math.min(over, NUDGES.length - 1)] }
-  } else if (remaining <= 60) mood = { expression: 'nosy', colour: 'meeting', motion: 'idle', special: null, line: 'One minute left.' }
+  else if (boss?.phase === 'running') mood = { expression: 'nosy', colour: 'meeting', motion: 'idle', special: null, line: null }
   else mood = { expression: 'smug', colour: 'smug', motion: 'idle', special: null, line: null }
 
   return (
-    <div className={cn('flex flex-col items-end gap-3', className)} aria-live="polite">
+    <div className={cn('relative', className)}>
       <p
+        aria-live="polite"
         className={cn(
-          'max-w-[18rem] rounded-[18px] rounded-br-[6px] border border-border bg-paper px-4 py-2.5 text-[17px] leading-snug text-ink shadow-sm transition-opacity duration-300',
-          mood.line ? 'opacity-100' : 'opacity-0',
+          'pointer-events-none absolute bottom-full right-2 mb-1 w-max max-w-[24rem] origin-bottom-right rounded-[18px] rounded-br-[6px] border border-border bg-paper px-4 py-2.5 text-[17px] leading-snug text-ink shadow-[0_10px_30px_-14px_var(--shadow-tint-strong)]',
+          'transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-opacity',
+          mood.line ? 'translate-y-0 scale-100 opacity-100' : 'translate-y-1 scale-95 opacity-0',
         )}
       >
-        {mood.line ?? ' '}
+        {mood.line ?? '\u00a0'}
       </p>
-      <Kers size={132} expression={mood.expression} colour={mood.colour} motion={mood.motion} special={mood.special} />
+      <Kers size={60} expression={mood.expression} colour={mood.colour} motion={mood.motion} special={mood.special} />
     </div>
   )
 }
 
+/** How he takes the verdict; the line is on the stage, so the bubble stays quiet. */
 function verdictMood(pct: number, trying: number): Mood {
-  const line = bossVerdict(pct, trying)
-  if (trying === 0) return { expression: 'bored', colour: 'bored', motion: 'still', special: null, line }
-  if (pct >= 75) return { expression: 'proud', colour: 'proud', motion: 'hop', special: 'happy', line }
-  if (pct >= 25) return { expression: 'smug', colour: 'smug', motion: 'idle', special: null, line }
-  return { expression: 'dramatic', colour: 'dramatic', motion: 'idle', special: null, line }
+  if (trying === 0) return { expression: 'bored', colour: 'bored', motion: 'still', special: null, line: null }
+  if (pct >= 75) return { expression: 'proud', colour: 'proud', motion: 'hop', special: 'happy', line: null }
+  if (pct >= 25) return { expression: 'smug', colour: 'smug', motion: 'idle', special: null, line: null }
+  return { expression: 'dramatic', colour: 'dramatic', motion: 'idle', special: null, line: null }
 }

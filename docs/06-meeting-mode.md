@@ -38,13 +38,16 @@ Planned 2026-11-12 (grill session). Progress is tracked at the bottom.
 | Boss Round editor | One plain editor, the same on phone and laptop |
 | Boss Round problems | A fixed list we write. Kers does not draft them |
 | Boss Round line | "You lot tell me what to write all day. Let's see if you can still code." |
+| Pace | No timers anywhere (decided 2026-11-12, the day before the first run). The presenter finishes each item or skips it. No segment countdown, no overtime, no "one minute left" nudges; the Boss Round has no clock either. Segment `minutes` stay in the data for drafting the agenda only |
+| Presenter screen | Minimal: the activity is the hero when there is one (poll bars, word cloud, Boss pass rate); otherwise the segment title and Kers' opener, large. Progress is one thin line with a dot per segment, evenly spaced, no text. Kers is small, in the corner, and speaks only now and then |
 
 ---
 
 ## First-run agenda (60 min)
 
 Rebuilt from the November agenda. Trimmed to make room for the warm-up and
-the Boss Round. The timings are temporary: they will settle after the first run.
+the Boss Round. The minutes are a planning guide only: nothing on screen
+counts them, and the presenter moves on when an item is done.
 
 | # | Segment | Min | Activity | Why there |
 |---|---|---|---|---|
@@ -70,13 +73,19 @@ closes when the admin moves on.
   guests then see the "Meeting is live, join the room" banner on the site.
 
 **Presenter screen** (`/meet/present`, full screen, admin only)
-- The current segment: title, kind, its topic's post.
-- Kers' prep for it: 2–3 talking points and the opener.
-- A countdown for the segment. Past zero it shows overtime and Kers nudges.
-- Agenda progress: a bar weighted by planned minutes ("35% through") and a
-  row of segment dots.
-- ← / → or buttons move segments. Esc leaves. A refresh resumes in place.
-- Kers in a corner reacts: cheers when a segment closes, fidgets when it overruns.
+- No clock. The presenter finishes each item or skips it.
+- The hero: an open or closed activity (its question and the answers), or
+  else the segment's title and Kers' opener, large. Its board posts show as
+  small cards, and not at all while an activity is open.
+- Kers' talking points: small and dim at the bottom, for the presenter;
+  `P` hides or shows them (kept per browser), since the screen is shared.
+- Progress: one thin line with a dot per segment, evenly spaced, no labels.
+  The current dot is larger; the presenter can click a dot to jump.
+- ← / → (PageUp / PageDown for a clicker) move segments; subtle arrows sit at
+  either end of the line. Esc leaves, F goes full screen. A refresh resumes in place.
+- Kers, small, at the end of the line: a speech bubble now and then (a cheer
+  when the presenter moves on, the Boss Round dare), never about time.
+- Everything fits 1920 × 1080 with no scrolling.
 
 **Kers' prep** (the standard and prompts: [07-agenda-and-script-guide.md](./07-agenda-and-script-guide.md))
 - Drafted from each segment's topic (post, comments, votes) when the agenda is
@@ -141,15 +150,17 @@ closes when the admin moves on.
 **Flow**
 1. The admin opens the Boss Round segment. Kers: *"You lot tell me what to
    write all day. Let's see if you can still code."*
-2. Each participant gets the problem, a function signature, a plain editor and
-   an 8-minute countdown.
+2. Each participant gets the problem, a function signature and a plain
+   editor. No countdown: the round runs until the presenter closes it (or
+   moves on, which closes it).
 3. "Run tests" runs the code in a Web Worker in their own browser, with 2 s
    per test. On a timeout the worker is killed (no infinite loops).
 4. Only the result is sent: passed, and tests passed of total. Never the code.
 5. The presenter screen shows the % who passed all tests and how many are
    trying. No names.
-6. At time, Kers gives a verdict by pass rate ("62% of you can still code.
-   I'm mildly impressed.").
+6. Once the round is closed, Kers gives a verdict by pass rate ("62% of
+   you can still code. I'm mildly impressed."), with a small burst on screen
+   when it's 50% or more.
 
 **Cheating:** someone could fake a pass. That's accepted: no names, no prizes.
 
@@ -184,7 +195,7 @@ closes when the admin moves on.
 - [x] Kers prep generation (points, opener, "who to ask") and its trigger
 - [x] Run tab: edit Kers' prep per segment
 - [x] "Start meeting mode" card on the board (admins, from 3 h before)
-- [x] `/meet/present`: segment view, countdown/overtime, progress bar, keyboard nav, resume
+- [x] `/meet/present`: segment view, progress line, keyboard nav, resume (countdown and overtime removed 2026-11-12)
 - [x] Kers reactions on the presenter screen
 - [ ] Screenshot check on a 1080p share
 
@@ -261,10 +272,11 @@ the presenter's tally in `ActivityPanel.tsx` and Kers in `PresenterKers.tsx`.
   page with a deep equality.
 - **Sent:** `{ passed, tests, of }` at slot 0, so each run replaces the last.
   The server checks `of` against the problem and that `passed` means all.
-  Runs are refused 30 s after the 8 minutes are up.
+  Runs are taken until the round is closed (a closed activity refuses them).
 - **Presenter:** the % of those trying who passed every test (floored, so
-  100% means everyone), how many are trying, the 8-minute clock. Kers says
-  the line for the first 20 s, and the verdict at time or when it's closed.
+  100% means everyone; "–" until someone has passed), how many are trying.
+  No clock. Kers says the line for the first 20 s; the verdict shows on the
+  stage once the presenter closes the round.
 - The editor keeps its code in the browser's `localStorage` per activity, so
   a refresh doesn't lose it. Tab indents; Esc then Tab leaves the editor.
 
