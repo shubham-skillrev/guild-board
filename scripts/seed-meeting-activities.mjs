@@ -8,14 +8,18 @@
  *
  * --from takes a month's reference file (docs/agendas/YYYY-MM.json, loaded
  * with scripts/apply-agenda.mjs) and seeds its `activities` instead of the
- * first-run list below; those name their segment by id, so they're matched
- * by id first and by the segment's kind as a fallback.
+ * first-run list below. Each names its activity slide by id (`segment`), and
+ * is stored under that id (meeting_activities.segment_id), one per slide,
+ * which is what UNIQUE(cycle_id, segment_id) allows: arriving on the slide
+ * opens it (docs/06-meeting-mode.md, "Slides"). Matched by id first; by the
+ * section's kind only as a fallback, and then only to an activity slide (or
+ * an old segment), never to a title, meme or results slide.
  *
  * Needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or
  * SUPABASE_SECRET_KEY). Defaults to the open month's meeting.
  *
- * Segments are found by KIND, not id: the first agenda segment of each kind
- * below gets its activity, so it works on an agenda drafted by "Build from
+ * Without --from, segments are found by KIND, not id: the first activity
+ * slide (or old segment) of each kind below gets its activity, so it works on an agenda drafted by "Build from
  * the board" (stable ids warmup / radar / topic / clinic / boss) and on one
  * edited by hand. A kind missing from the agenda is reported and skipped:
  * add the segment in the Run tab, save, and run this again.
@@ -84,12 +88,14 @@ async function main() {
     items = (file.activities ?? []).map(a => ({ segment: a.segment, kind: kindOf.get(a.segment) ?? a.segment, activity: a.kind, prompt: a.prompt, options: a.options, config: a.config }))
   }
 
-  console.log(`${cycle.label}: ${agenda.length} segments${dry ? ' (dry run)' : ''}${fromArg ? `, activities from ${fromArg}` : ''}`)
+  console.log(`${cycle.label}: ${agenda.length} slides${dry ? ' (dry run)' : ''}${fromArg ? `, activities from ${fromArg}` : ''}`)
   const targeted = new Set()
   for (const item of items) {
-    const seg = (item.segment && agenda.find(s => s.id === item.segment)) || agenda.find(s => s.kind === item.kind)
+    // An activity lives on an activity slide (or an old segment without `slide`).
+    const fits = s => !s.slide || s.slide === 'activity'
+    const seg = (item.segment && agenda.find(s => s.id === item.segment && fits(s))) || agenda.find(s => s.kind === item.kind && fits(s))
     if (!seg) {
-      console.log(`  skip  ${item.kind}: no segment of that kind on the agenda`)
+      console.log(`  skip  ${item.segment ?? item.kind}: no activity slide for it on the stored agenda (apply the agenda first)`)
       continue
     }
     targeted.add(seg.id)

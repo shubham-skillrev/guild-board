@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase/server'
 import { MEET_EVENT, meetingChannel } from '@/lib/realtime/channels'
 import { openCycle } from '@/lib/guild/demos'
 import { isBlocked } from '@/lib/meet/profanity'
-import { agendaPostIds, meetingLive, phoneAgenda } from '@/lib/meeting'
+import { activityKeyFor, agendaPostIds, meetingLive, phoneAgenda, type Segment } from '@/lib/meeting'
+import { gotoPlan, type ActivityRef } from '@/lib/meet/slides'
 import { meetPosts } from '@/lib/guild/meetingPrep'
 import {
   aggregate,
@@ -84,7 +85,9 @@ export async function readRoom(admin: Admin, cycleId: string, row?: MeetingRow |
   }
   const activities = (acts.data ?? []) as ActivityRow[]
   const segment = meeting.current_segment ?? null
-  const shown = activities.find(a => a.status === 'open') ?? activities.find(a => a.segment_id === segment) ?? null
+  // A results slide shows the activity it's about (its `of`); any other slide its own.
+  const key = activityKeyFor(Array.isArray(meeting.agenda) ? (meeting.agenda as Segment[]) : [], segment)
+  const shown = activities.find(a => a.status === 'open') ?? activities.find(a => a.segment_id === key) ?? null
   let activity = null
   if (shown) {
     const { data: rows } = await admin.from('meeting_responses').select('participant_id, slot, value').eq('activity_id', shown.id)
@@ -317,6 +320,23 @@ export async function closeRoom(admin: Admin, cycleId: string): Promise<void> {
 /** The presenter moved on: whatever was open closes. */
 export async function closeOpenActivities(admin: Admin, cycleId: string): Promise<void> {
   await admin.from('meeting_activities').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('cycle_id', cycleId).eq('status', 'open')
+}
+
+/**
+ * The presenter moved the screen to `target` (lib/meet/slides.ts gotoPlan):
+ * what was open closes, and an activity slide's activity opens if it never
+ * has. Before migration 046 there are no activities: nothing to do.
+ */
+export async function activitiesOnGoto(admin: Admin, cycleId: string, agenda: Segment[], target: string): Promise<void> {
+  const { data, error } = await admin.from('meeting_activities').select('id, segment_id, status').eq('cycle_id', cycleId)
+  if (error) {
+    if (!missing046(error)) console.warn('activitiesOnGoto failed', error.message)
+    return
+  }
+  const plan = gotoPlan(agenda, target, (data ?? []) as ActivityRef[])
+  const now = new Date().toISOString()
+  if (plan.close.length) await admin.from('meeting_activities').update({ status: 'closed', closed_at: now }).in('id', plan.close).eq('status', 'open')
+  if (plan.open) await admin.from('meeting_activities').update({ status: 'open', opened_at: now, closed_at: null }).eq('id', plan.open).eq('status', 'ready')
 }
 
 /** Open one activity (closing any other): the presenter's one button. */

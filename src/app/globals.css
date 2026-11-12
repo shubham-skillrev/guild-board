@@ -1204,3 +1204,42 @@ body {
   .gb-swap-in { animation: gb-fade-only 200ms ease-out both; }
 }
 @keyframes gb-fade-only { from { opacity: 0; } to { opacity: 1; } }
+
+/* ═══ Meeting mode: slides with a little game-show energy ═══
+   A meme's panels land in turn; the results' bars rise one by one after a
+   short drumroll and the winner pops; a phone's vote locks in. Each plays
+   once. Under reduced motion: everything simply appears. */
+@keyframes gb-meme-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.94) rotate(-1deg); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes gb-rise {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+@keyframes gb-fade-late { from { opacity: 0; } to { opacity: 1; } }
+@keyframes gb-pop {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.06); }
+  100% { transform: scale(1.03); }
+}
+@keyframes gb-drum {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes gb-lock {
+  0% { transform: scale(0.96); }
+  55% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+.gb-meme-in { animation: gb-meme-in 620ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.gb-rise { transform-origin: bottom; animation: gb-rise 900ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.gb-fade-late { animation: gb-fade-late 400ms ease-out both; }
+.gb-pop { animation: gb-pop 520ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.gb-drum > * { display: inline-block; animation: gb-drum 360ms ease-in-out infinite; }
+.gb-drum > :nth-child(2) { animation-delay: 120ms; }
+.gb-drum > :nth-child(3) { animation-delay: 240ms; }
+.gb-lock { animation: gb-lock 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .gb-meme-in, .gb-rise, .gb-fade-late, .gb-pop, .gb-drum > *, .gb-lock { animation: none; }
+}

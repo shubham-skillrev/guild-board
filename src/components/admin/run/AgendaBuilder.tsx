@@ -15,8 +15,11 @@ import { LIMITS, MEETING_MINUTES, totalMinutes, type Meeting, type Segment } fro
 
 /**
  * The meeting's agenda: built from what the guild already lined up (Radar,
- * Show & Tell, top topic, clinic, wrap), edited here, and posted to Slack.
- * The bar shows the hour filling up, so a 75-minute agenda is obvious.
+ * top topic, clinic, Boss Round, wrap), edited here, and posted to Slack.
+ * A slide agenda (docs/06-meeting-mode.md, "Slides") lists its slides by
+ * section, each with its title, cue and notes; the slide kinds, cards and
+ * memes are edited in the agenda file (docs/07). An old agenda of timed
+ * segments keeps its bar of the hour filling up.
  */
 export function AgendaBuilder({ initial, posts = [] }: { initial: Meeting; posts?: BoardPost[] }) {
   const { meeting, busy, call } = useMeeting(initial)
@@ -25,6 +28,7 @@ export function AgendaBuilder({ initial, posts = [] }: { initial: Meeting; posts
   const [meetUrl, setMeetUrl] = useState(initial.meetUrl ?? '')
   const dirty = JSON.stringify(agenda) !== JSON.stringify(meeting.agenda) || meetUrl !== (meeting.meetUrl ?? '')
   const total = totalMinutes(agenda)
+  const slides = agenda.some(s => !!s.slide)
 
   const build = async () => {
     const data = await call<{ agenda: Segment[] }>('draft_agenda')
@@ -65,7 +69,10 @@ export function AgendaBuilder({ initial, posts = [] }: { initial: Meeting; posts
         }
       />
 
-      {/* The hour, filling up. */}
+      {/* The hour, filling up (timed segments only: slides go at the presenter's pace). */}
+      {slides ? (
+        <p className="mb-4 text-meta text-ink-muted">{agenda.length} slides in {new Set(agenda.map(s => s.section ?? s.id)).size} sections · not timed</p>
+      ) : (
       <div className="mb-4">
         <div className="flex h-2.5 overflow-hidden rounded-full bg-kinu" role="img" aria-label={`${total} of ${MEETING_MINUTES} minutes planned`}>
           {agenda.map((s, i) => (
@@ -81,6 +88,7 @@ export function AgendaBuilder({ initial, posts = [] }: { initial: Meeting; posts
           {total} of {MEETING_MINUTES} minutes{total > MEETING_MINUTES ? `: ${total - MEETING_MINUTES} over` : ''}
         </p>
       </div>
+      )}
 
       {agenda.length === 0 ? (
         <div className="rounded-(--radius-card) border border-dashed border-border-strong p-6 text-center text-footnote text-ink-muted">
@@ -93,8 +101,17 @@ export function AgendaBuilder({ initial, posts = [] }: { initial: Meeting; posts
               <div className="flex items-start gap-3">
                 <span className="mt-2 w-5 shrink-0 font-mono text-[11px] text-cha tabular">{String(i + 1).padStart(2, '0')}</span>
                 <div className="min-w-0 flex-1 space-y-2">
+                  {s.slide && (
+                    <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-muted">
+                      {s.section ?? s.kind} · {s.slide}{s.of ? ` · results of ${s.of}` : ''}
+                    </p>
+                  )}
+                  {s.slide === 'meme' ? (
+                    <p className="text-footnote text-ink-soft">{s.meme?.src ? `Image: ${s.meme.src}` : [...(s.meme?.panels ?? []).map(p => p.text), s.meme?.caption].filter(Boolean).join(' / ')}</p>
+                  ) : (
                   <div className="flex gap-2">
-                    <Input aria-label="Segment title" value={s.title} maxLength={LIMITS.title} onChange={e => update(s.id, { title: e.target.value })} className="font-medium" />
+                    <Input aria-label="Slide title" value={s.title} maxLength={LIMITS.title} onChange={e => update(s.id, { title: e.target.value })} className="font-medium" />
+                    {!s.slide && (
                     <label className="flex shrink-0 items-center gap-1.5 text-meta text-ink-muted">
                       <Input
                         type="number"
@@ -107,25 +124,27 @@ export function AgendaBuilder({ initial, posts = [] }: { initial: Meeting; posts
                       />
                       min
                     </label>
+                    )}
                   </div>
-                  <Textarea aria-label="Details" rows={2} maxLength={LIMITS.detail} value={s.detail} onChange={e => update(s.id, { detail: e.target.value })} className="font-sans text-footnote" />
-                  <Input
+                  )}
+                  {(!s.slide || s.detail) && <Textarea aria-label="Details" rows={2} maxLength={LIMITS.detail} value={s.detail} onChange={e => update(s.id, { detail: e.target.value })} className="font-sans text-footnote" />}
+                  {s.slide !== 'meme' && <Input
                     aria-label="Cue on the shared screen"
                     placeholder="Cue on the shared screen, one line (e.g. Vote first, then we read them.)"
                     value={s.cue ?? ''}
                     maxLength={LIMITS.cue}
                     onChange={e => update(s.id, { cue: e.target.value })}
                     className="text-footnote"
-                  />
+                  />}
                   {s.cards?.length ? <p className="text-footnote text-ink-muted">{s.cards.length} {s.cards.length === 1 ? 'card' : 'cards'} on screen (edit them in the agenda file, docs/07)</p> : null}
-                  <PrepEditor
+                  {s.slide !== 'meme' && <PrepEditor
                     segment={s}
                     posts={posts}
                     onChange={patch => update(s.id, patch)}
                     onRedraft={() => draftPrep(s.id)}
                     redraftDisabled={dirty || !meeting.agenda.some(x => x.id === s.id)}
                     redrafting={busy === 'draft_prep'}
-                  />
+                  />}
                 </div>
                 <div className="flex shrink-0 flex-col gap-1">
                   <button type="button" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up" className="press-sm rounded p-1 text-ink-muted hover:text-ink disabled:opacity-30"><Icon icon={ArrowUp} size="sm" /></button>
@@ -140,10 +159,10 @@ export function AgendaBuilder({ initial, posts = [] }: { initial: Meeting; posts
 
       <button
         type="button"
-        onClick={() => setAgenda(a => [...a, { id: `custom-${Date.now()}`, kind: 'custom', title: 'New segment', detail: '', minutes: 5 }])}
+        onClick={() => setAgenda(a => [...a, slides ? { id: `custom-${Date.now()}`, kind: 'custom', slide: 'text', section: 'Extra', title: 'New slide', detail: '', minutes: 0 } : { id: `custom-${Date.now()}`, kind: 'custom', title: 'New segment', detail: '', minutes: 5 }])}
         className="press-sm mt-2.5 inline-flex items-center gap-1.5 text-footnote text-ink-muted hover:text-ink"
       >
-        <Icon icon={Plus} size="sm" /> Add a segment
+        <Icon icon={Plus} size="sm" /> {slides ? 'Add a slide' : 'Add a segment'}
       </button>
 
       <div className="mt-5 space-y-3 rounded-(--radius-card) border border-border bg-paper/60 p-4">

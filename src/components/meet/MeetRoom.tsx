@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/Input'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { OVERLAY_PRIORITY, useOverlaySlot } from '@/components/ui/OverlaySlot'
 import { useToast } from '@/hooks/useToast'
-import { PhoneActivity, type PhoneDemo } from '@/components/meet/PhoneActivity'
+import { PhoneActivity } from '@/components/meet/PhoneActivity'
 import { ActivityResults } from '@/components/meet/ActivityPanel'
-import { SegmentCards } from '@/components/meet/SegmentCards'
-import { KIND_LABELS, type MeetPost, type PresenterNotes, type PublicSegment } from '@/lib/meeting'
+import { SegmentCards, SlideText } from '@/components/meet/SegmentCards'
+import { MemeSlide } from '@/components/meet/MemeSlide'
+import { activityKeyFor, isRealCard, sectionsOf, slideKind, type MeetPost, type PresenterNotes, type PublicSegment } from '@/lib/meeting'
 import { newerRoom, useMeetingChannel } from '@/components/meet/useMeetingChannel'
 import type { MeetView, Mine, PublicActivity, RoomState } from '@/lib/meet/activity'
 
@@ -33,10 +34,11 @@ async function post(body: Record<string, unknown>) {
  *   joining      members go straight in (one automatic join under their
  *                account); guests type a name first
  *   activity     the open poll, word cloud or Boss Round (PhoneActivity)
- *   between      what's on the shared screen now (PhoneSegment): the
- *                segment's title, cue and cards (news opens its source, a
- *                post its board page), and what's next. An activity opening
- *                swaps it in; closing it swaps the cards back
+ *   a slide      what's on the shared screen now (PhoneSlide), by its kind:
+ *                a title's "next up", a content slide's cards (news opens
+ *                its source, a post its board page) and plain text, a
+ *                results slide's results, a big line, a meme. An activity
+ *                opening swaps it in; closing it swaps the slide back
  *   waiting      "Kers is setting up…": only with no agenda to show
  *
  * The presenter's own phone also shows "Your notes" (the opener and talking
@@ -47,15 +49,14 @@ async function post(body: Record<string, unknown>) {
  * name, and the shared screen never shows this person's.
  */
 /**
- * The dev mock (/meet/mock) runs the room with no network: `post` answers in
- * place of POST /api/meet, `room` stands in for the broadcast, nothing is
- * polled and no channel is joined. `demo` seeds a phone's local state.
+ * Rehearsal's phone preview (PhonePreview) runs the room with no network:
+ * `post` answers in place of POST /api/meet, `room` stands in for the
+ * broadcast, nothing is polled and no channel is joined.
  */
 export interface MeetRoomOffline {
   /** Answers as POST /api/meet would: the joined view, or `{ mine }`, `{ blocked, message }`. */
   post: typeof post
   room?: RoomState | null
-  demo?: PhoneDemo
 }
 
 export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: MeetRoomOffline }) {
@@ -185,15 +186,17 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
     if (room?.activity?.status === 'open') {
       body = (
         <div key={`act-${room.activity.id}`} className="gb-swap-in">
-          <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={send} toast={toast} demo={offline?.demo} />
+          <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={send} toast={toast} />
           {notes && <YourNotes notes={notes} />}
         </div>
       )
     } else if (seg) {
-      const closed = room?.activity?.status === 'closed' && room.activity.segmentId === seg.id ? room.activity : null
+      // This slide's activity (an activity slide's own, a results slide's `of`), closed or not yet open.
+      const key = activityKeyFor(view.agenda!, seg.id)
+      const mineAct = room?.activity && room.activity.segmentId === key ? room.activity : null
       body = (
-        <div key={`seg-${seg.id}:${closed?.id ?? ''}`} className="gb-swap-in">
-          <PhoneSegment seg={seg} index={segIdx} count={view.agenda!.length} next={view.agenda![segIdx + 1] ?? null} posts={view.posts ?? {}} notes={notes} results={closed} />
+        <div key={`seg-${seg.id}:${mineAct?.status ?? ''}`} className="gb-swap-in">
+          <PhoneSlide seg={seg} agenda={view.agenda!} index={segIdx} posts={view.posts ?? {}} notes={notes} activity={mineAct} />
         </div>
       )
     } else if (!room?.warm) {
@@ -226,34 +229,72 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
 }
 
 /**
- * Between activities: what the shared screen shows, on the phone. The cards
- * are tappable (a source, a board post, in a new tab), and the next segment
- * is a line at the bottom so nobody wonders what's coming.
+ * The slide on the shared screen, on the phone, by its kind. Real cards are
+ * tappable (a source, a board post, in a new tab); the next section is a
+ * line at the bottom so nobody wonders what's coming.
  */
-function PhoneSegment({ seg, index, count, next, posts, notes, results }: { seg: PublicSegment; index: number; count: number; next: PublicSegment | null; posts: Record<string, MeetPost>; notes: PresenterNotes[string] | null; results: PublicActivity | null }) {
+function PhoneSlide({ seg, agenda, index, posts, notes, activity }: { seg: PublicSegment; agenda: PublicSegment[]; index: number; posts: Record<string, MeetPost>; notes: PresenterNotes[string] | null; activity: PublicActivity | null }) {
+  const kind = slideKind(seg, !!activity)
+  const sections = sectionsOf(agenda)
+  const here = sections.findIndex(x => index >= x.start && index < x.start + x.slides)
+  const nextSection = sections[here + 1] ?? null
+  const real = seg.cards.filter(isRealCard)
+  const eyebrow = (text: string) => (
+    <p className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
+      <span className="relative flex size-1.5" aria-hidden>
+        <span className="absolute inset-0 rounded-full bg-matcha opacity-60 motion-safe:animate-ping" />
+        <span className="relative size-1.5 rounded-full bg-matcha" />
+      </span>
+      {text}
+    </p>
+  )
+  let main: React.ReactNode
+  if (kind === 'meme' && seg.meme) {
+    main = <div className="pt-6"><MemeSlide meme={seg.meme} size="phone" /></div>
+  } else if (kind === 'title') {
+    main = (
+      <div className="flex flex-col items-center pt-10 text-center">
+        <Kers size={96} colour="meeting" expression="excited" motion="hop" special="happy" />
+        <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">Next up{sections[here] && sections[here].title !== seg.title ? ` · ${sections[here].title}` : ''}</p>
+        <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.025em] text-ink text-balance">{seg.title}</h1>
+        {seg.cue && <p className="mt-3 max-w-[30ch] text-[15px] leading-relaxed text-ink-soft text-pretty">{seg.cue}</p>}
+      </div>
+    )
+  } else if (kind === 'text') {
+    main = (
+      <div className="pt-8">
+        <h1 className="text-[30px] font-semibold leading-[1.1] tracking-[-0.03em] text-ink text-balance">{seg.title}</h1>
+        {seg.cue && <p className="mt-3 text-[16px] leading-relaxed text-ink-soft text-pretty">{seg.cue}</p>}
+      </div>
+    )
+  } else if (kind === 'activity' || kind === 'results') {
+    main = (
+      <div className="pt-5">
+        {eyebrow(kind === 'results' ? 'Results on screen' : activity?.status === 'closed' ? 'Closed' : 'Opens in a moment')}
+        <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance">{kind === 'results' ? seg.cue || seg.title : activity?.prompt ?? seg.title}</h1>
+        {activity && activity.status !== 'ready' && <div className="mt-5"><ActivityResults activity={activity} size="phone" /></div>}
+      </div>
+    )
+  } else {
+    main = (
+      <div className="pt-5">
+        {eyebrow(sections[here]?.title ?? 'On screen now')}
+        {seg.title && <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance">{seg.title}</h1>}
+        {seg.cue && <p className="mt-2 text-[15px] leading-relaxed text-ink-soft text-pretty">{seg.cue}</p>}
+        {real.length > 0 && <SegmentCards cards={real} posts={posts} size="phone" className="mt-5" />}
+        <SlideText cards={seg.cards} size="phone" className="mt-5" />
+        {!seg.cards.length && seg.detail && <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">{seg.detail}</p>}
+      </div>
+    )
+  }
   return (
-    <section aria-label={`Now: ${seg.title}`} className="pt-5">
-      <p className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
-        <span className="relative flex size-1.5" aria-hidden>
-          <span className="absolute inset-0 rounded-full bg-matcha opacity-60 motion-safe:animate-ping" />
-          <span className="relative size-1.5 rounded-full bg-matcha" />
-        </span>
-        On screen now · {KIND_LABELS[seg.kind]} · <span className="tabular">{index + 1}/{count}</span>
-      </p>
-      <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance">{seg.title}</h1>
-      {seg.cue && <p className="mt-2 text-[15px] leading-relaxed text-ink-soft text-pretty">{seg.cue}</p>}
+    <section aria-label={`Now: ${seg.title || 'on screen'}`}>
       {/* The presenter's own phone: their notes first, it's what they glance at. */}
       {notes && <YourNotes notes={notes} />}
-      {results && <div className="mt-4"><ActivityResults activity={results} size="phone" /></div>}
-      {seg.cards.length > 0 ? (
-        <SegmentCards cards={seg.cards} posts={posts} size="phone" className="mt-5" />
-      ) : seg.detail ? (
-        <p className="mt-4 text-[15px] leading-relaxed text-ink-soft">{seg.detail}</p>
-      ) : null}
-      <p className="mt-8 border-t border-border pt-4 text-footnote text-ink-muted">
-        {next ? <>Up next: <span className="text-ink-soft">{next.title}</span></> : 'Last one. Thanks for coming.'}
+      {main}
+      <p className="mt-10 border-t border-border pt-4 text-footnote text-ink-muted">
+        {nextSection ? <>Up next: <span className="text-ink-soft">{nextSection.title}</span></> : 'Last one. Thanks for coming.'}
       </p>
-      <p className="mt-1 text-footnote text-ink-muted">Polls and word clouds open here when the presenter starts them.</p>
     </section>
   )
 }

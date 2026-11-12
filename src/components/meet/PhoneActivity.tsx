@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils/cn'
 import { CLOUD_MAX_WORDS, CLOUD_WORD_MAX, type Mine, type PublicActivity } from '@/lib/meet/activity'
 import { bossProblem, callText, showValue, summarise, type CaseResult } from '@/lib/meet/boss'
 import { runBoss } from '@/lib/meet/bossRunner'
+import { OptionShape, tileFor } from '@/components/meet/tiles'
 
 type Post = (body: Record<string, unknown>) => Promise<{ ok?: boolean; blocked?: boolean; message?: string; mine?: Mine }>
 type Toast = ReturnType<typeof useToast>
@@ -21,18 +22,6 @@ interface Props {
   onMine: (mine: Mine) => void
   post: Post
   toast: Toast
-  /** The dev mock (/meet/mock) only: local state to start from. */
-  demo?: PhoneDemo
-}
-
-/** A phone's own state, seeded by the dev mock so it can be seen without typing. */
-export interface PhoneDemo {
-  /** The cloud's "Kers didn't like that one". */
-  refused?: string
-  /** The Boss Round's editor and its last run. */
-  code?: string
-  results?: CaseResult[]
-  fatal?: string | null
 }
 
 /**
@@ -56,12 +45,20 @@ function Prompt({ children }: { children: React.ReactNode }) {
   return <h1 className="mt-6 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance">{children}</h1>
 }
 
-/** One vote, changeable until the poll closes. Neutral options; the chosen one is filled. */
+/** Kers' reaction to a vote: one per option, so changing your mind gets a new one. */
+const LOCKED = ['Locked in.', 'Bold. Locked in.', 'Noted. Locked in.', 'Brave. Locked in.']
+
+/**
+ * One vote, changeable until the poll closes. The options are the shared
+ * screen's tiles (the same shape and colour per option), big tap targets;
+ * the chosen one fills, the rest step back, and Kers locks it in.
+ */
 function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
   const saved = typeof mine?.values[0]?.option === 'number' ? (mine.values[0].option as number) : null
   const [picked, setPicked] = useState<number | null>(null)
   const [sending, setSending] = useState(false)
   const chosen = picked ?? saved
+  const long = activity.options.some(o => o.length > 22)
 
   const vote = async (option: number) => {
     if (option === chosen && !sending) return
@@ -81,9 +78,10 @@ function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
   return (
     <div>
       <Prompt>{activity.prompt}</Prompt>
-      <div role="radiogroup" aria-label={activity.prompt} className="mt-6 space-y-2.5">
+      <div role="radiogroup" aria-label={activity.prompt} className={cn('mt-6 grid gap-2.5', long ? 'grid-cols-1' : 'grid-cols-2')}>
         {activity.options.map((o, i) => {
           const on = chosen === i
+          const tile = tileFor(i)
           return (
             <button
               key={i}
@@ -92,29 +90,39 @@ function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
               aria-checked={on}
               onClick={() => vote(i)}
               className={cn(
-                'press flex min-h-12 w-full items-center gap-3 rounded-[14px] border px-4 py-3 text-left text-[16px] transition-colors',
-                on ? 'border-ink bg-ink text-parchment' : 'border-border bg-paper text-ink hover:border-border-strong',
+                'press relative flex w-full items-center gap-3 rounded-[16px] border-2 px-4 text-left text-[16px] font-medium leading-snug text-ink transition-[opacity,background-color,border-color] duration-200',
+                long ? 'min-h-16 py-3' : 'min-h-28 flex-col items-start justify-between py-3.5',
+                on ? cn(tile.on, 'gb-lock') : tile.tile,
+                chosen !== null && !on && 'opacity-55',
               )}
             >
+              <OptionShape i={i} size={long ? 22 : 26} />
               <span className="min-w-0 flex-1">{o}</span>
-              {on && <Icon icon={Check} size="sm" weight="bold" />}
+              {on && <Icon icon={Check} size="sm" weight="bold" className={cn('absolute right-3 top-3', tile.ink)} />}
             </button>
           )
         })}
       </div>
-      <p className="mt-4 text-footnote text-ink-muted" aria-live="polite">
-        {chosen === null ? 'Tap one. You can change it until the poll closes.' : sending ? 'Saving…' : 'Voted. You can change it until the poll closes.'}
-      </p>
+      <div className="mt-5 flex min-h-12 items-center gap-3" aria-live="polite">
+        {chosen !== null ? (
+          <>
+            <Kers key={chosen} size={44} colour="meeting" expression="excited" motion="hop" special="happy" />
+            <p className="text-[15px] font-medium text-ink">{sending ? 'Sending…' : LOCKED[chosen % LOCKED.length]}<span className="block text-footnote font-normal text-ink-muted">Change it any time until the poll closes.</span></p>
+          </>
+        ) : (
+          <p className="text-footnote text-ink-muted">Tap one. Match the shape on the screen.</p>
+        )}
+      </div>
     </div>
   )
 }
 
 /** Up to three words, 20 characters each. A blocked word is dropped and Kers says so. */
-function PhoneCloud({ activity, mine, onMine, post, toast, demo }: Props) {
+function PhoneCloud({ activity, mine, onMine, post, toast }: Props) {
   const words = (mine?.values ?? []).map(v => String(v.word ?? '')).filter(Boolean)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
-  const [refused, setRefused] = useState<string | null>(demo?.refused ?? null)
+  const [refused, setRefused] = useState<string | null>(null)
   const left = CLOUD_MAX_WORDS - words.length
 
   const send = async (e: React.FormEvent) => {
@@ -190,14 +198,13 @@ function PhoneCloud({ activity, mine, onMine, post, toast, demo }: Props) {
  * run's result replaces the last one on the screen. The code stays here (and
  * in this browser's storage, so a refresh keeps it).
  */
-function PhoneBoss({ activity, mine, onMine, post, toast, demo }: Props) {
+function PhoneBoss({ activity, mine, onMine, post, toast }: Props) {
   const problem = bossProblem(activity.config)
   const storeKey = `gb-boss:${activity.id}`
-  const [code, setCode] = useState(demo?.code ?? problem?.starter ?? '')
+  const [code, setCode] = useState(problem?.starter ?? '')
   const [running, setRunning] = useState(false)
-  const [results, setResults] = useState<CaseResult[] | null>(demo?.results ?? null)
-  const [fatal, setFatal] = useState<string | null>(demo?.fatal ?? null)
-  const seeded = !!demo?.code
+  const [results, setResults] = useState<CaseResult[] | null>(null)
+  const [fatal, setFatal] = useState<string | null>(null)
   const escaped = useRef(false)
   const readOnly = activity.status !== 'open'
   // CodeMirror, loaded only now that a Boss Round is on screen; the plain textarea until then, or if it fails.
@@ -210,7 +217,6 @@ function PhoneBoss({ activity, mine, onMine, post, toast, demo }: Props) {
 
   // Their code survives a refresh.
   useEffect(() => {
-    if (seeded) return
     const id = setTimeout(() => {
       try {
         const saved = localStorage.getItem(storeKey)
@@ -218,7 +224,7 @@ function PhoneBoss({ activity, mine, onMine, post, toast, demo }: Props) {
       } catch {}
     }, 0)
     return () => clearTimeout(id)
-  }, [storeKey, seeded])
+  }, [storeKey])
 
   if (!problem) return <p className="m-auto py-10 text-center text-footnote text-ink-muted">Kers forgot to pick a problem. Watch the screen.</p>
 

@@ -10,16 +10,19 @@ import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { cn } from '@/lib/utils/cn'
 import { OVERLAY_PRIORITY, useOverlaySlot } from '@/components/ui/OverlaySlot'
-import { ActivityHero, ActivityReady, ActivityResults, segmentActivity } from '@/components/meet/ActivityPanel'
+import { Kers } from '@/components/kers/Kers'
+import { ActivityHero, ResultsHero, segmentActivity } from '@/components/meet/ActivityPanel'
 import { AgendaProgress } from '@/components/meet/AgendaProgress'
+import { MemeSlide } from '@/components/meet/MemeSlide'
 import { PresenterKers } from '@/components/meet/PresenterKers'
 import { bossPhase } from '@/lib/meet/boss'
 import { REHEARSE_ROOM, rehearseActivity, withAnswer } from '@/lib/meet/rehearse'
+import { gotoPlan, resultsAfter } from '@/lib/meet/slides'
 import { PhonePreview } from '@/components/meet/PhonePreview'
-import { SegmentCards } from '@/components/meet/SegmentCards'
-import { stageFor, type PublicActivity } from '@/lib/meet/activity'
+import { SegmentCards, SlideText } from '@/components/meet/SegmentCards'
+import type { PublicActivity } from '@/lib/meet/activity'
 import { useMeetingLive, useSecond } from '@/components/meet/useMeetingLive'
-import { earlyStartWarning, KIND_LABELS, meetingLive, presenterNotes, publicSegments, segmentCards, type MeetingState, type MeetPost, type Segment } from '@/lib/meeting'
+import { activityKeyFor, earlyStartWarning, isRealCard, meetingLive, presenterNotes, publicSegments, sectionsOf, segmentCards, slideKind, type MeetingState, type MeetPost, type Segment } from '@/lib/meeting'
 
 /** Where the screen is when migration 045 isn't applied (or in rehearsal): this browser only. */
 const localKey = (cycleId: string, rehearsing: boolean) => `${rehearsing ? 'gb-meet-rehearse' : 'gb-meet'}:${cycleId}`
@@ -48,16 +51,16 @@ type RehearsedState = Record<string, { status: PublicActivity['status']; openedA
  *   header   the wordmark, the month, who's in the room (anonymous avatar
  *            seeds, never names); the presenter's few controls fade in on
  *            hover ("Take over" for another admin)
- *   stage    the hero. With an open or closed activity: its question and the
- *            answers (ActivityHero), the cards stepping back to a strip under
- *            a poll. Otherwise: the segment's eyebrow, title and one-line cue,
- *            its cards (SegmentCards: news, the board's posts, slots, sides,
- *            notes), and an activity waiting to open (ActivityReady, the one
- *            saffron button)
+ *   stage    one slide (docs/06-meeting-mode.md, "Slides"), laid out by its
+ *            kind: a title ("Next up", Kers bouncing), content (the board's
+ *            posts and Radar news as cards, summary as plain text), an
+ *            activity (ActivityHero: the question, the live count and the
+ *            one saffron "Close voting"), its results (ResultsHero, big), a
+ *            single big line, or a meme
  *   notes    never on the live screen: the talking points go to the
  *            presenter's own phone (/meet). In rehearsal only, they show
  *            here, small (P hides), and the phone preview is the presenter's
- *   footer   one thin line with a dot per segment, evenly spaced, no text;
+ *   footer   a thin line per section with a dot per slide, no text;
  *            subtle Back / Next either side, and Kers, small, at the end
  *
  * Only the presenter moves it (← → or PageUp/PageDown for a clicker, the
@@ -67,8 +70,9 @@ type RehearsedState = Record<string, { status: PublicActivity['status']; openedA
  *
  * Rehearsal (`rehearsal` set, /meet/present?rehearse=1): the same screen on
  * the real agenda and prep, the day before. Nothing is live and nothing is
- * written: the place is kept in this browser, "Open" fills the activity
- * with sample answers (lib/meet/rehearse.ts), and no action reaches the API.
+ * written: the place is kept in this browser, arriving on an activity slide
+ * "opens" it with sample answers (lib/meet/rehearse.ts, the same gotoPlan as
+ * the server), and no action reaches the API.
  */
 export function PresenterScreen({ initial, posts, rehearsal }: { initial: MeetingState; posts: Record<string, MeetPost>; rehearsal?: Record<string, PublicActivity> }) {
   const { state, busy, call, optimistic, now } = useMeetingLive(initial)
@@ -77,11 +81,7 @@ export function PresenterScreen({ initial, posts, rehearsal }: { initial: Meetin
 
 type Call = ReturnType<typeof useMeetingLive>['call']
 
-/**
- * The screen itself, from the meeting's state: PresenterScreen feeds it from
- * the server; the dev mock (/meet/mock) feeds it fake state and a no-op
- * `call`. `onExit` replaces Esc's trip to the Run tab.
- */
+/** The screen itself, from the meeting's state (PresenterScreen feeds it from the server). */
 export function PresenterView({
   state,
   busy,
@@ -91,7 +91,6 @@ export function PresenterView({
   serverNow,
   posts,
   rehearsal,
-  onExit,
 }: {
   state: MeetingState
   busy: string | null
@@ -101,9 +100,8 @@ export function PresenterView({
   /** The server's time in the page's props, so the first render agrees. */
   serverNow: string
   posts: Record<string, MeetPost>
-  /** Rehearsal: each segment's activity as seeded, keyed by segment id. Nothing goes live. */
+  /** Rehearsal: each activity as seeded, keyed by its slide id. Nothing goes live. */
   rehearsal?: Record<string, PublicActivity>
-  onExit?: () => void
 }) {
   const router = useRouter()
   const rehearsing = !!rehearsal
@@ -141,8 +139,6 @@ export function PresenterView({
 
   // Rehearsal: opening and closing happen here only, and the phone preview's answers stay here.
   const [rehearsed, setRehearsed] = useState<RehearsedState>({})
-  /** Which closed activity the presenter put back in the hero ("Show results big"), by id and close time. */
-  const [big, setBig] = useState<string | null>(null)
   const [phone, setPhone] = useState(true)
   const [mine, setMine] = useState<Record<string, Record<string, unknown>[]>>({})
   const onAnswer = useCallback((id: string, values: Record<string, unknown>[]) => setMine(m => ({ ...m, [id]: values })), [])
@@ -161,7 +157,9 @@ export function PresenterView({
   const segmentId = local ? localPos?.segment : meeting.currentSegment
   const idx = Math.max(0, agenda.findIndex(s => s.id === segmentId))
   const seg: Segment | undefined = agenda[idx]
-  const sample = rehearsing && seg && rehearsal[seg.id] ? rehearseActivity(rehearsal[seg.id], rehearsed[seg.id], t, REHEARSE_ROOM) : null
+  // The activity this slide is about: an activity slide's own, a results slide's `of`.
+  const key = seg ? activityKeyFor(agenda, seg.id) : null
+  const sample = rehearsing && key && rehearsal[key] ? rehearseActivity(rehearsal[key], rehearsed[key], t, REHEARSE_ROOM) : null
   const activity = !live || !seg ? null : rehearsing ? (sample ? withAnswer(sample, mine[sample.id]) : null) : segmentActivity(state, seg)
   const participants = rehearsing ? REHEARSE_ROOM : state.room?.participants ?? 0
   const boss = activity ? bossPhase(activity, t) : null
@@ -177,14 +175,23 @@ export function PresenterView({
         const pos = { segment, at }
         setLocalPos(pos)
         try { localStorage.setItem(posKey, JSON.stringify(pos)) } catch {}
-        // As the API does: moving on closes what was open.
-        if (rehearsing) setRehearsed(r => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v.status === 'open' ? { ...v, status: 'closed' as const } : v])))
+        // As the API does on goto: what was open closes, an activity slide opens its own (lib/meet/slides.ts).
+        if (rehearsing) {
+          setRehearsed(r => {
+            const refs = Object.values(rehearsal ?? {}).map(a => ({ id: a.segmentId, segment_id: a.segmentId, status: r[a.segmentId]?.status ?? 'ready' }))
+            const plan = gotoPlan(agenda, segment, refs)
+            const next = { ...r }
+            for (const k of plan.close) next[k] = { status: 'closed', openedAt: r[k]?.openedAt ?? at }
+            if (plan.open) next[plan.open] = { status: 'open', openedAt: at }
+            return next
+          })
+        }
         return
       }
       optimistic({ currentSegment: segment, segmentStartedAt: at })
       call('goto', { segment })
     },
-    [presenting, agenda, idx, now, local, posKey, rehearsing, optimistic, call],
+    [presenting, agenda, idx, now, local, posKey, rehearsing, rehearsal, optimistic, call],
   )
 
   const start = async () => {
@@ -199,9 +206,8 @@ export function PresenterView({
   }
   const end = () => call('end', {}, 'Meeting ended: the recap is on the Run tab')
   const leave = useCallback(() => {
-    if (onExit) onExit()
-    else router.push('/admin/run/meeting')
-  }, [onExit, router])
+    router.push('/admin/run/meeting')
+  }, [router])
 
   const fullscreen = useCallback(() => {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
@@ -241,20 +247,99 @@ export function PresenterView({
     )
   }
 
-  // Closed: the cards come back, the results go small under them, unless the presenter asked for them big.
-  const bigKey = activity && activity.status === 'closed' ? `${activity.id}:${activity.openedAt ?? ''}` : null
-  const stage = stageFor(activity, !!bigKey && big === bigKey)
-  const hero = stage.hero === 'activity' ? activity : null
-  const ready = stage.strip === 'ready' ? activity : null
-  const results = stage.strip === 'results' ? activity : null
-  const cards = segmentCards(seg)
+  const kind = slideKind(seg, !!activity)
+  const sections = sectionsOf(agenda)
+  const section = sections.find(x => idx >= x.start && idx < x.start + x.slides) ?? null
   const cue = seg.cue?.trim() || null
-  // An agenda written before cue and cards: its detail, as before.
-  const fallback = !cue && !seg.cards?.length ? seg.detail : ''
   // The presenter's notes: rehearsal only. The live screen is shared.
   const prep = rehearsing && notes && !ended ? seg.prep : null
-  const longTitle = seg.title.length > 48
   const sidePad = rehearsing && phone ? 'pr-[420px]' : ''
+  const results = seg && activity ? resultsAfter(agenda, seg.id) : null
+  const resultsIdx = results ? agenda.findIndex(x => x.id === results) : -1
+  // "Close voting": on to the results slide (moving there closes it), else close in place.
+  const closeActivity = () => {
+    if (resultsIdx >= 0) go(resultsIdx)
+    else if (activity) act('close_activity', { activity_id: activity.id })
+  }
+
+  let stage: React.ReactNode
+  if (ended) {
+    stage = (
+      <div className="my-auto">
+        <h1 className="text-[clamp(40px,2.9vw,56px)] font-semibold leading-[1.08] tracking-[-0.03em] text-ink">That’s the meeting.</h1>
+        <Link href="/admin/run#run-recap" className="mt-8 inline-block text-[17px] text-ink underline underline-offset-4">Write the recap</Link>
+      </div>
+    )
+  } else if (!live) {
+    stage = (
+      <TitleStage eyebrow={`${state.cycle.label} guild meeting`} title={seg.title || 'Ready when you are'} cue={cue} kers={false}>
+        <div className="mt-10 flex items-center gap-3">
+          <Button icon={Play} disabled={!!busy} onClick={start}>{busy === 'start' ? 'Starting…' : 'Start meeting mode'}</Button>
+          <Link href="/meet/present?rehearse=1" className="press inline-flex h-8 items-center rounded-full bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink">Rehearse</Link>
+          <p className="ml-3 text-footnote text-ink-muted">The room opens on everyone’s phone when you start.</p>
+        </div>
+      </TitleStage>
+    )
+  } else if (kind === 'activity' && activity) {
+    stage = (
+      <ActivityHero
+        key={activity.id}
+        activity={activity}
+        cue={cue}
+        participants={participants}
+        presenting={presenting}
+        now={now}
+        call={act}
+        busy={rehearsing ? null : busy}
+        onClose={closeActivity}
+        onResults={resultsIdx >= 0 ? () => go(resultsIdx) : null}
+      />
+    )
+  } else if (kind === 'results' && activity) {
+    stage = <ResultsHero key={`${activity.id}:${activity.status}`} activity={activity} title={seg.title} cue={cue} participants={participants} />
+  } else if (kind === 'meme' && seg.meme) {
+    stage = <MemeSlide key={seg.id} meme={seg.meme} size="screen" />
+  } else if (kind === 'text') {
+    stage = (
+      <div key={seg.id} className="animate-fade-up my-auto w-full max-w-[62rem]">
+        <p className="eyebrow">{section?.title}</p>
+        <h1 className="mt-5 text-[clamp(48px,3.8vw,76px)] font-semibold leading-[1.04] tracking-[-0.035em] text-ink text-balance">{seg.title}</h1>
+        {cue && <p className="mt-7 max-w-[48rem] text-[clamp(21px,1.4vw,27px)] leading-[1.4] text-ink-soft text-pretty">{cue}</p>}
+      </div>
+    )
+  } else if (kind === 'title' || ((kind === 'activity' || kind === 'results') && !activity)) {
+    // An activity or results slide with no activity seeded: its title and cue, nothing to break.
+    stage = <TitleStage key={seg.id} eyebrow={kind !== 'title' ? section?.title ?? '' : idx === 0 ? 'Welcome' : 'Next up'} title={seg.title} cue={cue} kers={kind === 'title'} section={kind === 'title' ? section?.title : undefined} />
+  } else {
+    const cards = segmentCards(seg)
+    const real = cards.filter(isRealCard)
+    // An agenda written before cue and cards: its detail, as before.
+    const fallback = !cue && !seg.cards?.length ? seg.detail : ''
+    stage = (
+      <div key={seg.id} className="my-auto flex w-full flex-col py-4">
+        <div className="animate-fade-up shrink-0">
+          <p className="eyebrow">{section?.title}</p>
+          <h1 className="mt-3 max-w-[36ch] text-[clamp(36px,2.5vw,48px)] font-semibold leading-[1.1] tracking-[-0.03em] text-ink text-balance">{seg.title}</h1>
+          {cue ? (
+            <p className="mt-4 flex max-w-[60rem] items-start gap-3.5 text-[clamp(20px,1.3vw,24px)] leading-[1.4] text-ink-soft text-pretty">
+              <span aria-hidden className="mt-[0.55em] size-2.5 shrink-0 rounded-full bg-matcha shadow-[0_0_0_5px_color-mix(in_oklab,var(--color-matcha)_16%,transparent)]" />
+              {cue}
+            </p>
+          ) : fallback ? (
+            <p className="mt-6 max-w-[60ch] text-[clamp(18px,1.15vw,22px)] leading-relaxed text-ink-soft">{fallback}</p>
+          ) : null}
+        </div>
+        {real.length > 0 ? (
+          <div className={cn('mt-12 grid items-start gap-12', cards.length > real.length && real.length === 1 ? 'grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]' : 'grid-cols-1')}>
+            <SegmentCards cards={real} posts={posts} size="screen" className={real.length === 1 && cards.length === 1 ? 'max-w-[62rem]' : ''} />
+            <SlideText cards={cards} size="screen" className={real.length === 1 ? 'self-center' : ''} />
+          </div>
+        ) : (
+          <SlideText cards={cards} size="screen" className="mt-12 max-w-[64rem]" />
+        )}
+      </div>
+    )
+  }
 
   return (
     <Shell>
@@ -294,69 +379,9 @@ export function PresenterView({
         </div>
       </header>
 
-      {/* ─── Stage ─── */}
+      {/* ─── Stage: one slide ─── */}
       <main aria-live="polite" className={cn('mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col px-14 pb-4 pt-6', sidePad)}>
-        {ended ? (
-          <div className="my-auto">
-            <h1 className="text-[clamp(40px,2.9vw,56px)] font-semibold leading-[1.08] tracking-[-0.03em] text-ink">
-              That’s the meeting.
-            </h1>
-            <Link href="/admin/run#run-recap" className="mt-8 inline-block text-[17px] text-ink underline underline-offset-4">Write the recap</Link>
-          </div>
-        ) : hero ? (
-          <div className="flex min-h-0 flex-1 flex-col">
-            <ActivityHero key={hero.id} segment={seg} activity={hero} participants={participants} presenting={presenting} now={now} call={act} busy={rehearsing ? null : busy} onBack={hero.status === 'closed' ? () => setBig(null) : undefined} />
-            {/* Under a poll the cards step back to a strip: the debate's sides, the Radar's three, still in view. */}
-            {hero.kind === 'poll' && cards.length > 0 && <SegmentCards cards={cards} posts={posts} size="strip" className="mt-6 shrink-0" />}
-          </div>
-        ) : (
-          <div key={seg.id} className="my-auto flex flex-col py-4">
-            <div className="animate-fade-up shrink-0">
-              <p className="eyebrow flex items-center gap-3">
-                <span>{KIND_LABELS[seg.kind]}</span>
-                <span aria-hidden className="h-px w-6 bg-border-strong" />
-                <span className="tabular text-ink-muted">{idx + 1} of {agenda.length}</span>
-              </p>
-              <h1
-                className={cn(
-                  'mt-3 max-w-[36ch] font-semibold tracking-[-0.03em] text-ink text-balance',
-                  longTitle ? 'text-[clamp(36px,2.5vw,48px)] leading-[1.12]' : 'text-[clamp(40px,2.9vw,56px)] leading-[1.08]',
-                )}
-              >
-                {seg.title}
-              </h1>
-              {cue ? (
-                <p className="mt-5 flex max-w-[60rem] items-start gap-3.5 text-[clamp(20px,1.3vw,25px)] leading-[1.4] text-ink-soft text-pretty">
-                  <span aria-hidden className="mt-[0.55em] size-2.5 shrink-0 rounded-full bg-matcha shadow-[0_0_0_5px_color-mix(in_oklab,var(--color-matcha)_16%,transparent)]" />
-                  {cue}
-                </p>
-              ) : fallback ? (
-                <p className="mt-6 max-w-[60ch] text-[clamp(18px,1.15vw,22px)] leading-relaxed text-ink-soft">{fallback}</p>
-              ) : null}
-
-              {!live && !ended && (
-                <div className="mt-8 flex items-center gap-3">
-                  <Button icon={Play} disabled={!!busy} onClick={start}>{busy === 'start' ? 'Starting…' : 'Start meeting mode'}</Button>
-                  <Link href="/meet/present?rehearse=1" className="press inline-flex h-8 items-center rounded-full bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink">Rehearse</Link>
-                  <p className="ml-3 text-footnote text-ink-muted">The room opens on everyone’s phone when you start.</p>
-                </div>
-              )}
-            </div>
-
-            {cards.length > 0 && <SegmentCards cards={cards} posts={posts} size="screen" className="mt-12" />}
-
-            {ready && (
-              <div className={cn('shrink-0 animate-fade-up', cards.length ? 'mt-10' : 'mt-8')}>
-                <ActivityReady activity={ready} presenting={presenting} call={act} busy={rehearsing ? null : busy} />
-              </div>
-            )}
-            {results && (
-              <div className={cn('shrink-0 animate-fade-up', cards.length ? 'mt-10' : 'mt-8')}>
-                <ActivityResults activity={results} size="screen" presenting={presenting} call={act} busy={rehearsing ? null : busy} onBig={() => setBig(bigKey)} />
-              </div>
-            )}
-          </div>
-        )}
+        {stage}
 
         {prep && (prep.opener || prep.points.length > 0) && (
           <aside aria-label="Your notes (rehearsal only)" className="mt-4 max-w-[72rem] shrink-0 rounded-(--radius-card) border border-dashed border-border-strong px-5 py-3">
@@ -380,7 +405,7 @@ export function PresenterView({
           cycleId={meeting.cycleId}
           label={state.cycle.label}
           segment={seg.id}
-          activity={activity && activity.status !== 'ready' ? activity : null}
+          activity={activity}
           agenda={publicSegments(agenda)}
           posts={posts}
           notes={presenterNotes(agenda, 'rehearsal', 'rehearsal')}
@@ -403,9 +428,40 @@ export function PresenterView({
         ) : (
           <NavArrow label="Next" icon={CaretRight} onClick={() => go(idx + 1)} />
         ))}
-        <PresenterKers className="-mb-2 ml-3 shrink-0" segmentKey={seg.id} live={live} ended={ended} boss={boss} />
+        <PresenterKers className={cn('-mb-2 ml-3 shrink-0', kind === 'title' && live && !ended && 'invisible')} segmentKey={section ? String(section.start) : seg.id} live={live} ended={ended} boss={boss} />
       </footer>
     </Shell>
+  )
+}
+
+/**
+ * A section's intro (and the screen before the start): "Next up", the title
+ * big, the one cue line, and Kers bouncing beside it, a game show's
+ * get-ready beat without any countdown.
+ */
+function TitleStage({ eyebrow, title, cue, kers, section, children }: { eyebrow: string; title: string; cue: string | null; kers: boolean; section?: string; children?: React.ReactNode }) {
+  return (
+    <div className="my-auto flex w-full items-center gap-16">
+      <div className="animate-fade-up min-w-0 flex-1">
+        <p className="eyebrow flex items-center gap-3">
+          <span>{eyebrow}</span>
+          {section && section !== title && (
+            <>
+              <span aria-hidden className="h-px w-6 bg-border-strong" />
+              <span className="text-ink-muted">{section}</span>
+            </>
+          )}
+        </p>
+        <h1 className="mt-5 max-w-[22ch] text-[clamp(52px,4.2vw,84px)] font-semibold leading-[1.02] tracking-[-0.04em] text-ink text-balance">{title}</h1>
+        {cue && <p className="mt-7 max-w-[46rem] text-[clamp(21px,1.4vw,27px)] leading-[1.4] text-ink-soft text-pretty">{cue}</p>}
+        {children}
+      </div>
+      {kers && (
+        <div aria-hidden className="gb-meme-in mr-10 shrink-0">
+          <Kers size={220} expression="excited" colour="meeting" motion="hop" special="happy" />
+        </div>
+      )}
+    </div>
   )
 }
 

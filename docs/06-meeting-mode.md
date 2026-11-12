@@ -19,8 +19,8 @@ Planned 2026-11-12 (grill session). Progress is tracked at the bottom.
 | Area | Decision |
 |---|---|
 | Phasing | P1 presenter screen → P2 audience (poll, word cloud) → P3 Boss Round |
-| Who runs it | `admin` only: starts meeting mode, edits Kers' drafts in the Run tab, moves segments, opens activities. No "lead" or "organiser" role |
-| One presenter | The admin who starts meeting mode is the presenter (`meetings.presenter_id`). Only they move segments and open activities. Another admin opening `/meet/present` gets it read-only, with "Take over" for when the presenter drops off the call |
+| Who runs it | `admin` only: starts meeting mode, edits Kers' drafts in the Run tab, moves slides. No "lead" or "organiser" role |
+| One presenter | The admin who starts meeting mode is the presenter (`meetings.presenter_id`). Only they move slides (which opens and closes activities). Another admin opening `/meet/present` gets it read-only, with "Take over" for when the presenter drops off the call |
 | Admins take part too | Every admin, the presenter included, joins `/meet` like any member and votes, types words and plays the Boss Round. Their answers count the same and are just as anonymous. The presenter uses their phone or a second tab, so the shared screen stays clean |
 | Setting | Fully remote. Attendees on laptops or phones |
 | Scale | ~20 now, 60 max. Stress-tested at 60 before the first real meeting |
@@ -31,36 +31,66 @@ Planned 2026-11-12 (grill session). Progress is tracked at the bottom.
 | On screen | Everything is anonymous. Counts, words and pass rates; never names |
 | Poll reveal | Counts hidden on the presenter screen for the first 8 s after it opens, then live |
 | Moderation | Server-side profanity filter only. No manual hide |
-| Activity choice | Hard-coded for the first run (below). No admin UI to choose or reorder them |
-| Kers' prep | Talking points + one opener per segment, generated before the meeting, editable by admins in the Run tab. No AI calls during the meeting |
+| Activity choice | Designed into the agenda: each poll, word cloud or Boss Round is its own slide, seeded from the month's agenda file. No admin UI to choose or reorder them |
+| Kers' prep | Talking points + one opener per slide, generated before the meeting, editable by admins in the Run tab. No AI calls during the meeting |
 | "Who to ask" | Members who voted or commented on a segment's topic. Stored in the DB only, shown nowhere |
 | Boss Round code | Runs in the attendee's own browser (Web Worker, timeout). Only pass/fail is sent |
 | Boss Round editor | One plain editor, the same on phone and laptop |
 | Boss Round problems | A fixed list we write. Kers does not draft them |
 | Boss Round line | "You lot tell me what to write all day. Let's see if you can still code." |
-| Pace | No timers anywhere (decided 2026-11-12, the day before the first run). The presenter finishes each item or skips it. No segment countdown, no overtime, no "one minute left" nudges; the Boss Round has no clock either. Segment `minutes` stay in the data for drafting the agenda only |
-| Presenter screen | Minimal: the activity is the hero when there is one (poll bars, word cloud, Boss pass rate); otherwise the segment title and Kers' opener, large. Progress is one thin line with a dot per segment, evenly spaced, no text. Kers is small, in the corner, and speaks only now and then |
+| Pace | No timers anywhere (decided 2026-11-12, the day before the first run). The presenter finishes each slide or skips it. No countdown, no overtime, no "one minute left" nudges; the Boss Round has no clock either. Slides carry `minutes: 0` |
+| Presenter screen | Slides (decided 2026-11-12 evening): the agenda is a flat list of slides grouped into sections, as many as the flow needs. One idea per slide, few words, generous whitespace. Progress is one thin line with a dot per slide, grouped by section, no text. Kers is small, in the corner, and speaks only now and then |
+| Spotlight / Demo | Not in meeting mode: the guild has no Spotlight or Demo running yet. Show & Tell is not a section; a volunteer may share a trick for two minutes (the presenter's notes say when), and the Wrap asks for one desk-tour volunteer for next month |
 
 ---
 
-## First-run agenda (60 min)
+## Slides
 
-Rebuilt from the November agenda. Trimmed to make room for the warm-up and
-the Boss Round. The minutes are a planning guide only: nothing on screen
-counts them, and the presenter moves on when an item is done.
+The agenda is a flat, ordered list of **slides** (`lib/meeting.ts`
+`Segment`, with `slide` set). Consecutive slides with the same `section`
+form a section: the progress line groups them, the Slack agenda lists them.
+How to write a month's slides: [07-agenda-and-script-guide.md](./07-agenda-and-script-guide.md).
 
-| # | Segment | Min | Activity | Why there |
-|---|---|---|---|---|
-| 1 | **Warm-up** (Kers) | 2 | Word cloud: *"One word for your week so far"* | Everyone joins and taps once before anything serious. Tests the room while the stakes are zero |
-| 2 | **Radar**: eMudhra intermediate CA compromise · KV-cache exposure in the GLM-5.3 Worker | 5 | Poll: *"Would you send production code to a hosted AI model?"* Yes, freely / Only with an enterprise contract / Only self-hosted / Never | Both stories are about trusting someone else's infrastructure. The split gives the admin a question to ask |
-| 3 | **Show & Tell**: Spotlight + Demo | 15 | None | People are presenting. Don't pull eyes to phones |
-| 4 | **Topic**: AI Bubble Bust (AI technology vs AI as a business) | 18 | Poll at the start: *"AI by 2028?"* 💥 Bursts / 📉 Slow deflate / 🚀 Still booming / 🤷 Tech stays, business crashes | Everyone commits to a side before the debate, so the debate has sides |
-| 5 | **Problem clinic** | 8 | Word cloud: *"One word: your biggest blocker this month"* | The biggest words are the clinic's agenda. Quiet people name problems without having to explain them |
-| 6 | **Kers' Boss Round** | 8 | Boss problem #1 | Ends on energy, not admin |
-| 7 | **Wrap**: decisions, owners, next month | 4 | None | — |
+| Slide | Shared screen | Phone |
+|---|---|---|
+| `title` | "Next up": the section's title and one cue line, Kers bouncing | The cue |
+| `content` | Real cards (board posts with the board's own `TopicCard`, Radar news) and/or plain text: a debate's sides in two columns, notes as a compact list | The same cards, tap to open (new tab) |
+| `activity` | The poll, word cloud or Boss Round, live. A prominent state ("Voting open · 12 of 20") and the one saffron action, **Close voting → results** | The input: poll tiles, word box, Boss editor |
+| `results` | The activity's results, big (its `of`), and one line to talk about | The results |
+| `text` | One big statement or question | The statement |
+| `meme` | A Kers meme (one or two panels, Kers with a face, a label and a line, an optional punchline) or an image from `public/meet/memes/` | The same, with a small entrance |
 
-Each activity opens when the admin reaches its segment (one button), and
-closes when the admin moves on.
+**Activities drive themselves** (server-side, presenter only, `goto` in
+`/api/admin/meeting`, logic in `lib/meet/slides.ts` `gotoPlan`):
+- Arriving on an activity slide opens its activity, if it has never opened
+  (`ready`). One that was closed stays closed (going back doesn't reopen it
+  by accident); the presenter has **Reopen**.
+- Leaving it closes it: every open activity closes on `goto`, except the
+  target slide's own.
+- **Close voting → results** moves to the next slide when it is this
+  activity's results slide (which closes it), else closes in place.
+- Starting meeting mode on an activity slide opens it too.
+- The poll's counts stay hidden for the first 8 s after it opens.
+
+**Kahoot touches, without timers or names:** poll options are big pastel
+tiles with a shape each (triangle, diamond, circle, square), the same on the
+screen and the phone, so people match screen to phone; a tap shows "Locked
+in!" with Kers' reaction; the "N answered" count ticks up; on a results
+slide the bars rise one by one after a short drumroll and the winner pops;
+title slides are a "Next up" moment with Kers. No leaderboard, no
+countdowns, nothing named. All of it stills under reduced motion.
+
+**No migration:** activities stay in `meeting_activities`, keyed by the
+activity slide's id in `segment_id`. `UNIQUE(cycle_id, segment_id)` means
+one activity per slide, which is the model. A results slide finds its
+activity through `of` (`activityKeyFor`).
+
+**Old agendas** (segments without `slide`) still render: each segment is one
+slide, an `activity` slide if it has an activity, else `content`
+(`slideKind`).
+
+November's flow (25 slides, 7 sections) is in
+[agendas/2026-11.md](./agendas/2026-11.md).
 
 ---
 
@@ -73,12 +103,11 @@ closes when the admin moves on.
 - **Rehearse** opens `/meet/present?rehearse=1`: the full presenter screen on
   the real agenda, prep and seeded activities. Nothing goes live: no
   `started_at`, no presenter, no banner, no write to the API. Segments move
-  locally; "Open" fills an activity with sample answers over ~25 s
-  (`lib/meet/rehearse.ts`), so the poll reveal, the cloud and the Boss Round
-  can be practised. `M` shows a phone preview beside it (the real `/meet`
+  locally; arriving on an activity slide "opens" it with sample answers over
+  ~25 s (`lib/meet/rehearse.ts`), so the poll reveal, the cloud and the Boss
+  Round can be practised, and the results slide after it shows them. `M` shows a phone preview beside it (the real `/meet`
   room, offline, as the presenter's own phone: cards and notes) whose
-  answers land on the screen. The dev mock (`/meet/mock`) shows a phone as
-  a member or as the presenter (`as=presenter`). Also linked from the Run
+  answers land on the screen. Also linked from the Run
   tab (agenda builder and Meeting mode).
 - **Start meeting** marks the meeting live (`meetings.started_at`). Members
   and guests then see the "Meeting is live, join the room" banner on the
@@ -88,49 +117,28 @@ closes when the admin moves on.
   stays admin-only on the server.
 
 **Presenter screen** (`/meet/present`, full screen, admin only)
-- No clock. The presenter finishes each item or skips it.
-- Top: a small eyebrow (kind, "3 of 8"), the title, and one **cue** line:
-  what the room does now ("Vote first, then we read them."). See "Cue and
-  cards" below.
-- The hero: the segment's **cards** in a grid (1-4 across, soft tint per
-  kind, staggered in), with an activity waiting to open under them (the one
-  saffron button). Open, the activity is the hero (its question and the
-  live answers), and under a poll the cards step back to a strip. Closed,
-  the cards come back and the result goes small under them (the final
-  split, the top words, or the pass rate and Kers' verdict), with quiet
-  **Show results big** and **Reopen** (`stageFor` in `lib/meet/activity.ts`).
+- No clock. The presenter finishes each slide or skips it.
+- One slide at a time, laid out by its kind (see "Slides" above): minimal,
+  generous whitespace, smaller copy. Real content as cards, summaries as
+  plain text. One saffron action per view.
 - The presenter's notes (opener and talking points) are **never** on the
   shared screen: they go to the presenter's own phone (below). In Rehearse
   they show at the bottom (`P` hides them).
-- Progress: one thin line with a dot per segment, evenly spaced, no labels.
-  The current dot is larger; the presenter can click a dot to jump.
-- ← / → (PageUp / PageDown for a clicker) move segments; subtle arrows sit at
+- Progress: one thin line with a dot per slide, grouped by section, no
+  labels. The current dot is larger; the presenter can click a dot to jump.
+- ← / → (PageUp / PageDown for a clicker) move slides; subtle arrows sit at
   either end of the line. Esc leaves, F goes full screen. A refresh resumes in place.
 - Kers, small, at the end of the line: a speech bubble now and then (a cheer
   when the presenter moves on, the Boss Round dare), never about time.
-- Everything fits 1920 × 1080 with no scrolling. GuildBoard's own language,
-  at a calm size: the wordmark and mono eyebrows, sans titles (~48–56 px),
-  the cue with a small mint dot, poll options as the board's poll rows with a
-  soft colour each, word-cloud words as pastel pills, the room as anonymous
-  avatar seeds (never names).
-
-**Cue and cards** (the agenda's shape: [07-agenda-and-script-guide.md](./07-agenda-and-script-guide.md), section 3)
-- Each segment may carry `cue` (one line, ≤ 120, aim ≤ 90) and `cards` (≤ 6):
-  `news` (title, source, link, why), `post` (a board post, drawn with the
-  board's own card, `TopicCardHead`; ghost posts keep their ghost handle),
-  `slot` (Show & Tell: label and invited / confirmed / open), `side` (the
-  Topic's two sides), `note` (anything else, short). `lib/meeting.ts` `Card`.
-- Instructions to the host are never cards and never the cue: they're notes.
-- Old agendas without cards still render: their posts as post cards, else
-  the detail as text.
+- Everything fits 1920 × 1080 with no scrolling, light and dark. The room
+  shows as anonymous avatar seeds (never names).
 - The posts are read server-side (`meetPosts` in `lib/guild/meetingPrep.ts`)
   for the presenter and for every phone.
 
 **Kers' prep** (the standard and prompts: [07-agenda-and-script-guide.md](./07-agenda-and-script-guide.md))
-- Drafted from each segment's topic (post, comments, votes) when the agenda is
-  locked, or 3 h before at the latest.
-- Admins edit it in the Run tab. If drafting fails, the segment shows only its
-  title and detail.
+- Drafted per slide (memes have none) from its posts (post, comments, votes)
+  when the agenda is locked, or 3 h before at the latest.
+- Admins edit it in the Run tab. If drafting fails, the slide has no notes.
 - "Who to ask" is computed and stored with the prep. Not rendered.
 
 **Data**
@@ -147,13 +155,12 @@ closes when the admin moves on.
 - Guests type a name and get a meeting-scoped token in a cookie. No account.
 - Joining only works while the meeting is live.
 - The waiting area shows "Kers is setting up…" and how many people are in.
-- The phone mirrors the screen. Between activities it shows the segment on
-  screen now: title, cue and the same cards (news opens its source, a post
-  its board page, both in a new tab), and "Up next". An activity opening
-  swaps it in with a short transition; closed, the cards come back with a
-  small results card on top. "Kers is setting up…" only shows with no agenda.
+- The phone mirrors the current slide (see "Slides"): the same cards (news
+  opens its source, a post its board page, both in a new tab), the open
+  activity's input, the results, the cue or the meme. "Kers is setting up…"
+  only shows with no agenda.
 - **The presenter's own phone** (signed in as the one presenting) also
-  shows **Your notes**: the opener and talking points for the segment.
+  shows **Your notes**: the opener and talking points for the current slide.
   `GET /api/meet` sends them only when the session's user is
   `meetings.presenter_id` (`phoneAgenda` in `lib/meeting.ts`); everyone else
   gets the agenda without prep, and the broadcast (`RoomState`) never
@@ -181,10 +188,10 @@ closes when the admin moves on.
 
 **Data**
 - `meeting_participants`: meeting, user_id or guest name + token hash, joined_at.
-- `meeting_activities`: meeting, segment id, kind (`poll` / `cloud` / `boss`),
+- `meeting_activities`: meeting, slide id (`segment_id`), kind (`poll` / `cloud` / `boss`),
   prompt, options, status (`ready` / `open` / `closed`), opened_at, closed_at.
 - `meeting_responses`: activity, participant, value. Unique per participant for polls.
-- The first run's activities are seeded into `meeting_activities` by a script, not through any UI.
+- A month's activities are seeded into `meeting_activities` from its agenda file by a script, not through any UI.
 
 **Stress test** (gates the first real meeting)
 - A script opens 60 fake participants against a preview deploy. All 60 join,
@@ -197,7 +204,7 @@ closes when the admin moves on.
 ## Phase 3: Kers' Boss Round
 
 **Flow**
-1. The admin opens the Boss Round segment. Kers: *"You lot tell me what to
+1. The presenter reaches the Boss Round's activity slide, which opens it. Kers: *"You lot tell me what to
    write all day. Let's see if you can still code."*
 2. Each participant gets the problem, a function signature and a plain
    editor. No countdown: the round runs until the presenter closes it (or
@@ -247,6 +254,7 @@ closes when the admin moves on.
 - [x] `/meet/present`: segment view, progress line, keyboard nav, resume (countdown and overtime removed 2026-11-12)
 - [x] Kers reactions on the presenter screen
 - [x] Rehearse from the day before (`?rehearse=1`, phone preview); Start asks first when > 3 h early
+- [x] Slides (2026-11-12 evening): sections of slides, activity slides open and close themselves on `goto`, results slides, memes, Kahoot-style tiles; Spotlight and Demo out
 - [ ] Screenshot check on a 1080p share
 
 Built (2026-11-12): migration `045_meeting_presenter.sql`; `/meet/present`
@@ -259,13 +267,6 @@ by "Build from the board" or by hand in the Run tab. Admin screens poll every
 3 s for now (`components/meet/useMeetingLive.ts`); Phase 2 adds the
 `meeting:{id}` channel there and renders its activity in
 `components/meet/ActivityPanel.tsx`.
-
-**Dev mock** (`/meet/mock`, dev only): November's real agenda
-(`docs/agendas/2026-11.json`, read only; answers invented). `view=both`
-puts the presenter beside a phone, synced over a `BroadcastChannel`: open
-or close on the presenter and the phone follows; vote, add a word or run
-the Boss Round tests on the phone and the presenter's counts move.
-`rehearse=1` shows the rehearsal screen with its phone preview.
 
 ### Phase 2: Audience
 - [x] Migration: `meeting_participants`, `meeting_activities`, `meeting_responses`; realtime policy for `meeting:{id}`
@@ -300,13 +301,13 @@ aggregation, `room.ts` server side, `profanity.ts`); the presenter's panel in
   sends one broadcast a second, the last answers land within ~1 s, and
   serverless needs no shared timer. Clients that miss one pull the same
   room on their poll (3 s without the channel, 15–30 s with it).
-- **Seed:** `node --env-file=.env.local scripts/seed-meeting-activities.mjs`
-  finds segments **by kind** (warm-up, radar, topic, clinic, boss), so it
-  works on a drafted or hand-edited agenda. "Build from the board" now drafts
-  the first-run format (warm-up and Boss Round included, 60 min).
+- **Seed:** `node --env-file=.env.local scripts/seed-meeting-activities.mjs --from docs/agendas/YYYY-MM.json`
+  seeds each activity onto its activity slide by id. Without `--from` it
+  seeds the first-run list onto the first activity slide of each kind, so
+  "Build from the board" (which drafts the format as slides) works too.
 - **Stress test:** `scripts/meet-stress.mjs --base <preview>` (needs the
   preview's service-role key; see the script's header). Not run yet.
-- Activities a presenter opens close when they move on or end. A live
+- Activities open and close with their slides; ending the meeting closes any still open. A live
   meeting nobody ended stops counting as live after 8 h.
 
 ### Phase 3: Boss Round

@@ -42,7 +42,7 @@ export function MeetingLiveBanner() {
   return <MeetingLiveBannerView />
 }
 
-/** The banner itself (the dev mock, /meet/mock, shows it without asking the server). */
+/** The banner itself. */
 export function MeetingLiveBannerView() {
   return (
     <div className="border-b border-border bg-paper print:hidden">

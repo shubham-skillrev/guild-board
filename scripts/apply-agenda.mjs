@@ -4,12 +4,17 @@
  * docs/07-agenda-and-script-guide.md) into the month's `meetings.agenda`,
  * exactly as the Run tab stores it (lib/guild/meeting.ts mergeAgenda):
  *
- *   { id, kind, title, detail, minutes, topicIds, cue?, cards?,
- *     prep: { points, opener, by: 'admin', at, ask } }
+ *   { id, kind, slide, section, of?, meme?, title, detail, minutes: 0,
+ *     topicIds, cue?, cards?, prep: { points, opener, by: 'admin', at, ask } | null }
  *
- * `cue` is the one line on the shared screen, `cards` the segment's content
- * (news / post / slot / side / note, docs/07); `prep` is the presenter's
- * notes, which only reach the presenter.
+ * One item per slide (docs/06-meeting-mode.md, "Slides"): `slide` is title /
+ * content / activity / results / text / meme, `section` groups consecutive
+ * slides, a results slide's `of` names its activity slide. `cue` is the one
+ * line on the shared screen, `cards` the slide's content (news and post as
+ * cards, side and note as plain text, docs/07); `prep` is the presenter's
+ * notes, which only reach the presenter. Every activity slide needs exactly
+ * one entry in the file's `activities` (its `segment` is the slide's id).
+ * An old file of segments (no `slide`) still loads.
  *
  * `by: 'admin'` so Kers never redrafts over it. `ask` ("who to ask") is
  * worked out here, never kept in the file: the members who voted on or
@@ -30,8 +35,9 @@ import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
 
 // Mirrors lib/meeting.ts.
-const LIMITS = { title: 80, detail: 400, point: 200, opener: 240, points: 3, topics: 3, segments: 12, cue: 120, cards: 6, cardTitle: 120, cardText: 180, source: 60, label: 40, url: 500 }
-const SLOT_STATUSES = ['invited', 'confirmed', 'open']
+const LIMITS = { title: 80, detail: 400, point: 200, opener: 240, points: 3, topics: 3, segments: 40, cue: 120, cards: 6, cardTitle: 120, cardText: 180, source: 60, label: 40, url: 500, section: 40, memeText: 90 }
+const SLIDES = ['title', 'content', 'activity', 'results', 'text', 'meme']
+const FACES = ['smug', 'proud', 'dramatic', 'excited', 'bored', 'nosy', 'sleepy', 'grumpy', 'relieved', 'lonely']
 const KINDS = ['warmup', 'radar', 'showtell', 'topic', 'clinic', 'boss', 'wrap', 'custom']
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const ASK_MAX = 20
@@ -55,20 +61,32 @@ if (!url || !key) {
 const db = createClient(url, key, { auth: { persistSession: false } })
 
 /** Every way the file breaks the shape lib/meeting.ts cleanAgenda would silently cut. */
-function check(agenda) {
+function check(agenda, activities = []) {
   const errors = []
   if (!Array.isArray(agenda) || !agenda.length) return ['`agenda` must be a non-empty array']
-  if (agenda.length > LIMITS.segments) errors.push(`more than ${LIMITS.segments} segments`)
+  if (agenda.length > LIMITS.segments) errors.push(`more than ${LIMITS.segments} slides`)
   const ids = new Set()
+  const slides = agenda.some(s => s.slide !== undefined)
   for (const s of agenda) {
-    const at = `segment "${s.id}"`
+    const at = `slide "${s.id}"`
+    if (slides) {
+      if (!SLIDES.includes(s.slide)) errors.push(`${at}: slide must be ${SLIDES.join(' / ')}`)
+      if (typeof s.section !== 'string' || !s.section || s.section.length > LIMITS.section) errors.push(`${at}: section must be 1-${LIMITS.section} characters`)
+      if (s.slide === 'results') {
+        const target = agenda.find(x => x.id === s.of)
+        if (!target || target.slide !== 'activity') errors.push(`${at}: of must name an activity slide`)
+      }
+      if (s.slide === 'activity' && activities.filter(a => a.segment === s.id).length !== 1) errors.push(`${at}: needs exactly one entry in activities`)
+      if (s.slide === 'meme') errors.push(...checkMeme(s.meme).map(e => `${at} meme: ${e}`))
+      else if (!s.title) errors.push(`${at}: title is required`)
+    }
     if (typeof s.id !== 'string' || !s.id || s.id.length > 40) errors.push(`${at}: id must be 1-40 characters`)
     if (ids.has(s.id)) errors.push(`${at}: duplicate id`)
     ids.add(s.id)
     if (!KINDS.includes(s.kind)) errors.push(`${at}: unknown kind ${s.kind}`)
-    if (!s.title || s.title.length > LIMITS.title) errors.push(`${at}: title must be 1-${LIMITS.title} characters`)
+    if ((!slides && !s.title) || (s.title ?? '').length > LIMITS.title) errors.push(`${at}: title must be up to ${LIMITS.title} characters`)
     if ((s.detail ?? '').length > LIMITS.detail) errors.push(`${at}: detail over ${LIMITS.detail} characters`)
-    if (!Number.isInteger(s.minutes) || s.minutes < 1 || s.minutes > 60) errors.push(`${at}: minutes must be 1-60`)
+    if (!Number.isInteger(s.minutes) || s.minutes < (slides ? 0 : 1) || s.minutes > 60) errors.push(`${at}: minutes must be ${slides ? 0 : 1}-60`)
     const topics = s.topicIds ?? []
     if (topics.length > LIMITS.topics || topics.some(t => !UUID.test(t))) errors.push(`${at}: topicIds must be up to ${LIMITS.topics} post ids`)
     if (s.cue !== undefined && (typeof s.cue !== 'string' || s.cue.length > LIMITS.cue)) errors.push(`${at}: cue must be a string up to ${LIMITS.cue} characters`)
@@ -105,11 +123,6 @@ function checkCard(c) {
     case 'post':
       if (!UUID.test(c.postId ?? '')) errs.push('postId must be a post id')
       break
-    case 'slot':
-      text(c.label, LIMITS.label, 'label', true)
-      if (!SLOT_STATUSES.includes(c.status)) errs.push(`status must be ${SLOT_STATUSES.join(' / ')}`)
-      text(c.text, LIMITS.cardText, 'text')
-      break
     case 'side':
       text(c.label, LIMITS.label, 'label', true)
       text(c.text, LIMITS.cardText, 'text', true)
@@ -124,9 +137,27 @@ function checkCard(c) {
   return errs
 }
 
+/** A meme against lib/meeting.ts cleanMeme: an image under /meet/memes/, or 1-2 Kers panels. */
+function checkMeme(m) {
+  if (!m || typeof m !== 'object') return ['missing']
+  const errs = []
+  if (m.src !== undefined && !/^\/meet\/memes\/[\w.\-]+\.(png|jpe?g|gif|webp|svg)$/i.test(m.src)) errs.push('src must be /meet/memes/<file>.png|jpg|gif|webp|svg')
+  if (m.src && !m.alt) errs.push('an image needs alt text')
+  const panels = m.panels ?? []
+  if (!m.src && !panels.length && !m.caption) errs.push('needs src, panels or a caption')
+  if (panels.length > 2) errs.push('at most 2 panels')
+  for (const p of panels) {
+    if (!p.text || p.text.length > LIMITS.memeText) errs.push(`panel text must be 1-${LIMITS.memeText} characters`)
+    if ((p.label ?? '').length > LIMITS.label) errs.push(`panel label over ${LIMITS.label}`)
+    if (!FACES.includes(p.face)) errs.push(`face must be ${FACES.join(' / ')}`)
+  }
+  if ((m.caption ?? '').length > LIMITS.memeText) errs.push(`caption over ${LIMITS.memeText}`)
+  return errs
+}
+
 async function main() {
   const ref = JSON.parse(readFileSync(file, 'utf8'))
-  const errors = check(ref.agenda)
+  const errors = check(ref.agenda, ref.activities ?? [])
   if (errors.length) throw new Error(`${file} doesn't fit the agenda shape:\n  ${errors.join('\n  ')}`)
 
   const cycle = cycleArg
@@ -179,7 +210,10 @@ async function main() {
     return {
       id: s.id,
       kind: s.kind,
-      title: s.title.trim(),
+      ...(s.slide ? { slide: s.slide, section: s.section } : {}),
+      ...(s.of ? { of: s.of } : {}),
+      ...(s.meme ? { meme: s.meme } : {}),
+      title: (s.title ?? '').trim(),
       detail: (s.detail ?? '').trim(),
       minutes: s.minutes,
       topicIds: ids,
@@ -190,10 +224,13 @@ async function main() {
   })
 
   const total = agenda.reduce((n, s) => n + s.minutes, 0)
-  console.log(`${cycle.label} (${cycle.id}): ${agenda.length} segments, ${total} min${apply ? '' : ' (dry run: --apply to write)'}`)
-  if (total !== 60) console.log(`  note: ${total} minutes, not 60`)
-  for (const s of agenda) {
-    console.log(`  ${String(s.minutes).padStart(2)}m  ${s.kind.padEnd(8)} ${s.id.padEnd(10)} ${s.title}`)
+  const sections = [...new Set(agenda.map(s => s.section ?? s.id))]
+  console.log(`${cycle.label} (${cycle.id}): ${agenda.length} slides in ${sections.length} sections${total ? `, ${total} min` : ''}${apply ? '' : ' (dry run: --apply to write)'}`)
+  const acts = new Map((ref.activities ?? []).map(a => [a.segment, a]))
+  for (const [i, s] of agenda.entries()) {
+    console.log(`  ${String(i + 1).padStart(2)}  ${(s.slide ?? 'segment').padEnd(8)} ${(s.section ?? s.kind).padEnd(16)} ${s.id.padEnd(15)} ${s.title || (s.meme?.panels ?? []).map(p => p.text).join(' / ') || s.meme?.caption || ''}`)
+    if (acts.has(s.id)) console.log(`             ${acts.get(s.id).kind}: ${acts.get(s.id).prompt}${acts.get(s.id).options?.length ? ` [${acts.get(s.id).options.join(' / ')}]` : ''}`)
+    if (s.of) console.log(`             results of: ${s.of}`)
     for (const id of s.topicIds) console.log(`             post: ${posts.get(id)}`)
     if (s.cue) console.log(`             cue: ${s.cue}`)
     for (const c of s.cards ?? []) console.log(`             card ${c.kind}: ${c.kind === 'post' ? posts.get(c.postId) : c.title ?? c.label}`)

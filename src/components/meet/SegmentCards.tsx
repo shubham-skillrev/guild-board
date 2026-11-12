@@ -1,65 +1,32 @@
 'use client'
 
-import { ArrowUpRight, CheckCircle, Circle, EnvelopeSimple, Newspaper, Sparkle } from '@phosphor-icons/react/dist/ssr'
-import type { Icon as PhosphorIcon } from '@phosphor-icons/react'
+import { ArrowUpRight, Newspaper } from '@phosphor-icons/react/dist/ssr'
 import { Icon } from '@/components/ui/Icon'
 import { TOPIC_CARD_CLASS, TopicCardCounts, TopicCardHead } from '@/components/topics/TopicCard'
 import { cn } from '@/lib/utils/cn'
-import type { Card, MeetPost, SlotStatus } from '@/lib/meeting'
+import { isRealCard, type Card, type MeetPost } from '@/lib/meeting'
 
 /**
- * A segment's cards (lib/meeting.ts Card): on the shared screen under the
- * cue, and on every phone between activities. Each kind has its own soft
- * tint, so a screen of three news items and a debate's two sides reads at a
- * glance; the one saffron accent stays the presenter's button. A post is the
- * board's own card (TopicCardHead), not a lookalike.
+ * A slide's content (lib/meeting.ts Card), on the shared screen and every
+ * phone. Only real content is a card: a Radar item (news) and a board post,
+ * which is the board's own card (TopicCardHead), not a lookalike. Summary is
+ * plain text (SlideText): a debate's sides in two columns, notes as a
+ * compact list. The one saffron accent stays the presenter's button.
  *
  *   screen   a grid, 1-4 across, big type for a shared screen
- *   strip    one compact row (an activity is open and the cards step back)
+ *   strip    one compact row
  *   phone    one column; news opens its source, a post its board page,
  *            both in a new tab so the room stays open
  */
 
 export type CardsSize = 'screen' | 'strip' | 'phone'
 
-type Tone = 'indigo' | 'wisteria' | 'matcha' | 'vermillion' | 'neutral'
+type Tone = 'indigo' | 'neutral'
 
 /** Tint, edge and ink per tone: pastel on paper, the token's own hue for the eyebrow. */
 const TONES: Record<Tone, { card: string; ink: string; chip: string }> = {
   indigo: { card: 'bg-indigo-jp/[0.07] border-indigo-jp/20 dark:bg-indigo-jp/[0.1]', ink: 'text-indigo-jp', chip: 'bg-indigo-jp/12 text-indigo-jp' },
-  wisteria: { card: 'bg-wisteria/[0.08] border-wisteria/20 dark:bg-wisteria/[0.11]', ink: 'text-wisteria', chip: 'bg-wisteria/14 text-wisteria' },
-  matcha: { card: 'bg-matcha/[0.07] border-matcha/20 dark:bg-matcha/[0.1]', ink: 'text-matcha', chip: 'bg-matcha/12 text-matcha' },
-  vermillion: { card: 'bg-vermillion/[0.06] border-vermillion/20 dark:bg-vermillion/[0.1]', ink: 'text-vermillion', chip: 'bg-vermillion/12 text-vermillion' },
   neutral: { card: 'bg-paper border-border', ink: 'text-ink-muted', chip: 'bg-fill text-ink-muted' },
-}
-
-const NOTE_TONES: Tone[] = ['matcha', 'wisteria', 'indigo']
-const SIDE_TONES: Tone[] = ['vermillion', 'matcha', 'indigo']
-
-/** Each card's tone, from its kind and its place among cards of that kind. */
-function tones(cards: Card[]): Tone[] {
-  const seen: Record<string, number> = {}
-  return cards.map(c => {
-    const i = (seen[c.kind] = (seen[c.kind] ?? -1) + 1)
-    switch (c.kind) {
-      case 'news':
-        return 'indigo'
-      case 'slot':
-        return 'wisteria'
-      case 'side':
-        return SIDE_TONES[i % SIDE_TONES.length]
-      case 'note':
-        return NOTE_TONES[i % NOTE_TONES.length]
-      default:
-        return 'neutral'
-    }
-  })
-}
-
-const SLOT: Record<SlotStatus, { label: string; icon: PhosphorIcon }> = {
-  confirmed: { label: 'Confirmed', icon: CheckCircle },
-  invited: { label: 'Invited', icon: EnvelopeSimple },
-  open: { label: 'Open', icon: Circle },
 }
 
 const host = (url?: string) => {
@@ -77,10 +44,10 @@ function columns(n: number): number {
 }
 
 export function SegmentCards({ cards, posts, size, className }: { cards: Card[]; posts: Record<string, MeetPost>; size: CardsSize; className?: string }) {
-  // A post card whose post is gone (deleted, another month) just isn't shown.
-  const shown = cards.filter(c => c.kind !== 'post' || posts[c.postId])
+  // Real content only; a post card whose post is gone (deleted, another month) just isn't shown.
+  const shown = cards.filter(isRealCard).filter(c => c.kind !== 'post' || posts[c.postId])
   if (!shown.length) return null
-  const tone = tones(shown)
+  const tone: Tone[] = shown.map(c => (c.kind === 'news' ? 'indigo' : 'neutral'))
 
   if (size === 'strip') {
     return (
@@ -105,31 +72,20 @@ export function SegmentCards({ cards, posts, size, className }: { cards: Card[];
     >
       {shown.map((c, i) => (
         <li key={`${c.kind}-${i}`} className="flex min-w-0">
-          <CardView card={c} tone={tone[i]} nth={shown.slice(0, i).filter(x => x.kind === c.kind).length} posts={posts} screen={screen} dense={screen && cols >= 4} />
+          <CardView card={c} tone={tone[i]} posts={posts} screen={screen} dense={screen && cols >= 4} shownCount={shown.length} />
         </li>
       ))}
     </ul>
   )
 }
 
-function stripLabel(c: Card, posts: Record<string, MeetPost>): string {
-  switch (c.kind) {
-    case 'news':
-      return c.title
-    case 'post':
-      return posts[c.postId]?.title ?? ''
-    case 'slot':
-      return `${c.label} · ${SLOT[c.status].label}`
-    case 'side':
-      return `${c.label}: ${c.text}`
-    case 'note':
-      return c.title
-  }
+function stripLabel(c: Extract<Card, { kind: 'news' | 'post' }>, posts: Record<string, MeetPost>): string {
+  return c.kind === 'news' ? c.title : posts[c.postId]?.title ?? ''
 }
 
 const lift = 'transition-[transform,box-shadow,border-color] duration-200 ease-out motion-safe:hover:-translate-y-0.5 hover:shadow-[0_14px_32px_-18px_var(--shadow-tint-strong)]'
 
-function CardView({ card: c, tone, nth, posts, screen, dense }: { card: Card; tone: Tone; nth: number; posts: Record<string, MeetPost>; screen: boolean; dense: boolean }) {
+function CardView({ card: c, tone, posts, screen, dense, shownCount }: { card: Extract<Card, { kind: 'news' | 'post' }>; tone: Tone; posts: Record<string, MeetPost>; screen: boolean; dense: boolean; shownCount: number }) {
   const t = TONES[tone]
   const shell = cn('flex w-full min-w-0 flex-col rounded-(--radius-card) border', t.card, lift, screen ? (dense ? 'px-5 pb-5 pt-4' : 'px-6 pb-6 pt-5') : 'px-4 pb-4 pt-3.5')
   const eyebrow = cn('font-mono uppercase tracking-[0.14em]', screen ? 'text-[13px]' : 'text-[11px]', t.ink)
@@ -175,7 +131,7 @@ function CardView({ card: c, tone, nth, posts, screen, dense }: { card: Card; to
       )
       // The board's card as it is, a little larger on the shared screen.
       return screen ? (
-        <article className={cn(TOPIC_CARD_CLASS, 'w-full', lift)} style={{ zoom: dense ? 1.15 : 1.25 }}>
+        <article className={cn(TOPIC_CARD_CLASS, 'w-full', lift)} style={{ zoom: dense ? 1.15 : shownCount === 1 ? 1.45 : 1.25 }}>
           <p className="eyebrow mb-3">From the board</p>
           {face}
         </article>
@@ -186,37 +142,44 @@ function CardView({ card: c, tone, nth, posts, screen, dense }: { card: Card; to
         </a>
       )
     }
-    case 'slot': {
-      const s = SLOT[c.status]
-      return (
-        <article className={shell}>
-          <p className={eyebrow}>Show &amp; Tell</p>
-          <p className={title}>{c.label}</p>
-          {c.text && <p className={body}>{c.text}</p>}
-          <p className={cn('mt-auto pt-4')}>
-            <span className={cn('inline-flex items-center gap-1.5 rounded-full px-3 font-medium', screen ? 'h-9 text-[15px]' : 'h-7 text-[13px]', t.chip)}>
-              <Icon icon={s.icon} size={screen ? 'md' : 'sm'} weight={c.status === 'confirmed' ? 'fill' : 'regular'} />
-              {s.label}
-            </span>
-          </p>
-        </article>
-      )
-    }
-    case 'side':
-      return (
-        <article className={shell}>
-          <p className={eyebrow}>Side {String.fromCharCode(65 + (nth % 26))}</p>
-          <p className={cn(title, screen && !dense && 'text-[clamp(24px,1.5vw,30px)]')}>{c.label}</p>
-          <p className={body}>{c.text}</p>
-        </article>
-      )
-    case 'note':
-      return (
-        <article className={shell}>
-          <Icon icon={Sparkle} size="sm" weight="fill" className={cn(t.ink, 'opacity-80')} />
-          <p className={cn(title, screen ? 'mt-2.5' : 'mt-1')}>{c.title}</p>
-          {c.text && <p className={body}>{c.text}</p>}
-        </article>
-      )
   }
+}
+
+/**
+ * A slide's summary as plain text, never cards: a debate's sides in two
+ * columns (a label and its line), notes as a compact list ("Git history ·
+ * a linked list"). On the shared screen big and quiet; on a phone small.
+ */
+export function SlideText({ cards, size, className }: { cards: Card[]; size: 'screen' | 'phone'; className?: string }) {
+  const sides = cards.filter((c): c is Extract<Card, { kind: 'side' }> => c.kind === 'side')
+  const notes = cards.filter((c): c is Extract<Card, { kind: 'note' }> => c.kind === 'note')
+  if (!sides.length && !notes.length) return null
+  const screen = size === 'screen'
+  return (
+    <div className={cn('space-y-6', className)}>
+      {sides.length > 0 && (
+        <dl className={cn('grid', screen ? 'gap-x-14 gap-y-4' : 'gap-x-4 gap-y-3')} style={{ gridTemplateColumns: `repeat(${Math.min(sides.length, 3)}, minmax(0, 1fr))` }}>
+          {sides.map((c, i) => (
+            <div key={i} className={cn('border-l-2', i % 2 ? 'border-matcha/60' : 'border-vermillion/60', screen ? 'pl-5' : 'pl-3')}>
+              <dt className={cn('font-semibold tracking-[-0.015em] text-ink', screen ? 'text-[clamp(22px,1.4vw,27px)]' : 'text-[15px]')}>{c.label}</dt>
+              <dd className={cn('text-ink-soft text-pretty', screen ? 'mt-1.5 text-[clamp(17px,1.05vw,20px)] leading-[1.45]' : 'mt-0.5 text-[13px] leading-snug')}>{c.text}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {notes.length > 0 && (
+        <ul className={cn(screen ? 'space-y-2.5' : 'space-y-1.5')}>
+          {notes.map((c, i) => (
+            <li key={i} className={cn('flex items-baseline gap-3 text-ink', screen ? 'text-[clamp(20px,1.3vw,25px)]' : 'text-[14px]')}>
+              <span aria-hidden className={cn('shrink-0 translate-y-[-0.15em] rounded-full bg-ink-muted/60', screen ? 'size-2' : 'size-1.5')} />
+              <span className="min-w-0">
+                <span className="font-semibold tracking-[-0.015em]">{c.title}</span>
+                {c.text && <span className="text-ink-soft"> · {c.text}</span>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }

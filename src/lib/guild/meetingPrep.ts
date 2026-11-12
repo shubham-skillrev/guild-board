@@ -10,7 +10,7 @@ import reference from '../../../docs/agendas/2026-11.json'
 
 /**
  * Kers' prep for the meeting (docs/06-meeting-mode.md, Phase 1): for each
- * agenda segment, 2-3 talking points and one opener, drafted from the
+ * slide (memes excepted), up to 3 talking points and one opener, drafted from the
  * segment's board posts (the post, its comments, its votes) before the
  * meeting. Never during it: the presenter screen only reads what's stored.
  *
@@ -36,6 +36,8 @@ const RETRY_MS = 30 * 60_000
 const ASK_MAX = 20
 
 function needsPrep(s: StoredSegment, now: number): boolean {
+  // A meme speaks for itself: no notes.
+  if (s.slide === 'meme') return false
   const p = s.prep
   if (!p) return true
   if (p.by === 'admin') return false
@@ -109,7 +111,7 @@ async function segmentActivities(cycleId: string): Promise<Map<string, string>> 
 export async function draftPrep(cycleId: string, opts: { segmentId?: string } = {}): Promise<{ drafted: number; tried: number }> {
   const now = Date.now()
   const agenda = await readAgenda(cycleId)
-  const targets = agenda.filter(s => (opts.segmentId ? s.id === opts.segmentId : needsPrep(s, now)))
+  const targets = agenda.filter(s => s.slide !== 'meme' && (opts.segmentId ? s.id === opts.segmentId : needsPrep(s, now)))
   if (!targets.length) return { drafted: 0, tried: 0 }
 
   const ids = [...new Set(targets.flatMap(s => (Array.isArray(s.topicIds) ? s.topicIds : [])))]
@@ -118,11 +120,15 @@ export async function draftPrep(cycleId: string, opts: { segmentId?: string } = 
   const activities = await segmentActivities(cycleId)
   const facts = targets.map(s => ({
     id: s.id,
+    ...(s.section ? { section: s.section } : {}),
     kind: KIND_LABELS[s.kind] ?? 'Segment',
+    ...(s.slide ? { slide: s.slide } : {}),
     title: s.title,
+    ...(s.cue ? { cue: s.cue } : {}),
     detail: s.detail,
-    minutes: s.minutes,
-    ...(activities.get(s.id) ? { activity: activities.get(s.id) } : {}),
+    ...(s.slide ? {} : { minutes: s.minutes }),
+    // A results slide talks about its activity slide's poll or cloud.
+    ...(activities.get(s.of ?? s.id) ? { activity: activities.get(s.of ?? s.id) } : {}),
     posts: (s.topicIds ?? []).map(id => posts.get(id)).filter(Boolean),
   }))
 
@@ -133,14 +139,15 @@ export async function draftPrep(cycleId: string, opts: { segmentId?: string } = 
       'A reference script that met the standard (a past month; its posts are not this month\'s, so take its shape and tone, never its facts):',
       exampleFor(reference as ReferenceAgenda, true),
       '',
-      'This month\'s segments to write for:',
+      'This month\'s slides to write for:',
       JSON.stringify({ segments: facts }, null, 2),
     ].join('\n'),
     schema: PREP_SCHEMA,
   }).catch(() => null)
 
   const drafts = new Map<string, Prep>()
-  const boss = new Set(targets.filter(s => s.kind === 'boss').map(s => s.id))
+  // Kers' line opens the Boss Round: its title slide, or an old agenda's boss segment.
+  const boss = new Set(targets.filter(s => s.kind === 'boss' && (!s.slide || s.slide === 'title')).map(s => s.id))
   for (const d of result?.segments ?? []) {
     if (typeof d?.id !== 'string') continue
     // The Boss Round always opens on Kers' line (docs/06-meeting-mode.md).

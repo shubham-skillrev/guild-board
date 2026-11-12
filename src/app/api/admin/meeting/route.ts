@@ -13,13 +13,16 @@
 //            start         meeting mode on: live, and the caller presents
 //                          (unless another admin already is)
 //            take_over     the caller presents from now on
-//            goto          { segment } the presenter moves the shared screen;
-//                          an open activity closes
+//            goto          { segment } the presenter moves the shared screen
+//                          to a slide: an open activity closes, and an
+//                          activity slide's activity opens (if it never has)
 //            end           meeting mode off: closes any open activity and
 //                          expires every guest's token
 //            open_activity { activity_id } the presenter opens the segment's
 //                          poll or word cloud (closing any other)
 //            close_activity { activity_id } closes it (moving on does too)
+//                          (activity slides open and close their own on goto;
+//                          these two are the presenter's Reopen / Close)
 //            note          { note: { text, owner?, decision?, segment? } }
 //            delete_note   { id }
 //            draft_recap   -> { recap, byAi } from what was captured (not saved)
@@ -33,7 +36,7 @@ import { getAdminId } from '@/lib/guild/staff'
 import { agendaMessage, draftAgenda, draftRecap, getMeeting, mergeAgenda, missing045, openCycle, recapMessage, saveMeeting } from '@/lib/guild/meeting'
 import { draftPrep, ensurePrepBeforeMeeting } from '@/lib/guild/meetingPrep'
 import { cleanNote, LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
-import { closeActivity, closeOpenActivities, closeRoom, nudgeRoom, openActivity, readRoom } from '@/lib/meet/room'
+import { activitiesOnGoto, closeActivity, closeRoom, nudgeRoom, openActivity, readRoom } from '@/lib/meet/room'
 import { isSlackConfigured, postToSlack } from '@/lib/slack/send'
 
 export const maxDuration = 120
@@ -142,7 +145,11 @@ export async function POST(request: Request) {
       let { error } = await saveMeeting(cycle.id, patch)
       // Before 045: still start the clock; the screen keeps its place locally.
       if (missing045(error)) ({ error } = await saveMeeting(cycle.id, { started_at: patch.started_at, ended_at: null }))
-      if (!error) nudgeRoom(cycle.id)
+      if (!error) {
+        // Starting on an activity slide opens it, as arriving on one does.
+        if (!resume) await activitiesOnGoto(createAdminClient(), cycle.id, m.agenda, first)
+        nudgeRoom(cycle.id)
+      }
       return fail(error) ?? NextResponse.json(await state(cycle, adminId))
     }
     case 'take_over': {
@@ -158,9 +165,9 @@ export async function POST(request: Request) {
       if (!m.agenda.some(s => s.id === body.segment)) return NextResponse.json({ error: 'No such segment' }, { status: 400 })
       if (m.currentSegment === body.segment) return NextResponse.json(await state(cycle, adminId))
       const { error } = await saveMeeting(cycle.id, { current_segment: body.segment, segment_started_at: now })
-      // Moving on closes whatever was open; phones go back to "Watch the screen".
+      // Moving on closes whatever was open; arriving on an activity slide opens its activity.
       if (!error) {
-        await closeOpenActivities(createAdminClient(), cycle.id)
+        await activitiesOnGoto(createAdminClient(), cycle.id, m.agenda, String(body.segment))
         nudgeRoom(cycle.id)
       }
       return fail(error) ?? NextResponse.json(await state(cycle, adminId))

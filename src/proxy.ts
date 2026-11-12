@@ -48,9 +48,6 @@ export async function proxy(request: NextRequest) {
     pathname === '/meet' ||
     pathname === '/api/meet' ||
     pathname === '/api/meet/live' ||
-    // The meeting-mode mock: fake data, no writes, dev only (the page 404s
-    // in production too).
-    (process.env.NODE_ENV !== 'production' && pathname === '/meet/mock') ||
     pathname === '/favicon.ico' ||
     isPwaAsset
 

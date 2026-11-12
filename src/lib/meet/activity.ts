@@ -80,9 +80,9 @@ export interface RoomState {
   live: boolean
   /** How many joined. */
   participants: number
-  /** The segment on the shared screen. */
+  /** The slide on the shared screen. */
   segment: string | null
-  /** The open activity, else the current segment's (ready or closed), else null. */
+  /** The open activity, else the current slide's (an activity slide's own, a results slide's `of`), else null. */
   activity: PublicActivity | null
   /** Whether any activity has opened yet: before that, /meet is the waiting area. */
   warm: boolean
@@ -255,26 +255,4 @@ export function pollRevealed(activity: Pick<PublicActivity, 'kind' | 'status' | 
   if (activity.kind !== 'poll' || activity.status === 'closed') return true
   if (activity.status !== 'open' || !activity.openedAt) return false
   return now - new Date(activity.openedAt).getTime() >= POLL_REVEAL_MS
-}
-
-/**
- * What the presenter screen puts where for a segment's activity:
- *
- *   none / ready   the segment's cards are the hero; a ready activity waits
- *                  in the strip under them with its "Open" button
- *   open           the activity is the hero (the question and the live answers)
- *   closed         the cards come back as the hero and the strip shows the
- *                  final results, small; `big` (the presenter's "Show results
- *                  big") puts the closed activity back in the hero
- *
- * The phone follows the same rule: an open activity takes it over; closed,
- * it's back to the cards with a small results card on top.
- */
-export type Stage = { hero: 'cards' | 'activity'; strip: 'ready' | 'results' | null }
-
-export function stageFor(activity: Pick<PublicActivity, 'status'> | null | undefined, big = false): Stage {
-  if (!activity) return { hero: 'cards', strip: null }
-  if (activity.status === 'open') return { hero: 'activity', strip: null }
-  if (activity.status === 'ready') return { hero: 'cards', strip: 'ready' }
-  return big ? { hero: 'activity', strip: null } : { hero: 'cards', strip: 'results' }
 }

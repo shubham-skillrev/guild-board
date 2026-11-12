@@ -33,35 +33,90 @@ export interface Prep {
 }
 
 /**
- * What a segment shows, as cards (docs/06-meeting-mode.md, "Cue and cards"):
- * on the shared screen under the cue, and on every phone between activities.
- * Public: nothing here may name anyone the board doesn't already name.
+ * What a slide shows (docs/06-meeting-mode.md, "Slides"): on the shared
+ * screen and on every phone. Public: nothing here may name anyone the board
+ * doesn't already name. Only `news` and `post` are drawn as cards (real
+ * content: tap to open on a phone); `side` and `note` are summary and show
+ * as plain text (two columns for sides, a compact list for notes).
  *
  *   news  a Radar item: its title, where it's from, the link (phones open
  *         it), and one line on why it matters
  *   post  a board post, drawn with the board's own card (fetched server-side,
  *         ghost posts keep their ghost handle)
- *   slot  a Show & Tell slot: "Spotlight", invited / confirmed / open, and an
- *         optional line (never a name the board doesn't show)
- *   side  one side of the Topic's debate, with its one-liner
- *   note  anything else, short: a title and an optional line
+ *   side  one side of a debate, with its one-liner (plain text)
+ *   note  a short line, with an optional second (plain text)
  */
 export type Card =
   | { kind: 'news'; title: string; source: string; url?: string; why: string; from?: 'member' | 'digest' }
   | { kind: 'post'; postId: string }
-  | { kind: 'slot'; label: string; status: SlotStatus; text?: string }
   | { kind: 'side'; label: string; text: string }
   | { kind: 'note'; title: string; text?: string }
 
 export type CardKind = Card['kind']
-export type SlotStatus = 'invited' | 'confirmed' | 'open'
 
+/** Real content, drawn as cards. The rest is plain text. */
+export function isRealCard(c: Card): c is Extract<Card, { kind: 'news' | 'post' }> {
+  return c.kind === 'news' || c.kind === 'post'
+}
+
+/**
+ * What one slide is (docs/06-meeting-mode.md, "Slides"):
+ *
+ *   title     a section's intro: its title and one cue line ("Next up")
+ *   content   real cards (posts, news) and/or short plain text
+ *   activity  a poll, word cloud or Boss Round: arriving opens it, leaving
+ *             closes it (the server does both, on `goto`)
+ *   results   an activity's results, big (`of` is its slide), and a short
+ *             prompt to talk about them
+ *   text      one big statement or question
+ *   meme      a joke between sections: a Kers meme built from text, or an
+ *             image under public/meet/memes/
+ *
+ * An agenda from before slides has no `slide` on its items: each old
+ * segment is one slide (`activity` if it has an activity, else `content`).
+ */
+export type SlideKind = 'title' | 'content' | 'activity' | 'results' | 'text' | 'meme'
+export const SLIDE_KINDS: SlideKind[] = ['title', 'content', 'activity', 'results', 'text', 'meme']
+
+/** Kers' faces a meme may use (his board expressions). */
+export const MEME_FACES = ['smug', 'proud', 'dramatic', 'excited', 'bored', 'nosy', 'sleepy', 'grumpy', 'relieved', 'lonely'] as const
+export type MemeFace = (typeof MEME_FACES)[number]
+
+/**
+ * A meme slide's content. With `src`, an image from public/meet/memes/ (and
+ * `alt`); otherwise a Kers meme: one or two panels, each Kers with a face, a
+ * small label and a line ("The pitch deck" / "AI-powered everything"), and an
+ * optional punchline under them.
+ */
+export interface Meme {
+  src?: string
+  alt?: string
+  panels?: { label: string; text: string; face: MemeFace }[]
+  caption?: string
+}
+
+/**
+ * One slide of the agenda. The agenda is a flat, ordered list of slides;
+ * consecutive slides with the same `section` are one section (the progress
+ * line groups them, Slack lists them). `kind` is the section's kind (Radar,
+ * Topic...), `slide` what the slide itself is. Named Segment for history:
+ * an old agenda's segments are slides without `slide`.
+ */
 export interface Segment {
   id: string
   kind: SegmentKind
+  /** What this slide is. Missing: an old segment (see slideKind). */
+  slide?: SlideKind
+  /** The section it belongs to (its title, e.g. "Radar"). Missing: its own section. */
+  section?: string
+  /** results: the activity slide whose results it shows. */
+  of?: string
+  /** meme: what it shows. */
+  meme?: Meme
   title: string
   /** What's in it, in a sentence or two: the Slack agenda and the Run tab. Not on the shared screen once there are cards. */
   detail: string
+  /** Planned minutes. Slides aren't timed: 0. */
   minutes: number
   /** The board posts this segment is about (the top topic, the clinic's problems): Kers' prep and "who to ask". */
   topicIds?: string[]
@@ -156,9 +211,9 @@ export function meetingLive(m: { startedAt: string | null; endedAt: string | nul
 
 export const MEETING_MINUTES = 60
 export const LIMITS = {
-  title: 80, detail: 400, note: 300, owner: 60, recap: 4000, segments: 12, notes: 200, point: 200, opener: 240, points: 3, topics: 3,
+  title: 80, detail: 400, note: 300, owner: 60, recap: 4000, segments: 40, notes: 200, point: 200, opener: 240, points: 3, topics: 3,
   // Cue and cards: the shared screen fits six cards and a one-line cue at 1920 x 1080.
-  cue: 120, cards: 6, cardTitle: 120, cardText: 180, source: 60, label: 40, url: 500,
+  cue: 120, cards: 6, cardTitle: 120, cardText: 180, source: 60, label: 40, url: 500, section: 40, memeText: 90, src: 200,
 } as const
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -175,12 +230,21 @@ export function cleanAgenda(raw: unknown): Segment[] {
     const r = (s ?? {}) as Record<string, unknown>
     const minutes = Math.round(Number(r.minutes))
     const topicIds = Array.isArray(r.topicIds) ? [...new Set(r.topicIds.filter((t): t is string => typeof t === 'string' && UUID.test(t)))].slice(0, LIMITS.topics) : []
+    const slide = SLIDE_KINDS.includes(r.slide as SlideKind) ? (r.slide as SlideKind) : undefined
+    const section = str(r.section, LIMITS.section)
+    const of = slide === 'results' ? str(r.of, 40) : ''
+    const meme = slide === 'meme' ? cleanMeme(r.meme) : null
     return {
       id: str(r.id, 40) || `seg-${i}`,
       kind: kinds.includes(r.kind as SegmentKind) ? (r.kind as SegmentKind) : 'custom',
-      title: str(r.title, LIMITS.title) || 'Untitled',
+      ...(slide ? { slide } : {}),
+      ...(section ? { section } : {}),
+      ...(of ? { of } : {}),
+      ...(meme ? { meme } : {}),
+      title: str(r.title, LIMITS.title) || (slide ? '' : 'Untitled'),
       detail: str(r.detail, LIMITS.detail),
-      minutes: Number.isFinite(minutes) ? Math.min(60, Math.max(1, minutes)) : 5,
+      // Slides aren't timed: 0 is allowed for them.
+      minutes: Number.isFinite(minutes) ? Math.min(60, Math.max(slide ? 0 : 1, minutes)) : slide ? 0 : 5,
       topicIds,
       ...(str(r.cue, LIMITS.cue) ? { cue: str(r.cue, LIMITS.cue) } : {}),
       ...(Array.isArray(r.cards) ? { cards: cleanCards(r.cards) } : {}),
@@ -189,7 +253,25 @@ export function cleanAgenda(raw: unknown): Segment[] {
   })
 }
 
-const SLOT_STATUSES: SlotStatus[] = ['invited', 'confirmed', 'open']
+/** A meme as the file or the editor sent it: an image under /meet/memes/, or Kers panels. Null when empty. */
+export function cleanMeme(raw: unknown): Meme | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  const src = typeof r.src === 'string' && /^\/meet\/memes\/[\w.\-]+\.(png|jpe?g|gif|webp|svg)$/i.test(r.src.trim()) ? r.src.trim().slice(0, LIMITS.src) : ''
+  const panels = (Array.isArray(r.panels) ? r.panels : [])
+    .map(p => {
+      const q = (p ?? {}) as Record<string, unknown>
+      const text = str(q.text, LIMITS.memeText)
+      const face = MEME_FACES.includes(q.face as MemeFace) ? (q.face as MemeFace) : 'smug'
+      return text ? { label: str(q.label, LIMITS.label), text, face } : null
+    })
+    .filter((p): p is NonNullable<typeof p> => !!p)
+    .slice(0, 2)
+  const caption = str(r.caption, LIMITS.memeText)
+  const alt = str(r.alt, LIMITS.cardText)
+  if (!src && !panels.length && !caption) return null
+  return { ...(src ? { src, alt } : {}), ...(panels.length ? { panels } : {}), ...(caption ? { caption } : {}) }
+}
 
 /** A link a phone may open: http(s) only, else nothing. */
 export function cleanUrl(v: unknown): string | undefined {
@@ -217,12 +299,6 @@ export function cleanCard(raw: unknown): Card | null {
     }
     case 'post':
       return typeof r.postId === 'string' && UUID.test(r.postId) ? { kind: 'post', postId: r.postId } : null
-    case 'slot': {
-      const label = str(r.label, LIMITS.label)
-      if (!label) return null
-      const text = str(r.text, LIMITS.cardText)
-      return { kind: 'slot', label, status: SLOT_STATUSES.includes(r.status as SlotStatus) ? (r.status as SlotStatus) : 'open', ...(text ? { text } : {}) }
-    }
     case 'side': {
       const label = str(r.label, LIMITS.label)
       const text = str(r.text, LIMITS.cardText)
@@ -258,11 +334,67 @@ export function agendaPostIds(agenda: Pick<Segment, 'cards' | 'topicIds'>[]): st
   return [...new Set(agenda.flatMap(s => [...(s.topicIds ?? []), ...segmentCards(s).flatMap(c => (c.kind === 'post' ? [c.postId] : []))]))]
 }
 
-/** A segment as every phone may see it: no prep, ever (the presenter's notes go separately, to them alone). */
-export type PublicSegment = Pick<Segment, 'id' | 'kind' | 'title' | 'minutes'> & { cue: string | null; cards: Card[]; detail: string }
+/** A slide as every phone may see it: no prep, ever (the presenter's notes go separately, to them alone). */
+export type PublicSegment = Pick<Segment, 'id' | 'kind' | 'title' | 'minutes' | 'slide' | 'section' | 'of' | 'meme'> & { cue: string | null; cards: Card[]; detail: string }
 
 export function publicSegments(agenda: Segment[]): PublicSegment[] {
-  return agenda.map(s => ({ id: s.id, kind: s.kind, title: s.title, minutes: s.minutes, cue: s.cue ?? null, cards: segmentCards(s), detail: s.cards?.length ? '' : s.detail }))
+  return agenda.map(s => ({
+    id: s.id,
+    kind: s.kind,
+    ...(s.slide ? { slide: s.slide } : {}),
+    ...(s.section ? { section: s.section } : {}),
+    ...(s.of ? { of: s.of } : {}),
+    ...(s.meme ? { meme: s.meme } : {}),
+    title: s.title,
+    minutes: s.minutes,
+    cue: s.cue ?? null,
+    cards: segmentCards(s),
+    detail: s.cards?.length || s.slide ? '' : s.detail,
+  }))
+}
+
+type SlideLike = Pick<Segment, 'id' | 'slide' | 'of' | 'section' | 'title' | 'kind'>
+
+/**
+ * What a slide is, old segments included: an item without `slide` is an
+ * old segment, shown as one `activity` slide when it has an activity, else
+ * one `content` slide.
+ */
+export function slideKind(s: Pick<Segment, 'slide'>, hasActivity = false): SlideKind {
+  return s.slide ?? (hasActivity ? 'activity' : 'content')
+}
+
+/**
+ * The activity a slide is about, by the key meeting_activities stores it
+ * under (its segment_id column): an activity slide's own id, a results
+ * slide's `of`. Any other slide: its own id (an old segment's activity).
+ */
+export function activityKeyFor(agenda: Pick<Segment, 'id' | 'slide' | 'of'>[], slideId: string | null | undefined): string | null {
+  if (!slideId) return null
+  const s = agenda.find(x => x.id === slideId)
+  return s?.slide === 'results' && s.of ? s.of : slideId
+}
+
+export interface Section {
+  /** The section's name: `section`, else the first slide's title. */
+  title: string
+  kind: SegmentKind
+  /** Index of its first slide in the agenda. */
+  start: number
+  slides: number
+}
+
+/** The agenda's sections: runs of consecutive slides with the same `section` (an old segment is its own). */
+export function sectionsOf(agenda: SlideLike[]): Section[] {
+  const out: Section[] = []
+  agenda.forEach((s, i) => {
+    const key = s.section ?? `#${s.id}`
+    const last = out[out.length - 1]
+    const lastKey = last ? agenda[last.start].section ?? `#${agenda[last.start].id}` : null
+    if (last && lastKey === key) last.slides++
+    else out.push({ title: s.section ?? s.title, kind: s.kind, start: i, slides: 1 })
+  })
+  return out
 }
 
 /**

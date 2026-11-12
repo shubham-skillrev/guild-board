@@ -95,7 +95,7 @@ export function StartMeetingCard() {
   )
 }
 
-/** The card from the meeting's state (the dev mock, /meet/mock, renders it with fake state). */
+/** The card from the meeting's state. */
 export function StartMeetingCardView({ s, now, busy, onStart }: { s: MeetingState; now: number; busy: boolean; onStart: () => void }) {
   if (!s.cycle.meeting_at) return null
   const { meeting } = s
@@ -105,7 +105,9 @@ export function StartMeetingCardView({ s, now, busy, onStart }: { s: MeetingStat
   if (!live && (now < at - MEET_REHEARSE_MS || now > at + MEET_TAIL_MS)) return null
 
   const time = new Date(at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' })
-  const prepped = meeting.agenda.filter(x => x.prep && (x.prep.points.length || x.prep.opener)).length
+  // Memes carry no notes: count the slides that should.
+  const notable = meeting.agenda.filter(x => x.slide !== 'meme')
+  const prepped = notable.filter(x => x.prep && (x.prep.points.length || x.prep.opener)).length
 
   const button = 'press inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-ink px-3.5 text-footnote font-medium text-parchment hover:bg-ink/85 disabled:opacity-40 pointer-coarse:h-10'
   const quiet = 'press inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-kinu/70 px-3.5 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink pointer-coarse:h-10'
@@ -124,7 +126,7 @@ export function StartMeetingCardView({ s, now, busy, onStart }: { s: MeetingStat
   } else {
     title = `The meeting is ${until(at - now)}, at ${time}`
     body = prepped
-      ? `Kers has prep for ${prepped} of ${meeting.agenda.length} segments. Rehearse it now; on the day, share your screen and start.`
+      ? `Notes for ${prepped} of ${notable.length} ${meeting.agenda.some(x => x.slide) ? 'slides' : 'segments'}. Rehearse it now; on the day, share your screen and start.`
       : 'Kers is still on his prep. Rehearse it now; on the day, share your screen and start.'
     action = (
       <div className="flex shrink-0 gap-2">

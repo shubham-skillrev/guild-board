@@ -80,7 +80,7 @@ export function rehearseActivity(
 
 /**
  * One more person's answers (the rehearsing admin's own phone preview, or
- * the mock's phone) on top of an activity's sample answers, counted the way
+ * preview) on top of an activity's sample answers, counted the way
  * the server's aggregate would: a vote, up to three words, a run's result.
  */
 export function withAnswer(a: PublicActivity, values: Record<string, unknown>[] | null | undefined): PublicActivity {
