@@ -179,14 +179,25 @@ closes when the admin moves on.
 - [ ] Choose the target meeting for P1, and for P2 + P3
 
 ### Phase 1: Presenter mode
-- [ ] Migration: `meetings.presenter_id`, `current_segment`, `segment_started_at`; `prep` on agenda items
-- [ ] Presenter lock: read-only `/meet/present` for other admins, "Take over"
-- [ ] Kers prep generation (points, opener, "who to ask") and its trigger
-- [ ] Run tab: edit Kers' prep per segment
-- [ ] "Start meeting mode" card on the board (admins, from 3 h before)
-- [ ] `/meet/present`: segment view, countdown/overtime, progress bar, keyboard nav, resume
-- [ ] Kers reactions on the presenter screen
+- [x] Migration: `meetings.presenter_id`, `current_segment`, `segment_started_at`; `prep` on agenda items
+- [x] Presenter lock: read-only `/meet/present` for other admins, "Take over"
+- [x] Kers prep generation (points, opener, "who to ask") and its trigger
+- [x] Run tab: edit Kers' prep per segment
+- [x] "Start meeting mode" card on the board (admins, from 3 h before)
+- [x] `/meet/present`: segment view, countdown/overtime, progress bar, keyboard nav, resume
+- [x] Kers reactions on the presenter screen
 - [ ] Screenshot check on a 1080p share
+
+Built (2026-11-12): migration `045_meeting_presenter.sql`; `/meet/present`
+(`components/meet/PresenterScreen.tsx`); prep in `lib/guild/meetingPrep.ts`.
+"Agenda locked" = posted to Slack from the Run tab. Prep is also drafted by
+the day-before cron (`/api/cron/meeting-reminder`) and, at the latest, when an
+admin's board loads inside the 3 h before; each pass fills only segments with
+none, never an admin's edit. Segments link to board posts (`topicIds`), set
+by "Build from the board" or by hand in the Run tab. Admin screens poll every
+3 s for now (`components/meet/useMeetingLive.ts`); Phase 2 adds the
+`meeting:{id}` channel there and renders its activity in
+`components/meet/ActivityPanel.tsx`.
 
 ### Phase 2: Audience
 - [ ] Migration: `meeting_participants`, `meeting_activities`, `meeting_responses`; realtime policy for `meeting:{id}`

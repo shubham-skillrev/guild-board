@@ -1,0 +1,112 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { Play } from '@phosphor-icons/react/dist/ssr'
+import { Kers } from '@/components/kers/Kers'
+import { Icon } from '@/components/ui/Icon'
+import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/hooks/useToast'
+import { MEET_LEAD_MS, MEET_TAIL_MS, type MeetingState } from '@/lib/meeting'
+
+function until(ms: number): string {
+  if (ms <= 0) return 'now'
+  const m = Math.round(ms / 60_000)
+  return m >= 60 ? `in ${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m` : `in ${m} min`
+}
+
+/**
+ * "Start meeting mode": the card at the top of the board for admins, from
+ * 3 h before the meeting until it ends. Starting it marks the meeting live
+ * and makes this admin the presenter, then opens /meet/present. Once it's
+ * live it says who presents and opens the screen (read-only for others).
+ *
+ * Loading it also asks the server to draft any of Kers' prep still missing
+ * (?prep=1): the "3 h before at the latest" trigger.
+ */
+export function StartMeetingCard() {
+  const { isAdmin } = useAuth()
+  const router = useRouter()
+  const toast = useToast()
+  const [s, setS] = useState<MeetingState | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [now, setNow] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!isAdmin) return
+    let alive = true
+    fetch('/api/admin/meeting?prep=1', { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (alive && d?.cycle) { setS(d); setNow(Date.now()) } })
+      .catch(() => {})
+    const t = setInterval(() => setNow(Date.now()), 30_000)
+    return () => { alive = false; clearInterval(t) }
+  }, [isAdmin])
+
+  if (!isAdmin || !s || now === null || !s.cycle.meeting_at) return null
+  const { meeting } = s
+  const at = new Date(s.cycle.meeting_at).getTime()
+  const live = !!meeting.startedAt && !meeting.endedAt
+  if (meeting.endedAt) return null
+  if (!live && (now < at - MEET_LEAD_MS || now > at + MEET_TAIL_MS)) return null
+
+  const time = new Date(at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' })
+  const prepped = meeting.agenda.filter(x => x.prep && (x.prep.points.length || x.prep.opener)).length
+
+  const start = async () => {
+    setBusy(true)
+    try {
+      const res = await fetch('/api/admin/meeting', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'start', cycle_id: s.cycle.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error ?? 'Could not start it')
+      router.push('/meet/present')
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not start it', 'error')
+      setBusy(false)
+    }
+  }
+
+  const button = 'press inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-ink px-3.5 text-footnote font-medium text-parchment hover:bg-ink/85 disabled:opacity-40 pointer-coarse:h-10'
+
+  let title: string
+  let body: string
+  let action: React.ReactNode
+  if (live) {
+    title = 'Meeting mode is on'
+    body = meeting.presenterId === s.me ? 'You’re presenting.' : s.presenterName ? `@${s.presenterName} is presenting. You can follow along or take over.` : 'Nobody is presenting yet.'
+    action = <Link href="/meet/present" className={button}>Open the presenter screen</Link>
+  } else if (!meeting.agenda.length) {
+    title = `The meeting is ${until(at - now)}`
+    body = 'There’s no agenda saved yet, so there’s nothing to present.'
+    action = <Link href="/admin/run" className={button}>Build the agenda</Link>
+  } else {
+    title = `The meeting is ${until(at - now)}, at ${time}`
+    body = prepped
+      ? `Kers has prep for ${prepped} of ${meeting.agenda.length} segments. Share your screen, then start.`
+      : 'Kers is still on his prep. Share your screen, then start.'
+    action = (
+      <button type="button" className={button} disabled={busy} onClick={start}>
+        <Icon icon={Play} size="sm" weight="fill" /> {busy ? 'Starting…' : 'Start meeting mode'}
+      </button>
+    )
+  }
+
+  return (
+    <section
+      aria-label="Meeting mode"
+      className="flex items-center gap-4 rounded-(--radius-card) border border-saffron/25 bg-paper p-4 shadow-[0_0_32px_-8px] shadow-saffron/35 max-sm:flex-wrap"
+    >
+      <Kers size={56} expression="excited" colour="meeting" />
+      <div className="min-w-0 flex-1">
+        <p className="text-[15px] font-medium text-ink">{title}</p>
+        <p className="mt-0.5 text-footnote text-ink-muted">{body}</p>
+      </div>
+      {action}
+    </section>
+  )
+}

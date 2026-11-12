@@ -7,7 +7,48 @@ import { RADAR_TOP } from '@/lib/radar'
 import { formatLabel } from '@/lib/showtell'
 import { escapeSlack, extLink, appLink } from '@/lib/slack/send'
 import { OUTCOME_LABELS } from '@/lib/constants'
-import type { Meeting, Segment } from '@/lib/meeting'
+import { cleanAgenda, type Meeting, type Prep, type Segment } from '@/lib/meeting'
+
+/** Prep as stored: what admins see, plus "who to ask", which never leaves the server. */
+type StoredPrep = Prep & { ask?: string[] }
+type StoredSegment = Omit<Segment, 'prep'> & { prep?: StoredPrep | null }
+
+/** The agenda as the client may see it: every prep without its `ask`. */
+function publicAgenda(raw: unknown): Segment[] {
+  if (!Array.isArray(raw)) return []
+  return (raw as StoredSegment[]).map(s => {
+    if (!s?.prep) return { ...s, prep: s?.prep ?? null } as Segment
+    const { ask: _ask, ...prep } = s.prep
+    return { ...s, prep } as Segment
+  })
+}
+
+/** The agenda exactly as stored, `ask` included. Server only. */
+async function storedAgenda(cycleId: string): Promise<StoredSegment[]> {
+  const { data } = await createAdminClient().from('meetings').select('agenda').eq('cycle_id', cycleId).maybeSingle()
+  return Array.isArray(data?.agenda) ? (data.agenda as StoredSegment[]) : []
+}
+
+/**
+ * An edited agenda from the Run tab, ready to store: the stored `ask` is
+ * kept for each segment (the client never had it), and a prep the admin
+ * changed (or emptied: the editor sends it with `by: 'admin'`) is marked as
+ * theirs, so Kers never redrafts over it.
+ */
+export async function mergeAgenda(cycleId: string, raw: unknown): Promise<StoredSegment[]> {
+  const before = new Map((await storedAgenda(cycleId)).map(s => [s.id, s]))
+  return cleanAgenda(raw).map(seg => {
+    const old = before.get(seg.id)?.prep ?? null
+    const prep = seg.prep
+    // No prep sent (a rebuilt segment, say): Kers drafts it again later.
+    if (!prep) return { ...seg, prep: null }
+    const same = !!old && old.opener === prep.opener && JSON.stringify(old.points) === JSON.stringify(prep.points)
+    return {
+      ...seg,
+      prep: same ? { ...old!, ...prep, by: old!.by, at: old!.at } : { ...prep, by: 'admin' as const, at: new Date().toISOString(), ask: old?.ask ?? [] },
+    }
+  })
+}
 
 /** This month's meeting row, or an empty one (before migration 041 too). */
 export async function getMeeting(cycleId: string): Promise<Meeting> {
@@ -15,7 +56,7 @@ export async function getMeeting(cycleId: string): Promise<Meeting> {
   return {
     cycleId,
     meetUrl: data?.meet_url ?? null,
-    agenda: Array.isArray(data?.agenda) ? data.agenda : [],
+    agenda: publicAgenda(data?.agenda),
     notes: Array.isArray(data?.notes) ? data.notes : [],
     recordingUrl: data?.recording_url ?? null,
     recap: data?.recap ?? null,
@@ -23,7 +64,17 @@ export async function getMeeting(cycleId: string): Promise<Meeting> {
     recapPostedAt: data?.recap_posted_at ?? null,
     startedAt: data?.started_at ?? null,
     endedAt: data?.ended_at ?? null,
+    presenterId: data?.presenter_id ?? null,
+    currentSegment: data?.current_segment ?? null,
+    segmentStartedAt: data?.segment_started_at ?? null,
+    // No row yet reads as ready: the first write will say if 045 is missing.
+    presenterReady: !data || 'presenter_id' in data,
   }
+}
+
+/** Whether a write failed only because migration 045 isn't applied. */
+export function missing045(error: { message: string } | null): boolean {
+  return !!error && /presenter_id|current_segment|segment_started_at/.test(error.message)
 }
 
 export async function saveMeeting(cycleId: string, patch: Record<string, unknown>) {
@@ -71,8 +122,8 @@ export async function draftAgenda(cycleId: string, viewerId: string): Promise<Se
   return [
     { id: 'radar', kind: 'radar', title: 'Radar', minutes: 5, detail: radar.length ? radar.join(' · ') : 'Three things that shipped this month (vote on the Bytes page)' },
     { id: 'showtell', kind: 'showtell', title: 'Show & Tell', minutes: 20, detail: `${slot(slots.spotlight, 'Spotlight')} · ${slot(slots.demo, 'Demo')}` },
-    { id: 'topic', kind: 'topic', title: top ? top.title : 'Top topic', minutes: 20, detail: top ? opener(top) : 'The most-voted topic on the board' },
-    { id: 'clinic', kind: 'clinic', title: 'Problem clinic', minutes: 10, detail: problems.length ? problems.map(p => p.title).join(' · ') : 'One or two real blockers from the board' },
+    { id: 'topic', kind: 'topic', title: top ? top.title : 'Top topic', minutes: 20, detail: top ? opener(top) : 'The most-voted topic on the board', topicIds: top ? [top.id] : [] },
+    { id: 'clinic', kind: 'clinic', title: 'Problem clinic', minutes: 10, detail: problems.length ? problems.map(p => p.title).join(' · ') : 'One or two real blockers from the board', topicIds: problems.map(p => p.id) },
     { id: 'wrap', kind: 'wrap', title: 'Wrap', minutes: 5, detail: 'Decisions, owners, and who shows something next month' },
   ]
 }

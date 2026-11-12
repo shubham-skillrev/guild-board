@@ -38,9 +38,13 @@ export default async function RunPage() {
   const cycles = (data ?? []) as Cycle[]
   const current = cycles.find(c => c.status === 'open' || c.status === 'frozen') ?? cycles.find(c => c.status !== 'upcoming') ?? cycles[0] ?? null
 
-  const [meeting, briefing] = await Promise.all([
+  const [meeting, briefing, posts] = await Promise.all([
     current ? getMeeting(current.id) : null,
     runBriefing().then(b => readBriefing('run', b.fallback)),
+    // The month's posts, for linking a segment to what it's about (Kers' prep).
+    current
+      ? createAdminClient().from('topics').select('id, title').eq('cycle_id', current.id).eq('is_deleted', false).eq('is_system', false).order('score', { ascending: false }).limit(60).then(r => r.data ?? [])
+      : [],
   ])
   // The recap belongs to the month that just met: this one once its meeting
   // has started, otherwise the last closed month (autopilot opens the next
@@ -58,7 +62,7 @@ export default async function RunPage() {
 
       {current && meeting && (
         <div className="grid grid-cols-1 gap-x-10 gap-y-10 lg:grid-cols-[minmax(0,1fr)_340px] items-start">
-          <AgendaBuilder initial={meeting} />
+          <AgendaBuilder initial={meeting} posts={posts} />
           <aside className="min-w-0 space-y-6 lg:sticky lg:top-20">
             {recapCycle && recapMeeting && (
               <div className="rounded-[20px] border border-border bg-paper p-5">

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useToast } from '@/hooks/useToast'
 import Link from 'next/link'
 import { ArrowDown, ArrowUp, Plus, SlackLogo, Sparkle, Trash, Play } from '@phosphor-icons/react/dist/ssr'
 import { Button } from '@/components/ui/Button'
@@ -9,6 +10,7 @@ import { Input, Label, Textarea } from '@/components/ui/Input'
 import { SectionHeader } from '@/components/ui/Section'
 import { cn } from '@/lib/utils/cn'
 import { useMeeting } from '@/components/admin/run/useMeeting'
+import { PrepEditor, type BoardPost } from '@/components/admin/run/PrepEditor'
 import { LIMITS, MEETING_MINUTES, totalMinutes, type Meeting, type Segment } from '@/lib/meeting'
 
 /**
@@ -16,8 +18,9 @@ import { LIMITS, MEETING_MINUTES, totalMinutes, type Meeting, type Segment } fro
  * Show & Tell, top topic, clinic, wrap), edited here, and posted to Slack.
  * The bar shows the hour filling up, so a 75-minute agenda is obvious.
  */
-export function AgendaBuilder({ initial }: { initial: Meeting }) {
+export function AgendaBuilder({ initial, posts = [] }: { initial: Meeting; posts?: BoardPost[] }) {
   const { meeting, busy, call } = useMeeting(initial)
+  const toast = useToast()
   const [agenda, setAgenda] = useState<Segment[]>(initial.agenda)
   const [meetUrl, setMeetUrl] = useState(initial.meetUrl ?? '')
   const dirty = JSON.stringify(agenda) !== JSON.stringify(meeting.agenda) || meetUrl !== (meeting.meetUrl ?? '')
@@ -27,7 +30,19 @@ export function AgendaBuilder({ initial }: { initial: Meeting }) {
     const data = await call<{ agenda: Segment[] }>('draft_agenda')
     if (data?.agenda) setAgenda(data.agenda)
   }
-  const save = () => call('save', { agenda, meet_url: meetUrl }, 'Agenda saved')
+  const save = async () => {
+    const data = await call('save', { agenda, meet_url: meetUrl }, 'Agenda saved')
+    if (data?.meeting) setAgenda(data.meeting.agenda)
+  }
+  // Kers' prep: every segment still missing one, or just `segment`.
+  const draftPrep = async (segment?: string) => {
+    const data = await call<{ meeting?: Meeting; drafted?: number; tried?: number }>('draft_prep', segment ? { segment } : {})
+    if (!data?.meeting) return
+    setAgenda(data.meeting.agenda)
+    if (!data.tried) toast('Every segment already has its prep.', 'info')
+    else if (!data.drafted) toast('Kers couldn’t draft it just now. Try again in a bit.', 'error')
+    else toast(segment ? 'Kers redrafted it' : `Kers drafted ${data.drafted} of ${data.tried}`, 'success')
+  }
   const update = (id: string, patch: Partial<Segment>) => setAgenda(a => a.map(s => (s.id === id ? { ...s, ...patch } : s)))
   const move = (i: number, by: number) =>
     setAgenda(a => {
@@ -94,6 +109,14 @@ export function AgendaBuilder({ initial }: { initial: Meeting }) {
                     </label>
                   </div>
                   <Textarea aria-label="Details" rows={2} maxLength={LIMITS.detail} value={s.detail} onChange={e => update(s.id, { detail: e.target.value })} className="font-sans text-footnote" />
+                  <PrepEditor
+                    segment={s}
+                    posts={posts}
+                    onChange={patch => update(s.id, patch)}
+                    onRedraft={() => draftPrep(s.id)}
+                    redraftDisabled={dirty || !meeting.agenda.some(x => x.id === s.id)}
+                    redrafting={busy === 'draft_prep'}
+                  />
                 </div>
                 <div className="flex shrink-0 flex-col gap-1">
                   <button type="button" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up" className="press-sm rounded p-1 text-ink-muted hover:text-ink disabled:opacity-30"><Icon icon={ArrowUp} size="sm" /></button>
@@ -128,6 +151,9 @@ export function AgendaBuilder({ initial }: { initial: Meeting }) {
             onClick={() => call('post_agenda', {}, 'Agenda posted to Slack')}
           >
             {busy === 'post_agenda' ? 'Posting…' : meeting.agendaPostedAt ? 'Post again' : 'Post to Slack'}
+          </Button>
+          <Button variant="secondary" icon={Sparkle} disabled={!!busy || dirty || !meeting.agenda.length} onClick={() => draftPrep()}>
+            {busy === 'draft_prep' ? 'Kers is drafting…' : 'Draft Kers’ prep'}
           </Button>
           <Link
             href="/admin/run/meeting"

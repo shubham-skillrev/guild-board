@@ -1,21 +1,32 @@
 // ROUTE: POST /api/admin/meeting  { action, cycle_id, ... }
-// AUTH: admin only
-// PURPOSE: Everything about the month's meeting (migration 041):
+//        GET  /api/admin/meeting[?cycle_id=][&prep=1]  -> MeetingState (the open month by default;
+//             prep=1 also drafts missing prep when inside the 3 h before the meeting)
+// AUTH: admin only (404 for everyone else)
+// PURPOSE: Everything about the month's meeting (migrations 041, 045):
 //            save          { meet_url?, agenda?, recording_url?, recap? }
+//                          (agenda items may carry topicIds and prep)
 //            draft_agenda  -> { agenda } built from the format (not saved)
-//            post_agenda   the saved agenda to the guild's Slack channel
-//            start | end   meeting mode's clock
+//            post_agenda   the saved agenda to the guild's Slack channel; this
+//                          locks it, so Kers drafts any missing prep after
+//            draft_prep    { segment? } Kers' prep now: every segment still
+//                          missing one, or just `segment` (over an edit too)
+//            start         meeting mode on: live, and the caller presents
+//                          (unless another admin already is)
+//            take_over     the caller presents from now on
+//            goto          { segment } the presenter moves the shared screen
+//            end           meeting mode off
 //            note          { note: { text, owner?, decision?, segment? } }
 //            delete_note   { id }
 //            draft_recap   -> { recap, byAi } from what was captured (not saved)
 //            post_recap    the saved recap to Slack
 // DB TABLES: meetings, cycles, topics, demos, radar_links, bytes
 
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminId } from '@/lib/guild/staff'
-import { agendaMessage, draftAgenda, draftRecap, getMeeting, recapMessage, saveMeeting } from '@/lib/guild/meeting'
-import { cleanAgenda, cleanNote, LIMITS } from '@/lib/meeting'
+import { agendaMessage, draftAgenda, draftRecap, getMeeting, mergeAgenda, missing045, openCycle, recapMessage, saveMeeting } from '@/lib/guild/meeting'
+import { draftPrep, ensurePrepBeforeMeeting } from '@/lib/guild/meetingPrep'
+import { cleanNote, LIMITS, type MeetingState } from '@/lib/meeting'
 import { isSlackConfigured, postToSlack } from '@/lib/slack/send'
 
 export const maxDuration = 120
@@ -29,6 +40,32 @@ function httpsOrNull(v: unknown): string | null | undefined {
   } catch {
     return undefined
   }
+}
+
+async function presenterName(id: string | null): Promise<string | null> {
+  if (!id) return null
+  const { data } = await createAdminClient().from('users').select('username').eq('id', id).maybeSingle()
+  return data?.username ?? null
+}
+
+async function state(cycle: MeetingState['cycle'], me: string): Promise<MeetingState> {
+  const meeting = await getMeeting(cycle.id)
+  return { cycle, meeting, me, presenterName: await presenterName(meeting.presenterId), serverNow: new Date().toISOString() }
+}
+
+export async function GET(request: Request) {
+  const adminId = await getAdminId()
+  if (!adminId) return new NextResponse(null, { status: 404 })
+  const params = new URL(request.url).searchParams
+  const id = params.get('cycle_id')
+  const admin = createAdminClient()
+  const cycle = id ? (await admin.from('cycles').select('id, label, meeting_at').eq('id', id).maybeSingle()).data : await openCycle(admin)
+  if (!cycle) return NextResponse.json({ error: 'No such month' }, { status: 404 })
+  const s = await state(cycle, adminId)
+  // Kers' prep at the latest: an admin's board loading inside the 3 h before
+  // (?prep=1, sent once by the board's card, never by the 3 s polls).
+  if (params.get('prep') === '1') after(() => ensurePrepBeforeMeeting(cycle, s.meeting.startedAt).catch(err => console.warn('ensurePrepBeforeMeeting failed', err)))
+  return NextResponse.json(s, { headers: { 'Cache-Control': 'no-store' } })
 }
 
 export async function POST(request: Request) {
@@ -54,7 +91,7 @@ export async function POST(request: Request) {
       if (body.recording_url !== undefined && recording === undefined) return NextResponse.json({ error: 'The recording must be a full https:// link.' }, { status: 400 })
       if (meet !== undefined) patch.meet_url = meet
       if (recording !== undefined) patch.recording_url = recording
-      if (body.agenda !== undefined) patch.agenda = cleanAgenda(body.agenda)
+      if (body.agenda !== undefined) patch.agenda = await mergeAgenda(cycle.id, body.agenda)
       if (typeof body.recap === 'string') patch.recap = body.recap.trim().slice(0, LIMITS.recap) || null
       const { error } = await saveMeeting(cycle.id, patch)
       return fail(error) ?? NextResponse.json({ meeting: await getMeeting(cycle.id) })
@@ -67,12 +104,55 @@ export async function POST(request: Request) {
       if (!isSlackConfigured()) return NextResponse.json({ error: 'Slack isn’t set up on the server (SLACK_BOT_TOKEN, SLACK_CHANNEL_ID).' }, { status: 400 })
       if (!(await postToSlack(agendaMessage(cycle.label, cycle.meeting_at, m)))) return NextResponse.json({ error: 'Slack didn’t take it. Try again.' }, { status: 502 })
       const { error } = await saveMeeting(cycle.id, { agenda_posted_at: now })
+      // Posted means locked: Kers drafts whatever prep is still missing.
+      if (!error) after(() => draftPrep(cycle.id).catch(err => console.warn('draftPrep failed', err)))
       return fail(error) ?? NextResponse.json({ meeting: await getMeeting(cycle.id) })
     }
-    case 'start':
+    case 'draft_prep': {
+      const m = await getMeeting(cycle.id)
+      if (!m.agenda.length) return NextResponse.json({ error: 'Save an agenda first.' }, { status: 400 })
+      const segment = typeof body.segment === 'string' ? body.segment : undefined
+      const r = await draftPrep(cycle.id, { segmentId: segment })
+      return NextResponse.json({ meeting: await getMeeting(cycle.id), drafted: r.drafted, tried: r.tried })
+    }
+    case 'start': {
+      const m = await getMeeting(cycle.id)
+      if (!m.agenda.length) return NextResponse.json({ error: 'Save an agenda first.' }, { status: 400 })
+      const live = !!m.startedAt && !m.endedAt
+      // Already running with someone else presenting: join them read-only.
+      if (live && m.presenterId && m.presenterId !== adminId) return NextResponse.json(await state(cycle, adminId))
+      const first = m.agenda[0].id
+      const resume = live && m.currentSegment && m.agenda.some(s => s.id === m.currentSegment)
+      const patch = {
+        started_at: live ? m.startedAt : now,
+        ended_at: null,
+        presenter_id: adminId,
+        current_segment: resume ? m.currentSegment : first,
+        segment_started_at: resume ? m.segmentStartedAt ?? now : now,
+      }
+      let { error } = await saveMeeting(cycle.id, patch)
+      // Before 045: still start the clock; the screen keeps its place locally.
+      if (missing045(error)) ({ error } = await saveMeeting(cycle.id, { started_at: patch.started_at, ended_at: null }))
+      return fail(error) ?? NextResponse.json(await state(cycle, adminId))
+    }
+    case 'take_over': {
+      const { error } = await saveMeeting(cycle.id, { presenter_id: adminId })
+      if (missing045(error)) return NextResponse.json({ error: 'Apply migration 045 first.' }, { status: 500 })
+      return fail(error) ?? NextResponse.json(await state(cycle, adminId))
+    }
+    case 'goto': {
+      const m = await getMeeting(cycle.id)
+      if (!m.startedAt || m.endedAt) return NextResponse.json({ error: 'Meeting mode isn’t on.' }, { status: 409 })
+      if (!m.presenterReady) return NextResponse.json({ error: 'Apply migration 045 first.' }, { status: 500 })
+      if (m.presenterId !== adminId) return NextResponse.json({ error: 'Someone else is presenting. Take over first.', ...(await state(cycle, adminId)) }, { status: 409 })
+      if (!m.agenda.some(s => s.id === body.segment)) return NextResponse.json({ error: 'No such segment' }, { status: 400 })
+      if (m.currentSegment === body.segment) return NextResponse.json(await state(cycle, adminId))
+      const { error } = await saveMeeting(cycle.id, { current_segment: body.segment, segment_started_at: now })
+      return fail(error) ?? NextResponse.json(await state(cycle, adminId))
+    }
     case 'end': {
-      const { error } = await saveMeeting(cycle.id, body.action === 'start' ? { started_at: now, ended_at: null } : { ended_at: now })
-      return fail(error) ?? NextResponse.json({ meeting: await getMeeting(cycle.id) })
+      const { error } = await saveMeeting(cycle.id, { ended_at: now })
+      return fail(error) ?? NextResponse.json(await state(cycle, adminId))
     }
     case 'note': {
       const note = cleanNote(body.note)

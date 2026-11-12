@@ -3,6 +3,8 @@
 // PURPOSE: The day before the guild session, remind everyone (Slack + push)
 //          with the board count and the three most-wanted posts. On Fridays
 //          outside meeting week, also GuildBot's weekly report in Slack.
+//          Within 36 hours of the meeting, Kers drafts any missing meeting
+//          prep (lib/guild/meetingPrep.ts), well before the 3 h deadline.
 // DB TABLES: cycles, topics, push_subscriptions
 // RLS: service-role client (no user context exists here)
 
@@ -11,6 +13,10 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { rejectIfNotCron } from '@/lib/bytes/cron'
 import { notifyMeetingReminder } from '@/lib/push/notify'
 import { weeklyDigest } from '@/lib/guildbot-host/digest'
+import { draftPrep } from '@/lib/guild/meetingPrep'
+
+// Kers' prep is one model call with fallbacks.
+export const maxDuration = 120
 
 /* Runs once a day (vercel.json: 05:30 UTC, 11:00 IST). It sends only when the
    meeting is between 12 and 36 hours away. That window is exactly as wide as
@@ -44,7 +50,20 @@ export async function GET(request: Request) {
 
   const reminder = dry ? { skipped: true, reason: 'dry_run' } : await remind(cycle)
   const digest = await weeklyDigest(cycle, { now, dry })
-  return NextResponse.json({ reminder, digest })
+  const prep = dry ? { skipped: true, reason: 'dry_run' } : await prepare(cycle)
+  return NextResponse.json({ reminder, digest, prep })
+}
+
+/** The day before: Kers' prep for every segment that has none yet. */
+async function prepare(cycle: { id: string; meeting_at: string | null }) {
+  if (!cycle.meeting_at) return { skipped: true, reason: 'no_meeting_date' }
+  const hoursAway = (new Date(cycle.meeting_at).getTime() - Date.now()) / 3_600_000
+  if (hoursAway <= 0 || hoursAway > WINDOW_END_H) return { skipped: true, reason: 'not_the_day' }
+  try {
+    return await draftPrep(cycle.id)
+  } catch (err) {
+    return { skipped: true, reason: err instanceof Error ? err.message : 'failed' }
+  }
 }
 
 async function remind(cycle: { id: string; meeting_at: string | null }) {

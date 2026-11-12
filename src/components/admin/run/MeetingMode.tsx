@@ -2,49 +2,50 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ArrowRight, Play, Stop, Trash } from '@phosphor-icons/react/dist/ssr'
+import { ArrowLeft, ArrowRight, Play, Presentation, Stop, Trash } from '@phosphor-icons/react/dist/ssr'
 import { Kers } from '@/components/kers/Kers'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/utils/cn'
-import { useMeeting } from '@/components/admin/run/useMeeting'
-import { LIMITS, type Meeting } from '@/lib/meeting'
-
-function clock(seconds: number): string {
-  const s = Math.abs(Math.round(seconds))
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
-}
+import { useMeetingLive, useSecond } from '@/components/meet/useMeetingLive'
+import { clock, LIMITS, type MeetingState } from '@/lib/meeting'
 
 /**
- * The meeting, live. One segment at a time with its countdown, the agenda
- * down the side, and a capture box for notes, decisions and owners that
- * feed the recap. Arrow keys move between segments (outside the inputs).
+ * The meeting, live, for the admin running it: one segment at a time with
+ * its countdown, the agenda down the side, and a capture box for notes,
+ * decisions and owners that feed the recap. The segment is the shared one
+ * (the presenter screen's, migration 045), so this follows /meet/present;
+ * the presenter can move it from here too, with the buttons or arrow keys
+ * (outside the inputs). Before 045 it keeps its own place, as it used to.
  */
-export function MeetingMode({ label, initial }: { label: string; initial: Meeting }) {
-  const { meeting, busy, call } = useMeeting(initial)
-  const [idx, setIdx] = useState(0)
-  const [segmentStart, setSegmentStart] = useState(() => Date.now())
-  const [now, setNow] = useState(() => Date.now())
+export function MeetingMode({ initial }: { initial: MeetingState }) {
+  const { state, meeting, busy, call, optimistic, now } = useMeetingLive(initial)
+  const label = state.cycle.label
+  const [localIdx, setLocalIdx] = useState(0)
+  const [localStart, setLocalStart] = useState<string | null>(null)
   const [text, setText] = useState('')
   const [owner, setOwner] = useState('')
   const [decision, setDecision] = useState(false)
 
   const live = !!meeting.startedAt && !meeting.endedAt
+  const local = !meeting.presenterReady
+  const presenting = live && (local || meeting.presenterId === state.me)
   const agenda = meeting.agenda
+  const idx = local ? localIdx : Math.max(0, agenda.findIndex(s => s.id === meeting.currentSegment))
   const seg = agenda[idx]
-
-  useEffect(() => {
-    if (!live) return
-    const t = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(t)
-  }, [live])
+  const t = useSecond(live, now, initial.serverNow)
 
   const go = (to: number) => {
-    if (to < 0 || to >= agenda.length) return
-    setIdx(to)
-    setSegmentStart(Date.now())
-    setNow(Date.now())
+    if (!presenting || to < 0 || to >= agenda.length || to === idx) return
+    const at = new Date(now()).toISOString()
+    if (local) {
+      setLocalIdx(to)
+      setLocalStart(at)
+      return
+    }
+    optimistic({ currentSegment: agenda[to].id, segmentStartedAt: at })
+    call('goto', { segment: agenda[to].id })
   }
 
   useEffect(() => {
@@ -67,9 +68,10 @@ export function MeetingMode({ label, initial }: { label: string; initial: Meetin
     )
   }
 
-  const remaining = live ? seg.minutes * 60 - (now - segmentStart) / 1000 : seg.minutes * 60
+  const segStart = (local ? localStart : meeting.segmentStartedAt) ?? meeting.startedAt
+  const remaining = live && segStart ? seg.minutes * 60 - (t - new Date(segStart).getTime()) / 1000 : seg.minutes * 60
   const over = remaining < 0
-  const elapsedTotal = live && meeting.startedAt ? (now - new Date(meeting.startedAt).getTime()) / 1000 : 0
+  const elapsedTotal = live && meeting.startedAt ? (t - new Date(meeting.startedAt).getTime()) / 1000 : 0
 
   const add = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,9 +84,15 @@ export function MeetingMode({ label, initial }: { label: string; initial: Meetin
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <Link href="/admin/run" className="inline-flex items-center gap-1 text-footnote text-ink-muted hover:text-ink"><Icon icon={ArrowLeft} size="sm" /> Run</Link>
-        <p className="text-footnote text-ink-muted">{label} meeting{live ? ` · ${clock(elapsedTotal)} in` : meeting.endedAt ? ' · ended' : ''}</p>
+        <p className="text-footnote text-ink-muted">
+          {label} meeting{live ? ` · ${clock(elapsedTotal)} in` : meeting.endedAt ? ' · ended' : ''}
+          {live && !local && !presenting && ` · @${state.presenterName ?? 'someone'} is presenting`}
+        </p>
         <div className="ml-auto flex gap-2">
-          {!live && !meeting.endedAt && <Button icon={Play} disabled={!!busy} onClick={() => { call('start', {}, 'Meeting started'); go(0) }}>Start the meeting</Button>}
+          <Link href="/meet/present" className="press inline-flex h-8 items-center gap-1.5 rounded-full bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink">
+            <Icon icon={Presentation} size="sm" /> Presenter screen
+          </Link>
+          {!live && !meeting.endedAt && <Button icon={Play} disabled={!!busy} onClick={async () => { if (await call('start', {}, 'Meeting started')) { setLocalIdx(0); setLocalStart(new Date(now()).toISOString()) } }}>Start the meeting</Button>}
           {live && <Button variant="secondary" icon={Stop} disabled={!!busy} onClick={() => call('end', {}, 'Meeting ended: the recap is on the Run tab')}>End the meeting</Button>}
           {meeting.endedAt && <Link href="/admin/run#run-recap" className="press inline-flex h-8 items-center rounded-(--radius-control) bg-ink px-3 text-footnote font-medium text-parchment">Write the recap →</Link>}
         </div>
@@ -106,12 +114,12 @@ export function MeetingMode({ label, initial }: { label: string; initial: Meetin
             <Kers size={84} expression={over ? 'dramatic' : 'excited'} className="absolute bottom-4 right-4 max-sm:hidden" />
           </section>
 
-          <div className="flex gap-2">
+          {presenting && <div className="flex gap-2">
             <Button variant="secondary" icon={ArrowLeft} disabled={idx === 0} onClick={() => go(idx - 1)}>Back</Button>
             <Button variant="secondary" disabled={idx === agenda.length - 1} onClick={() => go(idx + 1)}>
               Next: {agenda[idx + 1]?.title ?? 'that’s it'} <Icon icon={ArrowRight} size="sm" />
             </Button>
-          </div>
+          </div>}
 
           {/* Capture. */}
           <form onSubmit={add} className="rounded-(--radius-card) border border-border bg-paper p-4 space-y-2.5">
@@ -154,6 +162,7 @@ export function MeetingMode({ label, initial }: { label: string; initial: Meetin
               <button
                 type="button"
                 onClick={() => go(i)}
+                disabled={!presenting}
                 aria-current={i === idx ? 'step' : undefined}
                 className={cn(
                   'flex w-full items-baseline gap-3 rounded-(--radius-control) px-3 py-2.5 text-left text-footnote transition-colors',

@@ -25,6 +25,9 @@ import {
 
 /** Higher wins. Timely and dismissable beats persistent and promotional. */
 export const OVERLAY_PRIORITY = {
+  /* The presenter screen holds the slot and shows nothing in it, so no
+     prompt pops up on a screen share. */
+  presenter: 100,
   meetingPill: 30,
   pushOptIn: 20,
   installPrompt: 10,
