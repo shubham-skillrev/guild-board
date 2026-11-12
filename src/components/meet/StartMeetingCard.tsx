@@ -141,7 +141,7 @@ export function StartMeetingCardView({ s, now, busy, onStart, onRehearse }: { s:
     title = 'A rehearsal is on'
     body = meeting.presenterId === s.me ? 'You’re rehearsing. The link and End rehearsal are on the presenter screen.' : s.presenterName ? `@${s.presenterName} is rehearsing.` : 'Nobody is presenting it.'
     action = (
-      <div className="flex shrink-0 gap-2">
+      <div className="flex shrink-0 flex-wrap gap-1.5">
         <Link href="/meet/present" className={quiet}>Open the presenter screen</Link>
         <button type="button" className={button} disabled={busy} onClick={onStart}>
           <Icon icon={Play} size="sm" weight="fill" /> {busy ? 'Starting…' : 'Start meeting'}
@@ -157,20 +157,26 @@ export function StartMeetingCardView({ s, now, busy, onStart, onRehearse }: { s:
     body = 'There’s no agenda saved yet, so there’s nothing to present.'
     action = <Link href="/admin/run" className={button}>Build the agenda</Link>
   } else {
-    title = `The meeting is ${until(at - now)}, at ${time}`
+    title = `Guild meeting ${until(at - now)} · ${time}`
     body = prepped
-      ? `Notes for ${prepped} of ${notable.length} ${meeting.agenda.some(x => x.slide) ? 'slides' : 'segments'}. Rehearse it now; on the day, share your screen and start.`
-      : 'Kers is still on his prep. Rehearse it now; on the day, share your screen and start.'
+      ? `Notes for ${prepped} of ${notable.length} ${meeting.agenda.some(x => x.slide) ? 'slides' : 'segments'}. Rehearse before you start.`
+      : 'Kers is still on his prep. Rehearse before you start.'
     action = (
-      <div className="flex shrink-0 gap-2">
-        <Link href="/meet/present?rehearse=1" className={quiet}>Preview alone</Link>
-        {onRehearse && (meeting.rehearsalReady === false ? (
-          <span className="self-center text-footnote text-ink-muted">Rehearse live: apply migration 047</span>
-        ) : (
-          <button type="button" className={quiet} disabled={busy} onClick={onRehearse}>Rehearse live (with phones)</button>
-        ))}
+      <div className="flex shrink-0 flex-wrap gap-1.5">
+        <Link href="/meet/present?rehearse=1" className={quiet} title="Step through the slides alone, with sample answers">Preview</Link>
+        {onRehearse && (
+          <button
+            type="button"
+            className={quiet}
+            disabled={busy || meeting.rehearsalReady === false}
+            onClick={onRehearse}
+            title={meeting.rehearsalReady === false ? 'Apply migration 047 first' : 'Run it for real with phones; answers are deleted after'}
+          >
+            Rehearse live
+          </button>
+        )}
         <button type="button" className={button} disabled={busy} onClick={onStart}>
-          <Icon icon={Play} size="sm" weight="fill" /> {busy ? 'Starting…' : 'Start meeting'}
+          <Icon icon={Play} size="sm" weight="fill" /> {busy ? 'Starting…' : 'Start'}
         </button>
       </div>
     )
@@ -179,12 +185,14 @@ export function StartMeetingCardView({ s, now, busy, onStart, onRehearse }: { s:
   return (
     <section
       aria-label="Meeting mode"
-      className="flex items-center gap-4 rounded-(--radius-card) border border-saffron/25 bg-paper p-4 shadow-[0_0_32px_-8px] shadow-saffron/35 max-sm:flex-wrap"
+      className="flex flex-wrap items-center gap-x-3 gap-y-2.5 rounded-(--radius-card) border border-saffron/25 bg-paper px-3.5 py-3 shadow-[0_0_24px_-10px] shadow-saffron/35"
     >
-      <Kers size={56} expression="excited" colour="meeting" />
-      <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-medium text-ink">{title}</p>
-        <p className="mt-0.5 text-footnote text-ink-muted">{body}</p>
+      <div className="flex min-w-[220px] flex-1 basis-[260px] items-center gap-3">
+        <Kers size={32} expression="excited" colour="meeting" />
+        <div className="min-w-0">
+          <p className="truncate text-footnote font-medium text-ink">{title}</p>
+          <p className="truncate text-caption text-ink-muted">{body}</p>
+        </div>
       </div>
       {action}
     </section>
