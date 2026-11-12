@@ -3,18 +3,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useToast } from '@/hooks/useToast'
 import type { Meeting, MeetingState } from '@/lib/meeting'
+import type { RoomState } from '@/lib/meet/activity'
+import { newerRoom, useMeetingChannel } from '@/components/meet/useMeetingChannel'
 
+/** Without the live channel (or before it joins). */
 const POLL_MS = 3000
+/** With it: the room arrives by broadcast, the rest (prep edits, a take-over) can wait. */
+const SLOW_POLL_MS = 15_000
 
 /**
  * The live meeting for admin screens (the presenter screen, meeting mode):
- * the state from GET /api/admin/meeting, refreshed every 3 s while the tab
- * is visible, and one way to call the meeting API.
+ * the state from GET /api/admin/meeting, and one way to call the meeting API.
  *
- * Phase 1 polls only. Phase 2 adds the private broadcast channel
- * `meeting:{id}` here (subscribe, then setState on each message) and keeps
- * this poll as the fallback for when the channel fails, so the screens that
- * use this hook don't change.
+ * The room (who's in, the segment's activity and its answers) arrives on the
+ * private broadcast channel `meeting:{cycle_id}` at most once a second. A
+ * broadcast that shows the meeting somewhere else (another admin moved the
+ * segment, ended it) triggers a fetch at once. While the channel is down
+ * the whole state is polled every 3 s; while it's up, every 15 s.
  *
  * The server's clock drives every countdown: `now()` is the browser's clock
  * corrected by the offset seen on the last response.
@@ -30,12 +35,25 @@ export function useMeetingLive(initial: MeetingState) {
 
   const accept = useCallback((next: MeetingState) => {
     skew.current = new Date(next.serverNow).getTime() - Date.now()
-    setState(next)
+    // A broadcast may have brought a newer room than this response.
+    setState(s => ({ ...next, room: next.room ? newerRoom(s.room, next.room) : next.room ?? null }))
   }, [])
+  const latest = useRef(state)
+  useEffect(() => { latest.current = state }, [state])
 
   useEffect(() => {
     skew.current = new Date(initial.serverNow).getTime() - Date.now()
   }, [initial.serverNow])
+
+  const fetchNow = useRef<() => void>(() => {})
+
+  const onRoom = useCallback((room: RoomState) => {
+    const m = latest.current.meeting
+    const moved = room.segment !== m.currentSegment || room.live !== (!!m.startedAt && !m.endedAt)
+    setState(s => ({ ...s, room: newerRoom(s.room, room) }))
+    if (moved) fetchNow.current()
+  }, [])
+  const { connected } = useMeetingChannel(cycleId, onRoom)
 
   useEffect(() => {
     let alive = true
@@ -50,14 +68,15 @@ export function useMeetingLive(initial: MeetingState) {
         /* offline for a moment: the next tick tries again */
       }
     }
-    const t = setInterval(tick, POLL_MS)
+    fetchNow.current = tick
+    const t = setInterval(tick, connected ? SLOW_POLL_MS : POLL_MS)
     document.addEventListener('visibilitychange', tick)
     return () => {
       alive = false
       clearInterval(t)
       document.removeEventListener('visibilitychange', tick)
     }
-  }, [cycleId, accept])
+  }, [cycleId, accept, connected])
 
   /** Patch the meeting on screen now, before the server answers. */
   const optimistic = useCallback((patch: Partial<Meeting>) => {
@@ -96,7 +115,7 @@ export function useMeetingLive(initial: MeetingState) {
 
   const now = useCallback(() => Date.now() + skew.current, [])
 
-  return { state, meeting: state.meeting, busy, call, optimistic, now }
+  return { state, meeting: state.meeting, busy, call, optimistic, now, live: connected }
 }
 
 /**

@@ -200,15 +200,46 @@ by "Build from the board" or by hand in the Run tab. Admin screens poll every
 `components/meet/ActivityPanel.tsx`.
 
 ### Phase 2: Audience
-- [ ] Migration: `meeting_participants`, `meeting_activities`, `meeting_responses`; realtime policy for `meeting:{id}`
-- [ ] "Meeting is live" banner on the site
-- [ ] `/meet`: member join, guest name + token, waiting area
-- [ ] Poll: phone vote, presenter bars with the 8 s delay
-- [ ] Word cloud: phone input, presenter cloud
-- [ ] Profanity filter + tests (English, Hinglish, leetspeak)
-- [ ] Throttled aggregate broadcast (≤ 1/s) + polling fallback
-- [ ] Seed script for the first run's activities
+- [x] Migration: `meeting_participants`, `meeting_activities`, `meeting_responses`; realtime policy for `meeting:{id}`
+- [x] "Meeting is live" banner on the site
+- [x] `/meet`: member join, guest name + token, waiting area
+- [x] Poll: phone vote, presenter bars with the 8 s delay
+- [x] Word cloud: phone input, presenter cloud
+- [x] Profanity filter + tests (English, Hinglish, leetspeak)
+- [x] Throttled aggregate broadcast (≤ 1/s) + polling fallback
+- [x] Seed script for the first run's activities
 - [ ] Stress test at 60 participants: **must pass before the first live use**
+
+Built (2026-11-12): migration `046_meeting_audience.sql`; `/meet`
+(`components/meet/MeetRoom.tsx`, `PhoneActivity.tsx`) and `/api/meet`;
+activities, answers and the room in `lib/meet/` (`activity.ts` shapes and
+aggregation, `room.ts` server side, `profanity.ts`); the presenter's panel in
+`components/meet/ActivityPanel.tsx`; the banner in
+`components/layout/MeetingLiveBanner.tsx`. Unit tests: `npm test`.
+
+- **Meeting id** = the month's `cycle_id` (`meetings` is keyed by it), so the
+  channel is `meeting:{cycle_id}`.
+- **Guests and the channel:** the payload is exactly what the shared screen
+  shows (a participant count, counts or words; never a name or who answered
+  what), so `anon` may listen like on `board:*` (030). A /meet guest's
+  browser joins with the publishable key. Their identity for writes is the
+  httpOnly `gb_meet` cookie, checked by `/api/meet`; only its SHA-256 is
+  stored, and it's cleared when the meeting ends.
+- **Throttle:** every answer "nudges" the room after its response;
+  `meeting_live_claim()` in the database decides atomically: send now (the
+  last send was ≥ 1 s ago), own the trailing flush (wait, then send what's
+  stored by then), or do nothing (a flush is already waiting). So a burst
+  sends one broadcast a second, the last answers land within ~1 s, and
+  serverless needs no shared timer. Clients that miss one pull the same
+  room on their poll (3 s without the channel, 15–30 s with it).
+- **Seed:** `node --env-file=.env.local scripts/seed-meeting-activities.mjs`
+  finds segments **by kind** (warm-up, radar, topic, clinic, boss), so it
+  works on a drafted or hand-edited agenda. "Build from the board" now drafts
+  the first-run format (warm-up and Boss Round included, 60 min).
+- **Stress test:** `scripts/meet-stress.mjs --base <preview>` (needs the
+  preview's service-role key; see the script's header). Not run yet.
+- Activities a presenter opens close when they move on or end. A live
+  meeting nobody ended stops counting as live after 8 h.
 
 ### Phase 3: Boss Round
 - [ ] Problem list in code, with tests

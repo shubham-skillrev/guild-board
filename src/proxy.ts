@@ -41,6 +41,13 @@ export async function proxy(request: NextRequest) {
     pathname === '/api/me/next' ||
     // The invite page: for people who haven't joined yet.
     pathname === '/join' ||
+    // Meeting mode's room: guests join with a typed name, no account. The
+    // API recognises members by session and guests by their own cookie, and
+    // only lets anyone in while the meeting is live. /meet/present is not
+    // in here: it stays admin-only.
+    pathname === '/meet' ||
+    pathname === '/api/meet' ||
+    pathname === '/api/meet/live' ||
     pathname === '/favicon.ico' ||
     isPwaAsset
 

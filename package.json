@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "eslint",
     "icons": "node scripts/generate-icons.mjs",
+    "test": "node --test \"src/**/*.test.ts\"",
     "test:guildbot": "npm test --workspace @guildboard/guildbot"
   },
   "dependencies": {

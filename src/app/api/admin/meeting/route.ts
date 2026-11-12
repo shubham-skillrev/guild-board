@@ -13,13 +13,19 @@
 //            start         meeting mode on: live, and the caller presents
 //                          (unless another admin already is)
 //            take_over     the caller presents from now on
-//            goto          { segment } the presenter moves the shared screen
-//            end           meeting mode off
+//            goto          { segment } the presenter moves the shared screen;
+//                          an open activity closes
+//            end           meeting mode off: closes any open activity and
+//                          expires every guest's token
+//            open_activity { activity_id } the presenter opens the segment's
+//                          poll or word cloud (closing any other)
+//            close_activity { activity_id } closes it (moving on does too)
 //            note          { note: { text, owner?, decision?, segment? } }
 //            delete_note   { id }
 //            draft_recap   -> { recap, byAi } from what was captured (not saved)
 //            post_recap    the saved recap to Slack
-// DB TABLES: meetings, cycles, topics, demos, radar_links, bytes
+// DB TABLES: meetings, cycles, topics, demos, radar_links, bytes,
+//            meeting_activities, meeting_participants, meeting_responses (046)
 
 import { after, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -27,6 +33,7 @@ import { getAdminId } from '@/lib/guild/staff'
 import { agendaMessage, draftAgenda, draftRecap, getMeeting, mergeAgenda, missing045, openCycle, recapMessage, saveMeeting } from '@/lib/guild/meeting'
 import { draftPrep, ensurePrepBeforeMeeting } from '@/lib/guild/meetingPrep'
 import { cleanNote, LIMITS, type MeetingState } from '@/lib/meeting'
+import { closeActivity, closeOpenActivities, closeRoom, nudgeRoom, openActivity, readRoom } from '@/lib/meet/room'
 import { isSlackConfigured, postToSlack } from '@/lib/slack/send'
 
 export const maxDuration = 120
@@ -50,7 +57,8 @@ async function presenterName(id: string | null): Promise<string | null> {
 
 async function state(cycle: MeetingState['cycle'], me: string): Promise<MeetingState> {
   const meeting = await getMeeting(cycle.id)
-  return { cycle, meeting, me, presenterName: await presenterName(meeting.presenterId), serverNow: new Date().toISOString() }
+  const [name, room] = await Promise.all([presenterName(meeting.presenterId), readRoom(createAdminClient(), cycle.id).catch(() => null)])
+  return { cycle, meeting, me, presenterName: name, serverNow: new Date().toISOString(), room }
 }
 
 export async function GET(request: Request) {
@@ -133,6 +141,7 @@ export async function POST(request: Request) {
       let { error } = await saveMeeting(cycle.id, patch)
       // Before 045: still start the clock; the screen keeps its place locally.
       if (missing045(error)) ({ error } = await saveMeeting(cycle.id, { started_at: patch.started_at, ended_at: null }))
+      if (!error) nudgeRoom(cycle.id)
       return fail(error) ?? NextResponse.json(await state(cycle, adminId))
     }
     case 'take_over': {
@@ -148,11 +157,29 @@ export async function POST(request: Request) {
       if (!m.agenda.some(s => s.id === body.segment)) return NextResponse.json({ error: 'No such segment' }, { status: 400 })
       if (m.currentSegment === body.segment) return NextResponse.json(await state(cycle, adminId))
       const { error } = await saveMeeting(cycle.id, { current_segment: body.segment, segment_started_at: now })
+      // Moving on closes whatever was open; phones go back to "Watch the screen".
+      if (!error) {
+        await closeOpenActivities(createAdminClient(), cycle.id)
+        nudgeRoom(cycle.id)
+      }
       return fail(error) ?? NextResponse.json(await state(cycle, adminId))
     }
     case 'end': {
       const { error } = await saveMeeting(cycle.id, { ended_at: now })
+      if (!error) await closeRoom(createAdminClient(), cycle.id)
       return fail(error) ?? NextResponse.json(await state(cycle, adminId))
+    }
+    case 'open_activity':
+    case 'close_activity': {
+      const m = await getMeeting(cycle.id)
+      if (!m.startedAt || m.endedAt) return NextResponse.json({ error: 'Meeting mode isn’t on.' }, { status: 409 })
+      if (m.presenterId !== adminId) return NextResponse.json({ error: 'Someone else is presenting. Take over first.', ...(await state(cycle, adminId)) }, { status: 409 })
+      if (body.action === 'close_activity') await closeActivity(createAdminClient(), cycle.id, body.activity_id)
+      else {
+        const r = await openActivity(createAdminClient(), cycle.id, body.activity_id)
+        if (r.error) return NextResponse.json({ error: r.error }, { status: r.status ?? 500 })
+      }
+      return NextResponse.json(await state(cycle, adminId))
     }
     case 'note': {
       const note = cleanNote(body.note)

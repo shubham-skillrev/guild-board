@@ -31,15 +31,17 @@ function readLocal(cycleId: string): LocalPos | null {
  * The presenter screen (/meet/present), shared full screen on the call.
  *
  *   header     the month, the meeting clock, who presents ("Take over")
- *   stage      the segment: kind, title, detail, its board posts, then the
- *              activity panel (Phase 2) and Kers' prep: the opener and 2-3
- *              talking points
+ *   stage      the segment: kind, title, detail, its board posts, then its
+ *              activity (ActivityPanel: poll bars or word cloud, with the
+ *              presenter's "Open" button) and Kers' prep: the opener and
+ *              2-3 talking points
  *   side       the segment's countdown (overtime past zero) and Kers
  *   footer     agenda progress (weighted bar + dots) and Back / Next
  *
  * Only the presenter moves it (← → or PageUp/PageDown for a clicker, the
- * buttons, the dots); everyone else follows by polling. Esc leaves, F goes
- * full screen. The place lives on the server, so a refresh resumes it.
+ * buttons, the dots); everyone else follows (the meeting channel, polling
+ * as the fallback). Esc leaves, F goes full screen. The place lives on the
+ * server, so a refresh resumes it.
  */
 export function PresenterScreen({ initial, posts }: { initial: MeetingState; posts: Record<string, PresenterPost> }) {
   const router = useRouter()
@@ -143,6 +145,9 @@ export function PresenterScreen({ initial, posts }: { initial: MeetingState; pos
         <p className="text-[15px] text-ink-muted">
           <span className="font-medium text-ink">{state.cycle.label} guild meeting</span>
           {meetingClock && <span className="font-mono tabular"> · {meetingClock} in</span>}
+          {live && state.room && (
+            <span className="font-mono tabular"> · {state.room.participants} in the room</span>
+          )}
           {ended && ' · ended'}
         </p>
         <div className="ml-auto flex items-center gap-2">
@@ -194,7 +199,7 @@ export function PresenterScreen({ initial, posts }: { initial: MeetingState; pos
             </ul>
           )}
 
-          <ActivityPanel segment={seg} state={state} presenting={presenting} />
+          <ActivityPanel segment={seg} state={state} presenting={presenting} now={now} call={call} busy={busy} />
 
           {prep && (
             <div className="mt-10 max-w-[72rem] border-t border-border pt-6">

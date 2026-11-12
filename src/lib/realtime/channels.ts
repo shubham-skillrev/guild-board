@@ -34,3 +34,11 @@ export interface LiveUpdate {
   changed: LiveChange[]
   counts: LiveCounts | null
 }
+
+/**
+ * Meeting mode's room (migration 046): the participant count and the open
+ * activity's aggregate (a RoomState from lib/meet/activity.ts), sent at most
+ * once a second. Members and guests listen; only the service role sends.
+ */
+export const meetingChannel = (cycleId: string) => `meeting:${cycleId}`
+export const MEET_EVENT = 'room'

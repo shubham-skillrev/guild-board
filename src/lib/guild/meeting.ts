@@ -119,12 +119,17 @@ export async function draftAgenda(cycleId: string, viewerId: string): Promise<Se
   const slot = (s: typeof slots.spotlight, label: string) =>
     s ? `${label}: @${s.username}, ${s.title || formatLabel(s.format)}` : `${label}: open`
 
+  // The first-run format (docs/06-meeting-mode.md): 60 minutes, with Kers'
+  // warm-up and Boss Round. Ids are stable per kind; the activity seed
+  // (scripts/seed-meeting-activities.mjs) finds segments by kind either way.
   return [
+    { id: 'warmup', kind: 'warmup', title: 'Warm-up', minutes: 2, detail: 'Kers opens the room: one word for your week so far' },
     { id: 'radar', kind: 'radar', title: 'Radar', minutes: 5, detail: radar.length ? radar.join(' · ') : 'Three things that shipped this month (vote on the Bytes page)' },
-    { id: 'showtell', kind: 'showtell', title: 'Show & Tell', minutes: 20, detail: `${slot(slots.spotlight, 'Spotlight')} · ${slot(slots.demo, 'Demo')}` },
-    { id: 'topic', kind: 'topic', title: top ? top.title : 'Top topic', minutes: 20, detail: top ? opener(top) : 'The most-voted topic on the board', topicIds: top ? [top.id] : [] },
-    { id: 'clinic', kind: 'clinic', title: 'Problem clinic', minutes: 10, detail: problems.length ? problems.map(p => p.title).join(' · ') : 'One or two real blockers from the board', topicIds: problems.map(p => p.id) },
-    { id: 'wrap', kind: 'wrap', title: 'Wrap', minutes: 5, detail: 'Decisions, owners, and who shows something next month' },
+    { id: 'showtell', kind: 'showtell', title: 'Show & Tell', minutes: 15, detail: `${slot(slots.spotlight, 'Spotlight')} · ${slot(slots.demo, 'Demo')}` },
+    { id: 'topic', kind: 'topic', title: top ? top.title : 'Top topic', minutes: 18, detail: top ? opener(top) : 'The most-voted topic on the board', topicIds: top ? [top.id] : [] },
+    { id: 'clinic', kind: 'clinic', title: 'Problem clinic', minutes: 8, detail: problems.length ? problems.map(p => p.title).join(' · ') : 'One or two real blockers from the board', topicIds: problems.map(p => p.id) },
+    { id: 'boss', kind: 'boss', title: 'Kers’ Boss Round', minutes: 8, detail: 'Kers dares the room to write some code' },
+    { id: 'wrap', kind: 'wrap', title: 'Wrap', minutes: 4, detail: 'Decisions, owners, and who shows something next month' },
   ]
 }
 

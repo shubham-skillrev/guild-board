@@ -1,3 +1,5 @@
+import type { RoomState } from '@/lib/meet/activity'
+
 /**
  * The monthly meeting: its agenda, the notes taken live, and the recap.
  * Shapes shared by the Run tab, meeting mode and the API (migration 041).
@@ -80,6 +82,8 @@ export interface MeetingState {
   presenterName: string | null
   /** For the countdown: the client corrects its clock by this. */
   serverNow: string
+  /** The audience (migration 046): who's in, the segment's activity and its answers. Null before 046. */
+  room?: RoomState | null
 }
 
 /** Admins see "Start meeting mode" on the board from this long before the meeting. */

@@ -10,6 +10,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Wordmark } from "@/components/ui/Wordmark";
 import { GuestBanner } from "@/components/layout/GuestBanner";
+import { MeetingLiveBanner } from "@/components/layout/MeetingLiveBanner";
 import { isGuestSession } from "@/lib/supabase/viewer";
 import { GuestGateProvider } from "@/components/auth/GuestGate";
 import { GuildBotChat } from "@/components/guildbot/GuildBotChat";
@@ -53,6 +54,7 @@ export default async function MainLayout({
         </Suspense>
 
         {isGuest && <GuestBanner />}
+        <MeetingLiveBanner />
 
         {/* ─── Top bar ───
           Translucent, and terminated by a real hairline. The gradient edge that
