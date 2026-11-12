@@ -2,115 +2,85 @@
   "cycle": "November 2026",
   "meetingAt": "2026-11-13T05:30:00+00:00",
   "theme": "Desk Tour Month",
-  "about": "The reference agenda and presenter script (docs/07-agenda-and-script-guide.md). Written by hand from the board as it stood on 2026-11-12. Per segment: `cue` (the one line on the shared screen), `cards` (the real content, on the screen and every phone), and `prep` (the presenter's notes, only on their own phone and in rehearsal). Load it with scripts/apply-agenda.mjs; `ask` is computed there, never stored in this file.",
+  "about": "The reference agenda and presenter script (docs/07-agenda-and-script-guide.md), as slides. Written by hand from the board as it stood on 2026-11-12. Per slide: `slide` (title, content, activity, results, text, meme), `section`, `cue` (one line on screen), `cards` (posts and news as cards; sides and notes as plain text), and `prep` (the presenter's notes, only on their own phone and in rehearsal). `activities` name their activity slide in `segment`. Load with scripts/apply-agenda.mjs; `ask` is computed there, never stored here.",
   "agenda": [
     {
-      "id": "warmup",
+      "id": "hello",
       "kind": "warmup",
-      "title": "Warm-up: the tool you'd refuse to give up",
-      "detail": "Word cloud on phones, one tap each before anything serious. It's Desk Tour Month, so the biggest word sets up Show & Tell.",
-      "minutes": 2,
+      "slide": "title",
+      "section": "Warm-up",
+      "title": "November guild meeting",
+      "detail": "A word cloud on phones, then a post on voice-driven coding and the tricks on your screen.",
+      "minutes": 0,
       "topicIds": [],
-      "cue": "One word on your phone: the tool you'd refuse to give up.",
-      "cards": [
-        {
-          "kind": "note",
-          "title": "Editor, terminal, a shortcut, a mug",
-          "text": "All of it counts. Up to three words each, nobody sees who typed what."
-        },
-        {
-          "kind": "note",
-          "title": "It's Desk Tour Month",
-          "text": "The biggest word sets up Show & Tell: whoever typed it might be showing it to us."
-        }
-      ],
+      "cue": "Phones out: open GuildBoard and join the room.",
       "prep": {
         "points": [
-          "Wait for ten-odd answers before you read the cloud. Don't discuss it yet: two minutes, hard stop.",
-          "Read the biggest word aloud and park it: \"Whoever typed that, you're showing it to us in Show & Tell.\" Volunteers only.",
-          "If one editor owns the cloud, ask who the holdout is. There's always one."
+          "Wait until the room count passes ten before you move on.",
+          "Guests can join with just a name. Nobody’s answers are ever shown with names."
         ],
-        "opener": "Before anything serious, one word on your phone: the tool you'd refuse to give up. Editor, terminal, a shortcut, a mug. All of it counts.",
+        "opener": "Morning, guild. Phones out: open GuildBoard, tap the banner, you’re in. Everything today happens there.",
         "by": "admin",
         "at": null,
         "ask": []
       }
     },
     {
-      "id": "radar",
-      "kind": "radar",
-      "title": "Radar: who do we trust with our code?",
-      "detail": "eMudhra intermediate CA compromise (Cloudflare found keys as small as 4) · GLM-5.3 on Workers AI leaked KV cache between users' requests · Google tests an AI-powered gaming platform (a member's link)",
-      "minutes": 5,
+      "id": "warmup-cloud",
+      "kind": "warmup",
+      "slide": "activity",
+      "section": "Warm-up",
+      "title": "The tool you’d refuse to give up",
+      "detail": "",
+      "minutes": 0,
       "topicIds": [],
-      "cue": "Vote first, then we read them.",
-      "cards": [
-        {
-          "kind": "news",
-          "title": "eMudhra intermediate CA compromise",
-          "source": "Security notice",
-          "url": "https://emudhra.we-have-a-problem.com/",
-          "why": "An intermediate CA was compromised; keys as small as 4 let the private keys be recovered from public certificates.",
-          "from": "digest"
-        },
-        {
-          "kind": "news",
-          "title": "GLM-5.3 on Workers AI leaked KV cache between users",
-          "source": "Cloudflare",
-          "url": "https://blog.cloudflare.com/kv-cache-exposure-remediation/",
-          "why": "A context-window mismatch in SGLang let cache pages cross between separate users' requests.",
-          "from": "digest"
-        },
-        {
-          "kind": "news",
-          "title": "Google experiments with an AI-powered gaming platform",
-          "source": "TechCrunch",
-          "url": "https://techcrunch.com/2026/10/07/google-experiments-with-an-ai-powered-gaming-platform/",
-          "why": "Posted to the Radar by a member, not the digest.",
-          "from": "member"
-        }
-      ],
+      "cue": "One word. Editor, terminal, shortcut, mug: all of it counts.",
       "prep": {
         "points": [
-          "Two of the three are someone else's infrastructure failing quietly: say that before the poll, then let them vote.",
-          "eMudhra: Cloudflare found keys set to numbers as small as 4. GLM-5.3: the fix was making memory pool limits match the model's config.",
-          "Read the poll, then ask the smallest camp to defend it. The Google link is a member's: thank them, and ask for more links like it."
+          "Wait for ten-odd words, then close it. Don’t discuss it yet.",
+          "Close moves to the results by itself."
         ],
-        "opener": "Two of these three are someone else's infrastructure failing quietly. Vote before I read them: would you send production code to a hosted AI model?",
+        "opener": "One word on your phone: the tool you’d refuse to give up. Editor, terminal, a shortcut, a mug. All of it counts.",
         "by": "admin",
         "at": null,
         "ask": []
       }
     },
     {
-      "id": "showtell",
-      "kind": "showtell",
-      "title": "Show & Tell: Desk Tour",
-      "detail": "Spotlight and Demo: invites out, neither confirmed yet. Any empty slot becomes a lightning desk tour: 3 or 4 volunteers, 3 minutes each, share your screen and show the one trick we should steal.",
-      "minutes": 15,
+      "id": "warmup-results",
+      "kind": "warmup",
+      "slide": "results",
+      "section": "Warm-up",
+      "of": "warmup-cloud",
+      "title": "Your desk, in words",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "Biggest word wins. Who’s the holdout?",
+      "prep": {
+        "points": [
+          "There’s always one. Let them defend it for thirty seconds.",
+          "Small words count too: read one odd one out, it gets a laugh."
+        ],
+        "opener": "Read the biggest word aloud. If one editor owns the cloud, who’s the holdout?",
+        "by": "admin",
+        "at": null,
+        "ask": []
+      }
+    },
+    {
+      "id": "warmup-voice",
+      "kind": "warmup",
+      "slide": "content",
+      "section": "Warm-up",
+      "title": "Steal a trick",
+      "detail": "",
+      "minutes": 0,
       "topicIds": [
         "5919d1ce-d4e0-48c3-8908-0e39bea53188"
       ],
-      "cue": "Share your screen: three minutes, one trick we should steal.",
+      "cue": "Dictating code yet? Where did it fall apart?",
       "cards": [
-        {
-          "kind": "slot",
-          "label": "Spotlight",
-          "status": "invited",
-          "text": "Kers' draw is out. If nobody says yes, it's lightning tours."
-        },
-        {
-          "kind": "slot",
-          "label": "Demo",
-          "status": "invited",
-          "text": "Same: a confirmed demo goes first."
-        },
-        {
-          "kind": "slot",
-          "label": "Lightning desk tours",
-          "status": "open",
-          "text": "3 or 4 volunteers, three minutes each. Mess welcome, no slides."
-        },
         {
           "kind": "post",
           "postId": "5919d1ce-d4e0-48c3-8908-0e39bea53188"
@@ -118,26 +88,186 @@
       ],
       "prep": {
         "points": [
-          "Lightning rules if a slot is empty: share your screen, three minutes, one trick. Start with whoever owns the warm-up's biggest word.",
-          "From the board: Simon Willison built a feature for his blog almost entirely by voice. Ask: has anyone tried dictating code, and where did it fall apart?",
-          "After each tour, one question to the room: \"Who's installing that today?\" Hands up is the whole feedback loop."
+          "Ask where it fell apart: naming things, punctuation, the open-plan office.",
+          "Got a trick on your screen? A volunteer shares it, two minutes, no slides. Never ask anyone by name."
         ],
-        "opener": "Desk Tour Month. Share your screen and show us one thing on it we should steal. Three minutes, no slides, mess welcome.",
+        "opener": "Simon Willison built a feature for his blog almost entirely by voice. Anyone here dictating code yet?",
         "by": "admin",
         "at": null,
         "ask": []
       }
     },
     {
-      "id": "topic",
+      "id": "meme-trust",
+      "kind": "radar",
+      "slide": "meme",
+      "section": "Radar",
+      "meme": {
+        "panels": [
+          {
+            "label": "Day 1",
+            "text": "We trust the certificate authority.",
+            "face": "proud"
+          },
+          {
+            "label": "Day 2",
+            "text": "The keys were as small as 4.",
+            "face": "dramatic"
+          }
+        ],
+        "caption": "Trust, but check the key size."
+      },
+      "title": "",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "prep": null
+    },
+    {
+      "id": "radar-intro",
+      "kind": "radar",
+      "slide": "title",
+      "section": "Radar",
+      "title": "Who do we trust with our code?",
+      "detail": "eMudhra CA compromise · GLM-5.3 KV-cache leak on Workers AI · Google’s AI gaming platform (a member’s link). Then a poll.",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "Three stories. Two are someone else’s infra failing quietly.",
+      "prep": {
+        "points": [
+          "Don’t read the cards out. One line each, then straight to the vote."
+        ],
+        "opener": "Three stories from this month. Two of them are someone else’s infrastructure failing quietly.",
+        "by": "admin",
+        "at": null,
+        "ask": []
+      }
+    },
+    {
+      "id": "radar-news",
+      "kind": "radar",
+      "slide": "content",
+      "section": "Radar",
+      "title": "This month’s Radar",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "Tap one on your phone to read it.",
+      "cards": [
+        {
+          "kind": "news",
+          "title": "eMudhra intermediate CA compromise",
+          "source": "Security notice",
+          "url": "https://emudhra.we-have-a-problem.com/",
+          "why": "Keys as small as 4 let private keys be recovered from public certificates.",
+          "from": "digest"
+        },
+        {
+          "kind": "news",
+          "title": "GLM-5.3 on Workers AI leaked KV cache between users",
+          "source": "Cloudflare",
+          "url": "https://blog.cloudflare.com/kv-cache-exposure-remediation/",
+          "why": "A context-window mismatch let cache pages cross between users’ requests.",
+          "from": "digest"
+        },
+        {
+          "kind": "news",
+          "title": "Google experiments with an AI-powered gaming platform",
+          "source": "TechCrunch",
+          "url": "https://techcrunch.com/2026/10/07/google-experiments-with-an-ai-powered-gaming-platform/",
+          "why": "Posted to the Radar by a member.",
+          "from": "member"
+        }
+      ],
+      "prep": {
+        "points": [
+          "The fix for GLM-5.3: make the memory pool limits match the model’s config.",
+          "The Google link is a member’s: thank them, and ask for more links like it."
+        ],
+        "opener": "eMudhra: Cloudflare found keys as small as 4. GLM-5.3: cache pages crossed between users.",
+        "by": "admin",
+        "at": null,
+        "ask": []
+      }
+    },
+    {
+      "id": "radar-poll",
+      "kind": "radar",
+      "slide": "activity",
+      "section": "Radar",
+      "title": "Production code to a hosted AI model?",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "Vote on your phone.",
+      "prep": {
+        "points": [
+          "Counts show after 8 seconds, so the first votes don’t steer the rest."
+        ],
+        "opener": "Vote now: would you send production code to a hosted AI model?",
+        "by": "admin",
+        "at": null,
+        "ask": []
+      }
+    },
+    {
+      "id": "radar-results",
+      "kind": "radar",
+      "slide": "results",
+      "section": "Radar",
+      "of": "radar-poll",
+      "title": "Who do we trust?",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "Smallest camp: defend it.",
+      "prep": {
+        "points": [
+          "Then ask the biggest camp what would change their mind. A leak like GLM-5.3’s?"
+        ],
+        "opener": "Smallest camp, you’re up: defend it in one line.",
+        "by": "admin",
+        "at": null,
+        "ask": []
+      }
+    },
+    {
+      "id": "meme-bubble",
       "kind": "topic",
-      "title": "AI Bubble Bust: the tech vs the business",
-      "detail": "Posted anonymously, so the host frames it (3 min). Poll first, then the debate: a crash in AI stocks is not AI going away. Which side are you on, and what does it change about the tools we pick?",
-      "minutes": 16,
+      "slide": "meme",
+      "section": "AI Bubble Bust",
+      "meme": {
+        "panels": [
+          {
+            "label": "The pitch deck",
+            "text": "AI-powered everything",
+            "face": "excited"
+          },
+          {
+            "label": "The invoice",
+            "text": "AI-priced everything",
+            "face": "dramatic"
+          }
+        ]
+      },
+      "title": "",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "prep": null
+    },
+    {
+      "id": "topic-post",
+      "kind": "topic",
+      "slide": "content",
+      "section": "AI Bubble Bust",
+      "title": "The tech vs the business",
+      "detail": "From the board, posted anonymously: the host frames it. Poll, then the debate: what it changes about the tools we pick.",
+      "minutes": 0,
       "topicIds": [
         "61f7a2f7-621b-4b74-b406-39f95844a935"
       ],
-      "cue": "Vote first. Then: which tool you use every day disappears first if it pops?",
+      "cue": "A crash in AI stocks isn’t AI going away. Or is it?",
       "cards": [
         {
           "kind": "post",
@@ -146,68 +276,186 @@
         {
           "kind": "side",
           "label": "The tech stays",
-          "text": "Useful and still improving. A stock crash doesn't switch it off: the internet outlived dot-com."
+          "text": "Useful and still improving. The internet outlived dot-com."
         },
         {
           "kind": "side",
           "label": "The business pops",
-          "text": "Huge spend, no clear way to earn it back. Vendors die, prices jump, tools vanish."
+          "text": "Huge spend, no clear way to earn it back. Vendors die, prices jump."
         }
       ],
       "prep": {
         "points": [
-          "The post's split: AI stocks crashing is not AI going away. The tech is useful and still improving; the risk is companies spending huge sums with no clear way to earn it back.",
-          "Dot-com is the template the post points at: plenty of companies died, the internet didn't. Ask the \"pops\" camp which AI vendor they'd bet on surviving, and why.",
-          "Land it on our work: if your main AI tool doubled its price or shut down next quarter, what's the plan? One concrete answer beats ten opinions."
+          "The post’s split: the tech is useful and improving; the risk is spending with no clear way to earn it back.",
+          "Dot-com is the template: plenty of companies died, the internet didn’t."
         ],
-        "opener": "Vote before you overthink it: does AI pop by 2028? Then the real question: which tool you use every day disappears first if it does?",
+        "opener": "From the board, posted anonymously: AI stocks crashing is not AI going away. Or is it?",
         "by": "admin",
         "at": null,
         "ask": []
       }
     },
     {
-      "id": "clinic",
-      "kind": "clinic",
-      "title": "Problem clinic: name the blocker",
-      "detail": "No problem posts on the board this month, so the room sets the agenda: a word cloud of one-word blockers, then the two biggest words get three minutes each.",
-      "minutes": 6,
+      "id": "topic-poll",
+      "kind": "topic",
+      "slide": "activity",
+      "section": "AI Bubble Bust",
+      "title": "AI by 2028?",
+      "detail": "",
+      "minutes": 0,
       "topicIds": [],
-      "cue": "One word: what slowed you down most this month? Nobody sees who typed.",
-      "cards": [
-        {
-          "kind": "note",
-          "title": "The room sets the agenda",
-          "text": "No problem posts on the board this month, so the two biggest words get three minutes each."
-        },
-        {
-          "kind": "note",
-          "title": "One owner, one next step",
-          "text": "We don't solve it live. Anything bigger becomes a problem post on next month's board."
-        }
-      ],
+      "cue": "Vote before you overthink it.",
       "prep": {
         "points": [
-          "Take the two biggest words. For each: \"Who hit this last week, and what did you try?\" The first answer gets the floor for a minute.",
-          "Don't solve it live. Aim for one owner and one next step per blocker, and write it as a decision note.",
-          "Anything bigger than three minutes goes on next month's board as a problem post. Ask who'll post it before moving on."
+          "Close it once most of the room has voted."
         ],
-        "opener": "One word on your phone: what slowed you down most this month? Builds, reviews, flaky tests, waiting on access. Nobody sees who typed what.",
+        "opener": "Vote before you overthink it: does AI pop by 2028?",
         "by": "admin",
         "at": null,
         "ask": []
       }
     },
     {
-      "id": "lightning",
+      "id": "topic-results",
+      "kind": "topic",
+      "slide": "results",
+      "section": "AI Bubble Bust",
+      "of": "topic-poll",
+      "title": "AI by 2028",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "Which tool you use every day disappears first if it pops?",
+      "prep": {
+        "points": [
+          "Ask the “pops” camp which AI vendor they’d bet on surviving, and why."
+        ],
+        "opener": "Which tool you use every day disappears first if it pops?",
+        "by": "admin",
+        "at": null,
+        "ask": []
+      }
+    },
+    {
+      "id": "topic-debate",
+      "kind": "topic",
+      "slide": "text",
+      "section": "AI Bubble Bust",
+      "title": "Your main AI tool doubles its price next quarter.",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "What’s the plan? One concrete answer beats ten opinions.",
+      "prep": {
+        "points": [
+          "Push for one concrete answer: a fallback, a self-hosted model, going without.",
+          "Write the best answer down as a note. It may be a decision."
+        ],
+        "opener": "Your main AI tool doubles its price or shuts down next quarter. What’s the plan?",
+        "by": "admin",
+        "at": null,
+        "ask": []
+      }
+    },
+    {
+      "id": "meme-machine",
+      "kind": "clinic",
+      "slide": "meme",
+      "section": "Problem clinic",
+      "meme": {
+        "panels": [
+          {
+            "label": "Me",
+            "text": "It works on my machine.",
+            "face": "smug"
+          },
+          {
+            "label": "CI",
+            "text": "Then we’ll ship your machine.",
+            "face": "grumpy"
+          }
+        ]
+      },
+      "title": "",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "prep": null
+    },
+    {
+      "id": "clinic-intro",
+      "kind": "clinic",
+      "slide": "title",
+      "section": "Problem clinic",
+      "title": "Name the blocker",
+      "detail": "No problem posts on the board, so a word cloud of one-word blockers; the two biggest get three minutes each.",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "No problem posts this month, so the room sets the agenda.",
+      "prep": {
+        "points": [
+          "Next slide opens the word cloud by itself."
+        ],
+        "opener": "No problem posts on the board this month, so you set the agenda.",
+        "by": "admin",
+        "at": null,
+        "ask": []
+      }
+    },
+    {
+      "id": "clinic-cloud",
+      "kind": "clinic",
+      "slide": "activity",
+      "section": "Problem clinic",
+      "title": "What slowed you down most this month?",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "One word. Nobody sees who typed what.",
+      "prep": {
+        "points": [
+          "Close it when the words stop moving."
+        ],
+        "opener": "One word: what slowed you down most this month? Builds, reviews, flaky tests, waiting on access.",
+        "by": "admin",
+        "at": null,
+        "ask": []
+      }
+    },
+    {
+      "id": "clinic-results",
+      "kind": "clinic",
+      "slide": "results",
+      "section": "Problem clinic",
+      "of": "clinic-cloud",
+      "title": "This month’s blockers",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "Top two get three minutes each. One owner, one next step.",
+      "prep": {
+        "points": [
+          "Don’t solve it live: one owner and one next step per blocker, as a decision note.",
+          "Bigger than three minutes? It goes on next month’s board as a problem post."
+        ],
+        "opener": "Take the biggest word. Who hit this last week, and what did you try?",
+        "by": "admin",
+        "at": null,
+        "ask": []
+      }
+    },
+    {
+      "id": "ds",
       "kind": "custom",
+      "slide": "content",
+      "section": "Data structures",
       "title": "Data structures in unexpected places",
-      "detail": "Posted anonymously: the host reads the three examples (Git history as a linked list, MongoDB indexes as B-trees, the Kubernetes scheduler's priority queue), then asks the room for one more. The warm-up for the Boss Round.",
-      "minutes": 4,
+      "detail": "From the board, posted anonymously: Git history as a linked list, MongoDB indexes as B-trees, the Kubernetes scheduler’s priority queue.",
+      "minutes": 0,
       "topicIds": [
         "4968007c-cbf8-4a0a-94f3-458b313a389d"
       ],
-      "cue": "Name one you've caught hiding in a tool we use here. Chat counts.",
+      "cue": "Name one hiding in a tool we use. Chat counts.",
       "cards": [
         {
           "kind": "post",
@@ -215,57 +463,70 @@
         },
         {
           "kind": "note",
-          "title": "Git history: a linked list",
-          "text": "Each commit points back to its parent. That's how Git walks your history."
+          "title": "Git history",
+          "text": "a linked list"
         },
         {
           "kind": "note",
-          "title": "MongoDB indexes: B-trees",
-          "text": "Why queries and sorts on indexed fields are fast."
+          "title": "MongoDB indexes",
+          "text": "B-trees"
         },
         {
           "kind": "note",
-          "title": "Kubernetes scheduler: a priority queue",
-          "text": "The most important pending pod gets placed first."
+          "title": "Kubernetes scheduler",
+          "text": "a priority queue"
         }
       ],
       "prep": {
         "points": [
           "Unmuting is optional: answers in the call chat count. Read the first two aloud.",
-          "If nobody bites: where in our own code did we reach for a plain list or map and later wish we hadn't?",
-          "Four minutes, then straight into the Boss Round. The data structures are about to get personal."
+          "If nobody bites: where did we reach for a plain list or map and later wish we hadn’t?"
         ],
-        "opener": "Git history is a linked list. Mongo indexes are B-trees. The Kubernetes scheduler is a priority queue. Name one you've caught hiding in a tool we use here.",
+        "opener": "Git history is a linked list. Mongo indexes are B-trees. The Kubernetes scheduler is a priority queue. Name one you’ve caught hiding in a tool we use.",
         "by": "admin",
         "at": null,
         "ask": []
       }
     },
     {
-      "id": "boss",
+      "id": "meme-btree",
       "kind": "boss",
-      "title": "Kers' Boss Round",
-      "detail": "Sum of the even numbers, in JavaScript, in your own browser. It runs until the presenter closes it. The screen shows only the % who pass: no names, no code.",
-      "minutes": 8,
+      "slide": "meme",
+      "section": "Boss Round",
+      "meme": {
+        "panels": [
+          {
+            "label": "The interview",
+            "text": "Implement a B-tree on the whiteboard.",
+            "face": "nosy"
+          },
+          {
+            "label": "The job",
+            "text": "Add an index and hope.",
+            "face": "relieved"
+          }
+        ]
+      },
+      "title": "",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "prep": null
+    },
+    {
+      "id": "boss-intro",
+      "kind": "boss",
+      "slide": "title",
+      "section": "Boss Round",
+      "title": "Kers’ Boss Round",
+      "detail": "Sum of the even numbers, in JavaScript, in your own browser. The screen shows only the % who pass: no names, no code.",
+      "minutes": 0,
       "topicIds": [],
       "cue": "You lot tell me what to write all day. Let’s see if you can still code.",
-      "cards": [
-        {
-          "kind": "note",
-          "title": "sumEvens(nums)",
-          "text": "Sum the even numbers, in JavaScript. Six tests, empty arrays and negatives included."
-        },
-        {
-          "kind": "note",
-          "title": "Your code stays on your device",
-          "text": "Tests run in your browser. The screen shows only the pass rate: no names, no code."
-        }
-      ],
       "prep": {
         "points": [
-          "The problem: sumEvens(nums). Six tests, including an empty array and negative numbers. Run the tests as often as you like.",
-          "Nobody sees your code or your name, only the pass rate. Admins play too, presenter included.",
-          "When most of the room has had a go, close the round and Kers gives his verdict. Under half passing? Ask the room what tripped them: the empty array or the negatives."
+          "Your code stays on your device. The screen shows only the pass rate.",
+          "Admins play too, presenter included."
         ],
         "opener": "You lot tell me what to write all day. Let’s see if you can still code.",
         "by": "admin",
@@ -274,52 +535,106 @@
       }
     },
     {
-      "id": "wrap",
-      "kind": "wrap",
-      "title": "Wrap",
-      "detail": "Decisions and owners from the notes, who shows something in December, and one Radar link from each of you.",
-      "minutes": 4,
+      "id": "boss-round",
+      "kind": "boss",
+      "slide": "activity",
+      "section": "Boss Round",
+      "title": "sumEvens(nums)",
+      "detail": "",
+      "minutes": 0,
       "topicIds": [],
-      "cue": "One line before you go: what will you actually try this week?",
-      "cards": [
-        {
-          "kind": "note",
-          "title": "Decisions and owners",
-          "text": "Read back from today's notes. A decision with no owner isn't one."
-        },
-        {
-          "kind": "note",
-          "title": "December's Show & Tell",
-          "text": "One volunteer, now. A volunteer beats Kers' draw."
-        },
-        {
-          "kind": "note",
-          "title": "One Radar link each",
-          "text": "This month's Radar was mostly the digest. Post a link before next month."
-        }
-      ],
+      "cue": "On your phone or laptop. Run the tests as often as you like.",
       "prep": {
         "points": [
-          "Read the decision notes back with their owners. A decision with no owner isn't one: assign it or drop it.",
-          "December's Show & Tell: ask for one volunteer now. A volunteer beats Kers' draw.",
-          "This month's Radar was mostly the digest. One link each before next month changes that."
+          "When most of the room has had a go, close the round: Kers gives his verdict next."
         ],
-        "opener": "Before you go: what's one thing from today you'll actually try this week? Chat or mic, one line.",
+        "opener": "Six tests, empty arrays and negatives included. Run them as often as you like.",
         "by": "admin",
         "at": null,
         "ask": []
       }
+    },
+    {
+      "id": "boss-verdict",
+      "kind": "boss",
+      "slide": "results",
+      "section": "Boss Round",
+      "of": "boss-round",
+      "title": "Kers’ verdict",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "What tripped you: the empty array or the negatives?",
+      "prep": {
+        "points": [
+          "Over half? Ask the first to pass what they wrote. Chat counts."
+        ],
+        "opener": "Under half passing? Ask the room what tripped them: the empty array or the negatives.",
+        "by": "admin",
+        "at": null,
+        "ask": []
+      }
+    },
+    {
+      "id": "wrap-asks",
+      "kind": "wrap",
+      "slide": "content",
+      "section": "Wrap",
+      "title": "Before you go",
+      "detail": "Decisions and owners from the notes, a volunteer desk tour for December, and one Radar link each.",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "One line: what will you actually try this week?",
+      "cards": [
+        {
+          "kind": "note",
+          "title": "Decisions and owners",
+          "text": "read back from today’s notes"
+        },
+        {
+          "kind": "note",
+          "title": "December desk tour",
+          "text": "one volunteer, now"
+        },
+        {
+          "kind": "note",
+          "title": "One Radar link each",
+          "text": "before next month"
+        }
+      ],
+      "prep": {
+        "points": [
+          "Read the decision notes back with their owners. No owner? Assign it or drop it.",
+          "December: one volunteer for a desk tour, now. This month’s Radar was mostly the digest: one link each."
+        ],
+        "opener": "Before you go: what’s one thing from today you’ll actually try this week? Chat or mic, one line.",
+        "by": "admin",
+        "at": null,
+        "ask": []
+      }
+    },
+    {
+      "id": "thanks",
+      "kind": "wrap",
+      "slide": "text",
+      "section": "Wrap",
+      "title": "Thanks, guild.",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "December’s board is open. Post what you want to hear about.",
+      "prep": null
     }
   ],
   "activities": [
     {
-      "segment": "warmup",
+      "segment": "warmup-cloud",
       "kind": "cloud",
-      "prompt": "The tool you'd refuse to give up",
+      "prompt": "The tool you’d refuse to give up",
       "options": []
     },
     {
-      "segment": "radar",
+      "segment": "radar-poll",
       "kind": "poll",
       "prompt": "Would you send production code to a hosted AI model?",
       "options": [
@@ -330,23 +645,23 @@
       ]
     },
     {
-      "segment": "topic",
+      "segment": "topic-poll",
       "kind": "poll",
       "prompt": "AI by 2028?",
       "options": [
-        "💥 Pops, dot-com style",
-        "📉 Slow deflate",
-        "🚀 Still booming"
+        "Pops, dot-com style",
+        "Slow deflate",
+        "Still booming"
       ]
     },
     {
-      "segment": "clinic",
+      "segment": "clinic-cloud",
       "kind": "cloud",
-      "prompt": "One word: your biggest blocker this month",
+      "prompt": "One word: what slowed you down most this month?",
       "options": []
     },
     {
-      "segment": "boss",
+      "segment": "boss-round",
       "kind": "boss",
       "prompt": "Sum of the even numbers",
       "options": [],
