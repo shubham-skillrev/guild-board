@@ -8,6 +8,7 @@ Written 2026-08-14, after the 12-commit batch. Read in order.
 - **[03-audit-brief.md](./03-audit-brief.md)** — brief for the two in-repo audits, with the keep / cut / defer decisions closed.
 - **[04-technical-plan.md](./04-technical-plan.md)** — the executable version. Eighteen units, nine architecture decisions, schema plan, testing strategy, and an honest score against the 9.5 target. **Start here for what to build next.**
 - **[06-meeting-mode.md](./06-meeting-mode.md)** — meeting mode: the admin's full-screen presenter view, anonymous poll and word cloud from phones, and Kers' Boss Round. Decisions, the first-run agenda, and progress.
+- **[07-agenda-and-script-guide.md](./07-agenda-and-script-guide.md)** — the standard for the meeting's agenda and Kers' presenter script, the system prompts any model drafts them with, and the reference month in [agendas/](./agendas/).
 - **[audits/ui-audit.md](./audits/ui-audit.md)** — per-screen block inventory, the overlay collision, 13 redundancies, scale drift, dead paths, and a mobile-first check. Section 10 is U4's deletion checklist, ready to execute.
 
 Produced as the plan runs: `docs/metrics.md` (U1), `docs/design-system.md` (U5).

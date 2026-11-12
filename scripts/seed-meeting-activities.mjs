@@ -4,7 +4,12 @@
  * agenda") into `meeting_activities` (migration 046). There's no UI for this
  * on purpose: the activities are hard-coded for the first run.
  *
- *   node --env-file=.env.local scripts/seed-meeting-activities.mjs [--cycle <uuid>] [--dry]
+ *   node --env-file=.env.local scripts/seed-meeting-activities.mjs [--cycle <uuid>] [--from <agenda.json>] [--dry]
+ *
+ * --from takes a month's reference file (docs/agendas/YYYY-MM.json, loaded
+ * with scripts/apply-agenda.mjs) and seeds its `activities` instead of the
+ * first-run list below; those name their segment by id, so they're matched
+ * by id first and by the segment's kind as a fallback.
  *
  * Needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or
  * SUPABASE_SECRET_KEY). Defaults to the open month's meeting.
@@ -19,6 +24,7 @@
  * been opened is left alone (its answers stay). `ready` activities whose
  * segment is no longer on the agenda are removed.
  */
+import { readFileSync } from 'node:fs'
 import { createClient } from '@supabase/supabase-js'
 
 const FIRST_RUN = [
@@ -43,6 +49,7 @@ const FIRST_RUN = [
 const args = process.argv.slice(2)
 const dry = args.includes('--dry')
 const cycleArg = args.includes('--cycle') ? args[args.indexOf('--cycle') + 1] : null
+const fromArg = args.includes('--from') ? args[args.indexOf('--from') + 1] : null
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY
@@ -70,10 +77,17 @@ async function main() {
   if (aErr) throw new Error(`${aErr.message} (is migration 046 applied?)`)
   const bySegment = new Map(existing.map(a => [a.segment_id, a]))
 
-  console.log(`${cycle.label}: ${agenda.length} segments${dry ? ' (dry run)' : ''}`)
+  let items = FIRST_RUN
+  if (fromArg) {
+    const file = JSON.parse(readFileSync(fromArg, 'utf8'))
+    const kindOf = new Map((file.agenda ?? []).map(s => [s.id, s.kind]))
+    items = (file.activities ?? []).map(a => ({ segment: a.segment, kind: kindOf.get(a.segment) ?? a.segment, activity: a.kind, prompt: a.prompt, options: a.options, config: a.config }))
+  }
+
+  console.log(`${cycle.label}: ${agenda.length} segments${dry ? ' (dry run)' : ''}${fromArg ? `, activities from ${fromArg}` : ''}`)
   const targeted = new Set()
-  for (const item of FIRST_RUN) {
-    const seg = agenda.find(s => s.kind === item.kind)
+  for (const item of items) {
+    const seg = (item.segment && agenda.find(s => s.id === item.segment)) || agenda.find(s => s.kind === item.kind)
     if (!seg) {
       console.log(`  skip  ${item.kind}: no segment of that kind on the agenda`)
       continue

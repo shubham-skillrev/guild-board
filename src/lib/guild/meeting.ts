@@ -7,7 +7,9 @@ import { RADAR_TOP } from '@/lib/radar'
 import { formatLabel } from '@/lib/showtell'
 import { escapeSlack, extLink, appLink } from '@/lib/slack/send'
 import { OUTCOME_LABELS } from '@/lib/constants'
-import { cleanAgenda, type Meeting, type Prep, type Segment } from '@/lib/meeting'
+import { cleanAgenda, LIMITS, type Meeting, type Prep, type Segment } from '@/lib/meeting'
+import { AGENDA_SCHEMA, AGENDA_SYSTEM, exampleFor, type ReferenceAgenda } from '@/lib/meetingPrompts'
+import reference from '../../../docs/agendas/2026-11.json'
 
 /** Prep as stored: what admins see, plus "who to ask", which never leaves the server. */
 type StoredPrep = Prep & { ask?: string[] }
@@ -83,33 +85,51 @@ export async function saveMeeting(cycleId: string, patch: Record<string, unknown
     .upsert({ cycle_id: cycleId, ...patch, updated_at: new Date().toISOString() })
 }
 
+/** A Radar candidate: a member's link or a digest byte, as the agenda model sees it. */
+interface RadarCandidate {
+  key: string
+  title: string
+  about: string
+  source: string
+  votes: number
+  from: 'member' | 'digest'
+}
+
+const noLinks = (t: string) => t.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/https?:\/\/\S+/g, '').trim()
+
 /**
  * The agenda the format implies, filled from what the guild has already
  * lined up: the Radar's top three, who's on for Show & Tell, the top topic
  * (and who opens it: the proposer, or the host for a ghost post), and the
- * problems for the clinic. Organisers edit it from here.
+ * problems for the clinic. Then the model frames it (titles, details, the
+ * Radar's picks) to docs/07-agenda-and-script-guide.md; whatever it gets
+ * wrong or doesn't answer keeps the plain version. Organisers edit it from here.
  */
 export async function draftAgenda(cycleId: string, viewerId: string): Promise<Segment[]> {
   const admin = createAdminClient()
-  const since = (await admin.from('cycles').select('opens_at, created_at').eq('id', cycleId).maybeSingle()).data
+  const cycle = (await admin.from('cycles').select('label, theme, opens_at, created_at').eq('id', cycleId).maybeSingle()).data
   const [{ data: links }, { data: bytes }, slots, { data: topics }] = await Promise.all([
-    admin.from('radar_links').select('title, vote_count').eq('cycle_id', cycleId).eq('is_deleted', false).order('vote_count', { ascending: false }).limit(RADAR_TOP),
+    admin.from('radar_links').select('id, title, note, url, vote_count').eq('cycle_id', cycleId).eq('is_deleted', false).order('vote_count', { ascending: false }).limit(6),
     admin
       .from('bytes')
-      .select('source_title, interest_count, byte_digests!inner(status)')
+      .select('id, source_title, source_name, summary, interest_count, byte_digests!inner(status)')
       .eq('byte_digests.status', 'published')
-      .gte('created_at', since?.opens_at ?? since?.created_at ?? new Date(Date.now() - 31 * 86_400_000).toISOString())
+      .gte('created_at', cycle?.opens_at ?? cycle?.created_at ?? new Date(Date.now() - 31 * 86_400_000).toISOString())
       .gt('interest_count', 0)
       .order('interest_count', { ascending: false })
-      .limit(RADAR_TOP),
+      .limit(6),
     slotsFor(admin, cycleId),
     admin.from('topics').select('*, users!topics_user_id_fkey(username)').eq('cycle_id', cycleId).eq('is_deleted', false).eq('is_system', false).order('score', { ascending: false }),
   ])
 
-  const radar = [...(links ?? []).map(l => ({ t: l.title, v: l.vote_count })), ...(bytes ?? []).map(b => ({ t: b.source_title, v: b.interest_count }))]
-    .sort((a, b) => b.v - a.v)
-    .slice(0, RADAR_TOP)
-    .map(r => r.t)
+  const domain = (url: string) => { try { return new URL(url).hostname.replace(/^www\./, '') } catch { return '' } }
+  // Votes first; on a tie a member's link beats a digest byte (the stable sort keeps links ahead).
+  const candidates: RadarCandidate[] = [
+    ...(links ?? []).map(l => ({ key: `link:${l.id}`, title: l.title, about: l.note ?? '', source: domain(l.url), votes: l.vote_count ?? 0, from: 'member' as const })),
+    ...(bytes ?? []).map(b => ({ key: `byte:${b.id}`, title: b.source_title, about: b.summary ?? '', source: b.source_name ?? '', votes: b.interest_count ?? 0, from: 'digest' as const })),
+  ].sort((a, b) => b.votes - a.votes)
+  const radar = candidates.slice(0, RADAR_TOP).map(r => r.title)
+
   const ts = (topics ?? []).map(t => serializeTopic(t, viewerId))
   const ordered = [...ts.filter(t => t.is_selected), ...ts.filter(t => !t.is_selected)]
   const top = ordered.find(t => t.category !== 'problem') ?? ordered[0]
@@ -122,7 +142,7 @@ export async function draftAgenda(cycleId: string, viewerId: string): Promise<Se
   // The first-run format (docs/06-meeting-mode.md): 60 minutes, with Kers'
   // warm-up and Boss Round. Ids are stable per kind; the activity seed
   // (scripts/seed-meeting-activities.mjs) finds segments by kind either way.
-  return [
+  const plain: Segment[] = [
     { id: 'warmup', kind: 'warmup', title: 'Warm-up', minutes: 2, detail: 'Kers opens the room: one word for your week so far' },
     { id: 'radar', kind: 'radar', title: 'Radar', minutes: 5, detail: radar.length ? radar.join(' · ') : 'Three things that shipped this month (vote on the Bytes page)' },
     { id: 'showtell', kind: 'showtell', title: 'Show & Tell', minutes: 15, detail: `${slot(slots.spotlight, 'Spotlight')} · ${slot(slots.demo, 'Demo')}` },
@@ -131,6 +151,59 @@ export async function draftAgenda(cycleId: string, viewerId: string): Promise<Se
     { id: 'boss', kind: 'boss', title: 'Kers’ Boss Round', minutes: 8, detail: 'Kers dares the room to write some code' },
     { id: 'wrap', kind: 'wrap', title: 'Wrap', minutes: 4, detail: 'Decisions, owners, and who shows something next month' },
   ]
+
+  const theme = (cycle?.theme ?? null) as { name?: string; blurb?: string } | null
+  const material = {
+    month: cycle?.label ?? '',
+    theme: theme?.name ? { name: theme.name, about: theme.blurb ?? '' } : null,
+    skeleton: plain.map(s => ({ id: s.id, kind: s.kind, minutes: s.minutes, plain_title: s.title, plain_detail: s.detail })),
+    radar_candidates: candidates.map(c => ({ key: c.key, title: c.title, about: noLinks(c.about).slice(0, 400), source: c.source, votes: c.votes, from: c.from })),
+    posts: ordered.slice(0, 8).map(t => ({
+      title: t.title,
+      text: noLinks(t.description ?? '').slice(0, 700),
+      category: t.category,
+      votes: t.vote_count ?? 0,
+      comments: t.comment_count ?? 0,
+      selected_by_admin: !!t.is_selected,
+      opens_it: opener(t),
+      on_agenda_as: t.id === top?.id ? 'topic' : problems.some(p => p.id === t.id) ? 'clinic' : null,
+    })),
+    show_and_tell: { spotlight: slots.spotlight ? { by: `@${slots.spotlight.username}`, title: slots.spotlight.title } : 'not confirmed', demo: slots.demo ? { by: `@${slots.demo.username}`, title: slots.demo.title } : 'not confirmed' },
+  }
+
+  const framed = await aiJson<{ radar?: unknown; segments?: { id?: unknown; title?: unknown; detail?: unknown }[] }>({
+    label: 'kers: meeting agenda',
+    system: AGENDA_SYSTEM,
+    prompt: [
+      'A reference agenda that met the standard (a past month; take its shape and tone, never its facts):',
+      exampleFor(reference as ReferenceAgenda, false),
+      '',
+      'This month\'s skeleton and material:',
+      JSON.stringify(material, null, 2),
+    ].join('\n'),
+    schema: AGENDA_SCHEMA,
+    // An admin is watching "Building…".
+    timeoutMs: 25_000,
+  }).catch(() => null)
+  return framed ? applyFraming(plain, framed, new Set(candidates.map(c => c.key))) : plain
+}
+
+/**
+ * The model's framing over the plain agenda: only a title and detail per
+ * known segment, cut to the limits and stripped of links. The Radar's detail
+ * is taken only if it picked real candidates (none: the plain list stays).
+ */
+function applyFraming(plain: Segment[], framed: { radar?: unknown; segments?: { id?: unknown; title?: unknown; detail?: unknown }[] }, keys: Set<string>): Segment[] {
+  const picks = Array.isArray(framed.radar) ? framed.radar.filter((k): k is string => typeof k === 'string' && keys.has(k)) : []
+  const byId = new Map((framed.segments ?? []).filter(f => typeof f?.id === 'string').map(f => [f.id as string, f]))
+  const text = (v: unknown, max: number) => (typeof v === 'string' ? noLinks(v).replace(/\s+/g, ' ').slice(0, max).trim() : '')
+  return plain.map(s => {
+    const f = byId.get(s.id)
+    if (!f) return s
+    const title = text(f.title, LIMITS.title)
+    const detail = s.kind === 'radar' && !picks.length ? '' : text(f.detail, LIMITS.detail)
+    return { ...s, title: title || s.title, detail: detail || s.detail }
+  })
 }
 
 function when(iso: string | null): string {

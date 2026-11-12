@@ -3,6 +3,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { aiJson } from '@/lib/ai'
 import { saveMeeting } from '@/lib/guild/meeting'
 import { cleanPrep, KIND_LABELS, MEET_LEAD_MS, type Prep, type Segment } from '@/lib/meeting'
+import { exampleFor, PREP_SCHEMA, PREP_SYSTEM, type ReferenceAgenda } from '@/lib/meetingPrompts'
+import { BOSS_LINE } from '@/lib/meet/boss'
+import reference from '../../../docs/agendas/2026-11.json'
 
 /**
  * Kers' prep for the meeting (docs/06-meeting-mode.md, Phase 1): for each
@@ -18,6 +21,10 @@ import { cleanPrep, KIND_LABELS, MEET_LEAD_MS, type Prep, type Segment } from '@
  * cron, and at the latest when an admin's board loads inside the 3 h before
  * the meeting. Each pass only fills segments that have no prep yet, so an
  * admin's edits are never overwritten; the Run tab can redraft one segment.
+ *
+ * The standard the script is written to, and the prompt, are in
+ * docs/07-agenda-and-script-guide.md; the model is shown the reference month
+ * (docs/agendas/2026-11.json) as a worked example.
  */
 
 type StoredPrep = Prep & { ask: string[] }
@@ -81,6 +88,17 @@ async function gather(topicIds: string[]): Promise<{ posts: Map<string, PostFact
   return { posts, people }
 }
 
+/** Each segment's poll or word cloud (migration 046), as "poll: prompt [a / b]". Empty before 046. */
+async function segmentActivities(cycleId: string): Promise<Map<string, string>> {
+  const { data } = await createAdminClient().from('meeting_activities').select('segment_id, kind, prompt, options').eq('cycle_id', cycleId)
+  return new Map(
+    (data ?? []).map(a => {
+      const options = Array.isArray(a.options) ? (a.options as unknown[]).map(String) : []
+      return [a.segment_id as string, options.length ? `${a.kind}: ${a.prompt} [${options.join(' / ')}]` : `${a.kind}: ${a.prompt}`]
+    }),
+  )
+}
+
 /**
  * Draft prep for the segments that need it (or just `segmentId`, redrafted
  * even over an edit). Stores the result, or an empty prep marking the
@@ -96,48 +114,36 @@ export async function draftPrep(cycleId: string, opts: { segmentId?: string } = 
   const ids = [...new Set(targets.flatMap(s => (Array.isArray(s.topicIds) ? s.topicIds : [])))]
   const { posts, people } = await gather(ids)
 
+  const activities = await segmentActivities(cycleId)
   const facts = targets.map(s => ({
     id: s.id,
     kind: KIND_LABELS[s.kind] ?? 'Segment',
     title: s.title,
     detail: s.detail,
     minutes: s.minutes,
+    ...(activities.get(s.id) ? { activity: activities.get(s.id) } : {}),
     posts: (s.topicIds ?? []).map(id => posts.get(id)).filter(Boolean),
   }))
 
   const result = await aiJson<{ segments?: { id?: unknown; points?: unknown; opener?: unknown }[] }>({
     label: 'kers: meeting prep',
-    system: [
-      'You are Kers, the mascot of SkillRev\'s monthly engineering guild meeting. You prepare the',
-      'admin who hosts it. For each agenda segment, write 2 or 3 short talking points the host can',
-      'raise, and one opener: a single line or question to start the segment with.',
-      'Use only what is in the input: the segment and the board posts behind it, their comments and',
-      'vote counts. Where the comments disagree, a point can name the split. Never invent facts,',
-      'numbers, names or links, and never name anyone. Plain and direct, a little dry. Each point',
-      'under 140 characters, the opener under 160. No emoji, no markdown.',
-      'Return one entry per segment id you were given.',
+    system: PREP_SYSTEM,
+    prompt: [
+      'A reference script that met the standard (a past month; its posts are not this month\'s, so take its shape and tone, never its facts):',
+      exampleFor(reference as ReferenceAgenda, true),
+      '',
+      'This month\'s segments to write for:',
+      JSON.stringify({ segments: facts }, null, 2),
     ].join('\n'),
-    prompt: JSON.stringify({ segments: facts }, null, 2),
-    schema: {
-      type: 'object',
-      properties: {
-        segments: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: { id: { type: 'string' }, points: { type: 'array', items: { type: 'string' } }, opener: { type: 'string' } },
-            required: ['id', 'points', 'opener'],
-          },
-        },
-      },
-      required: ['segments'],
-    },
+    schema: PREP_SCHEMA,
   }).catch(() => null)
 
   const drafts = new Map<string, Prep>()
+  const boss = new Set(targets.filter(s => s.kind === 'boss').map(s => s.id))
   for (const d of result?.segments ?? []) {
     if (typeof d?.id !== 'string') continue
-    const prep = cleanPrep({ points: d.points, opener: d.opener, by: 'kers' })
+    // The Boss Round always opens on Kers' line (docs/06-meeting-mode.md).
+    const prep = cleanPrep({ points: d.points, opener: boss.has(d.id) ? BOSS_LINE : d.opener, by: 'kers' })
     if (prep) drafts.set(d.id, prep)
   }
 

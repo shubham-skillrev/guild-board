@@ -78,7 +78,7 @@ closes when the admin moves on.
 - ← / → or buttons move segments. Esc leaves. A refresh resumes in place.
 - Kers in a corner reacts: cheers when a segment closes, fidgets when it overruns.
 
-**Kers' prep**
+**Kers' prep** (the standard and prompts: [07-agenda-and-script-guide.md](./07-agenda-and-script-guide.md))
 - Drafted from each segment's topic (post, comments, votes) when the agenda is
   locked, or 3 h before at the latest.
 - Admins edit it in the Run tab. If drafting fails, the segment shows only its
