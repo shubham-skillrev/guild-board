@@ -2,9 +2,22 @@
 /**
  * Meeting mode stress test (docs/06-meeting-mode.md, Phase 2): gates the first
  * real meeting. Run it against a PREVIEW deploy and the database that preview
- * uses, never production.
+ * uses, or against production only inside a live rehearsal:
  *
  *   node --env-file=.env.preview scripts/meet-stress.mjs --base https://<preview>.vercel.app [--n 60] [--start] [--keep]
+ *   node --env-file=.env.local   scripts/meet-stress.mjs --base https://guildboard.skillrev.in --rehearsal <code> [--n 60]
+ *
+ * --rehearsal <code>: target a live rehearsal (lib/meet/liveRehearsal.ts):
+ *   an admin starts "Rehearse live (with phones)" on /meet/present and copies
+ *   the code from the link (/meet?r=<code>). Every request carries the code
+ *   as the gb_meet_r cookie, as a phone that opened the link would. The
+ *   meeting is never made live (started_at is not touched, so no banner);
+ *   --start is refused. This is why the production guard lets it through:
+ *   everything it writes is rehearsal data, which "End rehearsal" (or the
+ *   real Start) deletes: every participant and answer, every activity back
+ *   to ready. The script removes its own guests and activities too, and
+ *   reminds you to press End rehearsal (opening a stress activity closes the
+ *   real one that was open; the wipe resets it).
  *
  * Env (the preview's project):
  *   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY   set up and check the run
@@ -36,6 +49,8 @@ const BASE = (arg('--base') ?? '').replace(/\/$/, '')
 const N = Number(arg('--n', '60'))
 const START = args.includes('--start')
 const KEEP = args.includes('--keep')
+const REHEARSAL = arg('--rehearsal')
+const REHEARSAL_COOKIE = REHEARSAL ? `gb_meet_r=${REHEARSAL}` : null
 const CATCH_UP_MS = 2000
 const WINDOW_MS = 5000
 
@@ -49,8 +64,17 @@ if (!BASE || !url || !serviceKey) {
   console.error('Needs NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY for the preview’s database.')
   process.exit(1)
 }
-if (/guildboard\.skillrev\.in/.test(BASE) && !args.includes('--yes-prod')) {
-  console.error('That looks like production. Point --base at a preview deploy.')
+if (REHEARSAL !== null && !/^[A-Za-z0-9_-]{20,64}$/.test(REHEARSAL)) {
+  console.error('--rehearsal takes the code from the rehearsal link (/meet?r=<code>).')
+  process.exit(1)
+}
+if (REHEARSAL && START) {
+  console.error('--start makes the meeting live (the banner): not with --rehearsal.')
+  process.exit(1)
+}
+// Production only inside a live rehearsal: never live, and wiped when it ends.
+if (/guildboard\.skillrev\.in/.test(BASE) && !REHEARSAL && !args.includes('--yes-prod')) {
+  console.error('That looks like production. Point --base at a preview deploy, or run it inside a live rehearsal with --rehearsal <code>.')
   process.exit(1)
 }
 
@@ -65,7 +89,8 @@ const latencies = []
 
 async function api(method, path, { cookie, body } = {}) {
   const headers = { 'Content-Type': 'application/json' }
-  if (cookie) headers.Cookie = cookie
+  const cookies = [cookie, REHEARSAL_COOKIE].filter(Boolean)
+  if (cookies.length) headers.Cookie = cookies.join('; ')
   if (bypass) headers['x-vercel-protection-bypass'] = bypass
   const t0 = performance.now()
   let res
@@ -142,7 +167,7 @@ const check = (name, pass, detail = '') => {
 }
 
 async function main() {
-  console.log(`Meeting stress test: ${N} guests against ${BASE}`)
+  console.log(`Meeting stress test: ${N} guests against ${BASE}${REHEARSAL ? ' (live rehearsal)' : ''}`)
   const first = await api('GET', '/api/meet')
   const cycleId = first.data?.cycleId
   if (!cycleId) throw new Error('No open month on that deploy.')
@@ -151,7 +176,10 @@ async function main() {
   const { data: before } = await db.from('meetings').select('started_at, ended_at').eq('cycle_id', cycleId).maybeSingle()
   if (!before) throw new Error('No meeting row for the open month: save an agenda first.')
   let restore = null
-  if (!first.data.room?.live) {
+  if (REHEARSAL) {
+    if (first.data.room?.live) throw new Error('The real meeting is live. No stress test now.')
+    if (!first.data.rehearsal) throw new Error('No live rehearsal with that code. Start "Rehearse live" on /meet/present and copy the code from its link.')
+  } else if (!first.data.room?.live) {
     if (!START) throw new Error('The meeting isn’t live. Start meeting mode, or pass --start.')
     restore = before
     await db.from('meetings').update({ started_at: new Date().toISOString(), ended_at: null }).eq('cycle_id', cycleId)
@@ -280,6 +308,7 @@ async function main() {
       if (restore) await db.from('meetings').update(restore).eq('cycle_id', cycleId)
       console.log('  cleaned up')
     }
+    if (REHEARSAL) console.log('  Now press End rehearsal on the presenter screen: it deletes every answer and resets the activities.')
   }
 
   const failed = results.filter(r => !r.pass)

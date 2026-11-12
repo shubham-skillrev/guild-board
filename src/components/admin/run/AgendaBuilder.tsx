@@ -188,7 +188,7 @@ export function AgendaBuilder({ initial, posts = [] }: { initial: Meeting; posts
             title="The presenter screen on this agenda, with sample answers. Nothing goes live."
             className="press ml-auto inline-flex h-8 items-center gap-1.5 rounded-(--radius-control) bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink pointer-coarse:h-11"
           >
-            Rehearse
+            Preview alone
           </Link>
           <Link
             href="/admin/run/meeting"

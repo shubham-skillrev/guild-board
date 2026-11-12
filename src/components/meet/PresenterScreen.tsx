@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowsIn, ArrowsOut, CaretLeft, CaretRight, Play, Stop } from '@phosphor-icons/react/dist/ssr'
+import { ArrowsIn, ArrowsOut, CaretLeft, CaretRight, Copy, Play, Stop } from '@phosphor-icons/react/dist/ssr'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { UserAvatar } from '@/components/ui/UserAvatar'
@@ -18,6 +18,8 @@ import { PresenterKers } from '@/components/meet/PresenterKers'
 import { bossPhase } from '@/lib/meet/boss'
 import { REHEARSE_ROOM, rehearseActivity, withAnswer } from '@/lib/meet/rehearse'
 import { gotoPlan, resultsAfter } from '@/lib/meet/slides'
+import { rehearsalLeft, rehearsalOn, rehearsalPath } from '@/lib/meet/liveRehearsal'
+import { useToast } from '@/hooks/useToast'
 import { PhonePreview } from '@/components/meet/PhonePreview'
 import { SegmentCards, SlideText } from '@/components/meet/SegmentCards'
 import type { PublicActivity } from '@/lib/meet/activity'
@@ -72,7 +74,12 @@ type RehearsedState = Record<string, { status: PublicActivity['status']; openedA
  * the real agenda and prep, the day before. Nothing is live and nothing is
  * written: the place is kept in this browser, arriving on an activity slide
  * "opens" it with sample answers (lib/meet/rehearse.ts, the same gotoPlan as
- * the server), and no action reaches the API.
+ * the server), and no action reaches the API. "Preview alone".
+ *
+ * Live rehearsal ("Rehearse live (with phones)", `rehearse_start`): the real
+ * pipeline, server and phones, but private and disposable
+ * (lib/meet/liveRehearsal.ts). The screen works as live, marked "Rehearsal",
+ * with the share link and "End rehearsal", which wipes every answer.
  */
 export function PresenterScreen({ initial, posts, rehearsal }: { initial: MeetingState; posts: Record<string, MeetPost>; rehearsal?: Record<string, PublicActivity> }) {
   const { state, busy, call, optimistic, now } = useMeetingLive(initial)
@@ -107,8 +114,10 @@ export function PresenterView({
   const rehearsing = !!rehearsal
   const meeting = state.meeting
   const agenda = meeting.agenda
-  const live = rehearsing || meetingLive(meeting)
-  const ended = !rehearsing && meetingDone(meeting, state.cycle.meeting_at)
+  // A live rehearsal: the server's, with phones. `rehearsing` is the solo preview.
+  const dress = !rehearsing && rehearsalOn(meeting)
+  const live = rehearsing || meetingLive(meeting) || dress
+  const ended = !rehearsing && !dress && meetingDone(meeting, state.cycle.meeting_at)
   const local = rehearsing || !meeting.presenterReady
   const posKey = localKey(meeting.cycleId, rehearsing)
   // Kers' Boss Round intro (its first 20 s) and rehearsal's sample answers; nothing on screen counts time.
@@ -197,6 +206,7 @@ export function PresenterView({
   const start = async () => {
     const warning = earlyStartWarning(state.cycle.meeting_at, now())
     if (warning && !window.confirm(warning)) return
+    if (rehearsalLeft(meeting) && !window.confirm('A rehearsal is still on. Starting the meeting ends it and deletes its answers.')) return
     const data = await call('start')
     if (data && local && agenda[0]) {
       const pos = { segment: agenda[0].id, at: new Date(now()).toISOString() }
@@ -204,7 +214,12 @@ export function PresenterView({
       try { localStorage.setItem(posKey, JSON.stringify(pos)) } catch {}
     }
   }
-  const end = () => call('end', {}, 'Meeting ended: the recap is on the Run tab')
+  const endRehearsal = () => {
+    if (!window.confirm('End the rehearsal? Every answer is deleted and the link stops working.')) return
+    call('rehearse_end', {}, 'Rehearsal ended. Its answers are deleted.')
+  }
+  const end = dress ? endRehearsal : () => call('end', {}, 'Meeting ended: the recap is on the Run tab')
+  const rehearseLive = () => call('rehearse_start', {}, 'Rehearsal on. Share the link.')
   const leave = useCallback(() => {
     router.push('/admin/run/meeting')
   }, [router])
@@ -275,7 +290,12 @@ export function PresenterView({
       <TitleStage eyebrow={`${state.cycle.label} guild meeting`} title={seg.title || 'Ready when you are'} cue={cue} kers={false}>
         <div className="mt-10 flex items-center gap-3">
           <Button icon={Play} disabled={!!busy} onClick={start}>{busy === 'start' ? 'Starting…' : 'Start meeting mode'}</Button>
-          <Link href="/meet/present?rehearse=1" className="press inline-flex h-8 items-center rounded-full bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink">Rehearse</Link>
+          {meeting.rehearsalReady === false ? (
+            <span className="inline-flex h-8 items-center px-1 text-footnote text-ink-muted">Rehearse live: apply migration 047</span>
+          ) : (
+            <Button variant="secondary" disabled={!!busy} onClick={rehearseLive}>{busy === 'rehearse_start' ? 'Starting…' : 'Rehearse live (with phones)'}</Button>
+          )}
+          <Link href="/meet/present?rehearse=1" className="press inline-flex h-8 items-center rounded-full bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink">Preview alone</Link>
           <p className="ml-3 text-footnote text-ink-muted">The room opens on everyone’s phone when you start.</p>
         </div>
       </TitleStage>
@@ -349,6 +369,7 @@ export function PresenterView({
         <span aria-hidden className="h-5 w-px bg-border-strong" />
         <p className="eyebrow">{state.cycle.label} guild meeting</p>
         {rehearsing && <span className="inline-flex h-7 items-center rounded-full bg-fill px-3 text-footnote text-ink-soft">Rehearsal · nothing is live</span>}
+        {dress && <span className="inline-flex h-7 items-center rounded-full bg-fill px-3 text-footnote font-medium text-ink">Rehearsal</span>}
         {ended && <span className="inline-flex h-7 items-center rounded-full bg-fill px-3 text-footnote text-ink-soft">Ended</span>}
         <div className="ml-auto flex items-center gap-6">
           {live && <RoomPresence count={participants} />}
@@ -370,7 +391,7 @@ export function PresenterView({
             {rehearsing && seg.prep?.points.length ? (
               <Button variant="ghost" onClick={toggleNotes} aria-pressed={notes} title="P">{notes ? 'Hide notes' : 'Notes'}</Button>
             ) : null}
-            {presenting && !rehearsing && !last && <Button variant="ghost" icon={Stop} disabled={!!busy} onClick={end}>End</Button>}
+            {presenting && !rehearsing && !last && <Button variant="ghost" icon={Stop} disabled={!!busy} onClick={end}>{dress ? 'End rehearsal' : 'End'}</Button>}
             <Button variant="ghost" icon={isFull ? ArrowsIn : ArrowsOut} onClick={fullscreen} aria-label={isFull ? 'Leave full screen' : 'Full screen'} />
             <Link href="/admin/run/meeting" className="press inline-flex h-8 items-center rounded-full px-3 text-footnote text-ink-muted hover:bg-kinu/60 hover:text-ink">
               Esc
@@ -378,6 +399,8 @@ export function PresenterView({
           </div>
         </div>
       </header>
+
+      {dress && meeting.rehearsalCode && <RehearsalBar code={meeting.rehearsalCode} />}
 
       {/* ─── Stage: one slide ─── */}
       <main aria-live="polite" className={cn('mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col px-14 pb-4 pt-6', sidePad)}>
@@ -423,7 +446,7 @@ export function PresenterView({
           rehearsing ? (
             <Button variant="secondary" onClick={leave}>Done rehearsing</Button>
           ) : (
-            <Button variant="secondary" icon={Stop} disabled={!!busy} onClick={end}>End meeting</Button>
+            <Button variant="secondary" icon={Stop} disabled={!!busy} onClick={end}>{dress ? 'End rehearsal' : 'End meeting'}</Button>
           )
         ) : (
           <NavArrow label="Next" icon={CaretRight} onClick={() => go(idx + 1)} />
@@ -461,6 +484,31 @@ function TitleStage({ eyebrow, title, cue, kers, section, children }: { eyebrow:
           <Kers size={220} expression="excited" colour="meeting" motion="hop" special="happy" />
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * The live rehearsal's strip under the header: it's a rehearsal, answers go
+ * afterwards, and the link to share (plain, copyable; no QR). The link is
+ * fine on a shared screen: sharing it is the point.
+ */
+function RehearsalBar({ code }: { code: string }) {
+  const toast = useToast()
+  const [origin, setOrigin] = useState('')
+  useEffect(() => {
+    const id = setTimeout(() => setOrigin(window.location.origin), 0)
+    return () => clearTimeout(id)
+  }, [])
+  const link = `${origin}${rehearsalPath(code)}`
+  const copy = () => {
+    navigator.clipboard?.writeText(link).then(() => toast('Link copied', 'success'), () => toast('Copy it by hand', 'error'))
+  }
+  return (
+    <div className="mx-10 flex h-10 shrink-0 items-center gap-3 rounded-full bg-fill/70 pl-4 pr-1.5 text-footnote text-ink-soft">
+      <span className="shrink-0">Rehearsal · answers are deleted afterwards · join at</span>
+      <code className="min-w-0 truncate font-mono text-[13px] text-ink select-all">{link}</code>
+      <Button variant="ghost" icon={Copy} className="ml-auto shrink-0" onClick={copy}>Copy link</Button>
     </div>
   )
 }

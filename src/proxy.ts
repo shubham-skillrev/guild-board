@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { GUEST_BLOCKED_PAGES, GUEST_COOKIE, GUEST_COOKIE_OPTIONS, GUEST_READ_ONLY_ERROR } from '@/lib/guest'
+import { REHEARSAL_CODE_RE, REHEARSAL_COOKIE, REHEARSAL_COOKIE_MAX_AGE } from '@/lib/meet/liveRehearsal'
 
 const isSupabaseConfigured = !!(
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -50,6 +51,20 @@ export async function proxy(request: NextRequest) {
     pathname === '/api/meet/live' ||
     pathname === '/favicon.ico' ||
     isPwaAsset
+
+  // A live rehearsal's link, /meet?r=<code>: keep the code in an httpOnly
+  // cookie and drop it from the address bar. Whether it's the running
+  // rehearsal's code is /api/meet's question (lib/meet/liveRehearsal.ts).
+  if (pathname === '/meet' && request.nextUrl.searchParams.has('r')) {
+    const code = request.nextUrl.searchParams.get('r') ?? ''
+    const clean = request.nextUrl.clone()
+    clean.searchParams.delete('r')
+    const res = NextResponse.redirect(clean)
+    if (REHEARSAL_CODE_RE.test(code)) {
+      res.cookies.set(REHEARSAL_COOKIE, code, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: REHEARSAL_COOKIE_MAX_AGE })
+    }
+    return res
+  }
 
   let response = NextResponse.next({ request })
 

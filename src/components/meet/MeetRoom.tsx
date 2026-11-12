@@ -21,6 +21,9 @@ import type { MeetView, Mine, PublicActivity, RoomState } from '@/lib/meet/activ
 const POLL_MS = 3000
 const SLOW_POLL_MS = 30_000
 
+/** What changed in the room that needs this person's own state pulled: the activity, and a rehearsal starting or ending. */
+const roomKey = (r: RoomState | null | undefined) => (r?.activity ? `${r.activity.id}:${r.activity.status}` : '') + (r?.rehearsal ? ':r' : '')
+
 async function post(body: Record<string, unknown>) {
   const res = await fetch('/api/meet', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   const data = await res.json().catch(() => ({}))
@@ -67,7 +70,9 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
   const [joining, setJoining] = useState(false)
   const [joinError, setJoinError] = useState<string | null>(null)
   const room = view.room
-  const live = !!room?.live
+  // A live rehearsal opens the room only to a phone that holds its code (the server says so in `view.rehearsal`).
+  const rehearsal = !room?.live && !!room?.rehearsal && !!view.rehearsal
+  const live = !!room?.live || rehearsal
   const joined = !!view.joined
   // Hold the floating slot: no install or push prompt over a poll, the join form or the waiting room.
   useOverlaySlot('meet-room', OVERLAY_PRIORITY.presenter, true)
@@ -104,10 +109,10 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
   }, [isOffline])
 
   // A new activity (or one reopened) needs this person's answers to it: pull once.
-  const shownKey = useRef(room?.activity ? `${room.activity.id}:${room.activity.status}` : '')
+  const shownKey = useRef(roomKey(room))
   const onRoom = useCallback(
     (next: RoomState) => {
-      const key = next.activity ? `${next.activity.id}:${next.activity.status}` : ''
+      const key = roomKey(next)
       setView(v => ({ ...v, room: newerRoom(v.room, next) }))
       if (key !== shownKey.current) {
         shownKey.current = key
@@ -167,7 +172,7 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
       <Notice kers="sleepy" title="No meeting on right now." text={isAdmin ? 'This is the room people join on their phones. It opens when you start meeting mode from the presenter screen.' : 'When the guild meets, the room opens here.'}>
         {isAdmin ? (
           <div className="mt-6 flex justify-center gap-2">
-            <Link href="/meet/present?rehearse=1" className="press inline-flex h-8 items-center rounded-full bg-kinu/70 px-3.5 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink">Rehearse</Link>
+            <Link href="/meet/present?rehearse=1" className="press inline-flex h-8 items-center rounded-full bg-kinu/70 px-3.5 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink">Preview alone</Link>
             <Link href="/meet/present" className="press inline-flex h-8 items-center rounded-full bg-ink px-3.5 text-footnote font-medium text-parchment hover:bg-ink/85">Presenter screen</Link>
           </div>
         ) : (
@@ -227,7 +232,10 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
         )}
       </header>
       <main className="mx-auto flex w-full max-w-[440px] flex-1 flex-col px-4 py-8">
-        {view.label && live && <p className="font-mono text-[12px] uppercase tracking-[0.16em] text-ink-muted">{view.label} guild meeting</p>}
+        {view.label && live && <p className="font-mono text-[12px] uppercase tracking-[0.16em] text-ink-muted">{view.label} guild meeting{rehearsal ? ' · rehearsal' : ''}</p>}
+        {rehearsal && (
+          <p className="mt-2 inline-flex w-fit items-center rounded-full bg-fill px-3 py-1 text-footnote text-ink-soft">Rehearsal · answers are deleted afterwards</p>
+        )}
         {joined && view.joined?.kind === 'guest' && view.joined.name && (
           <p className="mt-1 text-footnote text-ink-muted">You’re in as {view.joined.name}. Only you see that.</p>
         )}

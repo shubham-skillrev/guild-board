@@ -3,7 +3,9 @@
 //                        { action: 'respond', activity_id, value } poll { option } / cloud { word }
 // AUTH: public (src/proxy.ts). Members are recognised by their session, guests
 //       by the httpOnly `gb_meet` cookie set on join (its SHA-256 is stored).
-//       Joining and answering only while the meeting is live.
+//       Joining and answering only while the meeting is live, or during a
+//       live rehearsal with its code (the `gb_meet_r` cookie the proxy sets
+//       from /meet?r=<code>; lib/meet/liveRehearsal.ts).
 // PURPOSE: Meeting mode's audience (docs/06-meeting-mode.md, Phase 2). Answers
 //          are aggregated server-side and broadcast on `meeting:{cycle_id}` at
 //          most once a second (lib/meet/room.ts).
@@ -12,13 +14,14 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { cleanName, currentMeeting, findParticipant, isLive, joinGuest, joinMember, MEET_COOKIE, meetView, respond, sessionUserId } from '@/lib/meet/room'
+import { cleanName, currentMeeting, findParticipant, joinGuest, joinMember, MEET_COOKIE, meetView, respond, roomOpenTo, sessionUserId } from '@/lib/meet/room'
+import { REHEARSAL_COOKIE } from '@/lib/meet/liveRehearsal'
 
 const NO_STORE = { 'Cache-Control': 'no-store' }
 
 export async function GET() {
   const [userId, store] = await Promise.all([sessionUserId(), cookies()])
-  const view = await meetView(createAdminClient(), userId, store.get(MEET_COOKIE)?.value)
+  const view = await meetView(createAdminClient(), userId, store.get(MEET_COOKIE)?.value, store.get(REHEARSAL_COOKIE)?.value)
   return NextResponse.json(view, { headers: NO_STORE })
 }
 
@@ -31,7 +34,9 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient()
   const [userId, store, m] = await Promise.all([sessionUserId(), cookies(), currentMeeting(admin)])
-  if (!m?.row || !isLive(m.row)) return NextResponse.json({ error: 'There’s no meeting on right now.' }, { status: 409 })
+  const code = store.get(REHEARSAL_COOKIE)?.value
+  // Same answer for a rehearsal without its code: nothing gives it away.
+  if (!m?.row || !roomOpenTo(m.row, code)) return NextResponse.json({ error: 'There’s no meeting on right now.' }, { status: 409 })
   const cycleId = m.cycle.id
   const token = store.get(MEET_COOKIE)?.value
 
@@ -50,9 +55,9 @@ export async function POST(request: Request) {
         if (r.cookie) {
           store.set(r.cookie.name, r.cookie.value, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: r.cookie.maxAge })
         }
-        return NextResponse.json(await meetView(admin, userId, r.cookie?.value ?? token), { headers: NO_STORE })
+        return NextResponse.json(await meetView(admin, userId, r.cookie?.value ?? token, code), { headers: NO_STORE })
       }
-      return NextResponse.json(await meetView(admin, userId, token), { headers: NO_STORE })
+      return NextResponse.json(await meetView(admin, userId, token, code), { headers: NO_STORE })
     }
     case 'respond': {
       const p = await findParticipant(admin, cycleId, userId, token)

@@ -155,6 +155,15 @@ export interface Meeting {
   segmentStartedAt: string | null
   /** False until migration 045 is applied: the presenter screen then keeps its place locally. */
   presenterReady: boolean
+  /**
+   * The live rehearsal (migration 047, lib/meet/liveRehearsal.ts): its code
+   * (admins only: the share link is `/meet?r=<code>`) and when it started.
+   * Null when none is running. It never sets startedAt / endedAt.
+   */
+  rehearsalCode?: string | null
+  rehearsalStartedAt?: string | null
+  /** False until migration 047 is applied: "Rehearse live" then says so. */
+  rehearsalReady?: boolean
 }
 
 /** What GET /api/admin/meeting returns: polled by the presenter screen, meeting mode and the board's card. */

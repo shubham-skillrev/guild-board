@@ -70,6 +70,9 @@ export async function getMeeting(cycleId: string): Promise<Meeting> {
     segmentStartedAt: data?.segment_started_at ?? null,
     // No row yet reads as ready: the first write will say if 045 is missing.
     presenterReady: !data || 'presenter_id' in data,
+    rehearsalCode: data?.rehearsal_code ?? null,
+    rehearsalStartedAt: data?.rehearsal_started_at ?? null,
+    rehearsalReady: !data || 'rehearsal_code' in data,
   }
 }
 

@@ -94,13 +94,80 @@ November's flow (25 slides, 7 sections) is in
 
 ---
 
+## Rehearsal
+
+Two ways to practise, both from the board card, the presenter screen's start
+screen and the Run tab:
+
+| | Preview alone | Rehearse live (with phones) |
+|---|---|---|
+| What | `/meet/present?rehearse=1`, this browser only | The real pipeline: join, answers, the broadcast, slides opening and closing activities, results |
+| Answers | Samples, plus the `M` phone preview | Real phones: the admin's own and a few people's |
+| Writes | Nothing | Rehearsal data, wiped at the end |
+| Needs | Nothing | Migration 047 |
+
+**Live rehearsal** (`lib/meet/liveRehearsal.ts`, `rehearse_start` /
+`rehearse_end` in `/api/admin/meeting`, migration 047):
+- **Private.** It never sets `started_at`, so the meeting isn't live: no
+  banner, `/api/meet/live` says no, `meetingLive` and `meetingDone` don't
+  change. `/meet` opens only to whoever holds the code: the share link is
+  `/meet?r=<code>` (24 random bytes, stored in `meetings.rehearsal_code`).
+  The proxy moves the code into the httpOnly `gb_meet_r` cookie (12 h) and
+  drops it from the address bar. Anyone with the link joins: members under
+  their account, guests by name. Without it, /meet is shut as on any other
+  day ("There's no meeting on right now", the same 409 for a wrong code).
+- **Marked.** The presenter screen says **Rehearsal** in the header and shows
+  a strip with the link to share (plain text, **Copy link**; no QR) under
+  it; phones say "Rehearsal · answers are deleted afterwards". The
+  presenter's own phone gets their notes, as live.
+- **Same flow.** The presenter lock, `goto`, the activities opening and
+  closing, Close voting and Reopen all work as live. Run-tab notes are
+  refused while it runs (they'd reach the recap).
+- **Disposable.** **End rehearsal** (header, or the last slide), and also the
+  real **Start**, wipe: every `meeting_participants` row of the month (their
+  answers cascade), every activity back to `ready` (`opened_at` /
+  `closed_at` null), `presenter_id`, `current_segment`,
+  `segment_started_at`, `started_at` / `ended_at` (only ever a dry run's
+  here) and the code, so the link stops working. Phones fall back to "No
+  meeting on". Nothing reaches the recap or participation counts.
+- **Can't collide.** It can't start while the meeting is live or once it has
+  run this month (started inside the 3 h before it); the wipe would take
+  real answers with it. Starting the real meeting while one is on asks
+  first ("A rehearsal is still on. Starting the meeting ends it and deletes
+  its answers."), then ends and wipes it before going live. If the meeting
+  were somehow live already, only the code is dropped (`rehearsalWipeMode`).
+  End during a rehearsal is End rehearsal: it never sets `ended_at`.
+- A rehearsal left running stops counting after 8 h; its leftovers are wiped
+  by the real Start (or the next rehearsal).
+- Realtime: the same `meeting:{id}` channel. The room carries `rehearsal:
+  true` and `live: false`, so a phone without the code that's sitting on
+  /meet stays shut.
+
+**Running it the evening before**
+1. Board card (or `/meet/present`) → **Rehearse live (with phones)**. The
+   presenter screen opens on the first slide, marked Rehearsal.
+2. **Copy link** from the strip and send it to the people helping. Open it on
+   your own phone too (signed in, for your notes).
+3. Present as on the day: ← →, Close voting, results.
+4. **End rehearsal**. Everything they answered is deleted.
+
+**Stress test inside a rehearsal** (production, no banner):
+`node --env-file=.env.local scripts/meet-stress.mjs --base https://guildboard.skillrev.in --rehearsal <code> --n 60`
+with the code from the link. The script's production guard lets it through
+only with `--rehearsal` (and refuses `--start`): it never makes the meeting
+live, it removes its own guests and stress activities, and End rehearsal
+wipes whatever is left (including the real activity a stress activity closed).
+
+---
+
 ## Phase 1: Presenter mode
 
 **Entry**
 - From the day before (24 h, `MEET_REHEARSE_MS`), admins see a glowing
-  meeting card at the top of the board, with Kers, and two actions:
-  **Rehearse** and **Start meeting**.
-- **Rehearse** opens `/meet/present?rehearse=1`: the full presenter screen on
+  meeting card at the top of the board, with Kers, and three actions:
+  **Preview alone**, **Rehearse live (with phones)** (see "Rehearsal" below)
+  and **Start meeting**.
+- **Preview alone** (was "Rehearse") opens `/meet/present?rehearse=1`: the full presenter screen on
   the real agenda, prep and seeded activities. Nothing goes live: no
   `started_at`, no presenter, no banner, no write to the API. Segments move
   locally; arriving on an activity slide "opens" it with sample answers over
@@ -153,7 +220,7 @@ November's flow (25 slides, 7 sections) is in
 **Joining**
 - The banner opens `/meet`. Members go straight in.
 - Guests type a name and get a meeting-scoped token in a cookie. No account.
-- Joining only works while the meeting is live.
+- Joining only works while the meeting is live (or in a live rehearsal, with its link: see "Rehearsal").
 - The waiting area shows "Kers is setting up…" and how many people are in.
 - The phone mirrors the current slide (see "Slides"): the same cards (news
   opens its source, a post its board page, both in a new tab), the open
@@ -254,6 +321,8 @@ November's flow (25 slides, 7 sections) is in
 - [x] `/meet/present`: segment view, progress line, keyboard nav, resume (countdown and overtime removed 2026-11-12)
 - [x] Kers reactions on the presenter screen
 - [x] Rehearse from the day before (`?rehearse=1`, phone preview); Start asks first when > 3 h early
+- [x] Live rehearsal (2026-11-12 night): the real pipeline with phones, private link `/meet?r=<code>`, no banner, wiped on End rehearsal or the real Start (migration 047, `lib/meet/liveRehearsal.ts`, tests in `liveRehearsal.test.ts`); "Rehearse" is now "Preview alone"
+- [ ] Apply migration 047, then rehearse live with a few phones
 - [x] Slides (2026-11-12 evening): sections of slides, activity slides open and close themselves on `goto`, results slides, memes, Kahoot-style tiles; Spotlight and Demo out
 - [ ] Screenshot check on a 1080p share
 
@@ -306,7 +375,9 @@ aggregation, `room.ts` server side, `profanity.ts`); the presenter's panel in
   seeds the first-run list onto the first activity slide of each kind, so
   "Build from the board" (which drafts the format as slides) works too.
 - **Stress test:** `scripts/meet-stress.mjs --base <preview>` (needs the
-  preview's service-role key; see the script's header). Not run yet.
+  preview's service-role key; see the script's header), or against
+  production inside a live rehearsal with `--rehearsal <code>` (see
+  "Rehearsal"). Not run yet.
 - Activities open and close with their slides; ending the meeting closes any still open. A live
   meeting nobody ended stops counting as live after 8 h.
 

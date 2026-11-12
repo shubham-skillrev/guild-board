@@ -8,6 +8,7 @@ import { openCycle } from '@/lib/guild/demos'
 import { isBlocked } from '@/lib/meet/profanity'
 import { activityKeyFor, agendaPostIds, meetingLive, phoneAgenda, type Segment } from '@/lib/meeting'
 import { gotoPlan, type ActivityRef } from '@/lib/meet/slides'
+import { roomOpenTo, rowRehearsing, wipeRehearsal } from '@/lib/meet/liveRehearsal'
 import { meetPosts } from '@/lib/guild/meetingPrep'
 import {
   aggregate,
@@ -52,11 +53,19 @@ export interface MeetingRow {
   current_segment?: string | null
   agenda?: unknown
   presenter_id?: string | null
+  /** The live rehearsal (047). */
+  rehearsal_code?: string | null
+  rehearsal_started_at?: string | null
 }
 
 export function isLive(m: MeetingRow | null | undefined, now = Date.now()): boolean {
   return meetingLive(m ? { startedAt: m.started_at, endedAt: m.ended_at } : null, now)
 }
+
+/** A live rehearsal is running (never `live`: no banner, no public join). */
+export const isRehearsing = rowRehearsing
+/** The room is open to this request: live, or the running rehearsal's code (lib/meet/liveRehearsal.ts). */
+export { roomOpenTo }
 
 /** Whether an error only means migration 046 isn't applied. */
 export function missing046(error: { message?: string; code?: string } | null | undefined): boolean {
@@ -96,6 +105,7 @@ export async function readRoom(admin: Admin, cycleId: string, row?: MeetingRow |
   return {
     cycleId,
     live: isLive(meeting),
+    ...(isRehearsing(meeting) ? { rehearsal: true } : {}),
     participants: people.count ?? 0,
     segment,
     activity,
@@ -280,8 +290,13 @@ export async function respond(admin: Admin, cycleId: string, participant: Partic
 
 // ─── The phone's view ──────────────────────────────────────────────────────
 
-/** Everything /meet shows this person: GET /api/meet and the page's first render. */
-export async function meetView(admin: Admin, userId: string | null, guestToken: string | undefined): Promise<MeetView> {
+/**
+ * Everything /meet shows this person: GET /api/meet and the page's first
+ * render. In a live rehearsal, only someone holding its code (`rehearsalCode`,
+ * the gb_meet_r cookie) sees the room; to anyone else it's shut, as before
+ * any meeting.
+ */
+export async function meetView(admin: Admin, userId: string | null, guestToken: string | undefined, rehearsalCode?: string | null): Promise<MeetView> {
   const empty: MeetView = { cycleId: null, label: null, ready: true, room: null, member: null, joined: null, mine: null }
   const [m, profile] = await Promise.all([
     currentMeeting(admin),
@@ -293,15 +308,19 @@ export async function meetView(admin: Admin, userId: string | null, guestToken: 
   if (!m.row) return view
   const room = await readRoom(admin, m.cycle.id, m.row)
   if (!room) return { ...view, ready: false, room: { cycleId: m.cycle.id, live: isLive(m.row), participants: 0, segment: null, activity: null, warm: false, at: new Date().toISOString() } }
-  view.room = room
-  if (room.live) {
+  const rehearsal = !room.live && !!room.rehearsal && roomOpenTo(m.row, rehearsalCode)
+  // A rehearsal without its code: the room is shut, and says nothing about it.
+  view.room = room.rehearsal && !rehearsal ? { cycleId: room.cycleId, live: room.live, participants: 0, segment: null, activity: null, warm: false, at: room.at } : room
+  if (rehearsal) view.rehearsal = true
+  const open = room.live || rehearsal
+  if (open) {
     // The cards on every phone; the notes only on the presenter's (phoneAgenda checks who's asking).
     const { agenda, notes } = phoneAgenda(m.row.agenda, userId, m.row.presenter_id)
     view.agenda = agenda
     view.notes = notes
     view.posts = await meetPosts(agendaPostIds(agenda))
   }
-  const p = room.live ? await findParticipant(admin, m.cycle.id, userId, guestToken) : null
+  const p = open ? await findParticipant(admin, m.cycle.id, userId, guestToken) : null
   if (p) {
     view.joined = { kind: p.kind, name: p.name }
     if (room.activity?.status === 'open') view.mine = await mineFor(admin, p.id, room.activity.id)
@@ -315,6 +334,19 @@ export async function closeRoom(admin: Admin, cycleId: string): Promise<void> {
   await admin.from('meeting_activities').update({ status: 'closed', closed_at: now }).eq('cycle_id', cycleId).eq('status', 'open')
   await admin.from('meeting_participants').update({ guest_token_hash: null }).eq('cycle_id', cycleId).not('guest_token_hash', 'is', null)
   nudgeRoom(cycleId)
+}
+
+/**
+ * End the live rehearsal (lib/meet/liveRehearsal.ts wipeRehearsal): `all`
+ * deletes the month's participants and answers and resets every activity,
+ * the presenter and the slide; `code` only drops the rehearsal's code. Then
+ * every phone hears the room is shut.
+ */
+export async function endRehearsal(admin: Admin, cycleId: string, mode: 'all' | 'code'): Promise<{ message: string } | null> {
+  const error = await wipeRehearsal(admin, cycleId, mode)
+  if (error) console.warn('endRehearsal failed', error.message)
+  nudgeRoom(cycleId)
+  return error
 }
 
 /** The presenter moved on: whatever was open closes. */

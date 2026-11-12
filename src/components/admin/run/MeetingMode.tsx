@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input'
 import { cn } from '@/lib/utils/cn'
 import { useMeetingLive } from '@/components/meet/useMeetingLive'
 import { earlyStartWarning, LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
+import { rehearsalLeft, rehearsalOn } from '@/lib/meet/liveRehearsal'
 
 /**
  * The meeting, live, for the admin running it: one segment at a time (no
@@ -77,7 +78,7 @@ export function MeetingMode({ initial }: { initial: MeetingState }) {
       <div className="flex flex-wrap items-center gap-3">
         <Link href="/admin/run" className="inline-flex items-center gap-1 text-footnote text-ink-muted hover:text-ink"><Icon icon={ArrowLeft} size="sm" /> Run</Link>
         <p className="text-footnote text-ink-muted">
-          {label} meeting{live ? ' · live' : meeting.endedAt ? ' · ended' : ''}
+          {label} meeting{live ? ' · live' : rehearsalOn(meeting) ? ' · rehearsal on (presenter screen)' : meeting.endedAt ? ' · ended' : ''}
           {live && !local && !presenting && ` · @${state.presenterName ?? 'someone'} is presenting`}
         </p>
         <div className="ml-auto flex gap-2">
@@ -86,10 +87,10 @@ export function MeetingMode({ initial }: { initial: MeetingState }) {
           </Link>
           {!live && !meeting.endedAt && (
             <Link href="/meet/present?rehearse=1" className="press inline-flex h-8 items-center rounded-full bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink">
-              Rehearse
+              Preview alone
             </Link>
           )}
-          {!live && !meeting.endedAt && <Button icon={Play} disabled={!!busy} onClick={async () => { const warning = earlyStartWarning(state.cycle.meeting_at, now()); if (warning && !window.confirm(warning)) return; if (await call('start', {}, 'Meeting started')) { setLocalIdx(0) } }}>Start the meeting</Button>}
+          {!live && !meeting.endedAt && <Button icon={Play} disabled={!!busy} onClick={async () => { const warning = earlyStartWarning(state.cycle.meeting_at, now()); if (warning && !window.confirm(warning)) return; if (rehearsalLeft(meeting) && !window.confirm('A rehearsal is still on. Starting the meeting ends it and deletes its answers.')) return; if (await call('start', {}, 'Meeting started')) { setLocalIdx(0) } }}>Start the meeting</Button>}
           {live && <Button variant="secondary" icon={Stop} disabled={!!busy} onClick={() => call('end', {}, 'Meeting ended: the recap is on the Run tab')}>End the meeting</Button>}
           {meeting.endedAt && <Link href="/admin/run#run-recap" className="press inline-flex h-8 items-center rounded-(--radius-control) bg-ink px-3 text-footnote font-medium text-parchment">Write the recap →</Link>}
         </div>

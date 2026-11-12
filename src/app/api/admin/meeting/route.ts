@@ -11,13 +11,22 @@
 //            draft_prep    { segment? } Kers' prep now: every segment still
 //                          missing one, or just `segment` (over an edit too)
 //            start         meeting mode on: live, and the caller presents
-//                          (unless another admin already is)
+//                          (unless another admin already is). A live
+//                          rehearsal still running is ended and wiped first
+//            rehearse_start a live rehearsal (migration 047): the real
+//                          pipeline, private to `/meet?r=<code>`, never
+//                          live (no started_at, no banner). Refused while the
+//                          meeting is live or once it has run
+//            rehearse_end  ends it and wipes every participant and answer,
+//                          resets the activities, presenter and slide
+//                          (lib/meet/liveRehearsal.ts)
 //            take_over     the caller presents from now on
 //            goto          { segment } the presenter moves the shared screen
 //                          to a slide: an open activity closes, and an
 //                          activity slide's activity opens (if it never has)
 //            end           meeting mode off: closes any open activity and
-//                          expires every guest's token
+//                          expires every guest's token (in a rehearsal:
+//                          rehearse_end, so it never sets ended_at)
 //            open_activity { activity_id } the presenter opens the segment's
 //                          poll or word cloud (closing any other)
 //            close_activity { activity_id } closes it (moving on does too)
@@ -36,7 +45,8 @@ import { getAdminId } from '@/lib/guild/staff'
 import { agendaMessage, draftAgenda, draftRecap, getMeeting, mergeAgenda, missing045, openCycle, recapMessage, saveMeeting } from '@/lib/guild/meeting'
 import { draftPrep, ensurePrepBeforeMeeting } from '@/lib/guild/meetingPrep'
 import { cleanNote, LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
-import { activitiesOnGoto, closeActivity, closeRoom, nudgeRoom, openActivity, readRoom } from '@/lib/meet/room'
+import { activitiesOnGoto, closeActivity, closeRoom, endRehearsal, nudgeRoom, openActivity, readRoom } from '@/lib/meet/room'
+import { missing047, newRehearsalCode, rehearsalBlocked, rehearsalLeft, rehearsalOn, rehearsalWipeMode } from '@/lib/meet/liveRehearsal'
 import { isSlackConfigured, postToSlack } from '@/lib/slack/send'
 
 export const maxDuration = 120
@@ -127,8 +137,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ meeting: await getMeeting(cycle.id), drafted: r.drafted, tried: r.tried })
     }
     case 'start': {
-      const m = await getMeeting(cycle.id)
+      let m = await getMeeting(cycle.id)
       if (!m.agenda.length) return NextResponse.json({ error: 'Save an agenda first.' }, { status: 400 })
+      // The real meeting ends any rehearsal first, and wipes it (unless the real one is already on).
+      if (rehearsalLeft(m)) {
+        const wiped = await endRehearsal(createAdminClient(), cycle.id, rehearsalWipeMode(m, cycle.meeting_at))
+        if (wiped) return NextResponse.json({ error: `Could not end the rehearsal first: ${wiped.message}` }, { status: 500 })
+        m = await getMeeting(cycle.id)
+      }
       // A start left running from long ago (a test nobody ended) starts afresh.
       const live = meetingLive(m)
       // Already running with someone else presenting: join them read-only.
@@ -152,6 +168,35 @@ export async function POST(request: Request) {
       }
       return fail(error) ?? NextResponse.json(await state(cycle, adminId))
     }
+    case 'rehearse_start': {
+      const m = await getMeeting(cycle.id)
+      if (!m.agenda.length) return NextResponse.json({ error: 'Save an agenda first.' }, { status: 400 })
+      if (m.rehearsalReady === false) return NextResponse.json({ error: 'Apply migration 047 first.' }, { status: 500 })
+      const blocked = rehearsalBlocked(m, cycle.meeting_at)
+      if (blocked) return NextResponse.json({ error: blocked }, { status: 409 })
+      // Already running: join it (read-only if someone else presents), same code.
+      if (rehearsalOn(m)) return NextResponse.json(await state(cycle, adminId))
+      // A clean slate: a stale rehearsal's or a dry run's leftovers go.
+      const admin = createAdminClient()
+      const wiped = await endRehearsal(admin, cycle.id, 'all')
+      if (wiped) return NextResponse.json({ error: missing047(wiped) ? 'Apply migration 047 first.' : wiped.message }, { status: 500 })
+      const first = m.agenda[0].id
+      const { error } = await saveMeeting(cycle.id, { rehearsal_code: newRehearsalCode(), rehearsal_started_at: now, presenter_id: adminId, current_segment: first, segment_started_at: now })
+      if (error) {
+        const msg = missing047(error) ? 'Apply migration 047 first.' : missing045(error) ? 'Apply migration 045 first.' : error.message
+        return NextResponse.json({ error: msg }, { status: 500 })
+      }
+      await activitiesOnGoto(admin, cycle.id, m.agenda, first)
+      nudgeRoom(cycle.id)
+      return NextResponse.json(await state(cycle, adminId))
+    }
+    case 'rehearse_end': {
+      const m = await getMeeting(cycle.id)
+      if (!rehearsalLeft(m)) return NextResponse.json(await state(cycle, adminId))
+      const wiped = await endRehearsal(createAdminClient(), cycle.id, rehearsalWipeMode(m, cycle.meeting_at))
+      if (wiped) return NextResponse.json({ error: wiped.message }, { status: 500 })
+      return NextResponse.json(await state(cycle, adminId))
+    }
     case 'take_over': {
       const { error } = await saveMeeting(cycle.id, { presenter_id: adminId })
       if (missing045(error)) return NextResponse.json({ error: 'Apply migration 045 first.' }, { status: 500 })
@@ -159,7 +204,7 @@ export async function POST(request: Request) {
     }
     case 'goto': {
       const m = await getMeeting(cycle.id)
-      if (!meetingLive(m)) return NextResponse.json({ error: 'Meeting mode isn’t on.' }, { status: 409 })
+      if (!meetingLive(m) && !rehearsalOn(m)) return NextResponse.json({ error: 'Meeting mode isn’t on.' }, { status: 409 })
       if (!m.presenterReady) return NextResponse.json({ error: 'Apply migration 045 first.' }, { status: 500 })
       if (m.presenterId !== adminId) return NextResponse.json({ error: 'Someone else is presenting. Take over first.', ...(await state(cycle, adminId)) }, { status: 409 })
       if (!m.agenda.some(s => s.id === body.segment)) return NextResponse.json({ error: 'No such segment' }, { status: 400 })
@@ -173,6 +218,13 @@ export async function POST(request: Request) {
       return fail(error) ?? NextResponse.json(await state(cycle, adminId))
     }
     case 'end': {
+      const m = await getMeeting(cycle.id)
+      // A rehearsal's End is rehearse_end: it never sets ended_at (meetingDone would hide the meeting).
+      if (!meetingLive(m) && rehearsalLeft(m)) {
+        const wiped = await endRehearsal(createAdminClient(), cycle.id, rehearsalWipeMode(m, cycle.meeting_at))
+        if (wiped) return NextResponse.json({ error: wiped.message }, { status: 500 })
+        return NextResponse.json(await state(cycle, adminId))
+      }
       const { error } = await saveMeeting(cycle.id, { ended_at: now })
       if (!error) await closeRoom(createAdminClient(), cycle.id)
       return fail(error) ?? NextResponse.json(await state(cycle, adminId))
@@ -180,7 +232,7 @@ export async function POST(request: Request) {
     case 'open_activity':
     case 'close_activity': {
       const m = await getMeeting(cycle.id)
-      if (!meetingLive(m)) return NextResponse.json({ error: 'Meeting mode isn’t on.' }, { status: 409 })
+      if (!meetingLive(m) && !rehearsalOn(m)) return NextResponse.json({ error: 'Meeting mode isn’t on.' }, { status: 409 })
       if (m.presenterId !== adminId) return NextResponse.json({ error: 'Someone else is presenting. Take over first.', ...(await state(cycle, adminId)) }, { status: 409 })
       if (body.action === 'close_activity') await closeActivity(createAdminClient(), cycle.id, body.activity_id)
       else {
@@ -193,6 +245,8 @@ export async function POST(request: Request) {
       const note = cleanNote(body.note)
       if (!note) return NextResponse.json({ error: 'Write the note first.' }, { status: 400 })
       const m = await getMeeting(cycle.id)
+      // Notes feed the recap: nothing from a rehearsal may.
+      if (rehearsalOn(m) && !meetingLive(m)) return NextResponse.json({ error: 'A rehearsal is running. Notes are off until it ends.' }, { status: 409 })
       const notes = [...m.notes, { ...note, id: crypto.randomUUID(), at: now }].slice(-LIMITS.notes)
       const { error } = await saveMeeting(cycle.id, { notes })
       return fail(error) ?? NextResponse.json({ meeting: await getMeeting(cycle.id) })

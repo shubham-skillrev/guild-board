@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/useToast'
 import { meetingLive, type Meeting, type MeetingState } from '@/lib/meeting'
 import type { RoomState } from '@/lib/meet/activity'
 import { newerRoom, useMeetingChannel } from '@/components/meet/useMeetingChannel'
+import { rehearsalOn } from '@/lib/meet/liveRehearsal'
 
 /** Without the live channel (or before it joins). */
 const POLL_MS = 3000
@@ -53,7 +54,7 @@ export function useMeetingLive(initial: MeetingState) {
 
   const onRoom = useCallback((room: RoomState) => {
     const m = latest.current.meeting
-    const moved = room.segment !== m.currentSegment || room.live !== meetingLive(m)
+    const moved = room.segment !== m.currentSegment || room.live !== meetingLive(m) || !!room.rehearsal !== rehearsalOn(m)
     setState(s => ({ ...s, room: newerRoom(s.room, room) }))
     if (moved) fetchNow.current()
   }, [])

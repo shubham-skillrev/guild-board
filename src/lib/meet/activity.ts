@@ -78,6 +78,12 @@ export interface PublicActivity {
 export interface RoomState {
   cycleId: string
   live: boolean
+  /**
+   * A live rehearsal is running (lib/meet/liveRehearsal.ts). `live` stays
+   * false: only a phone whose MeetView says `rehearsal` (it holds the code)
+   * treats the room as open.
+   */
+  rehearsal?: boolean
   /** How many joined. */
   participants: number
   /** The slide on the shared screen. */
@@ -102,6 +108,8 @@ export interface MeetView {
   label: string | null
   /** False until migration 046 is applied. */
   ready: boolean
+  /** In a live rehearsal, with its code: the room is open to this person, marked "Rehearsal". */
+  rehearsal?: boolean
   room: RoomState | null
   /** Signed in: their handle. They join with their account. */
   member: string | null
