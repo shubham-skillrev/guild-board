@@ -163,7 +163,7 @@ export function StartMeetingCardView({ s, now, busy, onStart, onRehearse }: { s:
   } else {
     title = `Guild meeting ${until(at - now)} · ${time}`
     body = prepped
-      ? `Notes for ${prepped} of ${notable.length} ${meeting.agenda.some(x => x.slide) ? 'slides' : 'segments'}. Rehearse before you start.`
+      ? `Notes ready for ${prepped} of ${notable.length} ${meeting.agenda.some(x => x.slide) ? 'slides' : 'segments'}.`
       : 'Kers is still on his prep. Rehearse before you start.'
     action = (
       <div className="flex shrink-0 flex-wrap gap-1.5">
@@ -195,7 +195,7 @@ export function StartMeetingCardView({ s, now, busy, onStart, onRehearse }: { s:
         <Kers size={32} expression="excited" colour="meeting" />
         <div className="min-w-0">
           <p className="truncate text-footnote font-medium text-ink">{title}</p>
-          <p className="truncate text-caption text-ink-muted">{body}</p>
+          <p className="text-caption text-ink-muted text-pretty">{body}</p>
         </div>
       </div>
       {action}
