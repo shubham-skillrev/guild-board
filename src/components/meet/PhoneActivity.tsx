@@ -23,6 +23,18 @@ interface Props {
   toast: Toast
   /** The server's time when this room state was made: the Boss Round's clock follows it. */
   serverAt?: string
+  /** The dev mock (/meet/mock) only: local state to start from. */
+  demo?: PhoneDemo
+}
+
+/** A phone's own state, seeded by the dev mock so it can be seen without typing. */
+export interface PhoneDemo {
+  /** The cloud's "Kers didn't like that one". */
+  refused?: string
+  /** The Boss Round's editor and its last run. */
+  code?: string
+  results?: CaseResult[]
+  fatal?: string | null
 }
 
 /**
@@ -100,11 +112,11 @@ function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
 }
 
 /** Up to three words, 20 characters each. A blocked word is dropped and Kers says so. */
-function PhoneCloud({ activity, mine, onMine, post, toast }: Props) {
+function PhoneCloud({ activity, mine, onMine, post, toast, demo }: Props) {
   const words = (mine?.values ?? []).map(v => String(v.word ?? '')).filter(Boolean)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
-  const [refused, setRefused] = useState<string | null>(null)
+  const [refused, setRefused] = useState<string | null>(demo?.refused ?? null)
   const left = CLOUD_MAX_WORDS - words.length
 
   const send = async (e: React.FormEvent) => {
@@ -180,13 +192,14 @@ const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2,
  * run's result replaces the last one on the screen. The code stays here (and
  * in this browser's storage, so a refresh keeps it).
  */
-function PhoneBoss({ activity, mine, onMine, post, toast, serverAt }: Props) {
+function PhoneBoss({ activity, mine, onMine, post, toast, serverAt, demo }: Props) {
   const problem = bossProblem(activity.config)
   const storeKey = `gb-boss:${activity.id}`
-  const [code, setCode] = useState(problem?.starter ?? '')
+  const [code, setCode] = useState(demo?.code ?? problem?.starter ?? '')
   const [running, setRunning] = useState(false)
-  const [results, setResults] = useState<CaseResult[] | null>(null)
-  const [fatal, setFatal] = useState<string | null>(null)
+  const [results, setResults] = useState<CaseResult[] | null>(demo?.results ?? null)
+  const [fatal, setFatal] = useState<string | null>(demo?.fatal ?? null)
+  const seeded = !!demo?.code
   const [left, setLeft] = useState<number | null>(null)
   const escaped = useRef(false)
 
@@ -208,6 +221,7 @@ function PhoneBoss({ activity, mine, onMine, post, toast, serverAt }: Props) {
 
   // Their code survives a refresh.
   useEffect(() => {
+    if (seeded) return
     const id = setTimeout(() => {
       try {
         const saved = localStorage.getItem(storeKey)
@@ -215,7 +229,7 @@ function PhoneBoss({ activity, mine, onMine, post, toast, serverAt }: Props) {
       } catch {}
     }, 0)
     return () => clearTimeout(id)
-  }, [storeKey])
+  }, [storeKey, seeded])
 
   if (!problem) return <p className="m-auto py-10 text-center text-footnote text-ink-muted">Kers forgot to pick a problem. Watch the screen.</p>
 

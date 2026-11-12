@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { OVERLAY_PRIORITY, useOverlaySlot } from '@/components/ui/OverlaySlot'
 import { useToast } from '@/hooks/useToast'
-import { PhoneActivity } from '@/components/meet/PhoneActivity'
+import { PhoneActivity, type PhoneDemo } from '@/components/meet/PhoneActivity'
 import { newerRoom, useMeetingChannel } from '@/components/meet/useMeetingChannel'
 import type { MeetView, Mine, RoomState } from '@/lib/meet/activity'
 
@@ -38,7 +38,19 @@ async function post(body: Record<string, unknown>) {
  * channel is down it's polled every 3 s. Nothing here shows anyone else's
  * name, and the shared screen never shows this person's.
  */
-export function MeetRoom({ initial }: { initial: MeetView }) {
+/**
+ * The dev mock (/meet/mock) runs the room with no network: `post` answers in
+ * place of POST /api/meet, `room` stands in for the broadcast, nothing is
+ * polled and no channel is joined. `demo` seeds a phone's local state.
+ */
+export interface MeetRoomOffline {
+  /** Answers as POST /api/meet would: the joined view, or `{ mine }`, `{ blocked, message }`. */
+  post: typeof post
+  room?: RoomState | null
+  demo?: PhoneDemo
+}
+
+export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: MeetRoomOffline }) {
   const toast = useToast()
   const [view, setView] = useState(initial)
   const [joining, setJoining] = useState(false)
@@ -53,17 +65,20 @@ export function MeetRoom({ initial }: { initial: MeetView }) {
   // while one is out) has stale answers, so it keeps the ones on screen.
   const writes = useRef(0)
   const pending = useRef(0)
+  const doPost = offline?.post ?? post
   const send = useCallback(async (body: Record<string, unknown>) => {
     writes.current++
     pending.current++
     try {
-      return await post(body)
+      return await doPost(body)
     } finally {
       pending.current--
     }
-  }, [])
+  }, [doPost])
 
+  const isOffline = !!offline
   const refresh = useCallback(async () => {
+    if (isOffline) return
     const before = writes.current
     try {
       const res = await fetch('/api/meet', { cache: 'no-store' })
@@ -75,7 +90,7 @@ export function MeetRoom({ initial }: { initial: MeetView }) {
     } catch {
       /* offline for a moment */
     }
-  }, [])
+  }, [isOffline])
 
   // A new activity (or one reopened) needs this person's answers to it: pull once.
   const shownKey = useRef(room?.activity ? `${room.activity.id}:${room.activity.status}` : '')
@@ -90,9 +105,16 @@ export function MeetRoom({ initial }: { initial: MeetView }) {
     },
     [refresh],
   )
-  const { connected } = useMeetingChannel(view.cycleId, onRoom)
+  const { connected } = useMeetingChannel(isOffline ? null : view.cycleId, onRoom)
+
+  // Offline: the room handed in plays the broadcast.
+  const offlineRoom = offline?.room
+  useEffect(() => {
+    if (offlineRoom) onRoom(offlineRoom)
+  }, [offlineRoom, onRoom])
 
   useEffect(() => {
+    if (isOffline) return
     const tick = () => { if (!document.hidden) refresh() }
     const id = setInterval(tick, connected ? SLOW_POLL_MS : POLL_MS)
     document.addEventListener('visibilitychange', tick)
@@ -100,21 +122,21 @@ export function MeetRoom({ initial }: { initial: MeetView }) {
       clearInterval(id)
       document.removeEventListener('visibilitychange', tick)
     }
-  }, [connected, refresh])
+  }, [connected, refresh, isOffline])
 
   const join = useCallback(
     async (name?: string) => {
       setJoining(true)
       setJoinError(null)
       try {
-        setView(await post({ action: 'join', name }))
+        setView(await doPost({ action: 'join', name }))
       } catch (err) {
         setJoinError(err instanceof Error ? err.message : 'Could not join')
       } finally {
         setJoining(false)
       }
     },
-    [],
+    [doPost],
   )
 
   // Members go straight in: one automatic join, under their account.
@@ -149,7 +171,7 @@ export function MeetRoom({ initial }: { initial: MeetView }) {
       <GuestJoin busy={joining} error={joinError} onJoin={join} />
     )
   } else if (room?.activity?.status === 'open') {
-    body = <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={send} toast={toast} serverAt={room.at} />
+    body = <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={send} toast={toast} serverAt={room.at} demo={offline?.demo} />
   } else if (!room?.warm) {
     body = <Notice kers="thinking" title="Kers is setting up…" text={people(room?.participants ?? 0)} />
   } else {

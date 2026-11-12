@@ -45,13 +45,44 @@ function readLocal(cycleId: string): LocalPos | null {
  * server, so a refresh resumes it.
  */
 export function PresenterScreen({ initial, posts }: { initial: MeetingState; posts: Record<string, PresenterPost> }) {
+  const { state, busy, call, optimistic, now } = useMeetingLive(initial)
+  return <PresenterView state={state} busy={busy} call={call} optimistic={optimistic} now={now} serverNow={initial.serverNow} posts={posts} />
+}
+
+type Call = ReturnType<typeof useMeetingLive>['call']
+
+/**
+ * The screen itself, from the meeting's state: PresenterScreen feeds it from
+ * the server; the dev mock (/meet/mock) feeds it fake state and a no-op
+ * `call`. `onExit` replaces Esc's trip to the Run tab.
+ */
+export function PresenterView({
+  state,
+  busy,
+  call,
+  optimistic,
+  now,
+  serverNow,
+  posts,
+  onExit,
+}: {
+  state: MeetingState
+  busy: string | null
+  call: Call
+  optimistic: (patch: Partial<MeetingState['meeting']>) => void
+  now: () => number
+  /** The server's time in the page's props, so the first render agrees. */
+  serverNow: string
+  posts: Record<string, PresenterPost>
+  onExit?: () => void
+}) {
   const router = useRouter()
-  const { state, meeting, busy, call, optimistic, now } = useMeetingLive(initial)
+  const meeting = state.meeting
   const agenda = meeting.agenda
   const live = meetingLive(meeting)
   const ended = !!meeting.endedAt
   const local = !meeting.presenterReady
-  const t = useSecond(live, now, initial.serverNow)
+  const t = useSecond(live, now, serverNow)
   // Hold the floating slot so no install or push prompt lands on the share.
   useOverlaySlot('presenter', OVERLAY_PRIORITY.presenter, true)
 
@@ -118,12 +149,15 @@ export function PresenterScreen({ initial, posts }: { initial: MeetingState; pos
       if ((e.target as HTMLElement)?.closest('input, textarea, select, [contenteditable]')) return
       if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); go(idx + 1) }
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(idx - 1) }
-      else if (e.key === 'Escape' && !document.fullscreenElement) router.push('/admin/run/meeting')
+      else if (e.key === 'Escape' && !document.fullscreenElement) {
+        if (onExit) onExit()
+        else router.push('/admin/run/meeting')
+      }
       else if (e.key === 'f' || e.key === 'F') fullscreen()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [go, idx, router, fullscreen])
+  }, [go, idx, router, fullscreen, onExit])
 
   if (!agenda.length || !seg) {
     return (

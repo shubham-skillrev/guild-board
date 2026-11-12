@@ -39,6 +39,11 @@ export function MeetingLiveBanner() {
   }, [])
 
   if (!live) return null
+  return <MeetingLiveBannerView />
+}
+
+/** The banner itself (the dev mock, /meet/mock, shows it without asking the server). */
+export function MeetingLiveBannerView() {
   return (
     <div className="border-b border-border bg-paper print:hidden">
       <Link

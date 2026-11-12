@@ -44,15 +44,7 @@ export function StartMeetingCard() {
     return () => { alive = false; clearInterval(t) }
   }, [isAdmin])
 
-  if (!isAdmin || !s || now === null || !s.cycle.meeting_at) return null
-  const { meeting } = s
-  const at = new Date(s.cycle.meeting_at).getTime()
-  const live = meetingLive(meeting, now)
-  if (meeting.endedAt) return null
-  if (!live && (now < at - MEET_LEAD_MS || now > at + MEET_TAIL_MS)) return null
-
-  const time = new Date(at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' })
-  const prepped = meeting.agenda.filter(x => x.prep && (x.prep.points.length || x.prep.opener)).length
+  if (!isAdmin || !s || now === null) return null
 
   const start = async () => {
     setBusy(true)
@@ -70,6 +62,21 @@ export function StartMeetingCard() {
       setBusy(false)
     }
   }
+
+  return <StartMeetingCardView s={s} now={now} busy={busy} onStart={start} />
+}
+
+/** The card from the meeting's state (the dev mock, /meet/mock, renders it with fake state). */
+export function StartMeetingCardView({ s, now, busy, onStart }: { s: MeetingState; now: number; busy: boolean; onStart: () => void }) {
+  if (!s.cycle.meeting_at) return null
+  const { meeting } = s
+  const at = new Date(s.cycle.meeting_at).getTime()
+  const live = meetingLive(meeting, now)
+  if (meeting.endedAt) return null
+  if (!live && (now < at - MEET_LEAD_MS || now > at + MEET_TAIL_MS)) return null
+
+  const time = new Date(at).toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit' })
+  const prepped = meeting.agenda.filter(x => x.prep && (x.prep.points.length || x.prep.opener)).length
 
   const button = 'press inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-ink px-3.5 text-footnote font-medium text-parchment hover:bg-ink/85 disabled:opacity-40 pointer-coarse:h-10'
 
@@ -90,7 +97,7 @@ export function StartMeetingCard() {
       ? `Kers has prep for ${prepped} of ${meeting.agenda.length} segments. Share your screen, then start.`
       : 'Kers is still on his prep. Share your screen, then start.'
     action = (
-      <button type="button" className={button} disabled={busy} onClick={start}>
+      <button type="button" className={button} disabled={busy} onClick={onStart}>
         <Icon icon={Play} size="sm" weight="fill" /> {busy ? 'Starting…' : 'Start meeting mode'}
       </button>
     )
