@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { MEET_EVENT, meetingChannel } from '@/lib/realtime/channels'
 import { openCycle } from '@/lib/guild/demos'
 import { isBlocked } from '@/lib/meet/profanity'
+import { BOSS_GRACE_MS, BOSS_MS } from '@/lib/meet/boss'
 import {
   aggregate,
   BLOCKED_MESSAGE,
@@ -258,8 +259,17 @@ export async function respond(admin: Admin, cycleId: string, participant: Partic
       }
       break
     }
-    case 'boss':
-      return { ok: false, status: 400, error: 'The Boss Round isn’t ready yet.' }
+    case 'boss': {
+      // Kers gives his verdict at time; a run still in flight gets a short grace.
+      const opened = activity.opened_at ? new Date(activity.opened_at).getTime() : 0
+      if (opened && Date.now() > opened + BOSS_MS + BOSS_GRACE_MS) return { ok: false, status: 409, error: 'Time’s up. Watch the screen for Kers’ verdict.' }
+      // Slot 0 like a poll: each run replaces the last.
+      const { error } = await admin
+        .from('meeting_responses')
+        .upsert({ activity_id: activityId, participant_id: participant.id, slot: 0, value: cleaned.value, updated_at: new Date().toISOString() }, { onConflict: 'activity_id,participant_id,slot' })
+      if (error) return { ok: false, status: 500, error: 'Could not save that. Try again.' }
+      break
+    }
   }
 
   nudgeRoom(cycleId)

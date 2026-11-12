@@ -1,14 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { Check } from '@phosphor-icons/react/dist/ssr'
+import { useEffect, useRef, useState } from 'react'
+import { Check, Play, X } from '@phosphor-icons/react/dist/ssr'
 import { Kers } from '@/components/kers/Kers'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
-import { Input } from '@/components/ui/Input'
+import { Input, Textarea } from '@/components/ui/Input'
 import { useToast } from '@/hooks/useToast'
 import { cn } from '@/lib/utils/cn'
 import { CLOUD_MAX_WORDS, CLOUD_WORD_MAX, type Mine, type PublicActivity } from '@/lib/meet/activity'
+import { BOSS_MS, bossProblem, callText, showValue, summarise, type CaseResult } from '@/lib/meet/boss'
+import { runBoss } from '@/lib/meet/bossRunner'
 
 type Post = (body: Record<string, unknown>) => Promise<{ ok?: boolean; blocked?: boolean; message?: string; mine?: Mine }>
 type Toast = ReturnType<typeof useToast>
@@ -19,13 +21,15 @@ interface Props {
   onMine: (mine: Mine) => void
   post: Post
   toast: Toast
+  /** The server's time when this room state was made: the Boss Round's clock follows it. */
+  serverAt?: string
 }
 
 /**
  * The open activity on a phone, by kind. Each sends its answer to
  * POST /api/meet { action: 'respond', activity_id, value } and shows what
- * this person has answered (`mine`). Phase 3 adds `boss` here: the problem,
- * the editor and the Web Worker runner, sending { passed, tests, of }.
+ * this person has answered (`mine`). The Boss Round runs its tests in a Web
+ * Worker on this device and sends only { passed, tests, of }, never the code.
  */
 export function PhoneActivity(props: Props) {
   switch (props.activity.kind) {
@@ -34,7 +38,7 @@ export function PhoneActivity(props: Props) {
     case 'cloud':
       return <PhoneCloud {...props} />
     case 'boss':
-      return <p className="m-auto py-10 text-center text-footnote text-ink-muted">The Boss Round is nearly here. Watch the screen.</p>
+      return <PhoneBoss {...props} />
   }
 }
 
@@ -163,6 +167,169 @@ function PhoneCloud({ activity, mine, onMine, post, toast }: Props) {
           ))}
         </ul>
       )}
+    </div>
+  )
+}
+
+const clock = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+
+/**
+ * Kers' Boss Round: the problem, one plain editor (the same on a phone and a
+ * laptop), an 8-minute countdown from when it opened, and "Run tests". The
+ * tests run in a Web Worker on this device (lib/meet/bossRunner.ts); each
+ * run's result replaces the last one on the screen. The code stays here (and
+ * in this browser's storage, so a refresh keeps it).
+ */
+function PhoneBoss({ activity, mine, onMine, post, toast, serverAt }: Props) {
+  const problem = bossProblem(activity.config)
+  const storeKey = `gb-boss:${activity.id}`
+  const [code, setCode] = useState(problem?.starter ?? '')
+  const [running, setRunning] = useState(false)
+  const [results, setResults] = useState<CaseResult[] | null>(null)
+  const [fatal, setFatal] = useState<string | null>(null)
+  const [left, setLeft] = useState<number | null>(null)
+  const escaped = useRef(false)
+
+  // The clock: the server's, via the skew when this mounted.
+  useEffect(() => {
+    if (!activity.openedAt) return
+    const skew = serverAt ? new Date(serverAt).getTime() - Date.now() : 0
+    const end = new Date(activity.openedAt).getTime() + BOSS_MS
+    const tick = () => setLeft(Math.max(0, Math.ceil((end - (Date.now() + skew)) / 1000)))
+    const first = setTimeout(tick, 0)
+    const id = setInterval(tick, 1000)
+    return () => {
+      clearTimeout(first)
+      clearInterval(id)
+    }
+    // serverAt moves with every room update; the skew is taken once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activity.openedAt])
+
+  // Their code survives a refresh.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      try {
+        const saved = localStorage.getItem(storeKey)
+        if (saved) setCode(saved)
+      } catch {}
+    }, 0)
+    return () => clearTimeout(id)
+  }, [storeKey])
+
+  if (!problem) return <p className="m-auto py-10 text-center text-footnote text-ink-muted">Kers forgot to pick a problem. Watch the screen.</p>
+
+  const timeUp = left === 0
+  const last = mine?.values[0]
+  const sent = last && typeof last.tests === 'number' ? { tests: last.tests as number, of: Number(last.of), passed: last.passed === true } : null
+
+  const edit = (next: string) => {
+    setCode(next)
+    try {
+      localStorage.setItem(storeKey, next)
+    } catch {}
+  }
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Tab indents; Esc then Tab leaves the editor, so the keyboard isn't trapped.
+    if (e.key === 'Escape') { escaped.current = true; return }
+    if (e.key === 'Tab' && !e.shiftKey && !escaped.current && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault()
+      const el = e.currentTarget
+      el.setRangeText('  ', el.selectionStart, el.selectionEnd, 'end')
+      edit(el.value)
+    }
+    escaped.current = false
+  }
+
+  const run = async () => {
+    if (running || timeUp) return
+    setRunning(true)
+    setFatal(null)
+    setResults([])
+    try {
+      const r = await runBoss(code, problem, (i, res) => setResults(prev => [...(prev ?? []).slice(0, i), res]))
+      setResults(r.results)
+      setFatal(r.fatal)
+      const res = await post({ action: 'respond', activity_id: activity.id, value: summarise(r.results, problem.cases.length) })
+      if (res.mine) onMine(res.mine)
+    } catch (err) {
+      toast(err instanceof Error ? err.message : 'Could not run the tests', 'error')
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  const done = results && !running ? results.filter(r => r.ok).length : null
+  const status = running
+    ? `Running test ${Math.min((results?.length ?? 0) + 1, problem.cases.length)} of ${problem.cases.length}…`
+    : fatal ? 'It didn’t run. Fix it and try again.'
+    : done !== null && results?.length ? (done === problem.cases.length ? `All ${done} passed. The screen knows.` : `${done} of ${problem.cases.length} passed.`)
+    : sent ? `Your last run: ${sent.tests} of ${sent.of} passed.`
+    : 'Write it, then run the tests. Only the result leaves this device.'
+
+  return (
+    <div>
+      <div className="mt-2 flex items-center gap-2.5">
+        <Kers size={36} colour="meeting" expression={timeUp ? 'smug' : 'nosy'} motion="idle" />
+        <p className="font-mono text-[12px] uppercase tracking-[0.16em] text-ink-muted">Kers’ Boss Round</p>
+        <p className={cn('ml-auto font-mono text-[15px] tabular', left !== null && left <= 60 ? 'text-vermillion' : 'text-ink')} aria-label={left === null ? undefined : `${clock(left)} left`}>
+          {left === null ? '' : clock(left)}
+        </p>
+      </div>
+      <Prompt>{problem.title}</Prompt>
+      <p className="mt-2 text-footnote leading-relaxed text-ink-soft">{problem.description}</p>
+      <p className="mt-3 font-mono text-footnote text-ink">
+        <span className="text-ink-muted">function </span>{problem.signature}
+      </p>
+
+      <label htmlFor="boss-code" className="sr-only">Your code</label>
+      <Textarea
+        id="boss-code"
+        value={code}
+        onChange={e => edit(e.target.value)}
+        onKeyDown={onKeyDown}
+        rows={9}
+        wrap="off"
+        spellCheck={false}
+        autoCorrect="off"
+        autoCapitalize="off"
+        autoComplete="off"
+        data-gramm="false"
+        aria-describedby="boss-code-hint"
+        readOnly={timeUp}
+        className="mt-4 min-h-40 overflow-x-auto leading-relaxed [tab-size:2] pointer-coarse:text-[16px]"
+      />
+      <p id="boss-code-hint" className="sr-only">Tab indents. Press Escape, then Tab, to leave the editor.</p>
+
+      <div className="mt-3 flex items-center gap-3">
+        <Button icon={Play} onClick={run} disabled={running || timeUp || !code.trim()}>{running ? 'Running…' : 'Run tests'}</Button>
+        <p className="min-w-0 flex-1 text-footnote text-ink-muted" aria-live="polite">
+          {timeUp ? 'Time. Watch the screen for Kers’ verdict.' : status}
+        </p>
+      </div>
+
+      {fatal && <p role="alert" className="mt-4 break-words rounded-(--radius-control) bg-vermillion-light px-3 py-2 font-mono text-footnote text-vermillion">{fatal}</p>}
+
+      <ol aria-label="Tests" className="mt-5 divide-y divide-border border-y border-border">
+        {problem.cases.map((c, i) => {
+          const r = fatal ? undefined : results?.[i]
+          return (
+            <li key={i} className="flex gap-2.5 py-2.5 font-mono text-[12px] leading-relaxed">
+              <span className={cn('mt-0.5 shrink-0', !r ? 'text-ink-muted' : r.ok ? 'text-matcha' : 'text-vermillion')}>
+                {r ? <Icon icon={r.ok ? Check : X} size="sm" weight="bold" /> : <span aria-hidden className="inline-block size-4 text-center">·</span>}
+                <span className="sr-only">{!r ? 'Not run' : r.ok ? 'Passed' : 'Failed'}</span>
+              </span>
+              <div className="min-w-0 flex-1 break-words">
+                <p className="text-ink">{callText(problem, c)} <span className="text-ink-muted">→ {showValue(c.expected)}</span></p>
+                {r && !r.ok && (
+                  <p className="text-vermillion">{r.error ?? `got ${r.got}`}</p>
+                )}
+              </div>
+            </li>
+          )
+        })}
+      </ol>
     </div>
   )
 }

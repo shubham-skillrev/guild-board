@@ -5,6 +5,7 @@ import { Kers, type KersEyes, type KersMotion } from '@/components/kers/Kers'
 import type { KersColour } from '@/components/kers/look'
 import type { Expression } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
+import { BOSS_LINE, bossVerdict, type BossPhase } from '@/lib/meet/boss'
 
 const CHEER_MS = 3200
 
@@ -28,14 +29,16 @@ interface Mood {
 /**
  * Kers in the corner of the presenter screen. He cheers (a hop, happy eyes)
  * when a segment closes, gets restless with a minute left, and fidgets and
- * nudges once a segment overruns, louder each minute. Nothing he says names
- * anyone.
+ * nudges once a segment overruns, louder each minute. In the Boss Round he
+ * dares the room when it opens and gives his verdict by pass rate at time.
+ * Nothing he says names anyone.
  */
 export function PresenterKers({
   segmentKey,
   remaining,
   live,
   ended,
+  boss,
   className,
 }: {
   /** Changes when the presenter moves on: that's his cue to cheer. */
@@ -44,6 +47,8 @@ export function PresenterKers({
   remaining: number
   live: boolean
   ended: boolean
+  /** The current segment's Boss Round, if it's on (lib/meet/boss.ts bossPhase). */
+  boss?: BossPhase | null
   className?: string
 }) {
   const [cheer, setCheer] = useState<number | null>(null)
@@ -65,6 +70,8 @@ export function PresenterKers({
   let mood: Mood
   if (ended) mood = { expression: 'proud', colour: 'proud', motion: 'idle', special: null, line: 'That’s the hour. The recap is on the Run tab.' }
   else if (!live) mood = { expression: 'excited', colour: 'meeting', motion: 'idle', special: null, line: 'Ready when you are.' }
+  else if (boss?.phase === 'intro') mood = { expression: 'smug', colour: 'smug', motion: 'hop', special: null, line: BOSS_LINE }
+  else if (boss?.phase === 'verdict') mood = verdictMood(boss.pct, boss.trying)
   else if (cheer !== null) mood = { expression: 'excited', colour: 'proud', motion: 'hop', special: 'happy', line: CHEERS[cheer] }
   else if (remaining < 0) {
     const over = Math.floor(-remaining / 60)
@@ -85,4 +92,12 @@ export function PresenterKers({
       <Kers size={132} expression={mood.expression} colour={mood.colour} motion={mood.motion} special={mood.special} />
     </div>
   )
+}
+
+function verdictMood(pct: number, trying: number): Mood {
+  const line = bossVerdict(pct, trying)
+  if (trying === 0) return { expression: 'bored', colour: 'bored', motion: 'still', special: null, line }
+  if (pct >= 75) return { expression: 'proud', colour: 'proud', motion: 'hop', special: 'happy', line }
+  if (pct >= 25) return { expression: 'smug', colour: 'smug', motion: 'idle', special: null, line }
+  return { expression: 'dramatic', colour: 'dramatic', motion: 'idle', special: null, line }
 }

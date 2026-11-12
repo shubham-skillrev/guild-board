@@ -3,13 +3,16 @@
  * the shapes shared by /meet, the presenter screen and the API, how an answer
  * is cleaned, and how a room's answers become what the shared screen shows.
  *
- * Everything here switches on the activity's kind, so Phase 3's Boss Round
- * plugs in by adding a `boss` case to cleanResponse() and aggregate(), a
- * phone renderer (components/meet/PhoneActivity.tsx) and a presenter
- * renderer (components/meet/ActivityPanel.tsx).
+ * Everything here switches on the activity's kind; each kind has a phone
+ * renderer (components/meet/PhoneActivity.tsx) and a presenter renderer
+ * (components/meet/ActivityPanel.tsx). The Boss Round's problems live in
+ * ./boss.ts.
  *
- * No imports: the unit tests run it straight under `node --test`.
+ * Imports only ./boss.ts, by path, so the unit tests run it straight under
+ * `node --test`.
  */
+
+import { bossProblem } from './boss.ts'
 
 export type ActivityKind = 'poll' | 'cloud' | 'boss'
 export type ActivityStatus = 'ready' | 'open' | 'closed'
@@ -66,7 +69,7 @@ export interface PublicActivity {
   counts: number[] | null
   /** cloud: merged words, most typed first, at most CLOUD_SHOWN. */
   words: { word: string; n: number }[] | null
-  /** boss (Phase 3): e.g. { passed, trying }. */
+  /** boss: people whose latest run passed every test, people who ran at all, and passed as a floored % of trying. */
   tally: Record<string, number> | null
 }
 
@@ -139,7 +142,7 @@ export function cleanWord(raw: unknown): string | null {
 export type Cleaned = { ok: true; value: Record<string, unknown> } | { ok: false; error: string }
 
 /** An answer as sent by a phone, checked against its activity. Profanity is checked by the caller. */
-export function cleanResponse(activity: Pick<ActivityRow, 'kind' | 'options'>, raw: unknown): Cleaned {
+export function cleanResponse(activity: Pick<ActivityRow, 'kind' | 'options'> & { config?: unknown }, raw: unknown): Cleaned {
   const r = objectOf(raw)
   switch (activity.kind) {
     case 'poll': {
@@ -151,9 +154,16 @@ export function cleanResponse(activity: Pick<ActivityRow, 'kind' | 'options'>, r
       const word = cleanWord(r.word)
       return word ? { ok: true, value: { word } } : { ok: false, error: 'Type a word first.' }
     }
-    case 'boss':
-      // Phase 3: { passed: boolean, tests: number, of: number }, never the code.
-      return { ok: false, error: 'The Boss Round isn’t ready yet.' }
+    case 'boss': {
+      // A run's result only, never the code: { passed, tests, of }.
+      const problem = bossProblem(activity.config)
+      if (!problem) return { ok: false, error: 'This Boss Round has no problem set.' }
+      const tests = Number(r.tests)
+      const of = Number(r.of)
+      const fits = Number.isInteger(tests) && of === problem.cases.length && tests >= 0 && tests <= of
+      if (!fits || typeof r.passed !== 'boolean' || r.passed !== (tests === of)) return { ok: false, error: 'That result doesn’t add up. Run the tests again.' }
+      return { ok: true, value: { passed: r.passed, tests, of } }
+    }
   }
 }
 
@@ -207,10 +217,17 @@ export function aggregate(activity: ActivityRow, rows: ResponseRow[]): PublicAct
       break
     }
     case 'boss': {
+      // Each person's latest run (slot 0, replaced on every run), once per person.
+      const seen = new Set<string>()
       let passed = 0
-      for (const r of rows) if (objectOf(r.value).passed === true) passed++
-      out.tally = { passed, trying: people.size }
-      out.total = rows.length
+      for (const r of rows) {
+        if (r.slot !== 0 || seen.has(r.participant_id)) continue
+        seen.add(r.participant_id)
+        if (objectOf(r.value).passed === true) passed++
+      }
+      const trying = seen.size
+      out.tally = { passed, trying, pct: trying ? Math.floor((passed / trying) * 100) : 0 }
+      out.total = trying
       break
     }
   }

@@ -242,10 +242,31 @@ aggregation, `room.ts` server side, `profanity.ts`); the presenter's panel in
   meeting nobody ended stops counting as live after 8 h.
 
 ### Phase 3: Boss Round
-- [ ] Problem list in code, with tests
-- [ ] Phone/laptop editor + Web Worker runner with per-test timeout
-- [ ] Pass-rate tally on the presenter screen
-- [ ] Kers' intro and verdict lines
+- [x] Problem list in code, with tests
+- [x] Phone/laptop editor + Web Worker runner with per-test timeout
+- [x] Pass-rate tally on the presenter screen
+- [x] Kers' intro and verdict lines
+- [ ] Try it on a real phone and laptop (editor at 360 px, a runaway loop, a syntax error)
+
+Built (2026-11-12): problems, the worker's source, judging and Kers' lines in
+`lib/meet/boss.ts` (tests: `boss.test.ts`, which runs the reference and
+wrong solutions through the worker's source); the runner in
+`lib/meet/bossRunner.ts`; the phone in `PhoneActivity.tsx` (`PhoneBoss`);
+the presenter's tally in `ActivityPanel.tsx` and Kers in `PresenterKers.tsx`.
+
+- **Runner:** one worker from a Blob URL per run, one test at a time. A test
+  that doesn't answer in 2 s gets its worker `terminate()`d and is marked
+  timed out; a fresh worker takes the rest. A syntax error or a missing
+  function fails the run at once and is shown. Results are compared on the
+  page with a deep equality.
+- **Sent:** `{ passed, tests, of }` at slot 0, so each run replaces the last.
+  The server checks `of` against the problem and that `passed` means all.
+  Runs are refused 30 s after the 8 minutes are up.
+- **Presenter:** the % of those trying who passed every test (floored, so
+  100% means everyone), how many are trying, the 8-minute clock. Kers says
+  the line for the first 20 s, and the verdict at time or when it's closed.
+- The editor keeps its code in the browser's `localStorage` per activity, so
+  a refresh doesn't lose it. Tab indents; Esc then Tab leaves the editor.
 
 ### After the meeting
 - [ ] Activity results into the recap draft

@@ -24,7 +24,7 @@ test('cleanResponse checks the answer against its activity', () => {
   assert.equal(cleanResponse(poll, { option: 1.5 }).ok, false)
   assert.deepEqual(cleanResponse(cloud, { word: ' Busy ' }), { ok: true, value: { word: 'busy' } })
   assert.equal(cleanResponse(cloud, { word: '   ' }).ok, false)
-  assert.equal(cleanResponse({ kind: 'boss', options: [] }, { passed: true }).ok, false)
+  assert.equal(cleanResponse({ kind: 'boss', options: [], config: { problem: 1 } }, { passed: true }).ok, false)
 })
 
 test('poll aggregate counts one vote per participant', () => {

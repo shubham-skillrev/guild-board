@@ -11,6 +11,7 @@ import { OVERLAY_PRIORITY, useOverlaySlot } from '@/components/ui/OverlaySlot'
 import { ActivityPanel } from '@/components/meet/ActivityPanel'
 import { AgendaProgress } from '@/components/meet/AgendaProgress'
 import { PresenterKers } from '@/components/meet/PresenterKers'
+import { bossPhase } from '@/lib/meet/boss'
 import { useMeetingLive, useSecond } from '@/components/meet/useMeetingLive'
 import { clock, KIND_LABELS, type MeetingState, type Segment } from '@/lib/meeting'
 import type { PresenterPost } from '@/lib/guild/meetingPrep'
@@ -68,6 +69,8 @@ export function PresenterScreen({ initial, posts }: { initial: MeetingState; pos
   const secondsIn = live && startIso ? Math.max(0, (t - new Date(startIso).getTime()) / 1000) : 0
   const remaining = seg ? seg.minutes * 60 - secondsIn : 0
   const over = live && remaining < 0
+  const bossActivity = state.room?.activity
+  const boss = live && seg && bossActivity?.segmentId === seg.id ? bossPhase(bossActivity, t) : null
   const presenting = live && (local || meeting.presenterId === state.me)
   const last = idx === agenda.length - 1
 
@@ -243,7 +246,7 @@ export function PresenterScreen({ initial, posts }: { initial: MeetingState; pos
               </>
             )}
           </div>
-          <PresenterKers className="mt-auto pt-6" segmentKey={seg.id} remaining={remaining} live={live} ended={ended} />
+          <PresenterKers className="mt-auto pt-6" segmentKey={seg.id} remaining={remaining} live={live} ended={ended} boss={boss} />
         </aside>
       </main>
 

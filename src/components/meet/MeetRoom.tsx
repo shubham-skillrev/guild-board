@@ -130,7 +130,7 @@ export function MeetRoom({ initial }: { initial: MeetView }) {
       <GuestJoin busy={joining} error={joinError} onJoin={join} />
     )
   } else if (room?.activity?.status === 'open') {
-    body = <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={post} toast={toast} />
+    body = <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={post} toast={toast} serverAt={room.at} />
   } else if (!room?.warm) {
     body = <Notice kers="thinking" title="Kers is setting up…" text={people(room?.participants ?? 0)} />
   } else {
