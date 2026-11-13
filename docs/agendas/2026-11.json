@@ -105,12 +105,12 @@
       "meme": {
         "panels": [
           {
-            "label": "Day 1",
+            "label": "Before",
             "text": "We trust the certificate authority.",
             "face": "proud"
           },
           {
-            "label": "Day 2",
+            "label": "After",
             "text": "The keys were as small as 4.",
             "face": "dramatic"
           }
@@ -132,7 +132,7 @@
       "detail": "eMudhra CA compromise · GLM-5.3 KV-cache leak on Workers AI · Google’s AI gaming platform (a member’s link). Then a poll.",
       "minutes": 0,
       "topicIds": [],
-      "cue": "Three stories. Two are someone else’s infra failing quietly.",
+      "cue": "Let’s explore.",
       "prep": {
         "points": [
           "Don’t read the cards out. One line each, then straight to the vote."
@@ -272,16 +272,6 @@
         {
           "kind": "post",
           "postId": "61f7a2f7-621b-4b74-b406-39f95844a935"
-        },
-        {
-          "kind": "side",
-          "label": "The tech stays",
-          "text": "Useful and still improving. The internet outlived dot-com."
-        },
-        {
-          "kind": "side",
-          "label": "The business pops",
-          "text": "Huge spend, no clear way to earn it back. Vendors die, prices jump."
         }
       ],
       "prep": {
@@ -581,7 +571,7 @@
       "slide": "content",
       "section": "Wrap",
       "title": "Before you go",
-      "detail": "Decisions and owners from the notes, a volunteer desk tour for December, and one Radar link each.",
+      "detail": "Decisions and owners from the notes, and one Radar link each.",
       "minutes": 0,
       "topicIds": [],
       "cue": "One line: what will you actually try this week?",
@@ -593,11 +583,6 @@
         },
         {
           "kind": "note",
-          "title": "December desk tour",
-          "text": "one volunteer, now"
-        },
-        {
-          "kind": "note",
           "title": "One Radar link each",
           "text": "before next month"
         }
@@ -605,13 +590,38 @@
       "prep": {
         "points": [
           "Read the decision notes back with their owners. No owner? Assign it or drop it.",
-          "December: one volunteer for a desk tour, now. This month’s Radar was mostly the digest: one link each."
+          "This month’s Radar was mostly the digest: one link each."
         ],
         "opener": "Before you go: what’s one thing from today you’ll actually try this week? Chat or mic, one line.",
         "by": "admin",
         "at": null,
         "ask": []
       }
+    },
+    {
+      "id": "rate-poll",
+      "kind": "wrap",
+      "slide": "activity",
+      "section": "Wrap",
+      "title": "Rate today’s meeting",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "Vote on your phone. Be honest.",
+      "prep": null
+    },
+    {
+      "id": "rate-results",
+      "kind": "wrap",
+      "slide": "results",
+      "section": "Wrap",
+      "of": "rate-poll",
+      "title": "How did we do?",
+      "detail": "",
+      "minutes": 0,
+      "topicIds": [],
+      "cue": "Thanks for being honest. We read every one.",
+      "prep": null
     },
     {
       "id": "thanks",
@@ -622,7 +632,7 @@
       "detail": "",
       "minutes": 0,
       "topicIds": [],
-      "cue": "December’s board is open. Post what you want to hear about.",
+      "cue": "Two minutes: fill the guild survey. Scan the code or tap the button.",
       "prep": null
     }
   ],
@@ -668,6 +678,17 @@
       "config": {
         "problem": 1
       }
+    },
+    {
+      "segment": "rate-poll",
+      "kind": "poll",
+      "prompt": "How was today’s meeting?",
+      "options": [
+        "😍 Loved it",
+        "🙂 Good",
+        "😐 Meh",
+        "😕 Not for me"
+      ]
     }
   ]
 }
