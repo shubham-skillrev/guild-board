@@ -13,6 +13,7 @@
 
 import { aggregate, optionsOf, type ActivityRow, type ResponseRow } from './activity.ts'
 import { bossProblem } from './boss.ts'
+import { sharesOf } from './results.ts'
 
 /** How many cloud words the report lists. */
 export const REPORT_WORDS = 8
@@ -71,8 +72,6 @@ export interface MeetingReport {
   rating: ReportActivity | null
 }
 
-const pct = (n: number, of: number) => (of > 0 ? Math.round((n / of) * 100) : 0)
-
 /** The rating poll: its slide id says so, or its prompt asks how the meeting was. */
 export function isRatingPoll(a: Pick<ActivityRow, 'kind' | 'segment_id' | 'prompt'>): boolean {
   return a.kind === 'poll' && (/^rate(-|$)/.test(a.segment_id) || /\b(rate|how was) (today|the meeting|this meeting)/i.test(a.prompt))
@@ -126,8 +125,11 @@ export function meetingReport(input: ReportInput): MeetingReport {
       empty: agg.answered === 0,
     }
     if (row.kind === 'poll') {
-      const counts = agg.counts ?? optionsOf(row.options).map(() => 0)
-      out.options = optionsOf(row.options).map((label, i) => ({ label, n: counts[i] ?? 0, pct: pct(counts[i] ?? 0, agg.total) }))
+      // The same shares as the screen and the phones (lib/meet/results.ts): they add up to 100.
+      const labels = optionsOf(row.options)
+      const counts = labels.map((_, i) => agg.counts?.[i] ?? 0)
+      const pcts = sharesOf(counts)
+      out.options = labels.map((label, i) => ({ label, n: counts[i], pct: pcts[i] }))
     } else if (row.kind === 'cloud') {
       out.words = (agg.words ?? []).slice(0, REPORT_WORDS).map(w => ({ word: w.word, n: w.n }))
     } else {

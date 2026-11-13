@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import type { Expression, Variant } from '@guildboard/guildbot'
 import { cn } from '@/lib/utils/cn'
@@ -52,6 +53,7 @@ export function GuildBotStage({
   variant = null,
   cursor = null,
   doing = null,
+  doingHref = null,
   onTrick,
   patrol,
   onPatrolEnd,
@@ -90,6 +92,8 @@ export function GuildBotStage({
   cursor?: KersState
   /** What he's up to, in a small bubble over him when he isn't saying anything. */
   doing?: string | null
+  /** The bubble (and his desk sign) as a link: the live meeting's room, /meet. */
+  doingHref?: string | null
   /** A walk across the screen is on (its id), and when it's done. */
   patrol: number | null
   onPatrolEnd: () => void
@@ -297,7 +301,9 @@ export function GuildBotStage({
             style={{ right: 8 }}
           >
             <p className="relative rounded-xl border border-border-strong bg-paper pl-2.5 pr-6 py-1.5 text-[11.5px] leading-snug italic text-ink-soft shadow-[0_8px_24px_-6px_rgba(0,0,0,0.35),0_2px_6px_-2px_rgba(0,0,0,0.2)]">
-              {doing}
+              {doingHref ? (
+                <Link href={doingHref} className="not-italic font-medium text-ink underline decoration-ink/30 underline-offset-2 hover:decoration-ink">{doing} →</Link>
+              ) : doing}
               <button
                 type="button"
                 onClick={() => hideDoing(doing)}

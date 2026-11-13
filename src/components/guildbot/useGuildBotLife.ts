@@ -1,8 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { daySeed, isoWeek, meetingJustEnded, meetingOn, moodFor, moodOfDay, reactTo, type BoardEvent, type Expression, type LineKey, type Mood } from '@guildboard/guildbot'
+import { daySeed, isoWeek, meetingJustEnded, moodFor, moodOfDay, reactTo, type BoardEvent, type Expression, type LineKey, type Mood } from '@guildboard/guildbot'
 import { useCurrentCycle } from '@/hooks/useCurrentCycle'
+import { useMeetLive } from '@/hooks/useMeetLive'
 import { botSays, SASS } from '@/lib/guildbot-host/voice'
 import { listen } from '@/lib/guildbot-host/live-bus'
 
@@ -44,7 +45,7 @@ const TALK: { q: LineKey; chips: Chip[] }[] = [
  *    nobody, and a ghost's post looks like a stranger's.
  *  - A visitor is an event: he perks up when you arrive. The day after a
  *    guild meeting, he wants to hear how it went (not that he cares). While
- *    it's on, he sulks: nobody invited him.
+ *    it's live, he sends everyone in ("Meeting's on, come in!").
  *  - Tricks on request (dance, pat, coffee, meditate). He has work to do:
  *    five tricks and he's tired, one back every fifteen minutes; coffee
  *    perks him up, twice a day at most.
@@ -66,7 +67,8 @@ export function useGuildBotLife() {
   const [trick, setTrick] = useState<'dance' | 'pat' | null>(null)
   /** A walk across the bottom of the screen and back; the id restarts it. */
   const [patrol, setPatrol] = useState<number | null>(null)
-  const [meeting, setMeeting] = useState(false)
+  // Live from the server (hooks/useMeetLive.ts, shared with the banner): never a rehearsal.
+  const meeting = useMeetLive().live
   const [prefs, setPrefs] = useState({ quiet: false, hidden: false })
 
   const humanPosts = useRef<number | null>(null)
@@ -190,23 +192,20 @@ export function useGuildBotLife() {
     return () => clearTimeout(id)
   }, [recount])
 
-  // The guild meeting: sulk while it's on, and say so once.
+  // The guild meeting, while it's actually live (not just its planned hour):
+  // he sends everyone in, once, and his desk links to /meet.
   useEffect(() => {
     const at = cycle?.meeting_at
-    if (!at) return
-    const check = () => {
-      const on = meetingOn(at, new Date())
-      setMeeting(on)
+    if (!meeting || !at) return
+    const id = setTimeout(() => {
       const key = `guildbot:meeting:${at}`
-      if (on && !localStorage.getItem(key) && speak('meeting.start', { asked: true, ms: 9000 })) {
+      if (!localStorage.getItem(key) && speak('meeting.start', { asked: true, ms: 9000 })) {
         localStorage.setItem(key, '1')
-        pullFace('grumpy')
+        pullFace('excited')
       }
-    }
-    const first = setTimeout(check, 0)
-    const id = setInterval(check, 30_000)
-    return () => { clearTimeout(first); clearInterval(id) }
-  }, [cycle?.meeting_at, speak, pullFace])
+    }, 0)
+    return () => clearTimeout(id)
+  }, [meeting, cycle?.meeting_at, speak, pullFace])
 
   useEffect(() => listen({
     live: (_channel, u) => {

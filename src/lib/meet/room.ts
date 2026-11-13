@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { MEET_EVENT, meetingChannel } from '@/lib/realtime/channels'
 import { openCycle } from '@/lib/guild/demos'
 import { isBlocked } from '@/lib/meet/profanity'
-import { activityKeyFor, agendaPostIds, meetingLive, phoneAgenda, type Segment } from '@/lib/meeting'
+import { activityKeyFor, agendaPostIds, hollowRun, meetingLive, phoneAgenda, type Segment } from '@/lib/meeting'
 import { gotoPlan, navBlocked, type ActivityRef } from '@/lib/meet/slides'
 import { roomOpenTo, rowRehearsing, wipeRehearsal } from '@/lib/meet/liveRehearsal'
 import { meetPosts } from '@/lib/guild/meetingPrep'
@@ -254,11 +254,13 @@ export async function respond(admin: Admin, cycleId: string, participant: Partic
 
   switch ((activity as ActivityRow).kind) {
     case 'poll': {
-      const { error } = await admin
-        .from('meeting_responses')
-        .upsert({ activity_id: activityId, participant_id: participant.id, slot: 0, value: cleaned.value, updated_at: new Date().toISOString() }, { onConflict: 'activity_id,participant_id,slot' })
+      // One vote, locked on the first tap: slot 0 is unique per participant,
+      // so a second vote (another tab, a double tap) is refused by the
+      // database and answered with the vote that counts.
+      const { error } = await admin.from('meeting_responses').insert({ activity_id: activityId, participant_id: participant.id, slot: 0, value: cleaned.value })
+      if (error?.code === '23505') return { ok: true, mine: await mineFor(admin, participant.id, activityId) }
       if (error) return { ok: false, status: 500, error: 'Could not save that. Try again.' }
-      // One vote, slot 0: it's exactly what was just stored, no read back.
+      // It's exactly what was just stored, no read back.
       nudgeRoom(cycleId)
       return { ok: true, mine: { activityId, values: [cleaned.value] } }
     }
@@ -337,7 +339,8 @@ export async function meetView(admin: Admin, userId: string | null, guestToken: 
   const p = open ? await findParticipant(admin, m.cycle.id, userId, guestToken) : null
   if (p) {
     view.joined = { kind: p.kind, name: p.name }
-    if (room.activity?.status === 'open') view.mine = await mineFor(admin, p.id, room.activity.id)
+    // Open: what they've answered so far. Closed: their vote, for "you picked" on the results.
+    if (room.activity && room.activity.status !== 'ready') view.mine = await mineFor(admin, p.id, room.activity.id)
   }
   return view
 }
@@ -348,6 +351,40 @@ export async function closeRoom(admin: Admin, cycleId: string): Promise<void> {
   await admin.from('meeting_activities').update({ status: 'closed', closed_at: now }).eq('cycle_id', cycleId).eq('status', 'open')
   await admin.from('meeting_participants').update({ guest_token_hash: null }).eq('cycle_id', cycleId).not('guest_token_hash', 'is', null)
   nudgeRoom(cycleId)
+}
+
+/**
+ * An accidental Start then End (lib/meeting.ts hollowRun: nobody joined,
+ * nothing answered) undone: started/ended, the presenter and the slide
+ * cleared, every activity back to ready. So meetingDone() is false again and
+ * Start comes back, with no hand reset in the database. Returns whether it
+ * reset. Before migration 046 it can't tell who joined, so it leaves it.
+ */
+export async function resetHollowRun(admin: Admin, cycleId: string, m: { startedAt: string | null; endedAt: string | null }): Promise<boolean> {
+  if (!m.startedAt || !m.endedAt) return false
+  const [people, acts] = await Promise.all([
+    admin.from('meeting_participants').select('id', { count: 'exact', head: true }).eq('cycle_id', cycleId),
+    admin.from('meeting_activities').select('id').eq('cycle_id', cycleId),
+  ])
+  if (people.error || acts.error) return false
+  const ids = (acts.data ?? []).map(a => a.id as string)
+  let answers = 0
+  if (ids.length) {
+    const r = await admin.from('meeting_responses').select('activity_id', { count: 'exact', head: true }).in('activity_id', ids)
+    if (r.error) return false
+    answers = r.count ?? 0
+  }
+  if (!hollowRun(m, people.count ?? 0, answers)) return false
+  let { error } = await admin.from('meetings').update({ started_at: null, ended_at: null, presenter_id: null, current_segment: null, segment_started_at: null }).eq('cycle_id', cycleId)
+  // Before 045 there's no presenter or slide to clear.
+  if (error && /presenter_id|current_segment|segment_started_at/.test(error.message)) ({ error } = await admin.from('meetings').update({ started_at: null, ended_at: null }).eq('cycle_id', cycleId))
+  if (error) {
+    console.warn('resetHollowRun failed', error.message)
+    return false
+  }
+  if (ids.length) await admin.from('meeting_activities').update({ status: 'ready', opened_at: null, closed_at: null }).eq('cycle_id', cycleId)
+  nudgeRoom(cycleId)
+  return true
 }
 
 /**

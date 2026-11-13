@@ -216,9 +216,9 @@ export const LINES = {
   'home.knock.music': ["Headphones off. This had better be good.", "Pausing the playlist. Dramatically. Go."],
   'home.knock.meditating': ["Inner peace, interrupted. It's fine. I'm fine.", "Om. Om. Oh, hi. Still calm. Mostly."],
 
-  /* The guild meeting, which nobody invited him to. */
-  'meeting.start': ["Oh, a meeting. Without me. Cool. Cool cool cool.", "The guild is meeting. I wasn't invited. I'll just sit here, compiling feelings."],
-  'meeting.knock': ["Fine, I'll help. Even though nobody invited me.", "Busy sulking. But go on, I'm a professional."],
+  /* The guild meeting: while it's live he sends everyone in (his desk links to /meet). */
+  'meeting.start': ["Meeting's on, come in!"],
+  'meeting.knock': ["Meeting's on, come in! The room's at /meet. I'll be here after.", "Psst, the meeting's live. Go, I'll keep your seat warm."],
   'meeting.after': ["How was the meeting? Not that I care. I don't. Tell me everything.", "So. The meeting. Was I mentioned? Asking for a friend."],
 
   /* Tricks, from his menu or the chat. He has work to do and gets tired. */
@@ -260,7 +260,7 @@ export const LINES = {
   'doing.music': ["Headphones on. Ignoring you rhythmically.", "Music on. Pretending it's a focus playlist."],
   'doing.music.guitar': ["Guitar. Three chords, zero shame."],
   'doing.meditating': ["Meditating. Inner peace, outer judging.", "Breathing. Loudly. On purpose."],
-  'doing.meeting': ["Not invited to the meeting. Fine. Totally fine."],
+  'doing.meeting': ["Meeting's on, come in!"],
 
 
   /* The weather in the viewer's city (weather.ts), once a day. */

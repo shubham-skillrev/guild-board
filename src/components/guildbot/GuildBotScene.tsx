@@ -41,7 +41,7 @@ export function useActivity(): Activity | null {
 /** The face an activity wears when nothing has just happened. */
 function restingFace(scene: Scene, mood: Expression): Expression {
   switch (scene) {
-    case 'meeting': return 'grumpy'
+    case 'meeting': return 'excited'
     case 'waking':
     case 'sleeping': return 'sleepy'
     case 'coffee':
@@ -347,7 +347,6 @@ function DeskFront({ scene, variant, away }: { scene: Scene; variant: Variant; a
           <path d="M39 50l8 1.4M39 53l8 1.4M53 51.4l8-1.4M53 54.4l8-1.4" className="gb-line" strokeOpacity={0.35} strokeWidth={1} />
         </g>
       )}
-      {scene === 'meeting' && !away && <Fumes />}
       {scene === 'sleeping' && (
         <g>
           {/* A dim desk lamp, and z's drifting up off him. */}
@@ -404,8 +403,8 @@ function MeetingSign() {
     <g>
       <path d="M70 58 72.5 37h23l2.5 21Z" className="gb-page" strokeWidth={1.5} strokeLinejoin="round" />
       <text x={84} y={45.5} textAnchor="middle" fontSize={5.4} fontWeight={800} className="gb-sign-text">MEETING</text>
-      <text x={84} y={51.5} textAnchor="middle" fontSize={4.2} className="gb-sign-text">in progress</text>
-      <text x={84} y={56} textAnchor="middle" fontSize={3.6} fontStyle="italic" className="gb-sign-muted">(not invited)</text>
+      <text x={84} y={51.5} textAnchor="middle" fontSize={4.2} className="gb-sign-text">is live</text>
+      <text x={84} y={56} textAnchor="middle" fontSize={3.6} fontStyle="italic" className="gb-sign-muted">come in!</text>
     </g>
   )
 }
@@ -434,16 +433,6 @@ function OutSign({ y }: { y: number }) {
   )
 }
 
-
-/** Steam off his head: the meeting he wasn't invited to. */
-function Fumes() {
-  return (
-    <g className="gb-fumes">
-      <path data-fume d="M44 14c-3 0-3.6-4 0-4.6 0-3 4.6-3 5 0 3.4 0 3.4 4.6 0 4.6Z" />
-      <path data-fume d="M58 12c-2.4 0-3-3.2 0-3.7 0-2.4 3.7-2.4 4 0 2.7 0 2.7 3.7 0 3.7Z" />
-    </g>
-  )
-}
 
 function Note({ x, y }: { x: number; y: number }) {
   return (

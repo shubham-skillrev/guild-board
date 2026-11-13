@@ -1,9 +1,12 @@
 import { Markdown } from '@/components/ui/Markdown'
+import { AuthorMark } from '@/components/topics/AuthorMark'
 import { cn } from '@/lib/utils/cn'
 import type { MeetPost } from '@/lib/meeting'
 
 /**
- * A discussion topic's slide: the post's title and its complete description,
+ * A discussion topic's slide: who posted it (avatar and @handle, as on the
+ * board card; a ghost post keeps its @ghost_ handle, which lib/guild/meetingPrep.ts
+ * meetPosts resolves server-side), the post's title and its complete description,
  * rendered as markdown the way the board does (react-markdown, no raw HTML,
  * so nothing unsafe gets through). On the shared screen the type and the
  * columns scale with the length so a long post still fits 1920×1080.
@@ -15,6 +18,7 @@ export function TopicBody({ post, eyebrow, size, className }: { post: MeetPost; 
     return (
       <article className={cn('pt-5', className)}>
         {eyebrow && <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">{eyebrow}</p>}
+        <AuthorMark username={post.author_username} isSystem={post.is_system} size={20} className="mt-3 text-footnote" />
         <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance @3xl:text-[34px]">{post.title}</h1>
         {body && <div className="prose-guild mt-4 text-[15px] leading-relaxed @3xl:text-[18px]"><Markdown>{body}</Markdown></div>}
       </article>
@@ -26,6 +30,7 @@ export function TopicBody({ post, eyebrow, size, className }: { post: MeetPost; 
   return (
     <article className={cn('flex min-h-0 w-full flex-col', className)}>
       {eyebrow && <p className="eyebrow">{eyebrow}</p>}
+      <AuthorMark username={post.author_username} isSystem={post.is_system} size={32} className="mt-4 gap-2.5! text-[clamp(17px,1.05vw,20px)]" />
       <h1 className="mt-3 max-w-[40ch] text-[clamp(36px,2.6vw,52px)] font-semibold leading-[1.08] tracking-[-0.03em] text-ink text-balance">{post.title}</h1>
       {body && (
         <div className={cn('prose-guild mt-8 min-h-0 gap-14 leading-[1.5] text-ink-soft [&_*]:break-inside-avoid-column', text, cols, !cols && 'max-w-[62rem]')}>

@@ -117,7 +117,8 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
       setView(v => ({ ...v, room: newerRoom(v.room, next) }))
       if (key !== shownKey.current) {
         shownKey.current = key
-        if (next.activity?.status === 'open' || !next.live) refresh()
+        // Closed too: the results mark this person's own vote ("you picked").
+        if (next.activity || !next.live) refresh()
       }
     },
     [refresh],
@@ -218,7 +219,7 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
       const mineAct = room?.activity && room.activity.segmentId === key ? room.activity : null
       body = (
         <div key={`seg-${seg.id}:${mineAct?.status ?? ''}`} className="gb-swap-in">
-          <PhoneSlide seg={seg} agenda={view.agenda!} index={segIdx} posts={view.posts ?? {}} notes={notes} activity={mineAct} />
+          <PhoneSlide seg={seg} agenda={view.agenda!} index={segIdx} posts={view.posts ?? {}} notes={notes} activity={mineAct} mine={pickOf(view.mine, mineAct)} />
         </div>
       )
     } else if (!room?.warm) {
@@ -258,7 +259,7 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
  * tappable (a source, a board post, in a new tab); the next section is a
  * line at the bottom so nobody wonders what's coming.
  */
-function PhoneSlide({ seg, agenda, index, posts, notes, activity }: { seg: PublicSegment; agenda: PublicSegment[]; index: number; posts: Record<string, MeetPost>; notes: PresenterNotes[string] | null; activity: PublicActivity | null }) {
+function PhoneSlide({ seg, agenda, index, posts, notes, activity, mine }: { seg: PublicSegment; agenda: PublicSegment[]; index: number; posts: Record<string, MeetPost>; notes: PresenterNotes[string] | null; activity: PublicActivity | null; mine: number | null }) {
   const kind = slideKind(seg, !!activity)
   const sections = sectionsOf(agenda)
   const here = sections.findIndex(x => index >= x.start && index < x.start + x.slides)
@@ -303,7 +304,7 @@ function PhoneSlide({ seg, agenda, index, posts, notes, activity }: { seg: Publi
       <div className="pt-5">
         {eyebrow(kind === 'results' ? 'Results on screen' : activity?.status === 'closed' ? 'Closed' : 'Opens in a moment')}
         <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance @3xl:text-[36px]">{kind === 'results' ? seg.cue || seg.title : activity?.prompt ?? seg.title}</h1>
-        {activity && activity.status !== 'ready' && <div className="mt-5"><ActivityResults activity={activity} size="phone" /></div>}
+        {activity && activity.status !== 'ready' && <div className="mt-5"><ActivityResults activity={activity} mine={mine} /></div>}
       </div>
     )
   } else if (topic) {
@@ -353,6 +354,13 @@ function YourNotes({ notes }: { notes: PresenterNotes[string] }) {
       )}
     </aside>
   )
+}
+
+/** This person's poll vote on `activity`, for "you picked" on its results. */
+function pickOf(mine: Mine | null | undefined, activity: PublicActivity | null): number | null {
+  if (!activity || activity.kind !== 'poll' || mine?.activityId !== activity.id) return null
+  const o = mine.values[0]?.option
+  return typeof o === 'number' ? o : null
 }
 
 function people(n: number) {

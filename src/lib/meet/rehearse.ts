@@ -121,6 +121,8 @@ export function withAnswer(a: PublicActivity, values: Record<string, unknown>[] 
 
 /** The answers a local phone keeps for one activity after sending `value` (what POST /api/meet would return as `mine`). */
 export function addAnswer(kind: PublicActivity['kind'], before: Record<string, unknown>[], value: Record<string, unknown>): Record<string, unknown>[] {
+  // A poll vote locks on the first tap, as on the server (lib/meet/room.ts respond).
+  if (kind === 'poll') return before.length ? before : [value]
   if (kind !== 'cloud') return [value]
   const w = String(value.word ?? '')
   if (!w || before.some(v => v.word === w)) return before

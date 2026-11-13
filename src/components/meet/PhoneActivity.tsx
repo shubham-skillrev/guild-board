@@ -45,41 +45,40 @@ function Prompt({ children }: { children: React.ReactNode }) {
   return <h1 className="mt-6 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance @3xl:text-[36px]">{children}</h1>
 }
 
-/** Kers' reaction to a vote: one per option, so changing your mind gets a new one. */
+/** Kers' reaction to a vote: one per option. */
 const LOCKED = ['Locked in.', 'Bold. Locked in.', 'Noted. Locked in.', 'Brave. Locked in.']
 
 /**
- * One vote, changeable until the poll closes. The options are the shared
- * screen's tiles (the same shape and colour per option), big tap targets;
- * the chosen one fills, the rest step back, and Kers locks it in.
+ * One vote, locked on the first tap (the server keeps the first one too:
+ * lib/meet/room.ts respond). The options are the shared screen's tiles (the
+ * same shape and colour per option), big tap targets; the chosen one fills,
+ * the rest step back and stop answering, and Kers locks it in.
  */
 function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
   const saved = typeof mine?.values[0]?.option === 'number' ? (mine.values[0].option as number) : null
   const [picked, setPicked] = useState<number | null>(null)
-  const [sending, setSending] = useState(false)
-  const chosen = picked ?? saved
+  // The server's answer wins: a vote from another tab is the one that counts.
+  const chosen = saved ?? picked
+  const locked = chosen !== null
   const long = activity.options.some(o => o.length > 22)
 
   const vote = async (option: number) => {
-    if (option === chosen && !sending) return
+    if (locked) return
     setPicked(option)
-    setSending(true)
     try {
       const r = await post({ action: 'respond', activity_id: activity.id, value: { option } })
       if (r.mine) onMine(r.mine)
     } catch (err) {
-      // Shown as locked in straight away; a refusal rolls it back to what was saved.
+      // Shown as locked in straight away; a refusal unlocks it again.
       setPicked(null)
       toast(err instanceof Error ? err.message : 'Could not vote. Try again.', 'error')
-    } finally {
-      setSending(false)
     }
   }
 
   return (
     <div>
       <Prompt>{activity.prompt}</Prompt>
-      <div role="radiogroup" aria-label={activity.prompt} className={cn('mt-6 grid gap-2.5', long ? 'grid-cols-1' : 'grid-cols-2')}>
+      <div role="radiogroup" aria-label={activity.prompt} aria-readonly={locked || undefined} className={cn('mt-6 grid gap-2.5', long ? 'grid-cols-1' : 'grid-cols-2')}>
         {activity.options.map((o, i) => {
           const on = chosen === i
           const tile = tileFor(i)
@@ -89,12 +88,15 @@ function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
               type="button"
               role="radio"
               aria-checked={on}
+              aria-disabled={locked && !on ? true : undefined}
               onClick={() => vote(i)}
               className={cn(
-                'press relative flex w-full items-center gap-3 rounded-[16px] border-2 px-4 text-left text-[16px] font-medium leading-snug text-ink transition-[opacity,background-color,border-color] duration-200',
+                'relative flex w-full items-center gap-3 rounded-[16px] border-2 px-4 text-left text-[16px] font-medium leading-snug text-ink transition-[opacity,background-color,border-color] duration-200',
+                !locked && 'press',
                 long ? 'min-h-16 py-3' : 'min-h-28 flex-col items-start justify-between py-3.5',
                 on ? cn(tile.on, 'gb-lock') : tile.tile,
-                chosen !== null && !on && 'opacity-55',
+                locked && !on && 'opacity-55',
+                locked && 'cursor-default',
               )}
             >
               <OptionShape i={i} size={long ? 22 : 26} />
@@ -105,13 +107,13 @@ function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
         })}
       </div>
       <div className="mt-5 flex min-h-12 items-center gap-3" aria-live="polite">
-        {chosen !== null ? (
+        {locked ? (
           <>
             <Kers key={chosen} size={44} colour="meeting" expression="excited" motion="hop" special="happy" />
-            <p className="text-[15px] font-medium text-ink">{LOCKED[chosen % LOCKED.length]}<span className="block text-footnote font-normal text-ink-muted">Change it any time until the poll closes.</span></p>
+            <p className="text-[15px] font-medium text-ink">{LOCKED[chosen % LOCKED.length]}</p>
           </>
         ) : (
-          <p className="text-footnote text-ink-muted">Tap one. Match the shape on the screen.</p>
+          <p className="text-footnote text-ink-muted">One tap locks it in. Match the shape on the screen.</p>
         )}
       </div>
     </div>

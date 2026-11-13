@@ -26,7 +26,11 @@
 //                          activity slide's activity opens (if it never has)
 //            end           meeting mode off: closes any open activity and
 //                          expires every guest's token (in a rehearsal:
-//                          rehearse_end, so it never sets ended_at)
+//                          rehearse_end, so it never sets ended_at). A run
+//                          nobody joined or answered is undone instead
+//                          (room.ts resetHollowRun), so Start comes back
+//            reopen        within REOPEN_MS (1 h) of End: live again, the
+//                          caller presents, every answer kept
 //            open_activity { activity_id } the presenter opens the segment's
 //                          poll or word cloud (closing any other)
 //            close_activity { activity_id } closes it (moving on does too)
@@ -44,8 +48,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminId } from '@/lib/guild/staff'
 import { agendaMessage, draftAgenda, draftRecap, getMeeting, mergeAgenda, missing045, openCycle, recapMessage, saveMeeting } from '@/lib/guild/meeting'
 import { draftPrep, ensurePrepBeforeMeeting } from '@/lib/guild/meetingPrep'
-import { cleanNote, LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
-import { activitiesOnGoto, closeActivity, closeRoom, endRehearsal, gotoLocked, nudgeRoom, openActivity, readRoom } from '@/lib/meet/room'
+import { canReopen, cleanNote, LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
+import { activitiesOnGoto, closeActivity, closeRoom, endRehearsal, gotoLocked, nudgeRoom, openActivity, readRoom, resetHollowRun } from '@/lib/meet/room'
 import { NAV_LOCKED_MESSAGE } from '@/lib/meet/slides'
 import { missing047, newRehearsalCode, rehearsalBlocked, rehearsalLeft, rehearsalOn, rehearsalWipeMode } from '@/lib/meet/liveRehearsal'
 import { isSlackConfigured, postToSlack } from '@/lib/slack/send'
@@ -69,9 +73,16 @@ async function presenterName(id: string | null): Promise<string | null> {
   return data?.username ?? null
 }
 
-async function state(cycle: MeetingState['cycle'], me: string): Promise<MeetingState> {
-  const meeting = await getMeeting(cycle.id)
-  const [name, room] = await Promise.all([presenterName(meeting.presenterId), readRoom(createAdminClient(), cycle.id).catch(() => null)])
+async function state(cycle: MeetingState['cycle'], me: string, heal = false): Promise<MeetingState> {
+  let meeting = await getMeeting(cycle.id)
+  let [name, room] = await Promise.all([presenterName(meeting.presenterId), readRoom(createAdminClient(), cycle.id).catch(() => null)])
+  // An accidental Start then End (nobody joined, nothing answered) undoes
+  // itself, so Start comes back. The room's count rules out a real meeting
+  // without another query.
+  if (heal && meeting.startedAt && meeting.endedAt && room?.participants === 0 && (await resetHollowRun(createAdminClient(), cycle.id, meeting))) {
+    meeting = await getMeeting(cycle.id)
+    ;[name, room] = await Promise.all([presenterName(meeting.presenterId), readRoom(createAdminClient(), cycle.id).catch(() => null)])
+  }
   return { cycle, meeting, me, presenterName: name, serverNow: new Date().toISOString(), room }
 }
 
@@ -83,7 +94,8 @@ export async function GET(request: Request) {
   const admin = createAdminClient()
   const cycle = id ? (await admin.from('cycles').select('id, label, meeting_at').eq('id', id).maybeSingle()).data : await openCycle(admin)
   if (!cycle) return NextResponse.json({ error: 'No such month' }, { status: 404 })
-  const s = await state(cycle, adminId)
+  // The open month heals an accidental Start/End (a past month is left as it is).
+  const s = await state(cycle, adminId, !id)
   // Kers' prep at the latest: an admin's board loading inside the 3 h before
   // (?prep=1, sent once by the board's card, never by the 3 s polls).
   if (params.get('prep') === '1') after(() => ensurePrepBeforeMeeting(cycle, s.meeting.startedAt).catch(err => console.warn('ensurePrepBeforeMeeting failed', err)))
@@ -232,6 +244,17 @@ export async function POST(request: Request) {
       }
       const { error } = await saveMeeting(cycle.id, { ended_at: now })
       if (!error) await closeRoom(createAdminClient(), cycle.id)
+      // Nobody joined, nothing answered: an accident, undone (state heals it).
+      return fail(error) ?? NextResponse.json(await state(cycle, adminId, true))
+    }
+    case 'reopen': {
+      const m = await getMeeting(cycle.id)
+      if (meetingLive(m)) return NextResponse.json(await state(cycle, adminId))
+      if (!canReopen(m)) return NextResponse.json({ error: 'It can only be reopened within an hour of ending.' }, { status: 409 })
+      // Live again with every answer kept; the caller presents. Guests join again (End expired their tokens).
+      let { error } = await saveMeeting(cycle.id, { ended_at: null, presenter_id: adminId })
+      if (missing045(error)) ({ error } = await saveMeeting(cycle.id, { ended_at: null }))
+      if (!error) nudgeRoom(cycle.id)
       return fail(error) ?? NextResponse.json(await state(cycle, adminId))
     }
     case 'open_activity':

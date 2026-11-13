@@ -7,7 +7,7 @@
  * and have fewer laptops in them.
  *
  * A few states beat the routine (the host decides, see overrideFor):
- *   meeting  the guild meeting is on and nobody invited him: he sulks
+ *   meeting  the guild meeting is live: he sends everyone in (the host reads it from /api/meet/live)
  *   helping  you opened the chat: he gets up and comes over
  *   out      you've used this week's asks: he naps behind an OUT sign
  */

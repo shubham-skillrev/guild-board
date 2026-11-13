@@ -1,35 +1,56 @@
 import { ImageResponse } from 'next/og'
 import { NO_ANSWERS, type MeetingReport, type ReportActivity } from '@/lib/meet/report'
+import {
+  CARD_PAD_X,
+  fillWidth,
+  pollColumns,
+  pollTiles,
+  REPORT_CLOUD,
+  REPORT_GAP,
+  REPORT_HALF,
+  REPORT_PAD,
+  REPORT_TILE_GAP,
+  REPORT_TILE_H,
+  reportCloud,
+  reportGrid,
+  reportImageSize,
+  SAFFRON_HEX,
+  TILE_HEX,
+  WORD_TONE_RGB,
+  wordToneIndex,
+} from '@/lib/meet/results'
 
-/** Portrait, 1200 wide: reads whole in a Slack preview and on a phone. Taller with more activities. */
-const CARD_H = 280
+/** Portrait, 1200 wide: reads whole in a Slack preview and on a phone. Taller with more (or bigger) activities. */
 export function reportSize(r: Pick<MeetingReport, 'activities' | 'rating'>): { width: number; height: number } {
-  const rows = Math.max(1, Math.ceil(Math.min(r.activities.length, 6) / 2))
-  return { width: 1200, height: Math.max(1200, 540 + rows * (CARD_H + 24) + (r.rating ? 230 : 0)) }
+  return reportImageSize(r.activities, !!r.rating)
 }
 const INK = '#16181D'
 const SOFT = '#4A4D55'
 const MUTED = '#8A8C92'
 const GROUND = '#FAFAF8'
-const SAFFRON = '#A34C07'
+const SAFFRON = SAFFRON_HEX
 const GRAPE = '#6C3A5C'
 /** Soft pastels, one per card, in turn. */
 const PASTELS = ['#EEF6F0', '#F3EEF8', '#FDF3E7', '#EAF1FA', '#FBEFF2', '#F1F4E6']
 const KIND: Record<ReportActivity['kind'], string> = { poll: 'Poll', cloud: 'Word cloud', boss: 'Kers’ Boss Round' }
 
 /**
- * The post-meeting report as one PNG (1200x1500) for the guild's Slack
+ * The post-meeting report as one PNG (1200 wide) for the guild's Slack
  * channel (lib/meet/report.ts). Takes the anonymous report only, so no name
- * can ever be drawn.
+ * can ever be drawn. The results are the screen's and the phones' (same
+ * tiles, same shares, same word colours: lib/meet/results.ts), drawn with
+ * inline styles for next/og. The grid (reportGrid) sizes each row to what its
+ * cards need, so nothing is clipped, and an odd card out spans the row.
  */
 export function reportImage(r: MeetingReport): ImageResponse {
   return new ImageResponse(<ReportCard r={r} />, reportSize(r))
 }
 
 export function ReportCard({ r }: { r: MeetingReport }) {
-  const acts = r.activities.slice(0, 6)
+  const acts = r.activities
+  const grid = reportGrid(acts)
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: GROUND, color: INK, padding: '56px 64px', fontFamily: 'sans-serif' }}>
+    <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: GROUND, color: INK, padding: `56px ${REPORT_PAD}px`, fontFamily: 'sans-serif' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 20, color: MUTED, letterSpacing: 4, textTransform: 'uppercase', fontFamily: 'monospace' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', width: 13, height: 13, background: SAFFRON, transform: 'rotate(45deg)' }} />
@@ -54,10 +75,14 @@ export function ReportCard({ r }: { r: MeetingReport }) {
         <span style={{ fontSize: 26, color: SOFT }}>{`${r.people.members} ${r.people.members === 1 ? 'member' : 'members'} · ${r.people.guests} ${r.people.guests === 1 ? 'guest' : 'guests'}`}</span>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 24, marginTop: 28, flex: 1, alignContent: 'flex-start' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: REPORT_GAP, marginTop: 28, flex: 1 }}>
         {acts.length === 0 && <div style={{ display: 'flex', fontSize: 26, color: MUTED }}>No activities this month.</div>}
-        {acts.map((a, i) => (
-          <ActivityCard key={i} a={a} bg={PASTELS[i % PASTELS.length]} />
+        {grid.rows.map((row, ri) => (
+          <div key={ri} style={{ display: 'flex', gap: REPORT_GAP, height: row.height }}>
+            {row.cards.map(c => (
+              <ActivityCard key={c.index} a={acts[c.index]} bg={PASTELS[c.index % PASTELS.length]} width={c.width} height={row.height} />
+            ))}
+          </div>
         ))}
       </div>
 
@@ -70,50 +95,119 @@ function Eyebrow({ text }: { text: string }) {
   return <div style={{ display: 'flex', flexShrink: 0, fontSize: 16, color: MUTED, letterSpacing: 3, textTransform: 'uppercase', fontFamily: 'monospace' }}>{text}</div>
 }
 
-function ActivityCard({ a, bg }: { a: ReportActivity; bg: string }) {
+function ActivityCard({ a, bg, width, height }: { a: ReportActivity; bg: string; width: number; height: number }) {
   const answered = `${a.answered} ${a.kind === 'boss' ? 'tried' : 'answered'}`
+  const inner = width - CARD_PAD_X * 2
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: 524, height: CARD_H, background: bg, borderRadius: 24, padding: '24px 28px', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width, height, background: bg, borderRadius: 24, padding: `24px ${CARD_PAD_X}px` }}>
       <Eyebrow text={`${KIND[a.kind]}${a.section && !KIND[a.kind].includes(a.section) ? ` · ${a.section}` : ''}`} />
       <div style={{ display: 'flex', flexShrink: 0, fontSize: 26, fontWeight: 700, marginTop: 10, lineHeight: 1.2, maxHeight: 64, overflow: 'hidden' }}>{a.kind === 'boss' && a.boss ? a.boss.problem : a.prompt}</div>
-      {a.empty ? (
-        <div style={{ display: 'flex', fontSize: 24, color: MUTED, marginTop: 'auto', marginBottom: 'auto' }}>{NO_ANSWERS}</div>
-      ) : a.kind === 'poll' && a.options ? (
-        <Bars bars={a.options} width={468} />
-      ) : a.kind === 'cloud' && a.words ? (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 18 }}>
-          {a.words.map((w, i) => (
-            <div key={w.word} style={{ display: 'flex', alignItems: 'baseline', gap: 8, background: 'rgba(255,255,255,0.75)', borderRadius: 999, padding: '6px 16px', fontSize: i === 0 ? 28 : 22, fontWeight: i === 0 ? 700 : 400 }}>
-              <span>{w.word}</span>
-              <span style={{ fontSize: 18, color: MUTED }}>{String(w.n)}</span>
-            </div>
-          ))}
-        </div>
-      ) : a.boss ? (
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginTop: 'auto', marginBottom: 'auto' }}>
-          <span style={{ fontSize: 80, fontWeight: 700, letterSpacing: -3, lineHeight: 1 }}>{`${a.boss.pct}%`}</span>
-          <span style={{ fontSize: 22, color: SOFT }}>{`passed every test (${a.boss.passed} of ${a.boss.trying})`}</span>
-        </div>
-      ) : null}
+      <div style={{ display: 'flex', flexDirection: 'column', marginTop: 18 }}>
+        {a.empty ? (
+          <div style={{ display: 'flex', fontSize: 24, color: MUTED }}>{NO_ANSWERS}</div>
+        ) : a.kind === 'poll' && a.options ? (
+          <Tiles bars={a.options} width={inner} wide={width > REPORT_HALF} />
+        ) : a.kind === 'cloud' && a.words ? (
+          <Cloud words={a.words} width={inner} />
+        ) : a.boss ? (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}>
+            <span style={{ fontSize: 80, fontWeight: 700, letterSpacing: -3, lineHeight: 1 }}>{`${a.boss.pct}%`}</span>
+            <span style={{ fontSize: 22, color: SOFT }}>{`passed every test (${a.boss.passed} of ${a.boss.trying})`}</span>
+          </div>
+        ) : null}
+      </div>
       <div style={{ display: 'flex', fontSize: 18, color: SOFT, marginTop: 'auto' }}>{a.empty ? '' : answered}</div>
     </div>
   )
 }
 
-/** One row per option: its label, the bar, votes and share. */
-function Bars({ bars, width }: { bars: { label: string; n: number; pct: number }[]; width: number }) {
-  const max = Math.max(1, ...bars.map(b => b.n))
-  const labelW = 210
-  const track = width - labelW - 100
+/** An option's shape, as on the screen and the phones (components/meet/tiles.tsx). */
+function Shape({ i, size }: { i: number; size: number }) {
+  const t = TILE_HEX[i % TILE_HEX.length]
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', marginTop: 14, gap: 10 }}>
-      {bars.map((b, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
-          <div style={{ display: 'flex', width: labelW, fontSize: 17, color: SOFT, height: 22, overflow: 'hidden', paddingRight: 12 }}>{b.label}</div>
-          <div style={{ display: 'flex', width: track, height: 12 }}>
-            <div style={{ display: 'flex', width: Math.max(6, (b.n / max) * track), height: 12, background: b.n === max && b.n > 0 ? GRAPE : INK, opacity: b.n === max && b.n > 0 ? 0.85 : 0.35, borderRadius: '0 4px 4px 0' }} />
+    <svg width={size} height={size} viewBox="0 0 20 20" style={{ flexShrink: 0 }}>
+      {t.shape === 'triangle' && <path d="M10 2.5 18 17H2z" fill={t.hex} stroke={t.hex} strokeWidth="1.5" strokeLinejoin="round" />}
+      {t.shape === 'diamond' && <path d="M10 1.5 18.5 10 10 18.5 1.5 10z" fill={t.hex} />}
+      {t.shape === 'circle' && <circle cx="10" cy="10" r="8" fill={t.hex} />}
+      {t.shape === 'square' && <rect x="2.5" y="2.5" width="15" height="15" rx="2.5" fill={t.hex} />}
+    </svg>
+  )
+}
+
+/**
+ * The poll as the voting tiles: each option's shape and label, its % big, a
+ * soft fill to that level (none at 0%), the winner ringed in saffron.
+ */
+function Tiles({ bars, width, wide }: { bars: { label: string; n: number; pct: number }[]; width: number; wide: boolean }) {
+  const labels = bars.map(b => b.label)
+  const { tiles } = pollTiles(labels, bars.map(b => b.n))
+  const cols = wide ? Math.min(Math.max(1, labels.length), 4) : pollColumns(labels, 2)
+  const w = Math.floor((width - (cols - 1) * REPORT_TILE_GAP) / cols)
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: REPORT_TILE_GAP, width }}>
+      {tiles.map(t => {
+        const hue = TILE_HEX[t.i % TILE_HEX.length]
+        const ring = t.lead
+        const fill = fillWidth(bars[t.i].pct)
+        return (
+          <div
+            key={t.i}
+            style={{
+              display: 'flex',
+              position: 'relative',
+              width: w,
+              height: REPORT_TILE_H,
+              borderRadius: 16,
+              overflow: 'hidden',
+              background: `rgba(${hue.rgb},0.07)`,
+              border: ring ? `3px solid ${SAFFRON}` : `2px solid rgba(${hue.rgb},0.25)`,
+            }}
+          >
+            {fill > 0 && <div style={{ display: 'flex', position: 'absolute', left: 0, top: 0, bottom: 0, width: `${fill}%`, background: `rgba(${hue.rgb},0.16)` }} />}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '0 16px' }}>
+              <Shape i={t.i} size={22} />
+              <div style={{ display: 'flex', flex: 1, fontSize: 19, lineHeight: 1.2, color: INK, maxHeight: 48, overflow: 'hidden' }}>{t.label}</div>
+              <span style={{ fontSize: 30, fontWeight: t.lead ? 700 : 400, color: t.lead ? INK : SOFT, letterSpacing: -1 }}>{`${bars[t.i].pct}%`}</span>
+            </div>
           </div>
-          <div style={{ display: 'flex', marginLeft: 12, fontSize: 17, color: INK }}>{`${b.n} · ${b.pct}%`}</div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** The word cloud as on the screen: its rows (biggest in the middle), each word in its own pastel. */
+function Cloud({ words, width }: { words: { word: string; n: number }[]; width: number }) {
+  const { rows, scale } = reportCloud(words, width)
+  const leader = words[0]
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: REPORT_CLOUD.gap, width }}>
+      {rows.map((row, r) => (
+        <div key={r} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: REPORT_CLOUD.gap }}>
+          {row.map(({ w, size }) => {
+            const rgb = WORD_TONE_RGB[wordToneIndex(w.word)]
+            const top = w.word === leader.word && leader.n > 1
+            const px = Math.round(size * scale)
+            return (
+              <div
+                key={w.word}
+                style={{
+                  display: 'flex',
+                  fontSize: px,
+                  lineHeight: 1.15,
+                  padding: `${Math.round(px * 0.14)}px ${Math.round(px * 0.6)}px`,
+                  borderRadius: 999,
+                  background: `rgba(${rgb},${top ? 0.2 : 0.09})`,
+                  border: `1.5px solid rgba(${rgb},${top ? 0.45 : 0.2})`,
+                  fontWeight: top || size > REPORT_CLOUD.min + (REPORT_CLOUD.max - REPORT_CLOUD.min) * 0.45 ? 700 : 400,
+                  color: INK,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {w.word}
+              </div>
+            )
+          })}
         </div>
       ))}
     </div>

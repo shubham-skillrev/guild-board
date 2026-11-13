@@ -37,5 +37,6 @@ test('withAnswer: one more vote, word or run on top of the sample', () => {
   const boss = { ...base('boss'), status: 'open' as const, tally: { passed: 1, trying: 3, pct: 33 } }
   assert.deepEqual(withAnswer(boss, [{ passed: true, tests: 6, of: 6 }]).tally, { passed: 2, trying: 4, pct: 50 })
   assert.deepEqual(addAnswer('cloud', [{ word: 'a' }], { word: 'b' }), [{ word: 'a' }, { word: 'b' }])
-  assert.deepEqual(addAnswer('poll', [{ option: 0 }], { option: 1 }), [{ option: 1 }])
+  assert.deepEqual(addAnswer('poll', [{ option: 0 }], { option: 1 }), [{ option: 0 }])
+  assert.deepEqual(addAnswer('poll', [], { option: 1 }), [{ option: 1 }])
 })

@@ -230,6 +230,36 @@ export function meetingDone(m: { startedAt: string | null; endedAt: string | nul
   return new Date(m.startedAt).getTime() >= at - MEET_LEAD_MS
 }
 
+/** After End, the board card offers "Reopen meeting" for this long (answers kept). */
+export const REOPEN_MS = 3_600_000
+
+/** Whether an ended meeting may still be reopened: it ended under REOPEN_MS ago. */
+export function canReopen(m: { startedAt: string | null; endedAt: string | null } | null | undefined, now = Date.now()): boolean {
+  if (!m?.startedAt || !m.endedAt) return false
+  const ended = new Date(m.endedAt).getTime()
+  return Number.isFinite(ended) && now - ended >= 0 && now - ended < REOPEN_MS
+}
+
+/**
+ * A start and End that nobody joined and nobody answered: an accident
+ * (Start, then End). It mustn't count as the meeting having run, so the
+ * server resets it (started/ended cleared) and Start comes back.
+ */
+export function hollowRun(m: { startedAt: string | null; endedAt: string | null } | null | undefined, joined: number, answers: number): boolean {
+  return !!m?.startedAt && !!m.endedAt && joined === 0 && answers === 0
+}
+
+/** Inside this long before the meeting (or once it's due), the Start sheet picks "Go live"; earlier, "Rehearse". */
+export const GO_LIVE_WINDOW_MS = 30 * 60_000
+
+/** The Start sheet's default: go live within 30 minutes of the meeting (or after its time), else rehearse. */
+export function defaultStartMode(meetingAt: string | null | undefined, now = Date.now()): 'live' | 'rehearse' {
+  if (!meetingAt) return 'live'
+  const at = new Date(meetingAt).getTime()
+  if (!Number.isFinite(at)) return 'live'
+  return at - now <= GO_LIVE_WINDOW_MS ? 'live' : 'rehearse'
+}
+
 export const MEETING_MINUTES = 60
 export const LIMITS = {
   title: 80, detail: 400, note: 300, owner: 60, recap: 4000, segments: 40, notes: 200, point: 200, opener: 240, points: 3, topics: 3,
@@ -353,6 +383,13 @@ export function segmentCards(s: Pick<Segment, 'cards' | 'topicIds'>): Card[] {
 /** Every post a card or a segment points at, for one fetch. */
 export function agendaPostIds(agenda: Pick<Segment, 'cards' | 'topicIds'>[]): string[] {
   return [...new Set(agenda.flatMap(s => [...(s.topicIds ?? []), ...segmentCards(s).flatMap(c => (c.kind === 'post' ? [c.postId] : []))]))]
+}
+
+/** The slide on the shared screen, as the live banner names it: its title, else its section's. Null when there's none. */
+export function liveSlideTitle(storedAgenda: unknown, currentSegment: string | null | undefined): string | null {
+  if (!currentSegment) return null
+  const s = cleanAgenda(storedAgenda).find(x => x.id === currentSegment)
+  return (s?.title || s?.section || '').trim() || null
 }
 
 /** A slide as every phone may see it: no prep, ever (the presenter's notes go separately, to them alone). */

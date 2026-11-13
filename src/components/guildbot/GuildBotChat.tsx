@@ -269,7 +269,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
     const w = weather.weather
     const wear = weather.wear
     return {
-      doing: life.meeting ? 'sulking about the meeting'
+      doing: life.meeting ? 'sending everyone into the guild meeting, which is live now'
         : variant === 'garden' ? 'sitting in the garden, too hot to walk'
         : variant === 'rainwatch' ? 'watching the rain with chai'
         : DOING[activity],
@@ -347,6 +347,7 @@ export function GuildBotChat({ signedIn }: { signedIn: boolean }) {
           onTrick={t => (t === 'walk' && walkingNow ? life.alreadyWalking() : life.doTrick(t))}
           variant={variant}
           doing={doing}
+          doingHref={life.meeting ? '/meet' : null}
           cursor={life.cursor}
           onPoke={() => life.flash('pleased')}
           patrol={life.patrol}

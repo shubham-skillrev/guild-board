@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { activityKeyFor, cleanAgenda, cleanCards, cleanMeme, earlyStartWarning, MEET_LEAD_MS, MEET_LIVE_MAX_MS, meetingDone, meetingLive, phoneAgenda, publicSegments, sectionsOf, segmentCards, slideKind } from './meeting.ts'
+import { activityKeyFor, liveSlideTitle, canReopen, defaultStartMode, hollowRun, REOPEN_MS, cleanAgenda, cleanCards, cleanMeme, earlyStartWarning, MEET_LEAD_MS, MEET_LIVE_MAX_MS, meetingDone, meetingLive, phoneAgenda, publicSegments, sectionsOf, segmentCards, slideKind } from './meeting.ts'
 
 test('meetingLive: started, not ended, not left running from long ago', () => {
   const now = Date.parse('2026-11-12T12:00:00Z')
@@ -137,4 +137,39 @@ test('meetingDone: a test start and End the day before does not count', () => {
   assert.equal(meetingDone({ startedAt: iso(atMs), endedAt: null }, at), false)
   // No meeting date: trust ended_at.
   assert.equal(meetingDone({ startedAt: iso(atMs), endedAt: iso(atMs) }, null), true)
+})
+
+test('canReopen: only an ended meeting, for an hour after End', () => {
+  const end = Date.parse('2026-11-13T06:30:00Z')
+  const m = { startedAt: '2026-11-13T05:30:00Z', endedAt: new Date(end).toISOString() }
+  assert.equal(canReopen(m, end + 10 * 60_000), true)
+  assert.equal(canReopen(m, end + REOPEN_MS), false)
+  assert.equal(canReopen({ startedAt: m.startedAt, endedAt: null }, end), false)
+  assert.equal(canReopen(null, end), false)
+})
+
+test('hollowRun: a start and End with nobody joined and nothing answered', () => {
+  const m = { startedAt: '2026-11-13T05:25:00Z', endedAt: '2026-11-13T05:28:00Z' }
+  assert.equal(hollowRun(m, 0, 0), true)
+  assert.equal(hollowRun(m, 1, 0), false)
+  assert.equal(hollowRun(m, 0, 2), false)
+  assert.equal(hollowRun({ startedAt: m.startedAt, endedAt: null }, 0, 0), false)
+})
+
+test('defaultStartMode: go live within 30 minutes of the meeting, else rehearse', () => {
+  const at = '2026-12-11T05:30:00Z'
+  const t = Date.parse(at)
+  assert.equal(defaultStartMode(at, t - 3 * 3_600_000), 'rehearse')
+  assert.equal(defaultStartMode(at, t - 31 * 60_000), 'rehearse')
+  assert.equal(defaultStartMode(at, t - 30 * 60_000), 'live')
+  assert.equal(defaultStartMode(at, t + 10 * 60_000), 'live')
+  assert.equal(defaultStartMode(null), 'live')
+})
+
+test('liveSlideTitle: the current slide’s title, else its section', () => {
+  const agenda = [{ id: 'a', title: 'Radar', slide: 'title' }, { id: 'b', title: '', slide: 'meme', section: 'Warm-up', meme: { caption: 'hi' } }]
+  assert.equal(liveSlideTitle(agenda, 'a'), 'Radar')
+  assert.equal(liveSlideTitle(agenda, 'b'), 'Warm-up')
+  assert.equal(liveSlideTitle(agenda, 'zzz'), null)
+  assert.equal(liveSlideTitle(agenda, null), null)
 })
