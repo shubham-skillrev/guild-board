@@ -206,7 +206,7 @@ export async function meetPosts(ids: string[]): Promise<Record<string, MeetPost>
       const post: MeetPost = {
         id: t.id,
         title: t.title,
-        description: (t.description ?? '').slice(0, 600),
+        description: (t.description ?? '').slice(0, 8000),
         category: t.category,
         is_selected: !!t.is_selected,
         status: t.status,

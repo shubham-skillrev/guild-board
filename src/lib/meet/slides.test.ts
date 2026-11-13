@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { gotoPlan, resultsAfter, type ActivityRef } from './slides.ts'
+import { gotoPlan, navBlocked, resultsAfter, type ActivityRef } from './slides.ts'
 import { activityKeyFor, cleanAgenda } from '../meeting.ts'
 
 const file = JSON.parse(readFileSync(new URL('../../../docs/agendas/2026-11.json', import.meta.url), 'utf8'))
@@ -42,4 +42,27 @@ test('slides map to their activity: own id, or a results slide its `of`', () => 
     assert.equal(activityKeyFor(agenda, a.segment), a.segment)
   }
   assert.equal(resultsAfter(agenda, 'hello'), null)
+})
+
+test('an open activity locks the slide until it closes', () => {
+  const open = acts({ 'radar-poll': 'open' })
+  // Back, forward past the results, a jump: all blocked while it's open.
+  assert.equal(navBlocked(agenda, 'radar-poll', 'radar-news', open), true)
+  assert.equal(navBlocked(agenda, 'radar-poll', 'meme-bubble', open), true)
+  assert.equal(navBlocked(agenda, 'radar-poll', 'hello', open), true)
+  // "Close voting" moves on to its own results slide: that goes through.
+  assert.equal(navBlocked(agenda, 'radar-poll', 'radar-results', open), false)
+  // Closed (in place or by Close voting): free to move.
+  assert.equal(navBlocked(agenda, 'radar-poll', 'radar-news', acts({ 'radar-poll': 'closed' })), false)
+  // Ready (never opened) or another slide's activity: no lock.
+  assert.equal(navBlocked(agenda, 'radar-poll', 'radar-news', acts({})), false)
+  assert.equal(navBlocked(agenda, 'radar-results', 'radar-news', open), false)
+  assert.equal(navBlocked(agenda, 'radar-poll', 'radar-poll', open), false)
+  assert.equal(navBlocked(agenda, null, 'hello', open), false)
+  // Every activity in the agenda locks the same way.
+  for (const a of file.activities as { segment: string }[]) {
+    const o = acts({ [a.segment]: 'open' })
+    assert.equal(navBlocked(agenda, a.segment, 'hello', o), true, a.segment)
+    assert.equal(navBlocked(agenda, a.segment, resultsAfter(agenda, a.segment)!, o), false, a.segment)
+  }
 })

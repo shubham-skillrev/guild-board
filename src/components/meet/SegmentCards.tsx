@@ -67,7 +67,7 @@ export function SegmentCards({ cards, posts, size, className }: { cards: Card[];
   return (
     <ul
       aria-label="On this segment"
-      className={cn('stagger-children grid', screen ? 'gap-5' : 'gap-3', className)}
+      className={cn('stagger-children grid', screen ? 'gap-5' : 'gap-3 @3xl:grid-cols-2 @3xl:gap-4', className)}
       style={screen ? { gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` } : undefined}
     >
       {shown.map((c, i) => (

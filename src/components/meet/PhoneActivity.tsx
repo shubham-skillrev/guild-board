@@ -42,7 +42,7 @@ export function PhoneActivity(props: Props) {
 }
 
 function Prompt({ children }: { children: React.ReactNode }) {
-  return <h1 className="mt-6 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance">{children}</h1>
+  return <h1 className="mt-6 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance @3xl:text-[36px]">{children}</h1>
 }
 
 /** Kers' reaction to a vote: one per option, so changing your mind gets a new one. */
@@ -68,8 +68,9 @@ function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
       const r = await post({ action: 'respond', activity_id: activity.id, value: { option } })
       if (r.mine) onMine(r.mine)
     } catch (err) {
+      // Shown as locked in straight away; a refusal rolls it back to what was saved.
       setPicked(null)
-      toast(err instanceof Error ? err.message : 'Could not vote', 'error')
+      toast(err instanceof Error ? err.message : 'Could not vote. Try again.', 'error')
     } finally {
       setSending(false)
     }
@@ -107,7 +108,7 @@ function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
         {chosen !== null ? (
           <>
             <Kers key={chosen} size={44} colour="meeting" expression="excited" motion="hop" special="happy" />
-            <p className="text-[15px] font-medium text-ink">{sending ? 'Sending…' : LOCKED[chosen % LOCKED.length]}<span className="block text-footnote font-normal text-ink-muted">Change it any time until the poll closes.</span></p>
+            <p className="text-[15px] font-medium text-ink">{LOCKED[chosen % LOCKED.length]}<span className="block text-footnote font-normal text-ink-muted">Change it any time until the poll closes.</span></p>
           </>
         ) : (
           <p className="text-footnote text-ink-muted">Tap one. Match the shape on the screen.</p>
@@ -119,9 +120,12 @@ function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
 
 /** Up to three words, 20 characters each. A blocked word is dropped and Kers says so. */
 function PhoneCloud({ activity, mine, onMine, post, toast }: Props) {
-  const words = (mine?.values ?? []).map(v => String(v.word ?? '')).filter(Boolean)
+  const saved = (mine?.values ?? []).map(v => String(v.word ?? '')).filter(Boolean)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  // Words shown at once, before the server confirms; dropped again if it refuses.
+  const [pendingWords, setPendingWords] = useState<string[]>([])
+  const words = [...saved, ...pendingWords.filter(w => !saved.includes(w))].slice(0, CLOUD_MAX_WORDS)
   const [refused, setRefused] = useState<string | null>(null)
   const left = CLOUD_MAX_WORDS - words.length
 
@@ -129,16 +133,20 @@ function PhoneCloud({ activity, mine, onMine, post, toast }: Props) {
     e.preventDefault()
     const word = text.trim()
     if (!word || sending) return
+    const shown = word.toLowerCase().slice(0, CLOUD_WORD_MAX)
     setSending(true)
     setRefused(null)
+    setText('')
+    setPendingWords(p => [...p, shown])
     try {
       const r = await post({ action: 'respond', activity_id: activity.id, value: { word } })
       if (r.mine) onMine(r.mine)
-      if (r.blocked) setRefused(r.message ?? 'Kers didn’t like that one')
-      else setText('')
+      if (r.blocked) { setRefused(r.message ?? 'Kers didn’t like that one'); setText(word) }
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Could not send that', 'error')
+      setText(word)
+      toast(err instanceof Error ? err.message : 'Could not send that. Try again.', 'error')
     } finally {
+      setPendingWords(p => p.filter(w => w !== shown))
       setSending(false)
     }
   }
@@ -161,7 +169,7 @@ function PhoneCloud({ activity, mine, onMine, post, toast }: Props) {
               placeholder="One word"
               className="h-8 min-w-0 flex-1 pointer-coarse:h-11"
             />
-            <Button type="submit" disabled={sending || !text.trim()}>{sending ? 'Sending…' : 'Send'}</Button>
+            <Button type="submit" disabled={sending || !text.trim()}>Send</Button>
           </div>
           <p className="mt-2 text-footnote text-ink-muted tabular">
             {words.length ? `${left} more ${left === 1 ? 'word' : 'words'} if you like.` : `Up to ${CLOUD_MAX_WORDS} words, ${CLOUD_WORD_MAX} letters each.`}

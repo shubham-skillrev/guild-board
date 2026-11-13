@@ -69,7 +69,18 @@ How to write a month's slides: [07-agenda-and-script-guide.md](./07-agenda-and-s
   target slide's own.
 - **Close voting → results** moves to the next slide when it is this
   activity's results slide (which closes it), else closes in place.
+- **While it's open the slide is locked**: ← →, the arrows and the dots do
+  nothing, and the screen says "Close voting to move on". The server refuses
+  any other `goto` from it with a 409 (lib/meet/slides.ts `navBlocked`), in
+  a live rehearsal too; the local preview enforces the same. Only Close
+  voting's own move to the results slide goes through. Leaving an open
+  activity used to close it behind the phones' backs, and coming back left
+  it closed until Reopen.
 - Starting meeting mode on an activity slide opens it too.
+- Topic slides (a content slide whose only card is one board post) show the
+  post's title and its whole description as markdown, fetched at render.
+- The first slide shows a QR to join (`/meet`, or the rehearsal link); the
+  last slide a QR to `/survey` (phones get a button).
 - The poll's counts stay hidden for the first 8 s after it opens.
 
 **Kahoot touches, without timers or names:** poll options are big pastel

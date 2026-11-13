@@ -214,10 +214,14 @@ export function ActivityHero({
         {presenting && (
           <div className="ml-auto flex items-center gap-2">
             {open ? (
+              <>
+              {/* While it's open the slide can't change (lib/meet/slides.ts navBlocked): say how to move on. */}
+              <span className="text-footnote text-ink-muted">{a.kind === 'boss' ? 'Close the round' : a.kind === 'poll' ? 'Close voting' : 'Close the cloud'} to move on</span>
               <Button size="md" icon={a.kind === 'boss' ? undefined : ArrowRight} disabled={!!busy} onClick={onClose} className="h-12! px-6! text-[17px]!">
                 {a.kind === 'boss' ? 'Close the round' : a.kind === 'poll' ? 'Close voting' : 'Close the cloud'}
                 {onResults !== undefined && <span className="sr-only">, then show the results</span>}
               </Button>
+              </>
             ) : ready ? (
               <Button icon={Play} disabled={!!busy} onClick={() => call('open_activity', { activity_id: a.id })} className="h-12! px-6! text-[17px]!">
                 {busy === 'open_activity' ? 'Opening…' : `Open the ${KIND_NAME[a.kind].toLowerCase()}`}

@@ -86,7 +86,7 @@ test('exampleFor carries the activity and only adds prep when asked', () => {
   assert.doesNotMatch(without, /opener/)
   // The agenda model sees the slides it has to write.
   assert.match(without, /"cue"/)
-  assert.match(without, /"side"/)
+  assert.match(without, /"note"/)
   assert.match(without, /"slide": "meme"/)
   assert.match(without, /"panels"/)
 })

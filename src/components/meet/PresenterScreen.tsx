@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowsIn, ArrowsOut, CaretLeft, CaretRight, Copy, Play, Stop } from '@phosphor-icons/react/dist/ssr'
+import { ArrowsIn, ArrowsOut, CaretLeft, CaretRight, Copy, Play, QrCode, Stop } from '@phosphor-icons/react/dist/ssr'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { UserAvatar } from '@/components/ui/UserAvatar'
@@ -22,8 +22,12 @@ import { rehearsalLeft, rehearsalOn, rehearsalPath } from '@/lib/meet/liveRehear
 import { useToast } from '@/hooks/useToast'
 import { PhonePreview } from '@/components/meet/PhonePreview'
 import { SegmentCards, SlideText } from '@/components/meet/SegmentCards'
+import { TopicBody, topicPost } from '@/components/meet/TopicBody'
+import { JoinQr, useOrigin } from '@/components/meet/JoinQr'
+import { ReportButton } from '@/components/meet/ReportButton'
 import type { PublicActivity } from '@/lib/meet/activity'
 import { useMeetingLive, useSecond } from '@/components/meet/useMeetingLive'
+import { SURVEY_PATH } from '@/components/meet/TopicBody'
 import { activityKeyFor, earlyStartWarning, isRealCard, meetingDone, meetingLive, presenterNotes, publicSegments, sectionsOf, segmentCards, slideKind, type MeetingState, type MeetPost, type Segment } from '@/lib/meeting'
 
 /** Where the screen is when migration 045 isn't applied (or in rehearsal): this browser only. */
@@ -174,10 +178,14 @@ export function PresenterView({
   const boss = activity ? bossPhase(activity, t) : null
   const presenting = rehearsing || (live && (local || meeting.presenterId === state.me))
   const last = idx === agenda.length - 1
+  // An open activity holds its slide until it's closed (the server refuses too): only Close voting's move to its results goes.
+  const resultsId = seg && activity ? resultsAfter(agenda, seg.id) : null
+  const locked = !!seg && !!activity && activity.status === 'open' && activity.segmentId === seg.id && slideKind(seg, true) === 'activity'
 
   const go = useCallback(
     (to: number) => {
       if (!presenting || to < 0 || to >= agenda.length || to === idx) return
+      if (locked && agenda[to].id !== resultsId) return
       const at = new Date(now()).toISOString()
       const segment = agenda[to].id
       if (local) {
@@ -200,7 +208,7 @@ export function PresenterView({
       optimistic({ currentSegment: segment, segmentStartedAt: at })
       call('goto', { segment })
     },
-    [presenting, agenda, idx, now, local, posKey, rehearsing, rehearsal, optimistic, call],
+    [presenting, agenda, idx, locked, resultsId, now, local, posKey, rehearsing, rehearsal, optimistic, call],
   )
 
   const start = async () => {
@@ -263,14 +271,14 @@ export function PresenterView({
   }
 
   const kind = slideKind(seg, !!activity)
+  const topic = kind === 'content' ? topicPost(segmentCards(seg), posts) : null
   const sections = sectionsOf(agenda)
   const section = sections.find(x => idx >= x.start && idx < x.start + x.slides) ?? null
   const cue = seg.cue?.trim() || null
   // The presenter's notes: rehearsal only. The live screen is shared.
   const prep = rehearsing && notes && !ended ? seg.prep : null
   const sidePad = rehearsing && phone ? 'pr-[420px]' : ''
-  const results = seg && activity ? resultsAfter(agenda, seg.id) : null
-  const resultsIdx = results ? agenda.findIndex(x => x.id === results) : -1
+  const resultsIdx = resultsId ? agenda.findIndex(x => x.id === resultsId) : -1
   // "Close voting": on to the results slide (moving there closes it), else close in place.
   const closeActivity = () => {
     if (resultsIdx >= 0) go(resultsIdx)
@@ -283,6 +291,7 @@ export function PresenterView({
       <div className="my-auto">
         <h1 className="text-[clamp(40px,2.9vw,56px)] font-semibold leading-[1.08] tracking-[-0.03em] text-ink">That’s the meeting.</h1>
         <Link href="/admin/run#run-recap" className="mt-8 inline-block text-[17px] text-ink underline underline-offset-4">Write the recap</Link>
+        <ReportButton cycleId={state.cycle.id} label={state.cycle.label} className="mt-8" />
       </div>
     )
   } else if (!live) {
@@ -327,9 +336,33 @@ export function PresenterView({
         {cue && <p className="mt-7 max-w-[48rem] text-[clamp(21px,1.4vw,27px)] leading-[1.4] text-ink-soft text-pretty">{cue}</p>}
       </div>
     )
+    // The last slide: the guild survey, to scan.
+    if (last) stage = (
+      <div key={seg.id} className="my-auto flex w-full items-center gap-16">
+        <div className="min-w-0 flex-1">{stage}</div>
+        <JoinQr path={SURVEY_PATH} size={260} caption="Fill the 2-minute survey" className="shrink-0" />
+      </div>
+    )
   } else if (kind === 'title' || ((kind === 'activity' || kind === 'results') && !activity)) {
     // An activity or results slide with no activity seeded: its title and cue, nothing to break.
-    stage = <TitleStage key={seg.id} eyebrow={kind !== 'title' ? section?.title ?? '' : idx === 0 ? 'Welcome' : 'Next up'} title={seg.title} cue={cue} kers={kind === 'title'} section={kind === 'title' ? section?.title : undefined} />
+    // The first slide: a QR to join, big (the rehearsal's own link in a live rehearsal).
+    const joinPath = idx === 0 && kind === 'title' && !rehearsing ? (dress && meeting.rehearsalCode ? rehearsalPath(meeting.rehearsalCode) : '/meet') : null
+    stage = joinPath ? (
+      <div key={seg.id} className="my-auto flex w-full items-center gap-16">
+        <TitleStage eyebrow="Welcome" title={seg.title} cue={cue} kers={false} section={section?.title} />
+        <JoinQr path={joinPath} size={280} caption="Scan to join" className="mr-6 shrink-0" />
+      </div>
+    ) : <TitleStage key={seg.id} eyebrow={kind !== 'title' ? section?.title ?? '' : idx === 0 ? 'Welcome' : 'Next up'} title={seg.title} cue={cue} kers={kind === 'title'} section={kind === 'title' ? section?.title : undefined} />
+  } else if (topic) {
+    // A discussion topic: the post's title and whole description, to talk over (TopicBody).
+    const cards = segmentCards(seg)
+    const extra = cards.some(c => c.kind === 'side' || c.kind === 'note')
+    stage = (
+      <div key={seg.id} className="animate-fade-up my-auto flex w-full gap-14 py-4">
+        <TopicBody post={topic} eyebrow={section?.title} size="screen" className="min-w-0 flex-1" />
+        {extra && <SlideText cards={cards} size="screen" className="w-[min(30%,26rem)] shrink-0 self-center" />}
+      </div>
+    )
   } else {
     const cards = segmentCards(seg)
     const real = cards.filter(isRealCard)
@@ -440,8 +473,8 @@ export function PresenterView({
 
       {/* ─── The line, the arrows, Kers ─── */}
       <footer className="flex h-20 shrink-0 items-center gap-5 pl-10 pr-6">
-        {presenting && <NavArrow label="Back" icon={CaretLeft} disabled={idx === 0} onClick={() => go(idx - 1)} />}
-        <AgendaProgress agenda={agenda} index={idx} onPick={presenting ? go : undefined} className="min-w-0 flex-1" />
+        {presenting && <NavArrow label="Back" icon={CaretLeft} disabled={idx === 0 || locked} onClick={() => go(idx - 1)} />}
+        <AgendaProgress agenda={agenda} index={idx} onPick={presenting && !locked ? go : undefined} className="min-w-0 flex-1" />
         {presenting && (last ? (
           rehearsing ? (
             <Button variant="secondary" onClick={leave}>Done rehearsing</Button>
@@ -449,7 +482,7 @@ export function PresenterView({
             <Button variant="secondary" icon={Stop} disabled={!!busy} onClick={end}>{dress ? 'End rehearsal' : 'End meeting'}</Button>
           )
         ) : (
-          <NavArrow label="Next" icon={CaretRight} onClick={() => go(idx + 1)} />
+          <NavArrow label="Next" icon={CaretRight} disabled={locked} onClick={() => go(idx + 1)} />
         ))}
         <PresenterKers className={cn('-mb-2 ml-3 shrink-0', kind === 'title' && live && !ended && 'invisible')} segmentKey={section ? String(section.start) : seg.id} live={live} ended={ended} boss={boss} />
       </footer>
@@ -490,25 +523,29 @@ function TitleStage({ eyebrow, title, cue, kers, section, children }: { eyebrow:
 
 /**
  * The live rehearsal's strip under the header: it's a rehearsal, answers go
- * afterwards, and the link to share (plain, copyable; no QR). The link is
- * fine on a shared screen: sharing it is the point.
+ * afterwards, and how to join: a QR (the first slide shows it big; here it
+ * opens on demand so it never covers a slide) and Copy link.
  */
 function RehearsalBar({ code }: { code: string }) {
   const toast = useToast()
-  const [origin, setOrigin] = useState('')
-  useEffect(() => {
-    const id = setTimeout(() => setOrigin(window.location.origin), 0)
-    return () => clearTimeout(id)
-  }, [])
+  const origin = useOrigin()
+  const [qr, setQr] = useState(false)
   const link = `${origin}${rehearsalPath(code)}`
   const copy = () => {
     navigator.clipboard?.writeText(link).then(() => toast('Link copied', 'success'), () => toast('Copy it by hand', 'error'))
   }
   return (
-    <div className="mx-10 flex h-10 shrink-0 items-center gap-3 rounded-full bg-fill/70 pl-4 pr-1.5 text-footnote text-ink-soft">
-      <span className="shrink-0">Rehearsal · answers are deleted afterwards · join at</span>
-      <code className="min-w-0 truncate font-mono text-[13px] text-ink select-all">{link}</code>
-      <Button variant="ghost" icon={Copy} className="ml-auto shrink-0" onClick={copy}>Copy link</Button>
+    <div className="relative mx-10 flex h-10 shrink-0 items-center gap-3 rounded-full bg-fill/70 pl-4 pr-1.5 text-footnote text-ink-soft">
+      <span className="shrink-0">Rehearsal · answers are deleted afterwards</span>
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        <Button variant="ghost" icon={QrCode} onClick={() => setQr(on => !on)} aria-pressed={qr}>{qr ? 'Hide QR' : 'QR to join'}</Button>
+        <Button variant="ghost" icon={Copy} onClick={copy}>Copy link</Button>
+      </div>
+      {qr && (
+        <div className="absolute right-0 top-12 z-10 rounded-(--radius-card) border border-border bg-parchment p-5 shadow-lg">
+          <JoinQr path={rehearsalPath(code)} size={240} caption="Scan to join the rehearsal" />
+        </div>
+      )}
     </div>
   )
 }

@@ -53,3 +53,22 @@ export function resultsAfter(agenda: Pick<Segment, 'id' | 'slide' | 'of'>[], act
   const next = i >= 0 ? agenda[i + 1] : undefined
   return next && next.slide === 'results' && next.of === activitySlide ? next.id : null
 }
+
+/** Said when the presenter tries to leave an activity slide while its activity is open. */
+export const NAV_LOCKED_MESSAGE = 'Close voting to move on.'
+
+/**
+ * Whether the presenter may not move from `current` to `target`: while the
+ * current slide's own activity is open, the slide stays put (phones would be
+ * left on a closed activity otherwise). Only "Close voting"'s own move, to
+ * the results slide right after, goes through (moving there closes it).
+ * Closing it in place unlocks everything.
+ */
+export function navBlocked(agenda: Pick<Segment, 'id' | 'slide' | 'of'>[], current: string | null | undefined, target: string, activities: ActivityRef[]): boolean {
+  if (!current || current === target) return false
+  const own = activities.find(a => a.segment_id === current && a.status === 'open')
+  if (!own) return false
+  const slide = agenda.find(s => s.id === current)
+  if (!slide || slideKind(slide, true) !== 'activity') return false
+  return resultsAfter(agenda, current) !== target
+}

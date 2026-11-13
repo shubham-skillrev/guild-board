@@ -14,7 +14,7 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { cleanName, currentMeeting, findParticipant, joinGuest, joinMember, MEET_COOKIE, meetView, respond, roomOpenTo, sessionUserId } from '@/lib/meet/room'
+import { cleanName, currentMeeting, findParticipant, joinGuest, joinMember, loadActivity, MEET_COOKIE, meetView, respond, roomOpenTo, sessionUserId } from '@/lib/meet/room'
 import { REHEARSAL_COOKIE } from '@/lib/meet/liveRehearsal'
 
 const NO_STORE = { 'Cache-Control': 'no-store' }
@@ -60,9 +60,10 @@ export async function POST(request: Request) {
       return NextResponse.json(await meetView(admin, userId, token, code), { headers: NO_STORE })
     }
     case 'respond': {
-      const p = await findParticipant(admin, cycleId, userId, token)
+      // Who's answering and what to, at once: every round trip here is felt on the phone.
+      const [p, activity] = await Promise.all([findParticipant(admin, cycleId, userId, token), loadActivity(admin, cycleId, body.activity_id)])
       if (!p) return NextResponse.json({ error: 'Join the room first.' }, { status: 403 })
-      const r = await respond(admin, cycleId, p, body.activity_id, body.value)
+      const r = await respond(admin, cycleId, p, body.activity_id, body.value, activity)
       if (r.ok) return NextResponse.json({ ok: true, mine: r.mine }, { headers: NO_STORE })
       // A blocked word is a quiet drop, not an error: the phone just says so.
       if (r.blocked) return NextResponse.json({ ok: false, blocked: true, message: r.message, mine: r.mine }, { headers: NO_STORE })

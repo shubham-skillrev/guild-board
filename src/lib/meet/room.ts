@@ -7,7 +7,7 @@ import { MEET_EVENT, meetingChannel } from '@/lib/realtime/channels'
 import { openCycle } from '@/lib/guild/demos'
 import { isBlocked } from '@/lib/meet/profanity'
 import { activityKeyFor, agendaPostIds, meetingLive, phoneAgenda, type Segment } from '@/lib/meeting'
-import { gotoPlan, type ActivityRef } from '@/lib/meet/slides'
+import { gotoPlan, navBlocked, type ActivityRef } from '@/lib/meet/slides'
 import { roomOpenTo, rowRehearsing, wipeRehearsal } from '@/lib/meet/liveRehearsal'
 import { meetPosts } from '@/lib/guild/meetingPrep'
 import {
@@ -237,9 +237,16 @@ export type RespondResult =
   | { ok: false; blocked: true; message: string; mine: Mine }
   | { ok: false; blocked?: false; status: number; error: string }
 
-export async function respond(admin: Admin, cycleId: string, participant: Participant, activityId: unknown, raw: unknown): Promise<RespondResult> {
+/** The activity an answer is for (fetched alongside the participant, so answering costs one round trip less). */
+export async function loadActivity(admin: Admin, cycleId: string, activityId: unknown): Promise<ActivityRow | null> {
+  if (typeof activityId !== 'string' || !/^[0-9a-f-]{36}$/i.test(activityId)) return null
+  const { data } = await admin.from('meeting_activities').select('*').eq('id', activityId).eq('cycle_id', cycleId).maybeSingle()
+  return (data ?? null) as ActivityRow | null
+}
+
+export async function respond(admin: Admin, cycleId: string, participant: Participant, activityId: unknown, raw: unknown, loaded?: ActivityRow | null): Promise<RespondResult> {
   if (typeof activityId !== 'string' || !/^[0-9a-f-]{36}$/i.test(activityId)) return { ok: false, status: 400, error: 'No such activity' }
-  const { data: activity } = await admin.from('meeting_activities').select('*').eq('id', activityId).eq('cycle_id', cycleId).maybeSingle()
+  const activity = loaded !== undefined ? loaded : await loadActivity(admin, cycleId, activityId)
   if (!activity) return { ok: false, status: 404, error: 'No such activity' }
   if (activity.status !== 'open') return { ok: false, status: 409, error: 'That one has closed. Watch the screen.' }
   const cleaned = cleanResponse(activity as ActivityRow, raw)
@@ -251,7 +258,9 @@ export async function respond(admin: Admin, cycleId: string, participant: Partic
         .from('meeting_responses')
         .upsert({ activity_id: activityId, participant_id: participant.id, slot: 0, value: cleaned.value, updated_at: new Date().toISOString() }, { onConflict: 'activity_id,participant_id,slot' })
       if (error) return { ok: false, status: 500, error: 'Could not save that. Try again.' }
-      break
+      // One vote, slot 0: it's exactly what was just stored, no read back.
+      nudgeRoom(cycleId)
+      return { ok: true, mine: { activityId, values: [cleaned.value] } }
     }
     case 'cloud': {
       const word = String(cleaned.value.word)
@@ -268,7 +277,12 @@ export async function respond(admin: Admin, cycleId: string, participant: Partic
         const slot = [0, 1, 2].slice(0, CLOUD_MAX_WORDS).find(s => !used.has(s))
         if (slot === undefined) return { ok: false, status: 409, error: 'That’s your three.' }
         const { error } = await admin.from('meeting_responses').insert({ activity_id: activityId, participant_id: participant.id, slot, value: cleaned.value })
-        if (!error) break
+        if (!error) {
+          // What they had plus this one, by slot: no read back.
+          const values = [...had, { slot, value: cleaned.value }].sort((a, b) => a.slot - b.slot).map(r => r.value as Record<string, unknown>)
+          nudgeRoom(cycleId)
+          return { ok: true, mine: { activityId, values } }
+        }
         if (error.code !== '23505' || attempt === 1) return { ok: false, status: 500, error: 'Could not save that. Try again.' }
       }
       break
@@ -369,6 +383,14 @@ export async function activitiesOnGoto(admin: Admin, cycleId: string, agenda: Se
   const now = new Date().toISOString()
   if (plan.close.length) await admin.from('meeting_activities').update({ status: 'closed', closed_at: now }).in('id', plan.close).eq('status', 'open')
   if (plan.open) await admin.from('meeting_activities').update({ status: 'open', opened_at: now, closed_at: null }).eq('id', plan.open).eq('status', 'ready')
+}
+
+/** Whether moving from `current` to `target` is refused: the current slide's activity is still open (lib/meet/slides.ts navBlocked). */
+export async function gotoLocked(admin: Admin, cycleId: string, agenda: Segment[], current: string | null | undefined, target: string): Promise<boolean> {
+  if (!current) return false
+  const { data, error } = await admin.from('meeting_activities').select('id, segment_id, status').eq('cycle_id', cycleId).eq('segment_id', current)
+  if (error) return false
+  return navBlocked(agenda, current, target, (data ?? []) as ActivityRef[])
 }
 
 /** Open one activity (closing any other): the presenter's one button. */

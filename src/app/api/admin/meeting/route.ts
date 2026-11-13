@@ -45,7 +45,8 @@ import { getAdminId } from '@/lib/guild/staff'
 import { agendaMessage, draftAgenda, draftRecap, getMeeting, mergeAgenda, missing045, openCycle, recapMessage, saveMeeting } from '@/lib/guild/meeting'
 import { draftPrep, ensurePrepBeforeMeeting } from '@/lib/guild/meetingPrep'
 import { cleanNote, LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
-import { activitiesOnGoto, closeActivity, closeRoom, endRehearsal, nudgeRoom, openActivity, readRoom } from '@/lib/meet/room'
+import { activitiesOnGoto, closeActivity, closeRoom, endRehearsal, gotoLocked, nudgeRoom, openActivity, readRoom } from '@/lib/meet/room'
+import { NAV_LOCKED_MESSAGE } from '@/lib/meet/slides'
 import { missing047, newRehearsalCode, rehearsalBlocked, rehearsalLeft, rehearsalOn, rehearsalWipeMode } from '@/lib/meet/liveRehearsal'
 import { isSlackConfigured, postToSlack } from '@/lib/slack/send'
 
@@ -209,6 +210,10 @@ export async function POST(request: Request) {
       if (m.presenterId !== adminId) return NextResponse.json({ error: 'Someone else is presenting. Take over first.', ...(await state(cycle, adminId)) }, { status: 409 })
       if (!m.agenda.some(s => s.id === body.segment)) return NextResponse.json({ error: 'No such segment' }, { status: 400 })
       if (m.currentSegment === body.segment) return NextResponse.json(await state(cycle, adminId))
+      // An open activity holds its slide: Close voting first (lib/meet/slides.ts navBlocked).
+      if (await gotoLocked(createAdminClient(), cycle.id, m.agenda, m.currentSegment, String(body.segment))) {
+        return NextResponse.json({ error: NAV_LOCKED_MESSAGE, ...(await state(cycle, adminId)) }, { status: 409 })
+      }
       const { error } = await saveMeeting(cycle.id, { current_segment: body.segment, segment_started_at: now })
       // Moving on closes whatever was open; arriving on an activity slide opens its activity.
       if (!error) {

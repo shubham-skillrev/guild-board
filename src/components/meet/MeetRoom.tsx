@@ -13,6 +13,7 @@ import { PhoneActivity } from '@/components/meet/PhoneActivity'
 import { ActivityResults } from '@/components/meet/ActivityPanel'
 import { SegmentCards, SlideText } from '@/components/meet/SegmentCards'
 import { MemeSlide } from '@/components/meet/MemeSlide'
+import { SURVEY_PATH, TopicBody, topicPost } from '@/components/meet/TopicBody'
 import { activityKeyFor, isRealCard, sectionsOf, slideKind, type MeetPost, type PresenterNotes, type PublicSegment } from '@/lib/meeting'
 import { newerRoom, useMeetingChannel } from '@/components/meet/useMeetingChannel'
 import type { MeetView, Mine, PublicActivity, RoomState } from '@/lib/meet/activity'
@@ -129,6 +130,13 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
     if (offlineRoom) onRoom(offlineRoom)
   }, [offlineRoom, onRoom])
 
+  // Warm the API on load (the function, the session check): the first vote then isn't the one paying for a cold start.
+  useEffect(() => {
+    if (isOffline) return
+    const id = setTimeout(refresh, 0)
+    return () => clearTimeout(id)
+  }, [isOffline, refresh])
+
   useEffect(() => {
     if (isOffline) return
     const tick = () => { if (!document.hidden) refresh() }
@@ -222,7 +230,7 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-parchment text-ink">
+    <div className="@container flex min-h-dvh flex-col bg-parchment text-ink">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-4">
         <Link href="/" aria-label="GuildBoard by SkillRev, home" className="press">
           <Wordmark />
@@ -231,7 +239,7 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
           <p className="ml-auto text-footnote text-ink-muted"><span className="tabular text-ink">{room.participants}</span> in the room</p>
         )}
       </header>
-      <main className="mx-auto flex w-full max-w-[440px] flex-1 flex-col px-4 py-8">
+      <main className="mx-auto flex w-full max-w-[440px] flex-1 flex-col px-4 py-8 @3xl:max-w-[1100px] @3xl:px-10 @3xl:py-12">
         {view.label && live && <p className="font-mono text-[12px] uppercase tracking-[0.16em] text-ink-muted">{view.label} guild meeting{rehearsal ? ' · rehearsal' : ''}</p>}
         {rehearsal && (
           <p className="mt-2 inline-flex w-fit items-center rounded-full bg-fill px-3 py-1 text-footnote text-ink-soft">Rehearsal · answers are deleted afterwards</p>
@@ -254,8 +262,9 @@ function PhoneSlide({ seg, agenda, index, posts, notes, activity }: { seg: Publi
   const kind = slideKind(seg, !!activity)
   const sections = sectionsOf(agenda)
   const here = sections.findIndex(x => index >= x.start && index < x.start + x.slides)
-  const nextSection = sections[here + 1] ?? null
+  const last = index === agenda.length - 1
   const real = seg.cards.filter(isRealCard)
+  const topic = kind === 'content' ? topicPost(seg.cards, posts) : null
   const eyebrow = (text: string) => (
     <p className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
       <span className="relative flex size-1.5" aria-hidden>
@@ -272,31 +281,43 @@ function PhoneSlide({ seg, agenda, index, posts, notes, activity }: { seg: Publi
     main = (
       <div className="flex flex-col items-center pt-10 text-center">
         <Kers size={96} colour="meeting" expression="excited" motion="hop" special="happy" />
-        <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">Next up{sections[here] && sections[here].title !== seg.title ? ` · ${sections[here].title}` : ''}</p>
-        <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.025em] text-ink text-balance">{seg.title}</h1>
-        {seg.cue && <p className="mt-3 max-w-[30ch] text-[15px] leading-relaxed text-ink-soft text-pretty">{seg.cue}</p>}
+        {sections[here] && sections[here].title !== seg.title && <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">{sections[here].title}</p>}
+        <h1 className="mt-2 text-[28px] font-semibold leading-tight tracking-[-0.025em] text-ink text-balance @3xl:text-[48px]">{seg.title}</h1>
+        {seg.cue && <p className="mt-3 max-w-[30ch] text-[15px] leading-relaxed text-ink-soft text-pretty @3xl:max-w-[46ch] @3xl:text-[20px]">{seg.cue}</p>}
       </div>
     )
   } else if (kind === 'text') {
     main = (
       <div className="pt-8">
-        <h1 className="text-[30px] font-semibold leading-[1.1] tracking-[-0.03em] text-ink text-balance">{seg.title}</h1>
-        {seg.cue && <p className="mt-3 text-[16px] leading-relaxed text-ink-soft text-pretty">{seg.cue}</p>}
+        <h1 className="text-[30px] font-semibold leading-[1.1] tracking-[-0.03em] text-ink text-balance @3xl:text-[52px]">{seg.title}</h1>
+        {seg.cue && <p className="mt-3 text-[16px] leading-relaxed text-ink-soft text-pretty @3xl:text-[21px]">{seg.cue}</p>}
+        {last && (
+          <a href={SURVEY_PATH} target="_blank" rel="noopener noreferrer" className="press mt-8 inline-flex h-11 items-center rounded-full bg-ink px-5 text-[15px] font-medium text-parchment hover:bg-ink/85">
+            Fill the 2-minute survey
+          </a>
+        )}
       </div>
     )
   } else if (kind === 'activity' || kind === 'results') {
     main = (
       <div className="pt-5">
         {eyebrow(kind === 'results' ? 'Results on screen' : activity?.status === 'closed' ? 'Closed' : 'Opens in a moment')}
-        <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance">{kind === 'results' ? seg.cue || seg.title : activity?.prompt ?? seg.title}</h1>
+        <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance @3xl:text-[36px]">{kind === 'results' ? seg.cue || seg.title : activity?.prompt ?? seg.title}</h1>
         {activity && activity.status !== 'ready' && <div className="mt-5"><ActivityResults activity={activity} size="phone" /></div>}
+      </div>
+    )
+  } else if (topic) {
+    main = (
+      <div>
+        <TopicBody post={topic} eyebrow={sections[here]?.title ?? null} size="phone" />
+        <SlideText cards={seg.cards} size="phone" className="mt-5" />
       </div>
     )
   } else {
     main = (
       <div className="pt-5">
         {eyebrow(sections[here]?.title ?? 'On screen now')}
-        {seg.title && <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance">{seg.title}</h1>}
+        {seg.title && <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance @3xl:text-[36px]">{seg.title}</h1>}
         {seg.cue && <p className="mt-2 text-[15px] leading-relaxed text-ink-soft text-pretty">{seg.cue}</p>}
         {real.length > 0 && <SegmentCards cards={real} posts={posts} size="phone" className="mt-5" />}
         <SlideText cards={seg.cards} size="phone" className="mt-5" />
@@ -309,9 +330,6 @@ function PhoneSlide({ seg, agenda, index, posts, notes, activity }: { seg: Publi
       {/* The presenter's own phone: their notes first, it's what they glance at. */}
       {notes && <YourNotes notes={notes} />}
       {main}
-      <p className="mt-10 border-t border-border pt-4 text-footnote text-ink-muted">
-        {nextSection ? <>Up next: <span className="text-ink-soft">{nextSection.title}</span></> : 'Last one. Thanks for coming.'}
-      </p>
     </section>
   )
 }
