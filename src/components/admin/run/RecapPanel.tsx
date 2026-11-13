@@ -7,6 +7,8 @@ import { Input, Label, Textarea } from '@/components/ui/Input'
 import { SectionHeader } from '@/components/ui/Section'
 import { useMeeting } from '@/components/admin/run/useMeeting'
 import { LIMITS, type Meeting } from '@/lib/meeting'
+import { ReportButton } from '@/components/meet/ReportButton'
+import { rehearsalOn } from '@/lib/meet/liveRehearsal'
 
 /**
  * After the meeting: Kers drafts the recap from what was captured (agenda,
@@ -51,6 +53,8 @@ export function RecapPanel({ initial }: { initial: Meeting }) {
           {busy === 'post_recap' ? 'Posting…' : meeting.recapPostedAt ? 'Post again' : 'Post to Slack'}
         </Button>
       </div>
+      {/* The anonymous report image for Slack: only once the real meeting has ended (never a rehearsal's answers). */}
+      {meeting.endedAt && !rehearsalOn(meeting) && <ReportButton cycleId={meeting.cycleId} />}
     </section>
   )
 }
