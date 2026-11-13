@@ -123,7 +123,7 @@ export function PollResultTiles({
  * biggest word in the middle, each word in its own pastel. The same on the
  * screen and on a phone, just smaller there.
  */
-export function WordCloud({ activity, size = 'screen' }: { activity: Pick<PublicActivity, 'words'>; size?: 'screen' | 'phone' }) {
+export function WordCloud({ activity, size = 'screen', onPick }: { activity: Pick<PublicActivity, 'words'>; size?: 'screen' | 'phone'; /** The presenter's moderation: tapping a word hides it. */ onPick?: (word: string) => void }) {
   const words = activity.words ?? []
   const screen = size === 'screen'
   const sizes = screen ? SCREEN_CLOUD : PHONE_CLOUD
@@ -173,8 +173,17 @@ export function WordCloud({ activity, size = 'screen' }: { activity: Pick<Public
                 )}
                 style={{ fontSize: `${Math.round(px * scale)}px` }}
               >
-                {w.word}
-                {w.n > 1 && <span className="sr-only"> ({w.n})</span>}
+                {onPick ? (
+                  <button type="button" onClick={() => onPick(w.word)} title="Hide this word" className="cursor-pointer decoration-ink-muted/70 decoration-2 hover:line-through focus-visible:line-through">
+                    {w.word}
+                    <span className="sr-only">{w.n > 1 ? ` (${w.n})` : ''}, hide it</span>
+                  </button>
+                ) : (
+                  <>
+                    {w.word}
+                    {w.n > 1 && <span className="sr-only"> ({w.n})</span>}
+                  </>
+                )}
               </li>
             )
           }),

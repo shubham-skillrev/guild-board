@@ -25,7 +25,13 @@ import { useToast } from '@/hooks/useToast'
 import { PhonePreview } from '@/components/meet/PhonePreview'
 import { JoinQr, useOrigin } from '@/components/meet/JoinQr'
 import { ReportButton } from '@/components/meet/ReportButton'
-import type { PublicActivity } from '@/lib/meet/activity'
+import { hideWord, unhideWord, withoutHidden, type PublicActivity } from '@/lib/meet/activity'
+import { PresenterRemote } from '@/components/meet/PresenterRemote'
+import { QuestionOverlay, QuestionQueue, ReactionFloats } from '@/components/meet/RoomExtras'
+import type { Moderation } from '@/components/meet/ActivityPanel'
+import { REMOTE_QUERY } from '@/lib/meet/clicker'
+import { openCount, SAMPLE_QUESTIONS, sortQueue, type PublicQuestion } from '@/lib/meet/questions'
+import { noReactions, type Reaction, type ReactionTotals } from '@/lib/meet/reactions'
 import { useMeetingLive, useSecond } from '@/components/meet/useMeetingLive'
 import { activityKeyFor, earlyStartWarning, meetingDone, meetingLive, presenterNotes, publicSegments, sectionsOf, slideKind, type MeetingState, type MeetPost, type Segment } from '@/lib/meeting'
 
@@ -43,6 +49,27 @@ function readLocal(key: string): LocalPos | null {
 
 /** Whether the presenter's notes show in rehearsal (P toggles; kept per browser). Never on the live screen. */
 const NOTES_KEY = 'gb-meet-notes'
+
+/** Whether this screen is a phone (lib/meet/clicker.ts REMOTE_QUERY): the presenter gets the remote here. */
+function useRemote(): boolean {
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia(REMOTE_QUERY)
+    const read = () => setOn(mq.matches)
+    const first = setTimeout(read, 0)
+    mq.addEventListener('change', read)
+    return () => {
+      clearTimeout(first)
+      mq.removeEventListener('change', read)
+    }
+  }, [])
+  return on
+}
+
+/** Rehearsal's cloud without the words its presenter hid (live, the server's aggregate drops them). */
+function hiddenOut(a: PublicActivity, hidden: Record<string, string[]>): PublicActivity {
+  return a.words && hidden[a.id]?.length ? { ...a, words: withoutHidden(a.words, hidden[a.id]) } : a
+}
 
 /** An activity's state in rehearsal (its countdown too): local only, never sent. */
 type RehearsedState = Record<string, RehearsedLocal>
@@ -72,8 +99,11 @@ type RehearsedState = Record<string, RehearsedLocal>
  *
  * Only the presenter moves it (← → or PageUp/PageDown for a clicker, the
  * arrows, the dots); everyone else follows (the meeting channel, polling
- * as the fallback). Esc leaves, F goes full screen; in rehearsal P shows
- * or hides the notes and M the phone. The place lives on the server, so a refresh resumes it.
+ * as the fallback). Esc leaves, F goes full screen, Q the question queue;
+ * in rehearsal P shows or hides the notes and M the phone. The place lives
+ * on the server, so a refresh resumes it. On a phone the presenter gets the
+ * remote instead (PresenterRemote); reactions float up from the corner and
+ * a question pulled from the queue sits over the slide's foot.
  *
  * Rehearsal (`rehearsal` set, /meet/present?rehearse=1): the same screen on
  * the real agenda and prep, the day before. Nothing is live and nothing is
@@ -171,6 +201,22 @@ export function PresenterView({
   const [phone, setPhone] = useState(true)
   const [mine, setMine] = useState<Record<string, Record<string, unknown>[]>>({})
   const onAnswer = useCallback((id: string, values: Record<string, unknown>[]) => setMine(m => ({ ...m, [id]: values })), [])
+  // Rehearsal's extras, local only: sample questions (and the phone preview's), its reactions, hidden cloud words.
+  const [sampleQs, setSampleQs] = useState<PublicQuestion[]>(SAMPLE_QUESTIONS)
+  const [sampleShown, setSampleShown] = useState<string | null>(null)
+  const [sampleVoted, setSampleVoted] = useState<string[]>([])
+  const [sampleReactions, setSampleReactions] = useState<ReactionTotals>(noReactions)
+  const [sampleHidden, setSampleHidden] = useState<Record<string, string[]>>({})
+  const previewAsk = useCallback((text: string) => setSampleQs(qs => [...qs, { id: `local-${qs.length}-${text.length}`, text, votes: 0, answered: false, at: new Date().toISOString() }]), [])
+  const previewVote = useCallback((id: string, on: boolean) => {
+    setSampleVoted(v => (on ? (v.includes(id) ? v : [...v, id]) : v.filter(x => x !== id)))
+    setSampleQs(qs => qs.map(q => (q.id === id ? { ...q, votes: Math.max(0, q.votes + (on ? 1 : -1)) } : q)))
+  }, [])
+  const previewReact = useCallback((r: Reaction) => setSampleReactions(t => ({ ...t, [r]: t[r] + 1 })), [])
+  // The phone remote, unless the presenter asked for the full screen here.
+  const remote = useRemote()
+  const [screenView, setScreenView] = useState(false)
+  const [queueOpen, setQueueOpen] = useState(false)
   const act: Call = useCallback(
     async (action, payload = {}, done) => {
       if (!rehearsing) return call(action, payload, done)
@@ -182,6 +228,17 @@ export function PresenterView({
       if (a && seg && action === 'open_activity') setRehearsed(r => ({ ...r, [seg]: { status: 'open', openedAt: new Date(t).toISOString(), closesAt: closesAtFor(t, durationFor(a.kind, agenda.find(s => s.id === seg))) } }))
       if (seg && action === 'extend_activity') setRehearsed(r => (r[seg]?.status === 'open' ? { ...r, [seg]: { ...r[seg], closesAt: extendClosesAt(r[seg].closesAt, t) } } : r))
       if (seg && action === 'close_activity') setRehearsed(r => ({ ...r, [seg]: { status: 'closed', openedAt: r[seg]?.openedAt ?? new Date(t).toISOString(), closesAt: r[seg]?.closesAt ?? null } }))
+      // The extras, as the server would: one question up at a time, answering takes it down, hidden words per cloud.
+      if (action === 'show_question') setSampleShown(typeof payload.question_id === 'string' ? payload.question_id : null)
+      if (action === 'answer_question') {
+        const qid = String(payload.question_id ?? '')
+        const done = payload.answered !== false
+        setSampleQs(qs => qs.map(q => (q.id === qid ? { ...q, answered: done } : q)))
+        if (done) setSampleShown(s => (s === qid ? null : s))
+      }
+      if (action === 'hide_word' || action === 'unhide_word') {
+        setSampleHidden(h => ({ ...h, [id]: action === 'hide_word' ? hideWord(h[id], payload.word) : unhideWord(h[id], payload.word) }))
+      }
       return null
     },
     [rehearsing, rehearsalActs, call, now, agenda],
@@ -193,10 +250,16 @@ export function PresenterView({
   // The activity this slide is about: an activity slide's own, a results slide's `of`.
   const key = seg ? activityKeyFor(agenda, seg.id) : null
   const sample = rehearsalActs && key && rehearsalActs[key] ? rehearseActivity(rehearsalActs[key], rehearsed[key], t, REHEARSE_ROOM) : null
-  const activity = !live || !seg ? null : rehearsing ? (sample ? withAnswer(sample, mine[sample.id], rehearsalActs?.[key!]?.config) : null) : segmentActivity(state, seg)
+  const activity = !live || !seg ? null : rehearsing ? (sample ? hiddenOut(withAnswer(sample, mine[sample.id], rehearsalActs?.[key!]?.config), sampleHidden) : null) : segmentActivity(state, seg)
   const participants = rehearsing ? REHEARSE_ROOM : state.room?.participants ?? 0
   const boss = activity ? bossPhase(activity, t) : null
   const presenting = rehearsing || (live && (local || meeting.presenterId === state.me))
+  // The extras (migration 051): the question queue, the one on screen, the reactions. Rehearsal: its samples.
+  const extrasReady = rehearsing || (live && state.room?.extrasReady !== false && !!state.room)
+  const questions = useMemo(() => (rehearsing ? sortQueue(sampleQs) : state.room?.questions ?? []), [rehearsing, sampleQs, state.room?.questions])
+  const shownQuestion = rehearsing ? sampleQs.find(q => q.id === sampleShown) ?? null : state.room?.shownQuestion ?? null
+  const reactions = rehearsing ? sampleReactions : state.room?.reactions
+  const waiting = openCount(questions)
   const last = idx === agenda.length - 1
   // An open activity holds its slide until it's closed (the server refuses too): only Close voting's move to its results goes.
   const resultsId = seg && activity ? resultsAfter(agenda, seg.id) : null
@@ -288,10 +351,11 @@ export function PresenterView({
       else if (e.key === 'p' || e.key === 'P') toggleNotes()
       else if ((e.key === 'm' || e.key === 'M') && rehearsing) setPhone(on => !on)
       else if ((e.key === 'e' || e.key === 'E') && rehearsing) setEditing(true)
+      else if ((e.key === 'q' || e.key === 'Q') && presenting) setQueueOpen(on => !on)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [go, idx, leave, fullscreen, toggleNotes, rehearsing, editing])
+  }, [go, idx, leave, fullscreen, toggleNotes, rehearsing, editing, presenting])
 
   // Back from the editor: the preview runs on what was saved, on the slide that was being edited.
   const doneEditing = useCallback(
@@ -352,6 +416,46 @@ export function PresenterView({
     else if (activity) act('close_activity', { activity_id: activity.id })
   }
 
+  // Tap a cloud word to hide it (the presenter only; the server needs migration 051, said in the header).
+  const hiddenNow = !activity || activity.kind !== 'cloud' ? null : rehearsing ? sampleHidden[activity.id] ?? [] : state.hidden?.activityId === activity.id ? state.hidden.words : null
+  const moderation: Moderation | null =
+    presenting && activity && hiddenNow
+      ? {
+          hidden: hiddenNow,
+          hide: word => act('hide_word', { activity_id: activity.id, word }),
+          unhide: word => act('unhide_word', { activity_id: activity.id, word }),
+          busy: !rehearsing && (busy === 'hide_word' || busy === 'unhide_word'),
+        }
+      : null
+  const showQuestion = (id: string | null) => act('show_question', { question_id: id })
+  const answerQuestion = (id: string, answered: boolean) => act('answer_question', { question_id: id, answered })
+
+  // On a phone the presenter gets the clicker (lib/meet/clicker.ts); "Screen view" shows the slides instead.
+  if (remote && !screenView && presenting && live && !ended && !local && !rehearsing) {
+    return (
+      <PresenterRemote
+        label={state.cycle.label}
+        agenda={agenda}
+        idx={idx}
+        activity={activity}
+        participants={participants}
+        busy={busy}
+        now={now}
+        refresh={refresh}
+        go={go}
+        call={act}
+        onClose={closeActivity}
+        rehearsal={dress}
+        questions={questions}
+        shownId={shownQuestion?.id ?? null}
+        extrasReady={extrasReady}
+        onShow={showQuestion}
+        onAnswer={answerQuestion}
+        onScreenView={() => setScreenView(true)}
+      />
+    )
+  }
+
   let stage: React.ReactNode
   if (ended) {
     stage = (
@@ -388,7 +492,7 @@ export function PresenterView({
         last={last}
         participants={participants}
         joinPath={idx === 0 && kind === 'title' && !rehearsing ? (dress && meeting.rehearsalCode ? rehearsalPath(meeting.rehearsalCode) : '/meet') : null}
-        hero={{ presenting, now, call: act, busy: rehearsing ? null : busy, onClose: closeActivity, onResults: resultsIdx >= 0 ? () => go(resultsIdx) : null, onExpire: rehearsing ? undefined : refresh }}
+        hero={{ presenting, now, call: act, busy: rehearsing ? null : busy, onClose: closeActivity, onResults: resultsIdx >= 0 ? () => go(resultsIdx) : null, onExpire: rehearsing ? undefined : refresh, moderation }}
       />
     )
   }
@@ -418,6 +522,12 @@ export function PresenterView({
             )}
             {live && local && !rehearsing && <span className="mr-1.5 text-footnote text-ink-muted">Apply migration 045 so other admins can follow along</span>}
             {live && !rehearsing && presenting && state.room?.timerReady === false && <span className="mr-1.5 text-footnote text-ink-muted">No countdown: apply migration 048</span>}
+            {live && !rehearsing && presenting && state.room?.extrasReady === false && <span className="mr-1.5 text-footnote text-ink-muted">Reactions, questions, hiding words: apply migration 051</span>}
+            {live && presenting && !ended && extrasReady && (
+              <Button variant="ghost" onClick={() => setQueueOpen(on => !on)} aria-pressed={queueOpen} title="Q">
+                Questions{waiting ? <span className="tabular"> ({waiting})</span> : null}
+              </Button>
+            )}
             {rehearsing && (
               <Button variant="ghost" icon={PencilSimple} onClick={() => setEditing(true)} title="E">Edit slides</Button>
             )}
@@ -458,6 +568,30 @@ export function PresenterView({
         )}
       </main>
 
+      {/* The question pulled onto the slide: everyone watching the screen sees it; the presenter can take it down. */}
+      {live && !ended && shownQuestion && (
+        <div className={cn('pointer-events-none fixed inset-x-0 bottom-24 z-10 flex justify-center px-14', sidePad)}>
+          <QuestionOverlay className="pointer-events-auto w-full" question={shownQuestion} onDismiss={presenting ? () => showQuestion(null) : undefined} />
+        </div>
+      )}
+
+      {/* The presenter's queue (Q). */}
+      {live && !ended && presenting && queueOpen && (
+        <QuestionQueue
+          className={cn('fixed bottom-24 top-20 z-20 w-[340px] shadow-[0_16px_40px_var(--shadow-tint-strong)]', rehearsing && phone ? 'right-[420px]' : 'right-6')}
+          questions={questions}
+          shownId={shownQuestion?.id ?? null}
+          ready={extrasReady}
+          busy={!rehearsing && !!busy}
+          onShow={showQuestion}
+          onAnswer={answerQuestion}
+          onClose={() => setQueueOpen(false)}
+        />
+      )}
+
+      {/* Reactions from the phones float up from the corner (a quiet count under reduced motion). */}
+      {live && !ended && <ReactionFloats totals={reactions} className={cn('fixed bottom-24 z-10', rehearsing && phone ? 'right-[440px]' : 'right-10')} />}
+
       {/* Rehearsal only: the phone side, to tap through. Never on the live screen. */}
       {rehearsing && phone && (
         <PhonePreview
@@ -471,6 +605,7 @@ export function PresenterView({
           participants={participants}
           mine={mine}
           onAnswer={onAnswer}
+          extras={{ questions, shownQuestion, voted: sampleVoted, ask: previewAsk, vote: previewVote, react: previewReact }}
         />
       )}
 

@@ -3,6 +3,9 @@
 //                        { action: 'respond', activity_id, value } poll { option } / cloud { word }
 //                          / predict { option } / fill { tokens } / boss { passed, tests, of }
 //                          or { started } (typing) or { cheer } (a phone watching; rate-limited)
+//                        { action: 'react', reaction }  fire / laugh / clap (rate-limited; migration 051)
+//                        { action: 'ask', text }        an anonymous question (filtered, rate-limited)
+//                        { action: 'vote', question_id, on } upvote a question, or take it back
 // AUTH: public (src/proxy.ts). Members are recognised by their session, guests
 //       by the httpOnly `gb_meet` cookie set on join (its SHA-256 is stored).
 //       Joining and answering only while the meeting is live, or during a
@@ -11,13 +14,15 @@
 // PURPOSE: Meeting mode's audience (docs/06-meeting-mode.md, Phase 2). Answers
 //          are aggregated server-side and broadcast on `meeting:{cycle_id}` at
 //          most once a second (lib/meet/room.ts).
-// DB TABLES: meetings, meeting_participants, meeting_activities, meeting_responses
+// DB TABLES: meetings, meeting_participants, meeting_activities, meeting_responses,
+//            meeting_questions, meeting_question_votes, meeting_reactions (051)
 
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cleanName, currentMeeting, findParticipant, joinGuest, joinMember, loadActivity, MEET_COOKIE, meetView, respond, roomOpenTo, sessionUserId } from '@/lib/meet/room'
 import { REHEARSAL_COOKIE } from '@/lib/meet/liveRehearsal'
+import { ask, react, vote } from '@/lib/meet/roomExtras'
 
 const NO_STORE = { 'Cache-Control': 'no-store' }
 
@@ -69,6 +74,20 @@ export async function POST(request: Request) {
       if (r.ok) return NextResponse.json({ ok: true, mine: r.mine }, { headers: NO_STORE })
       // A blocked word is a quiet drop, not an error: the phone just says so.
       if (r.blocked) return NextResponse.json({ ok: false, blocked: true, message: r.message, mine: r.mine }, { headers: NO_STORE })
+      return NextResponse.json({ error: r.error }, { status: r.status })
+    }
+    case 'react':
+    case 'ask':
+    case 'vote': {
+      const p = await findParticipant(admin, cycleId, userId, token)
+      if (!p) return NextResponse.json({ error: 'Join the room first.' }, { status: 403 })
+      const r =
+        body.action === 'react' ? await react(admin, cycleId, p, body.reaction)
+        : body.action === 'ask' ? await ask(admin, cycleId, p, body.text)
+        : await vote(admin, cycleId, p, body.question_id, body.on)
+      if (r.ok) return NextResponse.json(r, { headers: NO_STORE })
+      // A blocked question is a quiet drop, like a blocked word.
+      if (r.blocked) return NextResponse.json({ ok: false, blocked: true, message: r.error }, { headers: NO_STORE })
       return NextResponse.json({ error: r.error }, { status: r.status })
     }
     default:

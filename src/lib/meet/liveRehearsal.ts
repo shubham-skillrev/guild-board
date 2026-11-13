@@ -158,13 +158,18 @@ export async function wipeRehearsal(db: WipeDb, cycleId: string, mode: 'all' | '
   const errors: DbError[] = []
   const people = await t('meeting_participants').delete().eq('cycle_id', cycleId)
   errors.push(people.error)
-  const acts = await t('meeting_activities').update({ status: 'ready', opened_at: null, closed_at: null }).eq('cycle_id', cycleId)
+  // Their questions, votes and reactions cascade with them (migration 051); the questions go explicitly too.
+  const qs = await t('meeting_questions').delete().eq('cycle_id', cycleId)
+  errors.push(qs.error)
+  // Every activity back to ready, its hidden cloud words cleared (051; before it, without the column).
+  let acts = await t('meeting_activities').update({ status: 'ready', opened_at: null, closed_at: null, hidden_words: [] }).eq('cycle_id', cycleId)
+  if (acts.error && /hidden_words/.test(acts.error.message)) acts = await t('meeting_activities').update({ status: 'ready', opened_at: null, closed_at: null }).eq('cycle_id', cycleId)
   errors.push(acts.error)
   let meeting = await t('meetings').update({ presenter_id: null, current_segment: null, segment_started_at: null, started_at: null, ended_at: null }).eq('cycle_id', cycleId)
   // Before 045 there's no presenter to clear.
   if (meeting.error && /presenter_id|current_segment|segment_started_at/.test(meeting.error.message)) meeting = await t('meetings').update({ started_at: null, ended_at: null }).eq('cycle_id', cycleId)
   errors.push(meeting.error)
-  return errors.find(e => e && !/meeting_(participants|activities)/.test(e.message) && e.code !== '42P01' && e.code !== 'PGRST205') ?? null
+  return errors.find(e => e && !/meeting_(participants|activities|questions)/.test(e.message) && e.code !== '42P01' && e.code !== 'PGRST205') ?? null
 }
 
 /** Whether an error only means migration 047 isn't applied. */

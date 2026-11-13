@@ -76,3 +76,37 @@ test('a cleaned word is still checked as typed', async () => {
     assert.equal(isBlocked(typed) || isBlocked(cleanWord(typed) ?? ''), true, typed)
   }
 })
+
+test('hidden words: aggregate drops them everywhere (screen, phones and report share it)', async () => {
+  const { hiddenOf, hideWord, unhideWord, withoutHidden, HIDDEN_MAX } = await import('./activity.ts')
+  const rows = [
+    { participant_id: 'p1', slot: 0, value: { word: 'coffee' } },
+    { participant_id: 'p2', slot: 0, value: { word: 'Coffee' } },
+    { participant_id: 'p1', slot: 1, value: { word: 'meetings' } },
+    { participant_id: 'p3', slot: 0, value: { word: 'git' } },
+  ]
+  assert.deepEqual(aggregate(cloud, rows).words?.map(w => w.word), ['coffee', 'git', 'meetings'])
+  const hidden = { ...cloud, hidden_words: ['Meetings ', 'GIT'] }
+  const a = aggregate(hidden, rows)
+  assert.deepEqual(a.words, [{ word: 'coffee', n: 2 }])
+  assert.equal(a.total, 2)
+  // Nothing hidden before migration 051 (no column) or with a junk value.
+  assert.equal(aggregate({ ...cloud, hidden_words: null }, rows).words?.length, 3)
+  assert.equal(aggregate({ ...cloud, hidden_words: 'git' as unknown as string[] }, rows).words?.length, 3)
+  // The list: cleaned like cloud words, no repeats, capped.
+  assert.deepEqual(hiddenOf([' C++ ', 'c++', 42, '', 'Node.JS.']), ['c++', 'node.js'])
+  assert.deepEqual(hideWord(['git'], 'Coffee'), ['git', 'coffee'])
+  assert.deepEqual(hideWord(['git'], 'GIT'), ['git'])
+  assert.deepEqual(hideWord(['git'], '!!'), ['git'])
+  assert.deepEqual(unhideWord(['git', 'coffee'], 'Git'), ['coffee'])
+  assert.equal(hideWord(Array.from({ length: HIDDEN_MAX }, (_, i) => `w${i}`), 'extra').length, HIDDEN_MAX)
+  assert.deepEqual(withoutHidden([{ word: 'a', n: 1 }, { word: 'b', n: 2 }], ['b']), [{ word: 'a', n: 1 }])
+})
+
+test('a word that Kers blocks never shows, even if it was stored before the filter caught it', () => {
+  const rows = [
+    { participant_id: 'p1', slot: 0, value: { word: 'shit' } },
+    { participant_id: 'p2', slot: 0, value: { word: 'class' } },
+  ]
+  assert.deepEqual(aggregate(cloud, rows).words?.map(w => w.word), ['class'])
+})

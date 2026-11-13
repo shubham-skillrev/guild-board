@@ -132,7 +132,8 @@ test('wipeRehearsal all: code first, then people (answers cascade), activities t
     [
       ['meetings', 'update', { rehearsal_code: null, rehearsal_started_at: null }],
       ['meeting_participants', 'delete', null],
-      ['meeting_activities', 'update', { status: 'ready', opened_at: null, closed_at: null }],
+      ['meeting_questions', 'delete', null],
+      ['meeting_activities', 'update', { status: 'ready', opened_at: null, closed_at: null, hidden_words: [] }],
       ['meetings', 'update', { presenter_id: null, current_segment: null, segment_started_at: null, started_at: null, ended_at: null }],
     ],
   )
@@ -161,4 +162,18 @@ test('wipeRehearsal: before 045 still clears started and ended; missing 046 tabl
   })
   assert.equal(await wipeRehearsal(db, 'c1', 'all'), null)
   assert.deepEqual(db.calls.at(-1)?.arg, { started_at: null, ended_at: null })
+})
+
+test('wipeRehearsal: before 051 the questions table and hidden_words are skipped, not an error', async () => {
+  const db = fakeDb((table, op, arg) => {
+    if (table === 'meeting_questions') return { message: 'Could not find the table \'public.meeting_questions\' in the schema cache', code: 'PGRST205' }
+    if (table === 'meeting_activities' && 'hidden_words' in ((arg as Record<string, unknown>) ?? {})) return { message: 'column "hidden_words" of relation "meeting_activities" does not exist' }
+    return null
+  })
+  assert.equal(await wipeRehearsal(db, 'c1', 'all'), null)
+  const acts = db.calls.filter(c => c.table === 'meeting_activities')
+  assert.deepEqual(acts.map(c => c.arg), [
+    { status: 'ready', opened_at: null, closed_at: null, hidden_words: [] },
+    { status: 'ready', opened_at: null, closed_at: null },
+  ])
 })

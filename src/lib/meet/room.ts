@@ -12,6 +12,8 @@ import { roomOpenTo, rowRehearsing, wipeRehearsal } from '@/lib/meet/liveRehears
 import { meetPosts } from '@/lib/guild/meetingPrep'
 import { cheerAllowed } from '@/lib/meet/boss'
 import { closesAtFor, dueToClose, durationFor, extendClosesAt, missing048, tooLate } from '@/lib/meet/timer'
+import { buildQueue, type PublicQuestion } from '@/lib/meet/questions'
+import { sumReactions, type ReactionTotals } from '@/lib/meet/reactions'
 import {
   aggregate,
   BLOCKED_MESSAGE,
@@ -75,6 +77,37 @@ export function missing046(error: { message?: string; code?: string } | null | u
   return !!error && (error.code === '42P01' || error.code === 'PGRST205' || error.code === 'PGRST202' || /meeting_(participants|activities|responses)|meeting_live_claim|live_sent_at/.test(error.message ?? ''))
 }
 
+/** Whether an error only means migration 051 (reactions, ask-anything, hidden cloud words) isn't applied. */
+export function missing051(error: { message?: string; code?: string } | null | undefined): boolean {
+  return !!error && (error.code === '42P01' || error.code === 'PGRST205' || error.code === 'PGRST200' || /hidden_words|meeting_questions|meeting_question_votes|meeting_reactions/.test(error.message ?? ''))
+}
+
+/**
+ * The room's extras (migration 051): the ask-anything queue (text and vote
+ * counts only, never who), the question on screen, and the reaction totals.
+ * `{ extrasReady: false }` before 051.
+ */
+async function readExtras(admin: Admin, cycleId: string): Promise<{ questions?: PublicQuestion[]; shownQuestion?: PublicQuestion | null; reactions?: ReactionTotals; extrasReady?: boolean }> {
+  const [qs, rx] = await Promise.all([
+    admin.from('meeting_questions').select('id, body, created_at, answered_at, shown_at, meeting_question_votes(count)').eq('cycle_id', cycleId),
+    admin.from('meeting_reactions').select('fire, laugh, clap').eq('cycle_id', cycleId),
+  ])
+  if (qs.error || rx.error) {
+    if (!missing051(qs.error ?? rx.error)) console.warn('readExtras failed', (qs.error ?? rx.error)?.message)
+    return { extrasReady: false }
+  }
+  const rows = (qs.data ?? []).map(r => {
+    const v = (r as { meeting_question_votes?: { count?: number }[] }).meeting_question_votes
+    return { id: r.id as string, body: r.body as string, created_at: r.created_at as string, answered_at: r.answered_at as string | null, shown_at: r.shown_at as string | null, votes: Number(v?.[0]?.count ?? 0) }
+  })
+  const shown = rows.find(r => r.shown_at)
+  return {
+    questions: buildQueue(rows),
+    shownQuestion: shown ? { id: shown.id, text: shown.body, votes: shown.votes, answered: !!shown.answered_at, at: shown.created_at } : null,
+    reactions: sumReactions((rx.data ?? []) as Record<string, unknown>[]),
+  }
+}
+
 /** The meeting /meet is about: the open month's. */
 export async function currentMeeting(admin: Admin) {
   const cycle = await openCycle(admin)
@@ -115,9 +148,10 @@ async function closeDue(admin: Admin, cycleId: string, rows: ActivityRow[], now 
 export async function readRoom(admin: Admin, cycleId: string, row?: MeetingRow | null, quiet = false): Promise<RoomState | null> {
   const meeting = row !== undefined ? row : (await admin.from('meetings').select('*').eq('cycle_id', cycleId).maybeSingle()).data
   if (!meeting) return null
-  const [people, acts] = await Promise.all([
+  const [people, acts, extras] = await Promise.all([
     admin.from('meeting_participants').select('id', { count: 'exact', head: true }).eq('cycle_id', cycleId),
     admin.from('meeting_activities').select('*').eq('cycle_id', cycleId),
+    readExtras(admin, cycleId),
   ])
   if (people.error || acts.error) {
     if (!missing046(people.error ?? acts.error)) console.warn('readRoom failed', people.error ?? acts.error)
@@ -146,6 +180,7 @@ export async function readRoom(admin: Admin, cycleId: string, row?: MeetingRow |
     warm: activities.some(a => !!a.opened_at),
     at: new Date().toISOString(),
     ...(timerReady ? {} : { timerReady: false }),
+    ...extras,
   }
 }
 
@@ -373,6 +408,12 @@ async function cheer(admin: Admin, cycleId: string, participant: Participant, ac
   return { ok: true, mine: await mineFor(admin, participant.id, activityId) }
 }
 
+/** The questions this participant upvoted (migration 051): their own, for the phone's filled arrows. */
+export async function votedBy(admin: Admin, participantId: string): Promise<string[]> {
+  const { data, error } = await admin.from('meeting_question_votes').select('question_id').eq('participant_id', participantId)
+  return error ? [] : (data ?? []).map(r => r.question_id as string)
+}
+
 // ─── The phone's view ──────────────────────────────────────────────────────
 
 /**
@@ -409,7 +450,13 @@ export async function meetView(admin: Admin, userId: string | null, guestToken: 
   if (p) {
     view.joined = { kind: p.kind, name: p.name }
     // Open: what they've answered so far. Closed: their vote, for "you picked" on the results.
-    if (room.activity && room.activity.status !== 'ready') view.mine = await mineFor(admin, p.id, room.activity.id)
+    // And which questions they upvoted (their own votes only).
+    const [mine, voted] = await Promise.all([
+      room.activity && room.activity.status !== 'ready' ? mineFor(admin, p.id, room.activity.id) : null,
+      room.questions?.length ? votedBy(admin, p.id) : null,
+    ])
+    if (mine) view.mine = mine
+    if (voted) view.voted = voted
   }
   return view
 }
@@ -451,7 +498,13 @@ export async function resetHollowRun(admin: Admin, cycleId: string, m: { started
     console.warn('resetHollowRun failed', error.message)
     return false
   }
-  if (ids.length) await admin.from('meeting_activities').update({ status: 'ready', opened_at: null, closed_at: null }).eq('cycle_id', cycleId)
+  if (ids.length) {
+    // Hidden cloud words go too (migration 051; before it, the column isn't there to clear).
+    const r = await admin.from('meeting_activities').update({ status: 'ready', opened_at: null, closed_at: null, hidden_words: [] }).eq('cycle_id', cycleId)
+    if (r.error && missing051(r.error)) await admin.from('meeting_activities').update({ status: 'ready', opened_at: null, closed_at: null }).eq('cycle_id', cycleId)
+  }
+  // Nobody joined, so no question can exist; cleared anyway so a reset is always a clean slate (051).
+  await admin.from('meeting_questions').delete().eq('cycle_id', cycleId)
   nudgeRoom(cycleId)
   return true
 }

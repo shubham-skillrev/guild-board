@@ -48,6 +48,12 @@
 //                          (migration 048, lib/meet/timer.ts). Opening sets
 //                          closes_at from the slide's duration_s; once it
 //                          passes, the next read of the room closes it
+//            hide_word / unhide_word { activity_id, word } the presenter takes
+//                          a word off a word cloud (or back): screen, phones
+//                          and report all drop it (migration 051)
+//            show_question { question_id | null } pulls one ask-anything
+//                          question onto the shared screen (null: down)
+//            answer_question { question_id, answered? } marks it answered
 //            note          { note: { text, owner?, decision?, segment? } }
 //            delete_note   { id }
 //            draft_recap   -> { recap, byAi } from what was captured (not saved)
@@ -65,6 +71,7 @@ import { editLocked, LOCKED_MESSAGE } from '@/lib/meet/agendaEdit'
 import { canReopen, cleanNote, LIMITS, meetingLive, type MeetingState, type Segment } from '@/lib/meeting'
 import { activitiesOnGoto, closeActivity, closeRoom, endRehearsal, extendActivity, gotoLocked, nudgeRoom, openActivity, readRoom, resetHollowRun } from '@/lib/meet/room'
 import { NAV_LOCKED_MESSAGE } from '@/lib/meet/slides'
+import { answerQuestion, hiddenFor, setHidden, showQuestion } from '@/lib/meet/roomExtras'
 import { missing047, newRehearsalCode, rehearsalBlocked, rehearsalLeft, rehearsalOn, rehearsalWipeMode } from '@/lib/meet/liveRehearsal'
 import { isSlackConfigured, postToSlack } from '@/lib/slack/send'
 
@@ -97,7 +104,10 @@ async function state(cycle: MeetingState['cycle'], me: string, heal = false): Pr
     meeting = await getMeeting(cycle.id)
     ;[name, room] = await Promise.all([presenterName(meeting.presenterId), readRoom(createAdminClient(), cycle.id).catch(() => null)])
   }
-  return { cycle, meeting, me, presenterName: name, serverNow: new Date().toISOString(), room }
+  // The shown word cloud's hidden words: the presenter's "Hidden (n)" (admins only, never broadcast).
+  const cloud = room?.activity?.kind === 'cloud' ? room.activity.id : null
+  const words = cloud ? await hiddenFor(createAdminClient(), cycle.id, cloud) : null
+  return { cycle, meeting, me, presenterName: name, serverNow: new Date().toISOString(), room, hidden: cloud && words ? { activityId: cloud, words } : null }
 }
 
 export async function GET(request: Request) {
@@ -310,6 +320,21 @@ export async function POST(request: Request) {
           : await openActivity(createAdminClient(), cycle.id, body.activity_id, m.agenda)
         if (r.error) return NextResponse.json({ error: r.error }, { status: r.status ?? 500 })
       }
+      return NextResponse.json(await state(cycle, adminId))
+    }
+    case 'hide_word':
+    case 'unhide_word':
+    case 'show_question':
+    case 'answer_question': {
+      const m = await getMeeting(cycle.id)
+      if (!meetingLive(m) && !rehearsalOn(m)) return NextResponse.json({ error: 'Meeting mode isn’t on.' }, { status: 409 })
+      if (m.presenterId !== adminId) return NextResponse.json({ error: 'Someone else is presenting. Take over first.', ...(await state(cycle, adminId)) }, { status: 409 })
+      const admin = createAdminClient()
+      const r =
+        body.action === 'show_question' ? await showQuestion(admin, cycle.id, body.question_id ?? null)
+        : body.action === 'answer_question' ? await answerQuestion(admin, cycle.id, body.question_id, body.answered)
+        : await setHidden(admin, cycle.id, body.activity_id, body.word, body.action === 'hide_word')
+      if (r.error) return NextResponse.json({ error: r.error }, { status: r.status ?? 500 })
       return NextResponse.json(await state(cycle, adminId))
     }
     case 'note': {

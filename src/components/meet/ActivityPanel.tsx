@@ -14,14 +14,33 @@ import { CountdownRing, useCountdown } from '@/components/meet/CountdownRing'
 import { EXTEND_S } from '@/lib/meet/timer'
 import { isQuiz } from '@/lib/meet/bossStages'
 import { StageQuestion, StageReveal } from '@/components/meet/BossStages'
+import { HiddenWords } from '@/components/meet/RoomExtras'
 
 export const KIND_NAME: Record<ActivityKind, string> = { poll: 'Poll', cloud: 'Word cloud', boss: 'Boss Round', predict: 'Predict the output', fill: 'Fill the blank' }
 const KIND_ICON: Record<ActivityKind, PhosphorIcon> = { poll: ChartBar, cloud: CloudSun, boss: Code, predict: Eye, fill: PuzzlePiece }
 /** The presenter's close button, by kind. */
-const CLOSE_LABEL: Record<ActivityKind, string> = { poll: 'Close voting', cloud: 'Close the cloud', boss: 'Close the round', predict: 'Close answers', fill: 'Close answers' }
+export const CLOSE_LABEL: Record<ActivityKind, string> = { poll: 'Close voting', cloud: 'Close the cloud', boss: 'Close the round', predict: 'Close answers', fill: 'Close answers' }
 const EASE = 'ease-[cubic-bezier(0.23,1,0.32,1)]'
 
 type Call = (action: string, payload?: Record<string, unknown>, done?: string) => Promise<unknown>
+
+/** The presenter's word-cloud moderation (migration 051): tap a word to hide it, bring hidden ones back. */
+export interface Moderation {
+  hidden: string[]
+  hide: (word: string) => void
+  unhide: (word: string) => void
+  busy?: boolean
+}
+
+/** The cloud, with the presenter's moderation when there is one. */
+function ScreenCloud({ activity, moderation }: { activity: PublicActivity; moderation?: Moderation | null }) {
+  return (
+    <>
+      <WordCloud activity={activity} onPick={moderation?.hide} />
+      {moderation && <HiddenWords words={moderation.hidden} onUnhide={moderation.unhide} busy={moderation.busy} />}
+    </>
+  )
+}
 
 /** The slide's activity, if it has one (any status): an activity slide's own, a results slide's `of`. */
 export function segmentActivity(state: MeetingState, segment: Segment): PublicActivity | null {
@@ -96,6 +115,7 @@ export function ActivityHero({
   onClose,
   onResults,
   onExpire,
+  moderation,
 }: {
   activity: PublicActivity
   /** The slide's one line under the question. */
@@ -111,6 +131,8 @@ export function ActivityHero({
   onResults?: (() => void) | null
   /** The countdown hit zero: pull the room, so the server closes it. */
   onExpire?: () => void
+  /** A word cloud's moderation (the presenter only). */
+  moderation?: Moderation | null
 }) {
   const t = useTicking(a.status === 'open' && a.kind === 'poll', now)
   const countdown = useCountdown(a, now, onExpire)
@@ -188,7 +210,7 @@ export function ActivityHero({
       ) : null}
       <div className="mt-10 flex min-h-0 flex-1 flex-col">
         {a.kind === 'poll' && <ScreenPoll activity={a} at={t ?? 0} />}
-        {a.kind === 'cloud' && <WordCloud activity={a} />}
+        {a.kind === 'cloud' && <ScreenCloud activity={a} moderation={presenting ? moderation : null} />}
         {isQuiz(a.kind) && (a.status === 'closed' ? <StageReveal activity={a} size="screen" /> : <StageQuestion activity={a} />)}
         {a.kind === 'boss' && <BossTally activity={a} participants={participants} verdict={false} />}
       </div>
@@ -203,7 +225,7 @@ export function ActivityHero({
  * last; a cloud is the full cloud; the Boss Round is the pass rate and Kers'
  * verdict.
  */
-export function ResultsHero({ activity: a, title, cue, participants }: { activity: PublicActivity; title: string; cue: string | null; participants: number }) {
+export function ResultsHero({ activity: a, title, cue, participants, moderation }: { activity: PublicActivity; title: string; cue: string | null; participants: number; moderation?: Moderation | null }) {
   return (
     <section aria-label={`${KIND_NAME[a.kind]} results`} className="flex min-h-0 flex-1 flex-col">
       <p className="eyebrow flex items-center gap-2.5">
@@ -215,7 +237,7 @@ export function ResultsHero({ activity: a, title, cue, participants }: { activit
       <h1 className="mt-3 max-w-[36ch] text-[clamp(34px,2.5vw,48px)] font-semibold leading-[1.1] tracking-[-0.03em] text-ink text-balance">{cue || title}</h1>
       <div className="mt-8 flex min-h-0 flex-1 flex-col">
         {a.kind === 'poll' && <div className="max-w-[88rem]"><PollResultTiles activity={a} size="screen" final /></div>}
-        {a.kind === 'cloud' && <WordCloud activity={a} />}
+        {a.kind === 'cloud' && <ScreenCloud activity={a} moderation={moderation} />}
         {isQuiz(a.kind) && <StageReveal activity={a} size="screen" />}
         {a.kind === 'boss' && <BossTally activity={a} participants={participants} verdict />}
       </div>

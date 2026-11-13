@@ -51,7 +51,7 @@ export function SlideBody({
     return <ActivityHero key={activity.id} activity={activity} cue={cue} participants={participants} {...hero} />
   }
   if (kind === 'results' && activity) {
-    return <ResultsHero key={`${activity.id}:${activity.status}`} activity={activity} title={seg.title} cue={cue} participants={participants} />
+    return <ResultsHero key={`${activity.id}:${activity.status}`} activity={activity} title={seg.title} cue={cue} participants={participants} moderation={hero.presenting ? hero.moderation : null} />
   }
   if (kind === 'meme' && seg.meme) return <MemeSlide key={seg.id} meme={seg.meme} size="screen" />
   if (kind === 'text') {

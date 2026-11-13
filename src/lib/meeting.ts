@@ -219,6 +219,8 @@ export interface MeetingState {
   serverNow: string
   /** The audience (migration 046): who's in, the segment's activity and its answers. Null before 046. */
   room?: RoomState | null
+  /** Admins only: the shown word cloud's hidden words (migration 051), for the presenter's "Hidden (n)". */
+  hidden?: { activityId: string; words: string[] } | null
 }
 
 /** Admins see the meeting card on the board (Rehearse, Start) from this long before: the day before. */

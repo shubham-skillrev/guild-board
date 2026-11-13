@@ -8,13 +8,16 @@
  * (components/meet/ActivityPanel.tsx). The Boss Round's problems live in
  * ./boss.ts.
  *
- * Imports only ./boss.ts, by path, so the unit tests run it straight under
+ * Imports only ./boss.ts, ./bossStages.ts and ./profanity.ts, by path, so the unit tests run it straight under
  * `node --test`.
  */
 
 import { bossProblem } from './boss.ts'
+import { isBlocked } from './profanity.ts'
 import { cleanFill, fillConfig, publicConfig, quizTally } from './bossStages.ts'
 import type { MeetPost, PresenterNotes, PublicSegment } from '../meeting.ts'
+import type { PublicQuestion } from './questions.ts'
+import type { ReactionTotals } from './reactions.ts'
 
 /**
  * poll, word cloud, and the Boss Round's stages (./bossStages.ts): `predict`
@@ -46,6 +49,8 @@ export interface ActivityRow {
   closed_at: string | null
   /** When it closes on its own (migration 048; lib/meet/timer.ts). Missing before 048, null when untimed. */
   closes_at?: string | null
+  /** Cloud words the presenter hid (migration 051). Missing before 051. */
+  hidden_words?: string[] | null
 }
 
 /** A meeting_responses row, as aggregate() needs it. */
@@ -115,6 +120,17 @@ export interface RoomState {
   at: string
   /** False until migration 048 is applied: activities then have no countdown and never close on their own. */
   timerReady?: boolean
+  /**
+   * The ask-anything queue (lib/meet/questions.ts, migration 051): anonymous
+   * text and vote counts, sorted, the top QUEUE_SHOWN. Missing before 051.
+   */
+  questions?: PublicQuestion[]
+  /** The question the presenter pulled onto the shared screen, if any. */
+  shownQuestion?: PublicQuestion | null
+  /** The room's reaction totals (lib/meet/reactions.ts): the screen floats what's new. */
+  reactions?: ReactionTotals
+  /** False until migration 051 is applied: no reactions, no ask-anything. */
+  extrasReady?: boolean
 }
 
 /** What this participant has answered on the open activity, slot by slot. */
@@ -147,6 +163,8 @@ export interface MeetView {
   posts?: Record<string, MeetPost>
   /** The presenter's own notes: set only when this person is who presents (lib/meeting.ts phoneAgenda). */
   notes?: PresenterNotes | null
+  /** The questions this person upvoted (ids): only ever their own. */
+  voted?: string[]
 }
 
 /** Whatever the presenter or the seed stored as options, as strings. */
@@ -182,6 +200,40 @@ export function cleanWord(raw: unknown): string | null {
 function whole(v: unknown): number {
   if (typeof v === 'number') return Number.isInteger(v) ? v : NaN
   return typeof v === 'string' && /^\d{1,3}$/.test(v) ? Number(v) : NaN
+}
+
+/** The most words one cloud may have hidden. */
+export const HIDDEN_MAX = 100
+
+/** A stored hidden-word list, cleaned the way the cloud merges words (so "C++ " hides "c++"). */
+export function hiddenOf(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return []
+  const out: string[] = []
+  for (const w of raw) {
+    const c = cleanWord(w)
+    if (c && !out.includes(c)) out.push(c)
+  }
+  return out.slice(0, HIDDEN_MAX)
+}
+
+/** The list with `word` hidden too (unchanged if it's already there, empty or the list is full). */
+export function hideWord(list: unknown, word: unknown): string[] {
+  const now = hiddenOf(list)
+  const w = cleanWord(word)
+  return !w || now.includes(w) || now.length >= HIDDEN_MAX ? now : [...now, w]
+}
+
+/** The list without `word`. */
+export function unhideWord(list: unknown, word: unknown): string[] {
+  const w = cleanWord(word)
+  return hiddenOf(list).filter(x => x !== w)
+}
+
+/** A cloud's words without the hidden ones. */
+export function withoutHidden<T extends { word: string }>(words: T[], hidden: string[] | null | undefined): T[] {
+  if (!hidden?.length) return words
+  const set = new Set(hidden)
+  return words.filter(w => !set.has(w.word))
 }
 
 export type Cleaned = { ok: true; value: Record<string, unknown> } | { ok: false; error: string }
@@ -266,7 +318,10 @@ export function aggregate(activity: ActivityRow, rows: ResponseRow[]): PublicAct
         set.add(r.participant_id)
         byWord.set(w, set)
       }
-      const words = [...byWord].map(([word, s]) => ({ word, n: s.size }))
+      // The presenter's hidden words go everywhere at once (screen, phones, report), and so does
+      // anything Kers' filter catches now that slipped in before (a word stored before a list update).
+      const hidden = new Set(hiddenOf(activity.hidden_words))
+      const words = [...byWord].filter(([word]) => !hidden.has(word) && !isBlocked(word)).map(([word, s]) => ({ word, n: s.size }))
       out.total = words.reduce((n, w) => n + w.n, 0)
       out.words = words.sort((a, b) => b.n - a.n || a.word.localeCompare(b.word)).slice(0, CLOUD_SHOWN)
       break

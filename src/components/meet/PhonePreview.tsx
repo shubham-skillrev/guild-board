@@ -5,6 +5,18 @@ import { MeetRoom, type MeetRoomOffline } from '@/components/meet/MeetRoom'
 import { cleanWord, type MeetView, type PublicActivity, type RoomState } from '@/lib/meet/activity'
 import type { MeetPost, PresenterNotes, PublicSegment } from '@/lib/meeting'
 import { addAnswer } from '@/lib/meet/rehearse'
+import { checkQuestion, type PublicQuestion } from '@/lib/meet/questions'
+import { isReaction, type Reaction } from '@/lib/meet/reactions'
+
+/** Rehearsal's extras, kept by the presenter screen: its sample questions and the reactions it floats. */
+export interface PreviewExtras {
+  questions: PublicQuestion[]
+  shownQuestion: PublicQuestion | null
+  voted: string[]
+  ask: (text: string) => void
+  vote: (id: string, on: boolean) => void
+  react: (r: Reaction) => void
+}
 
 /**
  * Rehearsal only: what a phone in the room sees, beside the presenter
@@ -25,6 +37,7 @@ export function PhonePreview({
   participants,
   mine,
   onAnswer,
+  extras,
 }: {
   cycleId: string
   label: string
@@ -37,11 +50,16 @@ export function PhonePreview({
   /** This phone's answers so far, by activity id. */
   mine: Record<string, Record<string, unknown>[]>
   onAnswer: (activityId: string, values: Record<string, unknown>[]) => void
+  extras?: PreviewExtras
 }) {
+  const questions = extras?.questions
+  const shownQuestion = extras?.shownQuestion
   const room: RoomState = useMemo(
-    () => ({ cycleId, live: true, participants, segment, activity, warm: true, at: new Date().toISOString() }),
-    [cycleId, participants, segment, activity],
+    () => ({ cycleId, live: true, participants, segment, activity, warm: true, at: new Date().toISOString(), ...(questions ? { questions, shownQuestion: shownQuestion ?? null } : {}) }),
+    [cycleId, participants, segment, activity, questions, shownQuestion],
   )
+  const extrasRef = useRef(extras)
+  useEffect(() => { extrasRef.current = extras })
   const saved = useRef(mine)
   useEffect(() => { saved.current = mine })
   const kind = activity?.kind ?? 'poll'
@@ -57,6 +75,7 @@ export function PhonePreview({
     agenda,
     posts,
     notes,
+    voted: extras?.voted ?? [],
   }
 
   const offline: MeetRoomOffline = useMemo(
@@ -65,6 +84,26 @@ export function PhonePreview({
       phone: true,
       post: async (body: Record<string, unknown>) => {
         if (body.action === 'join') return { ...initial, joined: { kind: 'member', name: null } }
+        // The extras, as POST /api/meet would answer them (no rate limit: it's one person rehearsing).
+        if (body.action === 'react') {
+          if (isReaction(body.reaction)) extrasRef.current?.react(body.reaction)
+          return { ok: true, sent: true }
+        }
+        if (body.action === 'ask') {
+          const c = checkQuestion(body.text)
+          if (!c.ok) {
+            if (c.blocked) return { ok: false, blocked: true, message: c.error }
+            throw new Error(c.error)
+          }
+          extrasRef.current?.ask(c.text)
+          return { ok: true }
+        }
+        if (body.action === 'vote') {
+          const id = String(body.question_id)
+          extrasRef.current?.vote(id, body.on !== false)
+          const before = extrasRef.current?.voted ?? []
+          return { ok: true, voted: body.on !== false ? [...before.filter(x => x !== id), id] : before.filter(x => x !== id) }
+        }
         const id = String(body.activity_id)
         let value = (body.value ?? {}) as Record<string, unknown>
         if ('word' in value) {

@@ -18,6 +18,8 @@ import { activityKeyFor, isRealCard, sectionsOf, slideKind, type MeetPost, type 
 import { newerRoom, useMeetingChannel } from '@/components/meet/useMeetingChannel'
 import type { MeetView, Mine, PublicActivity, RoomState } from '@/lib/meet/activity'
 import { clockSkew } from '@/lib/meet/timer'
+import { AskAnything, ReactionBar } from '@/components/meet/RoomExtras'
+import type { Reaction } from '@/lib/meet/reactions'
 
 /** Without the live channel. With it, a slow poll still catches anything missed. */
 const POLL_MS = 3000
@@ -189,6 +191,36 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
 
   const setMine = useCallback((mine: Mine) => setView(v => ({ ...v, mine })), [])
 
+  // The extras (migration 051): reactions are fire-and-forget; a question shows once the room says so.
+  const react = useCallback((reaction: Reaction) => { send({ action: 'react', reaction }).catch(() => {}) }, [send])
+  const ask = useCallback(
+    async (text: string): Promise<string | null> => {
+      try {
+        const r = await send({ action: 'ask', text })
+        if (r?.blocked) return String(r.message ?? 'Kers didn’t like that one')
+        refresh()
+        return null
+      } catch (err) {
+        return err instanceof Error ? err.message : 'Could not send that'
+      }
+    },
+    [send, refresh],
+  )
+  const vote = useCallback(
+    async (id: string, on: boolean) => {
+      setView(v => ({ ...v, voted: on ? [...(v.voted ?? []).filter(x => x !== id), id] : (v.voted ?? []).filter(x => x !== id) }))
+      try {
+        const r = await send({ action: 'vote', question_id: id, on })
+        if (Array.isArray(r?.voted)) setView(v => ({ ...v, voted: r.voted }))
+      } catch (err) {
+        toast(err instanceof Error ? err.message : 'Could not vote', 'error')
+        refresh()
+      }
+    },
+    [send, toast, refresh],
+  )
+  const extras = live && joined && view.ready && room && room.extrasReady !== false && Array.isArray(room.questions)
+
   let body: React.ReactNode
   if (!live) {
     body = (
@@ -263,6 +295,12 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
           <p className="mt-1 text-footnote text-ink-muted">You’re in as {view.joined.name}. Only you see that.</p>
         )}
         <div className="flex flex-1 flex-col">{body}</div>
+        {extras && (
+          <div className="mt-8 space-y-3 border-t border-border pt-4">
+            <ReactionBar onReact={react} />
+            <AskAnything questions={room!.questions ?? []} voted={view.voted ?? []} onAsk={ask} onVote={vote} />
+          </div>
+        )}
       </main>
     </div>
   )
