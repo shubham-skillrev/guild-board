@@ -12,6 +12,7 @@ import { CLOUD_MAX_WORDS, CLOUD_WORD_MAX, type Mine, type PublicActivity } from 
 import { bossProblem, callText, showValue, summarise, type CaseResult } from '@/lib/meet/boss'
 import { runBoss } from '@/lib/meet/bossRunner'
 import { OptionShape, tileFor } from '@/components/meet/tiles'
+import { CountdownRing, useCountdown, type Countdown } from '@/components/meet/CountdownRing'
 
 type Post = (body: Record<string, unknown>) => Promise<{ ok?: boolean; blocked?: boolean; message?: string; mine?: Mine }>
 type Toast = ReturnType<typeof useToast>
@@ -22,7 +23,17 @@ interface Props {
   onMine: (mine: Mine) => void
   post: Post
   toast: Toast
+  /** The browser's clock corrected by the server's: the countdown agrees with the shared screen. */
+  now: () => number
+  /** The countdown hit zero: pull the room (the server closes it on that read). */
+  onExpire?: () => void
 }
+
+/** What each kind gets: the countdown (null when untimed). At zero it stops taking answers. */
+type KindProps = Omit<Props, 'now' | 'onExpire'> & { countdown: Countdown | null }
+
+/** Said once the countdown is out, before the room catches up. */
+const TIMES_UP = 'Time’s up. Watch the screen.'
 
 /**
  * The open activity on a phone, by kind. Each sends its answer to
@@ -30,19 +41,26 @@ interface Props {
  * this person has answered (`mine`). The Boss Round runs its tests in a Web
  * Worker on this device and sends only { passed, tests, of }, never the code.
  */
-export function PhoneActivity(props: Props) {
+export function PhoneActivity({ now, onExpire, ...props }: Props) {
+  const countdown = useCountdown(props.activity, now, onExpire)
   switch (props.activity.kind) {
     case 'poll':
-      return <PhonePoll {...props} />
+      return <PhonePoll {...props} countdown={countdown} />
     case 'cloud':
-      return <PhoneCloud {...props} />
+      return <PhoneCloud {...props} countdown={countdown} />
     case 'boss':
-      return <PhoneBoss {...props} />
+      return <PhoneBoss {...props} countdown={countdown} />
   }
 }
 
-function Prompt({ children }: { children: React.ReactNode }) {
-  return <h1 className="mt-6 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance @3xl:text-[36px]">{children}</h1>
+/** The question, with the small countdown ring beside it (the same clock as the shared screen's). */
+function Prompt({ children, countdown }: { children: React.ReactNode; countdown: Countdown | null }) {
+  return (
+    <div className="mt-6 flex items-start gap-3">
+      <h1 className="min-w-0 flex-1 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance @3xl:text-[36px]">{children}</h1>
+      {countdown && <CountdownRing countdown={countdown} size="phone" />}
+    </div>
+  )
 }
 
 /** Kers' reaction to a vote: one per option. */
@@ -54,12 +72,13 @@ const LOCKED = ['Locked in.', 'Bold. Locked in.', 'Noted. Locked in.', 'Brave. L
  * same shape and colour per option), big tap targets; the chosen one fills,
  * the rest step back and stop answering, and Kers locks it in.
  */
-function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
+function PhonePoll({ activity, mine, onMine, post, toast, countdown }: KindProps) {
   const saved = typeof mine?.values[0]?.option === 'number' ? (mine.values[0].option as number) : null
   const [picked, setPicked] = useState<number | null>(null)
   // The server's answer wins: a vote from another tab is the one that counts.
   const chosen = saved ?? picked
-  const locked = chosen !== null
+  const timeUp = !!countdown?.timeUp && chosen === null
+  const locked = chosen !== null || timeUp
   const long = activity.options.some(o => o.length > 22)
 
   const vote = async (option: number) => {
@@ -69,7 +88,7 @@ function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
       const r = await post({ action: 'respond', activity_id: activity.id, value: { option } })
       if (r.mine) onMine(r.mine)
     } catch (err) {
-      // Shown as locked in straight away; a refusal unlocks it again.
+      // Shown as locked in straight away; a refusal unlocks it again (or the clock says time's up).
       setPicked(null)
       toast(err instanceof Error ? err.message : 'Could not vote. Try again.', 'error')
     }
@@ -77,7 +96,7 @@ function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
 
   return (
     <div>
-      <Prompt>{activity.prompt}</Prompt>
+      <Prompt countdown={countdown}>{activity.prompt}</Prompt>
       <div role="radiogroup" aria-label={activity.prompt} aria-readonly={locked || undefined} className={cn('mt-6 grid gap-2.5', long ? 'grid-cols-1' : 'grid-cols-2')}>
         {activity.options.map((o, i) => {
           const on = chosen === i
@@ -107,11 +126,13 @@ function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
         })}
       </div>
       <div className="mt-5 flex min-h-12 items-center gap-3" aria-live="polite">
-        {locked ? (
+        {chosen !== null ? (
           <>
             <Kers key={chosen} size={44} colour="meeting" expression="excited" motion="hop" special="happy" />
             <p className="text-[15px] font-medium text-ink">{LOCKED[chosen % LOCKED.length]}</p>
           </>
+        ) : timeUp ? (
+          <p className="text-[15px] font-medium text-ink">{TIMES_UP}</p>
         ) : (
           <p className="text-footnote text-ink-muted">One tap locks it in. Match the shape on the screen.</p>
         )}
@@ -121,7 +142,7 @@ function PhonePoll({ activity, mine, onMine, post, toast }: Props) {
 }
 
 /** Up to three words, 20 characters each. A blocked word is dropped and Kers says so. */
-function PhoneCloud({ activity, mine, onMine, post, toast }: Props) {
+function PhoneCloud({ activity, mine, onMine, post, toast, countdown }: KindProps) {
   const saved = (mine?.values ?? []).map(v => String(v.word ?? '')).filter(Boolean)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
@@ -134,7 +155,7 @@ function PhoneCloud({ activity, mine, onMine, post, toast }: Props) {
   const send = async (e: React.FormEvent) => {
     e.preventDefault()
     const word = text.trim()
-    if (!word || sending) return
+    if (!word || sending || countdown?.timeUp) return
     const shown = word.toLowerCase().slice(0, CLOUD_WORD_MAX)
     setSending(true)
     setRefused(null)
@@ -155,8 +176,10 @@ function PhoneCloud({ activity, mine, onMine, post, toast }: Props) {
 
   return (
     <div>
-      <Prompt>{activity.prompt}</Prompt>
-      {left > 0 ? (
+      <Prompt countdown={countdown}>{activity.prompt}</Prompt>
+      {countdown?.timeUp ? (
+        <p className="mt-6 text-[15px] font-medium text-ink" aria-live="polite">{TIMES_UP}</p>
+      ) : left > 0 ? (
         <form onSubmit={send} className="mt-6">
           <label htmlFor="meet-word" className="sr-only">Your word</label>
           <div className="flex gap-2">
@@ -202,13 +225,13 @@ function PhoneCloud({ activity, mine, onMine, post, toast }: Props) {
 /**
  * Kers' Boss Round: the problem, one editor (BossEditor, CodeMirror with
  * JavaScript highlighting, the same on a phone and a laptop; a plain
- * textarea while it loads) and "Run tests". Read-only once closed. No clock: it runs until the presenter closes it,
+ * textarea while it loads) and "Run tests". Read-only once closed or once its countdown is out: it runs until then,
  * and then this person sees "Watch the screen" for Kers' verdict. The
  * tests run in a Web Worker on this device (lib/meet/bossRunner.ts); each
  * run's result replaces the last one on the screen. The code stays here (and
  * in this browser's storage, so a refresh keeps it).
  */
-function PhoneBoss({ activity, mine, onMine, post, toast }: Props) {
+function PhoneBoss({ activity, mine, onMine, post, toast, countdown }: KindProps) {
   const problem = bossProblem(activity.config)
   const storeKey = `gb-boss:${activity.id}`
   const [code, setCode] = useState(problem?.starter ?? '')
@@ -216,7 +239,7 @@ function PhoneBoss({ activity, mine, onMine, post, toast }: Props) {
   const [results, setResults] = useState<CaseResult[] | null>(null)
   const [fatal, setFatal] = useState<string | null>(null)
   const escaped = useRef(false)
-  const readOnly = activity.status !== 'open'
+  const readOnly = activity.status !== 'open' || !!countdown?.timeUp
   // CodeMirror, loaded only now that a Boss Round is on screen; the plain textarea until then, or if it fails.
   const [Editor, setEditor] = useState<typeof import('./BossEditor').BossEditor | null>(null)
   useEffect(() => {
@@ -279,7 +302,9 @@ function PhoneBoss({ activity, mine, onMine, post, toast }: Props) {
   }
 
   const done = results && !running ? results.filter(r => r.ok).length : null
-  const status = running
+  const status = countdown?.timeUp && !running
+    ? TIMES_UP
+    : running
     ? `Running test ${Math.min((results?.length ?? 0) + 1, problem.cases.length)} of ${problem.cases.length}…`
     : fatal ? 'It didn’t run. Fix it and try again.'
     : done !== null && results?.length ? (done === problem.cases.length ? `All ${done} passed. The screen knows.` : `${done} of ${problem.cases.length} passed.`)
@@ -292,7 +317,7 @@ function PhoneBoss({ activity, mine, onMine, post, toast }: Props) {
         <Kers size={36} colour="meeting" expression="nosy" motion="idle" />
         <p className="font-mono text-[12px] uppercase tracking-[0.16em] text-ink-muted">Kers’ Boss Round</p>
       </div>
-      <Prompt>{problem.title}</Prompt>
+      <Prompt countdown={countdown}>{problem.title}</Prompt>
       <p className="mt-2 text-footnote leading-relaxed text-ink-soft">{problem.description}</p>
       <p className="mt-3 font-mono text-footnote text-ink">
         <span className="text-ink-muted">function </span>{problem.signature}

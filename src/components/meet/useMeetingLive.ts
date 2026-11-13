@@ -122,12 +122,15 @@ export function useMeetingLive(initial: MeetingState) {
 
   const now = useCallback(() => Date.now() + skew.current, [])
 
-  return { state, meeting: state.meeting, busy, call, optimistic, now, live: connected }
+  /** Pull the state now (the countdown hit zero: the server closes the activity on this read). */
+  const refresh = useCallback(() => fetchNow.current(), [])
+
+  return { state, meeting: state.meeting, busy, call, optimistic, now, refresh, live: connected }
 }
 
 /**
  * The time, ticking once a second while `on` (the presenter screen uses it
- * for Kers' Boss Round intro; nothing on screen shows a clock). Starts from
+ * for Kers' Boss Round intro and the rehearsal's countdowns). Starts from
  * `from` (the server's time in the page's props) so the server render and
  * the first client render agree.
  */

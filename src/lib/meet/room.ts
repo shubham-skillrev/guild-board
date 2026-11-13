@@ -10,11 +10,13 @@ import { activityKeyFor, agendaPostIds, hollowRun, meetingLive, phoneAgenda, typ
 import { gotoPlan, navBlocked, type ActivityRef } from '@/lib/meet/slides'
 import { roomOpenTo, rowRehearsing, wipeRehearsal } from '@/lib/meet/liveRehearsal'
 import { meetPosts } from '@/lib/guild/meetingPrep'
+import { closesAtFor, dueToClose, durationFor, extendClosesAt, missing048, tooLate } from '@/lib/meet/timer'
 import {
   aggregate,
   BLOCKED_MESSAGE,
   CLOUD_MAX_WORDS,
   cleanResponse,
+  type ActivityKind,
   type ActivityRow,
   type MeetView,
   type Mine,
@@ -80,8 +82,36 @@ export async function currentMeeting(admin: Admin) {
   return { cycle, row: (data ?? null) as (MeetingRow & { current_segment?: string | null }) | null }
 }
 
-/** The live room, or null before migration 046 (or with no meeting row). */
-export async function readRoom(admin: Admin, cycleId: string, row?: MeetingRow | null): Promise<RoomState | null> {
+/**
+ * Open activities whose countdown ran out (lib/meet/timer.ts) close now: the
+ * server decides, on whichever read comes first (a phone's poll, the
+ * presenter's, a phone or screen pulling the moment its ring hits zero).
+ * Only rows still open and still due are touched, so a "+30s" that landed
+ * first wins. `rows` is updated in place. Returns whether any closed.
+ */
+async function closeDue(admin: Admin, cycleId: string, rows: ActivityRow[], now = Date.now()): Promise<boolean> {
+  const due = dueToClose(rows, now)
+  if (!due.length) return false
+  const at = new Date(now).toISOString()
+  const { data, error } = await admin
+    .from('meeting_activities')
+    .update({ status: 'closed', closed_at: at })
+    .in('id', due.map(a => a.id))
+    .eq('cycle_id', cycleId)
+    .eq('status', 'open')
+    .lte('closes_at', at)
+    .select('id')
+  if (error) {
+    if (!missing048(error)) console.warn('closeDue failed', error.message)
+    return false
+  }
+  const closed = new Set((data ?? []).map(r => r.id as string))
+  for (const r of rows) if (closed.has(r.id)) Object.assign(r, { status: 'closed', closed_at: at })
+  return closed.size > 0
+}
+
+/** The live room, or null before migration 046 (or with no meeting row). `quiet`: don't broadcast a timed-out close (the caller is broadcasting). */
+export async function readRoom(admin: Admin, cycleId: string, row?: MeetingRow | null, quiet = false): Promise<RoomState | null> {
   const meeting = row !== undefined ? row : (await admin.from('meetings').select('*').eq('cycle_id', cycleId).maybeSingle()).data
   if (!meeting) return null
   const [people, acts] = await Promise.all([
@@ -93,6 +123,9 @@ export async function readRoom(admin: Admin, cycleId: string, row?: MeetingRow |
     return null
   }
   const activities = (acts.data ?? []) as ActivityRow[]
+  // select('*') shows whether migration 048's column is there (nothing to time with no activities).
+  const timerReady = !activities.length || 'closes_at' in activities[0]
+  if (timerReady && (await closeDue(admin, cycleId, activities)) && !quiet) nudgeRoom(cycleId)
   const segment = meeting.current_segment ?? null
   // A results slide shows the activity it's about (its `of`); any other slide its own.
   const key = activityKeyFor(Array.isArray(meeting.agenda) ? (meeting.agenda as Segment[]) : [], segment)
@@ -111,12 +144,13 @@ export async function readRoom(admin: Admin, cycleId: string, row?: MeetingRow |
     activity,
     warm: activities.some(a => !!a.opened_at),
     at: new Date().toISOString(),
+    ...(timerReady ? {} : { timerReady: false }),
   }
 }
 
 /** Send the room to everyone listening, now. */
 async function publishRoom(admin: Admin, cycleId: string): Promise<void> {
-  const room = await readRoom(admin, cycleId)
+  const room = await readRoom(admin, cycleId, undefined, true)
   if (!room) return
   const channel = admin.channel(meetingChannel(cycleId), { config: { private: true } })
   try {
@@ -232,6 +266,9 @@ export async function mineFor(admin: Admin, participantId: string, activityId: s
   return { activityId, values: (data ?? []).map(r => r.value as Record<string, unknown>) }
 }
 
+/** Said to a phone whose answer came after the countdown. */
+export const TIMES_UP = 'Time’s up. Watch the screen.'
+
 export type RespondResult =
   | { ok: true; mine: Mine }
   | { ok: false; blocked: true; message: string; mine: Mine }
@@ -249,6 +286,8 @@ export async function respond(admin: Admin, cycleId: string, participant: Partic
   const activity = loaded !== undefined ? loaded : await loadActivity(admin, cycleId, activityId)
   if (!activity) return { ok: false, status: 404, error: 'No such activity' }
   if (activity.status !== 'open') return { ok: false, status: 409, error: 'That one has closed. Watch the screen.' }
+  // The countdown ran out (the server closes it on its next read): a second's grace for the network, then no.
+  if (tooLate(activity.closes_at, Date.now())) return { ok: false, status: 409, error: TIMES_UP }
   const cleaned = cleanResponse(activity as ActivityRow, raw)
   if (!cleaned.ok) return { ok: false, status: 400, error: cleaned.error }
 
@@ -290,7 +329,7 @@ export async function respond(admin: Admin, cycleId: string, participant: Partic
       break
     }
     case 'boss': {
-      // No clock: runs are taken until the presenter closes the round (a closed activity is refused above).
+      // Runs are taken until the round closes (its countdown, or the presenter; refused above once it has).
       // Slot 0 like a poll: each run replaces the last.
       const { error } = await admin
         .from('meeting_responses')
@@ -411,15 +450,34 @@ export async function closeOpenActivities(admin: Admin, cycleId: string): Promis
  * has. Before migration 046 there are no activities: nothing to do.
  */
 export async function activitiesOnGoto(admin: Admin, cycleId: string, agenda: Segment[], target: string): Promise<void> {
-  const { data, error } = await admin.from('meeting_activities').select('id, segment_id, status').eq('cycle_id', cycleId)
+  const { data, error } = await admin.from('meeting_activities').select('id, segment_id, status, kind').eq('cycle_id', cycleId)
   if (error) {
     if (!missing046(error)) console.warn('activitiesOnGoto failed', error.message)
     return
   }
-  const plan = gotoPlan(agenda, target, (data ?? []) as ActivityRef[])
+  const rows = (data ?? []) as (ActivityRef & { kind: ActivityKind })[]
+  const plan = gotoPlan(agenda, target, rows)
   const now = new Date().toISOString()
   if (plan.close.length) await admin.from('meeting_activities').update({ status: 'closed', closed_at: now }).in('id', plan.close).eq('status', 'open')
-  if (plan.open) await admin.from('meeting_activities').update({ status: 'open', opened_at: now, closed_at: null }).eq('id', plan.open).eq('status', 'ready')
+  const opening = plan.open ? rows.find(r => r.id === plan.open) : null
+  if (opening) await openTimed(admin, opening.id, opening.kind, agenda.find(s => s.id === opening.segment_id), 'ready')
+}
+
+/**
+ * Open one activity with its countdown (closes_at = now + its slide's
+ * duration, lib/meet/timer.ts). Before migration 048 it opens untimed.
+ * `from`: only if it's still in this status (goto opens a `ready` one only).
+ */
+async function openTimed(admin: Admin, id: string, kind: ActivityKind, slide: Segment | undefined, from?: 'ready'): Promise<{ message: string } | null> {
+  const now = Date.now()
+  const base = { status: 'open', opened_at: new Date(now).toISOString(), closed_at: null }
+  const run = (patch: Record<string, unknown>) => {
+    const q = admin.from('meeting_activities').update(patch).eq('id', id)
+    return from ? q.eq('status', from) : q
+  }
+  let { error } = await run({ ...base, closes_at: closesAtFor(now, durationFor(kind, slide)) })
+  if (missing048(error)) ({ error } = await run(base))
+  return error
 }
 
 /** Whether moving from `current` to `target` is refused: the current slide's activity is still open (lib/meet/slides.ts navBlocked). */
@@ -430,17 +488,37 @@ export async function gotoLocked(admin: Admin, cycleId: string, agenda: Segment[
   return navBlocked(agenda, current, target, (data ?? []) as ActivityRef[])
 }
 
-/** Open one activity (closing any other): the presenter's one button. */
-export async function openActivity(admin: Admin, cycleId: string, activityId: unknown): Promise<{ error: string | null; status?: number }> {
+/** Open one activity (closing any other): the presenter's one button. Its countdown starts afresh (its slide's time in `agenda`). */
+export async function openActivity(admin: Admin, cycleId: string, activityId: unknown, agenda: Segment[] = []): Promise<{ error: string | null; status?: number }> {
   if (typeof activityId !== 'string') return { error: 'No such activity', status: 400 }
-  const { data: a, error } = await admin.from('meeting_activities').select('id, status').eq('id', activityId).eq('cycle_id', cycleId).maybeSingle()
+  const { data: a, error } = await admin.from('meeting_activities').select('id, status, kind, segment_id').eq('id', activityId).eq('cycle_id', cycleId).maybeSingle()
   if (error) return { error: missing046(error) ? 'Apply migration 046 first.' : error.message, status: 500 }
   if (!a) return { error: 'No such activity', status: 404 }
   if (a.status !== 'open') {
     await admin.from('meeting_activities').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('cycle_id', cycleId).eq('status', 'open')
-    const { error: e } = await admin.from('meeting_activities').update({ status: 'open', opened_at: new Date().toISOString(), closed_at: null }).eq('id', activityId)
+    const e = await openTimed(admin, a.id, a.kind as ActivityKind, agenda.find(s => s.id === a.segment_id))
     if (e) return { error: e.message, status: 500 }
   }
+  nudgeRoom(cycleId)
+  return { error: null }
+}
+
+/**
+ * The presenter's "+30s": the open activity's countdown moves on 30 s (from
+ * now if it already ran out; lib/meet/timer.ts extendClosesAt). Refused when
+ * it isn't open, isn't timed, or before migration 048.
+ */
+export async function extendActivity(admin: Admin, cycleId: string, activityId: unknown): Promise<{ error: string | null; status?: number }> {
+  if (typeof activityId !== 'string') return { error: 'No such activity', status: 400 }
+  const { data: a, error } = await admin.from('meeting_activities').select('*').eq('id', activityId).eq('cycle_id', cycleId).maybeSingle()
+  if (error) return { error: missing046(error) ? 'Apply migration 046 first.' : error.message, status: 500 }
+  if (!a) return { error: 'No such activity', status: 404 }
+  if (!('closes_at' in a)) return { error: 'Apply migration 048 first (the countdown).', status: 500 }
+  if (a.status !== 'open') return { error: 'It has closed already. Reopen it instead.', status: 409 }
+  const closesAt = extendClosesAt(a.closes_at, Date.now())
+  if (!closesAt) return { error: 'This one has no countdown.', status: 409 }
+  const { error: e } = await admin.from('meeting_activities').update({ closes_at: closesAt }).eq('id', a.id).eq('status', 'open')
+  if (e) return { error: missing048(e) ? 'Apply migration 048 first (the countdown).' : e.message, status: 500 }
   nudgeRoom(cycleId)
   return { error: null }
 }

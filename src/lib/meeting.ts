@@ -1,4 +1,5 @@
 import type { RoomState } from '@/lib/meet/activity'
+import { cleanDuration } from './meet/timer.ts'
 
 /**
  * The monthly meeting: its agenda, the notes taken live, and the recap.
@@ -111,6 +112,13 @@ export interface Segment {
   section?: string
   /** results: the activity slide whose results it shows. */
   of?: string
+  /**
+   * activity: how long its countdown runs, in whole seconds (lib/meet/timer.ts,
+   * 10 s to 30 min). Missing: the kind's default (poll and word cloud 130,
+   * Boss Round 300). The slide editor sets it; the server reads it when the
+   * activity opens and stores `closes_at` (migration 048).
+   */
+  duration_s?: number
   /** meme: what it shows. */
   meme?: Meme
   title: string
@@ -284,6 +292,8 @@ export function cleanAgenda(raw: unknown): Segment[] {
     const slide = SLIDE_KINDS.includes(r.slide as SlideKind) ? (r.slide as SlideKind) : undefined
     const section = str(r.section, LIMITS.section)
     const of = slide === 'results' ? str(r.of, 40) : ''
+    // Only an activity slide (or an old segment, which may have one) is timed.
+    const duration = !slide || slide === 'activity' ? cleanDuration(r.duration_s) : undefined
     const meme = slide === 'meme' ? cleanMeme(r.meme) : null
     return {
       id: str(r.id, 40) || `seg-${i}`,
@@ -291,6 +301,7 @@ export function cleanAgenda(raw: unknown): Segment[] {
       ...(slide ? { slide } : {}),
       ...(section ? { section } : {}),
       ...(of ? { of } : {}),
+      ...(duration !== undefined ? { duration_s: duration } : {}),
       ...(meme ? { meme } : {}),
       title: str(r.title, LIMITS.title) || (slide ? '' : 'Untitled'),
       detail: str(r.detail, LIMITS.detail),

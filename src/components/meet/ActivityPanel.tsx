@@ -10,6 +10,8 @@ import { pollRevealed, type ActivityKind, type PublicActivity } from '@/lib/meet
 import { bossProblem, bossVerdict } from '@/lib/meet/boss'
 import { activityKeyFor, type MeetingState, type Segment } from '@/lib/meeting'
 import { PollResultTiles, WordCloud } from '@/components/meet/Results'
+import { CountdownRing, useCountdown } from '@/components/meet/CountdownRing'
+import { EXTEND_S } from '@/lib/meet/timer'
 
 const KIND_NAME: Record<ActivityKind, string> = { poll: 'Poll', cloud: 'Word cloud', boss: 'Boss Round' }
 const KIND_ICON: Record<ActivityKind, PhosphorIcon> = { poll: ChartBar, cloud: CloudSun, boss: Code }
@@ -69,9 +71,12 @@ export function ActivityResults({ activity: a, mine = null }: { activity: Public
  * steer the rest), the word cloud, or the Boss Round's pass rate.
  *
  * Arriving on the slide opened it (the server, on goto); leaving closes it.
+ * While open, the countdown ring (lib/meet/timer.ts) runs beside the state:
+ * at zero the screen pulls the room (`onExpire`) and the server closes it.
  * The presenter's one saffron action is always in view: "Close voting" (it
- * moves on to the results slide when that's next), "Open" if it hasn't
- * opened, "Show results" once closed, with a quiet "Reopen" beside it.
+ * moves on to the results slide when that's next; "close now"), with a quiet
+ * "+30s" beside it, "Open" if it hasn't opened, "Show results" once closed,
+ * with a quiet "Reopen" beside it.
  * Everything here is counts, words and rates: nothing names anyone.
  */
 export function ActivityHero({
@@ -84,6 +89,7 @@ export function ActivityHero({
   busy,
   onClose,
   onResults,
+  onExpire,
 }: {
   activity: PublicActivity
   /** The slide's one line under the question. */
@@ -97,8 +103,11 @@ export function ActivityHero({
   onClose: () => void
   /** Closed: on to its results (null when no results slide follows). */
   onResults?: (() => void) | null
+  /** The countdown hit zero: pull the room, so the server closes it. */
+  onExpire?: () => void
 }) {
   const t = useTicking(a.status === 'open' && a.kind === 'poll', now)
+  const countdown = useCountdown(a, now, onExpire)
   const open = a.status === 'open'
   const ready = a.status === 'ready'
   const problem = a.kind === 'boss' ? bossProblem(a.config) : null
@@ -108,6 +117,7 @@ export function ActivityHero({
   return (
     <section aria-label={KIND_NAME[a.kind]} className="flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-11 items-center gap-4">
+        {countdown && <CountdownRing countdown={countdown} size="screen" />}
         <p
           aria-live="polite"
           className={cn(
@@ -138,6 +148,11 @@ export function ActivityHero({
               <>
               {/* While it's open the slide can't change (lib/meet/slides.ts navBlocked): say how to move on. */}
               <span className="text-footnote text-ink-muted">{a.kind === 'boss' ? 'Close the round' : a.kind === 'poll' ? 'Close voting' : 'Close the cloud'} to move on</span>
+              {countdown && (
+                <Button variant="ghost" disabled={!!busy} onClick={() => call('extend_activity', { activity_id: a.id })} aria-label={`Add ${EXTEND_S} seconds`}>
+                  +{EXTEND_S}s
+                </Button>
+              )}
               <Button size="md" icon={a.kind === 'boss' ? undefined : ArrowRight} disabled={!!busy} onClick={onClose} className="h-12! px-6! text-[17px]!">
                 {a.kind === 'boss' ? 'Close the round' : a.kind === 'poll' ? 'Close voting' : 'Close the cloud'}
                 {onResults !== undefined && <span className="sr-only">, then show the results</span>}

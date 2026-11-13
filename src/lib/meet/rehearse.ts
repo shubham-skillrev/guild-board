@@ -7,6 +7,7 @@
  */
 
 import type { PublicActivity } from './activity.ts'
+import { expired } from './timer.ts'
 
 /** How many people the rehearsal pretends are in the room. */
 export const REHEARSE_ROOM = 20
@@ -32,19 +33,30 @@ export function split(total: number, shares: number[]): number[] {
   return out
 }
 
+/** An activity's state in rehearsal, kept in the presenter's browser only. */
+export interface RehearsedLocal {
+  status: PublicActivity['status']
+  openedAt: string | null
+  /** Its countdown (lib/meet/timer.ts), as the server would store it. */
+  closesAt?: string | null
+}
+
 /**
  * An activity in rehearsal: as stored (ready) until the presenter opens it,
- * then sample answers that grow for ~25 s from `openedAt`. Never names anyone.
+ * then sample answers that grow for ~25 s from `openedAt`. Its countdown
+ * runs as live: once `closesAt` passes it's closed, as the server would
+ * close it. Never names anyone.
  */
 export function rehearseActivity(
   a: PublicActivity,
-  local: { status: PublicActivity['status']; openedAt: string | null } | undefined,
+  local: RehearsedLocal | undefined,
   now: number,
   room = REHEARSE_ROOM,
 ): PublicActivity {
-  const status = local?.status ?? 'ready'
+  const closesAt = local?.closesAt ?? null
+  const status = local?.status === 'open' && expired(closesAt, now) ? 'closed' : local?.status ?? 'ready'
   const openedAt = local?.openedAt ?? null
-  const base: PublicActivity = { ...a, status, openedAt, closedAt: status === 'closed' ? new Date(now).toISOString() : null, answered: 0, total: 0, counts: null, words: null, tally: null }
+  const base: PublicActivity = { ...a, status, openedAt, closedAt: status === 'closed' ? new Date(now).toISOString() : null, closesAt, answered: 0, total: 0, counts: null, words: null, tally: null }
   if (status === 'ready' || !openedAt) {
     if (a.kind === 'poll') base.counts = a.options.map(() => 0)
     return base

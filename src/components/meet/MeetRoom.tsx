@@ -17,6 +17,7 @@ import { SURVEY_PATH, TopicBody, topicPost } from '@/components/meet/TopicBody'
 import { activityKeyFor, isRealCard, sectionsOf, slideKind, type MeetPost, type PresenterNotes, type PublicSegment } from '@/lib/meeting'
 import { newerRoom, useMeetingChannel } from '@/components/meet/useMeetingChannel'
 import type { MeetView, Mine, PublicActivity, RoomState } from '@/lib/meet/activity'
+import { clockSkew } from '@/lib/meet/timer'
 
 /** Without the live channel. With it, a slow poll still catches anything missed. */
 const POLL_MS = 3000
@@ -93,14 +94,25 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
     }
   }, [doPost])
 
+  // How far the server's clock is ahead of this one (the room's `at` on each pull), so the countdown matches the screen.
+  const skew = useRef(0)
+  const initialAt = initial.room?.at
+  useEffect(() => {
+    skew.current = clockSkew(initialAt, Date.now())
+  }, [initialAt])
+  const now = useCallback(() => Date.now() + skew.current, [])
+
   const isOffline = !!offline
   const refresh = useCallback(async () => {
     if (isOffline) return
     const before = writes.current
     try {
+      const sent = Date.now()
       const res = await fetch('/api/meet', { cache: 'no-store' })
       if (!res.ok) return
       const next: MeetView = await res.json()
+      // The server read the room somewhere in the round trip: assume halfway.
+      if (next.room?.at) skew.current = clockSkew(next.room.at, (sent + Date.now()) / 2)
       const stale = before !== writes.current || pending.current > 0
       // A broadcast may have brought a newer room than this pull.
       setView(v => ({ ...next, room: next.room && v.room ? newerRoom(v.room, next.room) : next.room, mine: stale ? v.mine : next.mine }))
@@ -209,7 +221,7 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
     if (room?.activity?.status === 'open') {
       body = (
         <div key={`act-${room.activity.id}`} className="gb-swap-in">
-          <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={send} toast={toast} />
+          <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={send} toast={toast} now={now} onExpire={isOffline ? undefined : refresh} />
           {notes && <YourNotes notes={notes} />}
         </div>
       )

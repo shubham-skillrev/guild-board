@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowsIn, ArrowsOut, CaretLeft, CaretRight, Copy, Play, QrCode, Stop } from '@phosphor-icons/react/dist/ssr'
@@ -16,7 +16,8 @@ import { AgendaProgress } from '@/components/meet/AgendaProgress'
 import { MemeSlide } from '@/components/meet/MemeSlide'
 import { PresenterKers } from '@/components/meet/PresenterKers'
 import { bossPhase } from '@/lib/meet/boss'
-import { REHEARSE_ROOM, rehearseActivity, withAnswer } from '@/lib/meet/rehearse'
+import { REHEARSE_ROOM, rehearseActivity, withAnswer, type RehearsedLocal } from '@/lib/meet/rehearse'
+import { closesAtFor, durationFor, expired, extendClosesAt } from '@/lib/meet/timer'
 import { gotoPlan, resultsAfter } from '@/lib/meet/slides'
 import { rehearsalLeft, rehearsalOn, rehearsalPath } from '@/lib/meet/liveRehearsal'
 import { useToast } from '@/hooks/useToast'
@@ -45,14 +46,16 @@ function readLocal(key: string): LocalPos | null {
 /** Whether the presenter's notes show in rehearsal (P toggles; kept per browser). Never on the live screen. */
 const NOTES_KEY = 'gb-meet-notes'
 
-/** An activity's state in rehearsal: local only, never sent. */
-type RehearsedState = Record<string, { status: PublicActivity['status']; openedAt: string | null }>
+/** An activity's state in rehearsal (its countdown too): local only, never sent. */
+type RehearsedState = Record<string, RehearsedLocal>
 
 /**
  * The presenter screen (/meet/present), shared full screen on the call:
  * GuildBoard on a big screen. The board's language (the serif title, the
  * mono eyebrows, cards and poll rows, Kers' chat bubble), with only what the
- * room needs to see, and no clock: the meeting goes at the presenter's pace.
+ * room needs to see. The meeting goes at the presenter's pace; only an open
+ * activity has a clock, its countdown ring (lib/meet/timer.ts), and when it
+ * runs out the server closes it and the screen moves on to its results.
  *
  *   header   the wordmark, the month, who's in the room (anonymous avatar
  *            seeds, never names); the presenter's few controls fade in on
@@ -86,8 +89,8 @@ type RehearsedState = Record<string, { status: PublicActivity['status']; openedA
  * with the share link and "End rehearsal", which wipes every answer.
  */
 export function PresenterScreen({ initial, posts, rehearsal }: { initial: MeetingState; posts: Record<string, MeetPost>; rehearsal?: Record<string, PublicActivity> }) {
-  const { state, busy, call, optimistic, now } = useMeetingLive(initial)
-  return <PresenterView state={state} busy={busy} call={call} optimistic={optimistic} now={now} serverNow={initial.serverNow} posts={posts} rehearsal={rehearsal} />
+  const { state, busy, call, optimistic, now, refresh } = useMeetingLive(initial)
+  return <PresenterView state={state} busy={busy} call={call} optimistic={optimistic} now={now} refresh={refresh} serverNow={initial.serverNow} posts={posts} rehearsal={rehearsal} />
 }
 
 type Call = ReturnType<typeof useMeetingLive>['call']
@@ -99,6 +102,7 @@ export function PresenterView({
   call,
   optimistic,
   now,
+  refresh,
   serverNow,
   posts,
   rehearsal,
@@ -108,6 +112,8 @@ export function PresenterView({
   call: Call
   optimistic: (patch: Partial<MeetingState['meeting']>) => void
   now: () => number
+  /** Pull the state now: the countdown hit zero, and the server closes the activity on that read. */
+  refresh?: () => void
   /** The server's time in the page's props, so the first render agrees. */
   serverNow: string
   posts: Record<string, MeetPost>
@@ -124,7 +130,7 @@ export function PresenterView({
   const ended = !rehearsing && !dress && meetingDone(meeting, state.cycle.meeting_at)
   const local = rehearsing || !meeting.presenterReady
   const posKey = localKey(meeting.cycleId, rehearsing)
-  // Kers' Boss Round intro (its first 20 s) and rehearsal's sample answers; nothing on screen counts time.
+  // Kers' Boss Round intro (its first 20 s), rehearsal's sample answers and its countdowns.
   const t = useSecond(live, now, serverNow)
   // Hold the floating slot so no install or push prompt lands on the share.
   useOverlaySlot('presenter', OVERLAY_PRIORITY.presenter, true)
@@ -159,12 +165,16 @@ export function PresenterView({
     async (action, payload = {}, done) => {
       if (!rehearsing) return call(action, payload, done)
       const id = String(payload.activity_id ?? '')
-      const seg = Object.values(rehearsal ?? {}).find(a => a.id === id)?.segmentId
-      if (seg && action === 'open_activity') setRehearsed(r => ({ ...r, [seg]: { status: 'open', openedAt: new Date(now()).toISOString() } }))
-      if (seg && action === 'close_activity') setRehearsed(r => ({ ...r, [seg]: { status: 'closed', openedAt: r[seg]?.openedAt ?? new Date(now()).toISOString() } }))
+      const a = Object.values(rehearsal ?? {}).find(x => x.id === id)
+      const seg = a?.segmentId
+      const t = now()
+      // As the server does: opening starts the slide's countdown, +30s moves it on, closing stops it.
+      if (a && seg && action === 'open_activity') setRehearsed(r => ({ ...r, [seg]: { status: 'open', openedAt: new Date(t).toISOString(), closesAt: closesAtFor(t, durationFor(a.kind, agenda.find(s => s.id === seg))) } }))
+      if (seg && action === 'extend_activity') setRehearsed(r => (r[seg]?.status === 'open' ? { ...r, [seg]: { ...r[seg], closesAt: extendClosesAt(r[seg].closesAt, t) } } : r))
+      if (seg && action === 'close_activity') setRehearsed(r => ({ ...r, [seg]: { status: 'closed', openedAt: r[seg]?.openedAt ?? new Date(t).toISOString(), closesAt: r[seg]?.closesAt ?? null } }))
       return null
     },
-    [rehearsing, rehearsal, call, now],
+    [rehearsing, rehearsal, call, now, agenda],
   ) as Call
 
   const segmentId = local ? localPos?.segment : meeting.currentSegment
@@ -198,8 +208,9 @@ export function PresenterView({
             const refs = Object.values(rehearsal ?? {}).map(a => ({ id: a.segmentId, segment_id: a.segmentId, status: r[a.segmentId]?.status ?? 'ready' }))
             const plan = gotoPlan(agenda, segment, refs)
             const next = { ...r }
-            for (const k of plan.close) next[k] = { status: 'closed', openedAt: r[k]?.openedAt ?? at }
-            if (plan.open) next[plan.open] = { status: 'open', openedAt: at }
+            for (const k of plan.close) next[k] = { status: 'closed', openedAt: r[k]?.openedAt ?? at, closesAt: r[k]?.closesAt ?? null }
+            const kindOf = plan.open ? rehearsal?.[plan.open]?.kind : undefined
+            if (plan.open && kindOf) next[plan.open] = { status: 'open', openedAt: at, closesAt: closesAtFor(new Date(at).getTime(), durationFor(kindOf, agenda.find(s => s.id === plan.open))) }
             return next
           })
         }
@@ -210,6 +221,19 @@ export function PresenterView({
     },
     [presenting, agenda, idx, locked, resultsId, now, local, posKey, rehearsing, rehearsal, optimistic, call],
   )
+
+  // The countdown ran out and the server closed it: on to its results, as "Close voting" would.
+  // Only on the presenting screen, only for a close that came from the clock (Close voting moves on itself).
+  const seen = useRef<{ id: string; status: PublicActivity['status'] } | null>(null)
+  useEffect(() => {
+    const was = seen.current
+    seen.current = activity && seg && activity.segmentId === seg.id ? { id: activity.id, status: activity.status } : null
+    if (!presenting || !activity || !seg || was?.id !== activity.id || was.status !== 'open' || activity.status !== 'closed') return
+    if (!resultsId || !expired(activity.closesAt, now())) return
+    const to = agenda.findIndex(s => s.id === resultsId)
+    // Not cancelled by the next render: this transition is seen once.
+    setTimeout(() => go(to), 0)
+  }, [activity, seg, presenting, resultsId, agenda, go, now])
 
   const start = async () => {
     const warning = earlyStartWarning(state.cycle.meeting_at, now())
@@ -322,6 +346,7 @@ export function PresenterView({
         busy={rehearsing ? null : busy}
         onClose={closeActivity}
         onResults={resultsIdx >= 0 ? () => go(resultsIdx) : null}
+        onExpire={rehearsing ? undefined : refresh}
       />
     )
   } else if (kind === 'results' && activity) {
@@ -418,6 +443,7 @@ export function PresenterView({
               </>
             )}
             {live && local && !rehearsing && <span className="mr-1.5 text-footnote text-ink-muted">Apply migration 045 so other admins can follow along</span>}
+            {live && !rehearsing && presenting && state.room?.timerReady === false && <span className="mr-1.5 text-footnote text-ink-muted">No countdown: apply migration 048</span>}
             {rehearsing && (
               <Button variant="ghost" onClick={() => setPhone(on => !on)} aria-pressed={phone} title="M">{phone ? 'Hide phone' : 'Phone preview'}</Button>
             )}

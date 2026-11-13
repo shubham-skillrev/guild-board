@@ -38,6 +38,8 @@ export interface ActivityRow {
   status: ActivityStatus
   opened_at: string | null
   closed_at: string | null
+  /** When it closes on its own (migration 048; lib/meet/timer.ts). Missing before 048, null when untimed. */
+  closes_at?: string | null
 }
 
 /** A meeting_responses row, as aggregate() needs it. */
@@ -62,6 +64,8 @@ export interface PublicActivity {
   status: ActivityStatus
   openedAt: string | null
   closedAt: string | null
+  /** When it closes on its own (the countdown ring, lib/meet/timer.ts). Null or missing: untimed (before migration 048). */
+  closesAt?: string | null
   /** People who answered at all. */
   answered: number
   /** Answers in total (cloud: words; poll: votes). */
@@ -92,8 +96,10 @@ export interface RoomState {
   activity: PublicActivity | null
   /** Whether any activity has opened yet: before that, /meet is the waiting area. */
   warm: boolean
-  /** Server time, for the 8 s poll reveal. */
+  /** Server time, for the 8 s poll reveal and the countdown ring (clients correct their clock by it). */
   at: string
+  /** False until migration 048 is applied: activities then have no countdown and never close on their own. */
+  timerReady?: boolean
 }
 
 /** What this participant has answered on the open activity, slot by slot. */
@@ -205,6 +211,7 @@ export function aggregate(activity: ActivityRow, rows: ResponseRow[]): PublicAct
     status: activity.status,
     openedAt: activity.opened_at,
     closedAt: activity.closed_at,
+    closesAt: activity.closes_at ?? null,
     answered: people.size,
     total: 0,
     counts: null,

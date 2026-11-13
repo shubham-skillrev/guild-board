@@ -36,6 +36,10 @@
 //            close_activity { activity_id } closes it (moving on does too)
 //                          (activity slides open and close their own on goto;
 //                          these two are the presenter's Reopen / Close)
+//            extend_activity { activity_id } the countdown's "+30s"
+//                          (migration 048, lib/meet/timer.ts). Opening sets
+//                          closes_at from the slide's duration_s; once it
+//                          passes, the next read of the room closes it
 //            note          { note: { text, owner?, decision?, segment? } }
 //            delete_note   { id }
 //            draft_recap   -> { recap, byAi } from what was captured (not saved)
@@ -49,7 +53,7 @@ import { getAdminId } from '@/lib/guild/staff'
 import { agendaMessage, draftAgenda, draftRecap, getMeeting, mergeAgenda, missing045, openCycle, recapMessage, saveMeeting } from '@/lib/guild/meeting'
 import { draftPrep, ensurePrepBeforeMeeting } from '@/lib/guild/meetingPrep'
 import { canReopen, cleanNote, LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
-import { activitiesOnGoto, closeActivity, closeRoom, endRehearsal, gotoLocked, nudgeRoom, openActivity, readRoom, resetHollowRun } from '@/lib/meet/room'
+import { activitiesOnGoto, closeActivity, closeRoom, endRehearsal, extendActivity, gotoLocked, nudgeRoom, openActivity, readRoom, resetHollowRun } from '@/lib/meet/room'
 import { NAV_LOCKED_MESSAGE } from '@/lib/meet/slides'
 import { missing047, newRehearsalCode, rehearsalBlocked, rehearsalLeft, rehearsalOn, rehearsalWipeMode } from '@/lib/meet/liveRehearsal'
 import { isSlackConfigured, postToSlack } from '@/lib/slack/send'
@@ -258,13 +262,16 @@ export async function POST(request: Request) {
       return fail(error) ?? NextResponse.json(await state(cycle, adminId))
     }
     case 'open_activity':
+    case 'extend_activity':
     case 'close_activity': {
       const m = await getMeeting(cycle.id)
       if (!meetingLive(m) && !rehearsalOn(m)) return NextResponse.json({ error: 'Meeting mode isn’t on.' }, { status: 409 })
       if (m.presenterId !== adminId) return NextResponse.json({ error: 'Someone else is presenting. Take over first.', ...(await state(cycle, adminId)) }, { status: 409 })
       if (body.action === 'close_activity') await closeActivity(createAdminClient(), cycle.id, body.activity_id)
       else {
-        const r = await openActivity(createAdminClient(), cycle.id, body.activity_id)
+        const r = body.action === 'extend_activity'
+          ? await extendActivity(createAdminClient(), cycle.id, body.activity_id)
+          : await openActivity(createAdminClient(), cycle.id, body.activity_id, m.agenda)
         if (r.error) return NextResponse.json({ error: r.error }, { status: r.status ?? 500 })
       }
       return NextResponse.json(await state(cycle, adminId))

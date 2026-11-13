@@ -4,7 +4,7 @@
  * docs/07-agenda-and-script-guide.md) into the month's `meetings.agenda`,
  * exactly as the Run tab stores it (lib/guild/meeting.ts mergeAgenda):
  *
- *   { id, kind, slide, section, of?, meme?, title, detail, minutes: 0,
+ *   { id, kind, slide, section, of?, duration_s?, meme?, title, detail, minutes: 0,
  *     topicIds, cue?, cards?, prep: { points, opener, by: 'admin', at, ask } | null }
  *
  * One item per slide (docs/06-meeting-mode.md, "Slides"): `slide` is title /
@@ -77,6 +77,7 @@ function check(agenda, activities = []) {
         if (!target || target.slide !== 'activity') errors.push(`${at}: of must name an activity slide`)
       }
       if (s.slide === 'activity' && activities.filter(a => a.segment === s.id).length !== 1) errors.push(`${at}: needs exactly one entry in activities`)
+      if (s.duration_s !== undefined && (s.slide !== 'activity' || !Number.isInteger(s.duration_s) || s.duration_s < 10 || s.duration_s > 1800)) errors.push(`${at}: duration_s is an activity slide's countdown, 10-1800 seconds`)
       if (s.slide === 'meme') errors.push(...checkMeme(s.meme).map(e => `${at} meme: ${e}`))
       else if (!s.title) errors.push(`${at}: title is required`)
     }
@@ -212,6 +213,7 @@ async function main() {
       kind: s.kind,
       ...(s.slide ? { slide: s.slide, section: s.section } : {}),
       ...(s.of ? { of: s.of } : {}),
+      ...(s.duration_s ? { duration_s: s.duration_s } : {}),
       ...(s.meme ? { meme: s.meme } : {}),
       title: (s.title ?? '').trim(),
       detail: (s.detail ?? '').trim(),
