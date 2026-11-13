@@ -5,7 +5,15 @@
 // PURPOSE: Everything about the month's meeting (migrations 041, 045):
 //            save          { meet_url?, agenda?, recording_url?, recap? }
 //                          (agenda items may carry topicIds and prep)
-//            draft_agenda  -> { agenda } built from the format (not saved)
+//            draft_agenda  -> { agenda } built from the format (not saved as
+//                          the agenda; kept as Kers' draft, migration 049)
+//            save_agenda   { agenda } the slide editor's autosave (Preview
+//                          slides): cleaned, its activity slides' rows
+//                          created / updated / removed (lib/meet/agendaEdit.ts).
+//                          Refused while the meeting or a live rehearsal runs
+//            reset_agenda  Kers' kept draft back as the agenda (049)
+//            rewrite_slide { slide } -> { suggestion } Kers' rewrite of one
+//                          slide, never saved (the admin takes it or not)
 //            post_agenda   the saved agenda to the guild's Slack channel; this
 //                          locks it, so Kers drafts any missing prep after
 //            draft_prep    { segment? } Kers' prep now: every segment still
@@ -52,7 +60,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminId } from '@/lib/guild/staff'
 import { agendaMessage, draftAgenda, draftRecap, getMeeting, mergeAgenda, missing045, openCycle, recapMessage, saveMeeting } from '@/lib/guild/meeting'
 import { draftPrep, ensurePrepBeforeMeeting } from '@/lib/guild/meetingPrep'
-import { canReopen, cleanNote, LIMITS, meetingLive, type MeetingState } from '@/lib/meeting'
+import { keepDraft, resetToDraft, rewriteSlide, saveEditedAgenda, syncActivities } from '@/lib/guild/meetingEditor'
+import { editLocked, LOCKED_MESSAGE } from '@/lib/meet/agendaEdit'
+import { canReopen, cleanNote, LIMITS, meetingLive, type MeetingState, type Segment } from '@/lib/meeting'
 import { activitiesOnGoto, closeActivity, closeRoom, endRehearsal, extendActivity, gotoLocked, nudgeRoom, openActivity, readRoom, resetHollowRun } from '@/lib/meet/room'
 import { NAV_LOCKED_MESSAGE } from '@/lib/meet/slides'
 import { missing047, newRehearsalCode, rehearsalBlocked, rehearsalLeft, rehearsalOn, rehearsalWipeMode } from '@/lib/meet/liveRehearsal'
@@ -129,13 +139,39 @@ export async function POST(request: Request) {
       if (body.recording_url !== undefined && recording === undefined) return NextResponse.json({ error: 'The recording must be a full https:// link.' }, { status: 400 })
       if (meet !== undefined) patch.meet_url = meet
       if (recording !== undefined) patch.recording_url = recording
+      // The slides are what the live room runs on: no agenda writes while it does.
+      if (body.agenda !== undefined && editLocked(await getMeeting(cycle.id))) return NextResponse.json({ error: LOCKED_MESSAGE }, { status: 409 })
       if (body.agenda !== undefined) patch.agenda = await mergeAgenda(cycle.id, body.agenda)
       if (typeof body.recap === 'string') patch.recap = body.recap.trim().slice(0, LIMITS.recap) || null
       const { error } = await saveMeeting(cycle.id, patch)
+      // Its activity slides get their rows (as the editor's autosave does).
+      if (!error && patch.agenda) await syncActivities(cycle.id, patch.agenda as Segment[])
       return fail(error) ?? NextResponse.json({ meeting: await getMeeting(cycle.id) })
     }
-    case 'draft_agenda':
-      return NextResponse.json({ agenda: await draftAgenda(cycle.id, adminId) })
+    case 'draft_agenda': {
+      const agenda = await draftAgenda(cycle.id, adminId)
+      // Kers drafts once: kept, so the editor's "Reset to Kers draft" can come back to it.
+      after(() => keepDraft(cycle.id, agenda))
+      return NextResponse.json({ agenda })
+    }
+    case 'save_agenda': {
+      if (editLocked(await getMeeting(cycle.id))) return NextResponse.json({ error: LOCKED_MESSAGE, locked: true }, { status: 409 })
+      if (!Array.isArray(body.agenda)) return NextResponse.json({ error: 'No slides sent.' }, { status: 400 })
+      const r = await saveEditedAgenda(cycle.id, body.agenda)
+      if (r.error) return NextResponse.json({ error: /meetings/.test(r.error) ? 'Apply migration 041 first.' : r.error }, { status: 500 })
+      return NextResponse.json({ agenda: r.agenda, sync: r.sync, savedAt: new Date().toISOString() })
+    }
+    case 'reset_agenda': {
+      if (editLocked(await getMeeting(cycle.id))) return NextResponse.json({ error: LOCKED_MESSAGE, locked: true }, { status: 409 })
+      const r = await resetToDraft(cycle.id)
+      if ('error' in r) return NextResponse.json({ error: r.error }, { status: r.status })
+      return NextResponse.json({ agenda: r.agenda, sync: r.sync, savedAt: new Date().toISOString() })
+    }
+    case 'rewrite_slide': {
+      const suggestion = await rewriteSlide(body.slide, cycle.label)
+      if (!suggestion) return NextResponse.json({ error: 'Kers couldn’t rewrite it just now. Try again in a bit.' }, { status: 502 })
+      return NextResponse.json({ suggestion })
+    }
     case 'post_agenda': {
       const m = await getMeeting(cycle.id)
       if (!m.agenda.length) return NextResponse.json({ error: 'Save an agenda first.' }, { status: 400 })

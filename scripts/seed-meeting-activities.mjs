@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 /**
+ * Not needed since the slide editor (docs/08-meeting-mode-v2.md, Batch 3):
+ * saving the agenda (the editor's autosave, or the Run tab's Save) creates
+ * and updates each activity slide's row from the slide's own `activity`.
+ * Kept for loading a month from a reference file (--from) and for agendas
+ * from before the editor.
+ *
  * Seed the first run's meeting activities (docs/06-meeting-mode.md, "First-run
  * agenda") into `meeting_activities` (migration 046). There's no UI for this
  * on purpose: the activities are hard-coded for the first run.

@@ -17,8 +17,9 @@ import { LIMITS, MEETING_MINUTES, totalMinutes, type Meeting, type Segment } fro
  * The meeting's agenda: built from what the guild already lined up (Radar,
  * top topic, clinic, Boss Round, wrap), edited here, and posted to Slack.
  * A slide agenda (docs/06-meeting-mode.md, "Slides") lists its slides by
- * section, each with its title, cue and notes; the slide kinds, cards and
- * memes are edited in the agenda file (docs/07). An old agenda of timed
+ * section, each with its title, cue and notes; the slides themselves
+ * (adding, reordering, activities, memes) are edited in the slide editor,
+ * inside Preview slides (docs/08-meeting-mode-v2.md, Batch 3). An old agenda of timed
  * segments keeps its bar of the hour filling up.
  */
 export function AgendaBuilder({ initial, posts = [] }: { initial: Meeting; posts?: BoardPost[] }) {
@@ -184,11 +185,11 @@ export function AgendaBuilder({ initial, posts = [] }: { initial: Meeting; posts
             {busy === 'draft_prep' ? 'Kers is drafting…' : 'Draft Kers’ prep'}
           </Button>
           <Link
-            href="/meet/present?rehearse=1"
-            title="The presenter screen on this agenda, with sample answers. Nothing goes live."
+            href="/meet/present?rehearse=1&edit=1"
+            title="Add, reorder and edit the slides, with a live preview. Nothing goes live."
             className="press ml-auto inline-flex h-8 items-center gap-1.5 rounded-(--radius-control) bg-kinu/70 px-3 text-footnote font-medium text-ink-soft hover:bg-kinu hover:text-ink pointer-coarse:h-11"
           >
-            Preview alone
+            Edit slides
           </Link>
           <Link
             href="/admin/run/meeting"

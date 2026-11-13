@@ -1,35 +1,33 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowsIn, ArrowsOut, CaretLeft, CaretRight, Copy, Play, QrCode, Stop } from '@phosphor-icons/react/dist/ssr'
+import { ArrowsIn, ArrowsOut, CaretLeft, CaretRight, Copy, PencilSimple, Play, QrCode, Stop } from '@phosphor-icons/react/dist/ssr'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { cn } from '@/lib/utils/cn'
 import { OVERLAY_PRIORITY, useOverlaySlot } from '@/components/ui/OverlaySlot'
-import { Kers } from '@/components/kers/Kers'
-import { ActivityHero, ResultsHero, segmentActivity } from '@/components/meet/ActivityPanel'
+import { segmentActivity } from '@/components/meet/ActivityPanel'
 import { AgendaProgress } from '@/components/meet/AgendaProgress'
-import { MemeSlide } from '@/components/meet/MemeSlide'
+import { SlideBody, TitleStage } from '@/components/meet/SlideBody'
+import { SlideEditor } from '@/components/meet/SlideEditor'
 import { PresenterKers } from '@/components/meet/PresenterKers'
 import { bossPhase } from '@/lib/meet/boss'
 import { REHEARSE_ROOM, rehearseActivity, withAnswer, type RehearsedLocal } from '@/lib/meet/rehearse'
 import { closesAtFor, durationFor, expired, extendClosesAt } from '@/lib/meet/timer'
 import { gotoPlan, resultsAfter } from '@/lib/meet/slides'
+import { rehearsalActivities } from '@/lib/meet/agendaEdit'
 import { rehearsalLeft, rehearsalOn, rehearsalPath } from '@/lib/meet/liveRehearsal'
 import { useToast } from '@/hooks/useToast'
 import { PhonePreview } from '@/components/meet/PhonePreview'
-import { SegmentCards, SlideText } from '@/components/meet/SegmentCards'
-import { TopicBody, topicPost } from '@/components/meet/TopicBody'
 import { JoinQr, useOrigin } from '@/components/meet/JoinQr'
 import { ReportButton } from '@/components/meet/ReportButton'
 import type { PublicActivity } from '@/lib/meet/activity'
 import { useMeetingLive, useSecond } from '@/components/meet/useMeetingLive'
-import { SURVEY_PATH } from '@/components/meet/TopicBody'
-import { activityKeyFor, earlyStartWarning, isRealCard, meetingDone, meetingLive, presenterNotes, publicSegments, sectionsOf, segmentCards, slideKind, type MeetingState, type MeetPost, type Segment } from '@/lib/meeting'
+import { activityKeyFor, earlyStartWarning, meetingDone, meetingLive, presenterNotes, publicSegments, sectionsOf, slideKind, type MeetingState, type MeetPost, type Segment } from '@/lib/meeting'
 
 /** Where the screen is when migration 045 isn't applied (or in rehearsal): this browser only. */
 const localKey = (cycleId: string, rehearsing: boolean) => `${rehearsing ? 'gb-meet-rehearse' : 'gb-meet'}:${cycleId}`
@@ -88,9 +86,9 @@ type RehearsedState = Record<string, RehearsedLocal>
  * (lib/meet/liveRehearsal.ts). The screen works as live, marked "Rehearsal",
  * with the share link and "End rehearsal", which wipes every answer.
  */
-export function PresenterScreen({ initial, posts, rehearsal }: { initial: MeetingState; posts: Record<string, MeetPost>; rehearsal?: Record<string, PublicActivity> }) {
+export function PresenterScreen({ initial, posts, rehearsal, board, edit }: { initial: MeetingState; posts: Record<string, MeetPost>; rehearsal?: Record<string, PublicActivity>; board?: MeetPost[]; edit?: boolean }) {
   const { state, busy, call, optimistic, now, refresh } = useMeetingLive(initial)
-  return <PresenterView state={state} busy={busy} call={call} optimistic={optimistic} now={now} refresh={refresh} serverNow={initial.serverNow} posts={posts} rehearsal={rehearsal} />
+  return <PresenterView state={state} busy={busy} call={call} optimistic={optimistic} now={now} refresh={refresh} serverNow={initial.serverNow} posts={posts} rehearsal={rehearsal} board={board} edit={edit} />
 }
 
 type Call = ReturnType<typeof useMeetingLive>['call']
@@ -106,6 +104,8 @@ export function PresenterView({
   serverNow,
   posts,
   rehearsal,
+  board,
+  edit = false,
 }: {
   state: MeetingState
   busy: string | null
@@ -119,6 +119,10 @@ export function PresenterView({
   posts: Record<string, MeetPost>
   /** Rehearsal: each activity as seeded, keyed by its slide id. Nothing goes live. */
   rehearsal?: Record<string, PublicActivity>
+  /** Rehearsal: this month's board posts, for the slide editor's Topic from the board. */
+  board?: MeetPost[]
+  /** Rehearsal: open in the slide editor (`?rehearse=1&edit=1`). */
+  edit?: boolean
 }) {
   const router = useRouter()
   const rehearsing = !!rehearsal
@@ -130,6 +134,8 @@ export function PresenterView({
   const ended = !rehearsing && !dress && meetingDone(meeting, state.cycle.meeting_at)
   const local = rehearsing || !meeting.presenterReady
   const posKey = localKey(meeting.cycleId, rehearsing)
+  // Rehearsal's activities: each activity slide's own (edits show at once), else its seeded row's.
+  const rehearsalActs = useMemo(() => (rehearsal ? rehearsalActivities(agenda, rehearsal) : undefined), [rehearsal, agenda])
   // Kers' Boss Round intro (its first 20 s), rehearsal's sample answers and its countdowns.
   const t = useSecond(live, now, serverNow)
   // Hold the floating slot so no install or push prompt lands on the share.
@@ -156,6 +162,10 @@ export function PresenterView({
     })
   }, [])
 
+  // The slide editor (rehearsal only): it replaces the screen while it's open.
+  const [editing, setEditing] = useState(edit && !!rehearsal)
+  const allPosts = useMemo(() => ({ ...Object.fromEntries((board ?? []).map(p => [p.id, p])), ...posts }), [board, posts])
+
   // Rehearsal: opening and closing happen here only, and the phone preview's answers stay here.
   const [rehearsed, setRehearsed] = useState<RehearsedState>({})
   const [phone, setPhone] = useState(true)
@@ -165,7 +175,7 @@ export function PresenterView({
     async (action, payload = {}, done) => {
       if (!rehearsing) return call(action, payload, done)
       const id = String(payload.activity_id ?? '')
-      const a = Object.values(rehearsal ?? {}).find(x => x.id === id)
+      const a = Object.values(rehearsalActs ?? {}).find(x => x.id === id)
       const seg = a?.segmentId
       const t = now()
       // As the server does: opening starts the slide's countdown, +30s moves it on, closing stops it.
@@ -174,7 +184,7 @@ export function PresenterView({
       if (seg && action === 'close_activity') setRehearsed(r => ({ ...r, [seg]: { status: 'closed', openedAt: r[seg]?.openedAt ?? new Date(t).toISOString(), closesAt: r[seg]?.closesAt ?? null } }))
       return null
     },
-    [rehearsing, rehearsal, call, now, agenda],
+    [rehearsing, rehearsalActs, call, now, agenda],
   ) as Call
 
   const segmentId = local ? localPos?.segment : meeting.currentSegment
@@ -182,7 +192,7 @@ export function PresenterView({
   const seg: Segment | undefined = agenda[idx]
   // The activity this slide is about: an activity slide's own, a results slide's `of`.
   const key = seg ? activityKeyFor(agenda, seg.id) : null
-  const sample = rehearsing && key && rehearsal[key] ? rehearseActivity(rehearsal[key], rehearsed[key], t, REHEARSE_ROOM) : null
+  const sample = rehearsalActs && key && rehearsalActs[key] ? rehearseActivity(rehearsalActs[key], rehearsed[key], t, REHEARSE_ROOM) : null
   const activity = !live || !seg ? null : rehearsing ? (sample ? withAnswer(sample, mine[sample.id]) : null) : segmentActivity(state, seg)
   const participants = rehearsing ? REHEARSE_ROOM : state.room?.participants ?? 0
   const boss = activity ? bossPhase(activity, t) : null
@@ -205,11 +215,11 @@ export function PresenterView({
         // As the API does on goto: what was open closes, an activity slide opens its own (lib/meet/slides.ts).
         if (rehearsing) {
           setRehearsed(r => {
-            const refs = Object.values(rehearsal ?? {}).map(a => ({ id: a.segmentId, segment_id: a.segmentId, status: r[a.segmentId]?.status ?? 'ready' }))
+            const refs = Object.values(rehearsalActs ?? {}).map(a => ({ id: a.segmentId, segment_id: a.segmentId, status: r[a.segmentId]?.status ?? 'ready' }))
             const plan = gotoPlan(agenda, segment, refs)
             const next = { ...r }
             for (const k of plan.close) next[k] = { status: 'closed', openedAt: r[k]?.openedAt ?? at, closesAt: r[k]?.closesAt ?? null }
-            const kindOf = plan.open ? rehearsal?.[plan.open]?.kind : undefined
+            const kindOf = plan.open ? rehearsalActs?.[plan.open]?.kind : undefined
             if (plan.open && kindOf) next[plan.open] = { status: 'open', openedAt: at, closesAt: closesAtFor(new Date(at).getTime(), durationFor(kindOf, agenda.find(s => s.id === plan.open))) }
             return next
           })
@@ -219,7 +229,7 @@ export function PresenterView({
       optimistic({ currentSegment: segment, segmentStartedAt: at })
       call('goto', { segment })
     },
-    [presenting, agenda, idx, locked, resultsId, now, local, posKey, rehearsing, rehearsal, optimistic, call],
+    [presenting, agenda, idx, locked, resultsId, now, local, posKey, rehearsing, rehearsalActs, optimistic, call],
   )
 
   // The countdown ran out and the server closed it: on to its results, as "Close voting" would.
@@ -269,7 +279,7 @@ export function PresenterView({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (editing || e.metaKey || e.ctrlKey || e.altKey) return
       if ((e.target as HTMLElement)?.closest?.('input, textarea, select, [contenteditable]')) return
       if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); go(idx + 1) }
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(idx - 1) }
@@ -277,10 +287,44 @@ export function PresenterView({
       else if (e.key === 'f' || e.key === 'F') fullscreen()
       else if (e.key === 'p' || e.key === 'P') toggleNotes()
       else if ((e.key === 'm' || e.key === 'M') && rehearsing) setPhone(on => !on)
+      else if ((e.key === 'e' || e.key === 'E') && rehearsing) setEditing(true)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [go, idx, leave, fullscreen, toggleNotes, rehearsing])
+  }, [go, idx, leave, fullscreen, toggleNotes, rehearsing, editing])
+
+  // Back from the editor: the preview runs on what was saved, on the slide that was being edited.
+  const doneEditing = useCallback(
+    (next: Segment[], slideId: string | null) => {
+      optimistic({ agenda: next })
+      if (slideId) {
+        const pos = { segment: slideId, at: new Date(now()).toISOString() }
+        setLocalPos(pos)
+        try { localStorage.setItem(posKey, JSON.stringify(pos)) } catch {}
+      }
+      setEditing(false)
+    },
+    [optimistic, now, posKey],
+  )
+  const savedEdit = useCallback((next: Segment[]) => optimistic({ agenda: next }), [optimistic])
+
+  if (editing && rehearsal) {
+    return (
+      <SlideEditor
+        cycleId={state.cycle.id}
+        label={state.cycle.label}
+        meeting={meeting}
+        stored={rehearsal}
+        posts={allPosts}
+        board={board ?? []}
+        serverNow={serverNow}
+        now={now}
+        onDone={doneEditing}
+        onSaved={savedEdit}
+        initialSlide={segmentId ?? null}
+      />
+    )
+  }
 
   if (!agenda.length || !seg) {
     return (
@@ -295,7 +339,6 @@ export function PresenterView({
   }
 
   const kind = slideKind(seg, !!activity)
-  const topic = kind === 'content' ? topicPost(segmentCards(seg), posts) : null
   const sections = sectionsOf(agenda)
   const section = sections.find(x => idx >= x.start && idx < x.start + x.slides) ?? null
   const cue = seg.cue?.trim() || null
@@ -333,89 +376,20 @@ export function PresenterView({
         </div>
       </TitleStage>
     )
-  } else if (kind === 'activity' && activity) {
-    stage = (
-      <ActivityHero
-        key={activity.id}
-        activity={activity}
-        cue={cue}
-        participants={participants}
-        presenting={presenting}
-        now={now}
-        call={act}
-        busy={rehearsing ? null : busy}
-        onClose={closeActivity}
-        onResults={resultsIdx >= 0 ? () => go(resultsIdx) : null}
-        onExpire={rehearsing ? undefined : refresh}
-      />
-    )
-  } else if (kind === 'results' && activity) {
-    stage = <ResultsHero key={`${activity.id}:${activity.status}`} activity={activity} title={seg.title} cue={cue} participants={participants} />
-  } else if (kind === 'meme' && seg.meme) {
-    stage = <MemeSlide key={seg.id} meme={seg.meme} size="screen" />
-  } else if (kind === 'text') {
-    stage = (
-      <div key={seg.id} className="animate-fade-up my-auto w-full max-w-[62rem]">
-        <p className="eyebrow">{section?.title}</p>
-        <h1 className="mt-5 text-[clamp(48px,3.8vw,76px)] font-semibold leading-[1.04] tracking-[-0.035em] text-ink text-balance">{seg.title}</h1>
-        {cue && <p className="mt-7 max-w-[48rem] text-[clamp(21px,1.4vw,27px)] leading-[1.4] text-ink-soft text-pretty">{cue}</p>}
-      </div>
-    )
-    // The last slide: the guild survey, to scan.
-    if (last) stage = (
-      <div key={seg.id} className="my-auto flex w-full items-center gap-16">
-        <div className="min-w-0 flex-1">{stage}</div>
-        <JoinQr path={SURVEY_PATH} size={260} caption="Fill the 2-minute survey" className="shrink-0" />
-      </div>
-    )
-  } else if (kind === 'title' || ((kind === 'activity' || kind === 'results') && !activity)) {
-    // An activity or results slide with no activity seeded: its title and cue, nothing to break.
-    // The first slide: a QR to join, big (the rehearsal's own link in a live rehearsal).
-    const joinPath = idx === 0 && kind === 'title' && !rehearsing ? (dress && meeting.rehearsalCode ? rehearsalPath(meeting.rehearsalCode) : '/meet') : null
-    stage = joinPath ? (
-      <div key={seg.id} className="my-auto flex w-full items-center gap-16">
-        <TitleStage eyebrow="Welcome" title={seg.title} cue={cue} kers={false} section={section?.title} />
-        <JoinQr path={joinPath} size={280} caption="Scan to join" className="mr-6 shrink-0" />
-      </div>
-    ) : <TitleStage key={seg.id} eyebrow={kind !== 'title' ? section?.title ?? '' : idx === 0 ? 'Welcome' : 'Next up'} title={seg.title} cue={cue} kers={kind === 'title'} section={kind === 'title' ? section?.title : undefined} />
-  } else if (topic) {
-    // A discussion topic: the post's title and whole description, to talk over (TopicBody).
-    const cards = segmentCards(seg)
-    const extra = cards.some(c => c.kind === 'side' || c.kind === 'note')
-    stage = (
-      <div key={seg.id} className="animate-fade-up my-auto flex w-full gap-14 py-4">
-        <TopicBody post={topic} eyebrow={section?.title} size="screen" className="min-w-0 flex-1" />
-        {extra && <SlideText cards={cards} size="screen" className="w-[min(30%,26rem)] shrink-0 self-center" />}
-      </div>
-    )
   } else {
-    const cards = segmentCards(seg)
-    const real = cards.filter(isRealCard)
-    // An agenda written before cue and cards: its detail, as before.
-    const fallback = !cue && !seg.cards?.length ? seg.detail : ''
     stage = (
-      <div key={seg.id} className="my-auto flex w-full flex-col py-4">
-        <div className="animate-fade-up shrink-0">
-          <p className="eyebrow">{section?.title}</p>
-          <h1 className="mt-3 max-w-[36ch] text-[clamp(36px,2.5vw,48px)] font-semibold leading-[1.1] tracking-[-0.03em] text-ink text-balance">{seg.title}</h1>
-          {cue ? (
-            <p className="mt-4 flex max-w-[60rem] items-start gap-3.5 text-[clamp(20px,1.3vw,24px)] leading-[1.4] text-ink-soft text-pretty">
-              <span aria-hidden className="mt-[0.55em] size-2.5 shrink-0 rounded-full bg-matcha shadow-[0_0_0_5px_color-mix(in_oklab,var(--color-matcha)_16%,transparent)]" />
-              {cue}
-            </p>
-          ) : fallback ? (
-            <p className="mt-6 max-w-[60ch] text-[clamp(18px,1.15vw,22px)] leading-relaxed text-ink-soft">{fallback}</p>
-          ) : null}
-        </div>
-        {real.length > 0 ? (
-          <div className={cn('mt-12 grid items-start gap-12', cards.length > real.length && real.length === 1 ? 'grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]' : 'grid-cols-1')}>
-            <SegmentCards cards={real} posts={posts} size="screen" className={real.length === 1 && cards.length === 1 ? 'max-w-[62rem]' : ''} />
-            <SlideText cards={cards} size="screen" className={real.length === 1 ? 'self-center' : ''} />
-          </div>
-        ) : (
-          <SlideText cards={cards} size="screen" className="mt-12 max-w-[64rem]" />
-        )}
-      </div>
+      <SlideBody
+        seg={seg}
+        kind={kind}
+        activity={activity}
+        posts={posts}
+        section={section?.title}
+        first={idx === 0}
+        last={last}
+        participants={participants}
+        joinPath={idx === 0 && kind === 'title' && !rehearsing ? (dress && meeting.rehearsalCode ? rehearsalPath(meeting.rehearsalCode) : '/meet') : null}
+        hero={{ presenting, now, call: act, busy: rehearsing ? null : busy, onClose: closeActivity, onResults: resultsIdx >= 0 ? () => go(resultsIdx) : null, onExpire: rehearsing ? undefined : refresh }}
+      />
     )
   }
 
@@ -444,6 +418,9 @@ export function PresenterView({
             )}
             {live && local && !rehearsing && <span className="mr-1.5 text-footnote text-ink-muted">Apply migration 045 so other admins can follow along</span>}
             {live && !rehearsing && presenting && state.room?.timerReady === false && <span className="mr-1.5 text-footnote text-ink-muted">No countdown: apply migration 048</span>}
+            {rehearsing && (
+              <Button variant="ghost" icon={PencilSimple} onClick={() => setEditing(true)} title="E">Edit slides</Button>
+            )}
             {rehearsing && (
               <Button variant="ghost" onClick={() => setPhone(on => !on)} aria-pressed={phone} title="M">{phone ? 'Hide phone' : 'Phone preview'}</Button>
             )}
@@ -513,37 +490,6 @@ export function PresenterView({
         <PresenterKers className={cn('-mb-2 ml-3 shrink-0', kind === 'title' && live && !ended && 'invisible')} segmentKey={section ? String(section.start) : seg.id} live={live} ended={ended} boss={boss} />
       </footer>
     </Shell>
-  )
-}
-
-/**
- * A section's intro (and the screen before the start): "Next up", the title
- * big, the one cue line, and Kers bouncing beside it, a game show's
- * get-ready beat without any countdown.
- */
-function TitleStage({ eyebrow, title, cue, kers, section, children }: { eyebrow: string; title: string; cue: string | null; kers: boolean; section?: string; children?: React.ReactNode }) {
-  return (
-    <div className="my-auto flex w-full items-center gap-16">
-      <div className="animate-fade-up min-w-0 flex-1">
-        <p className="eyebrow flex items-center gap-3">
-          <span>{eyebrow}</span>
-          {section && section !== title && (
-            <>
-              <span aria-hidden className="h-px w-6 bg-border-strong" />
-              <span className="text-ink-muted">{section}</span>
-            </>
-          )}
-        </p>
-        <h1 className="mt-5 max-w-[22ch] text-[clamp(52px,4.2vw,84px)] font-semibold leading-[1.02] tracking-[-0.04em] text-ink text-balance">{title}</h1>
-        {cue && <p className="mt-7 max-w-[46rem] text-[clamp(21px,1.4vw,27px)] leading-[1.4] text-ink-soft text-pretty">{cue}</p>}
-        {children}
-      </div>
-      {kers && (
-        <div aria-hidden className="gb-meme-in mr-10 shrink-0">
-          <Kers size={220} expression="excited" colour="meeting" motion="hop" special="happy" />
-        </div>
-      )}
-    </div>
   )
 }
 

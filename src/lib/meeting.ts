@@ -1,4 +1,4 @@
-import type { RoomState } from '@/lib/meet/activity'
+import type { ActivityKind, RoomState } from '@/lib/meet/activity'
 import { cleanDuration } from './meet/timer.ts'
 
 /**
@@ -97,6 +97,26 @@ export interface Meme {
 }
 
 /**
+ * An activity slide's poll, word cloud or Boss Round, as the slide editor
+ * keeps it (docs/08-meeting-mode-v2.md, Batch 3). The agenda is its source:
+ * saving the agenda creates or updates its meeting_activities row (keyed by
+ * the slide's id, lib/meet/agendaEdit.ts planActivities). An agenda from
+ * before the editor has none: its rows were seeded by script and stay as
+ * they are until the editor touches the slide. Never sent to phones (they
+ * get the activity from the room).
+ */
+export interface SlideActivity {
+  kind: ActivityKind
+  prompt: string
+  /** poll: 2-4 options. */
+  options?: string[]
+  /** boss: its problem (lib/meet/boss.ts). Kept as stored. */
+  config?: Record<string, unknown>
+}
+
+export const ACTIVITY_KINDS: ActivityKind[] = ['poll', 'cloud', 'boss']
+
+/**
  * One slide of the agenda. The agenda is a flat, ordered list of slides;
  * consecutive slides with the same `section` are one section (the progress
  * line groups them, Slack lists them). `kind` is the section's kind (Radar,
@@ -121,6 +141,8 @@ export interface Segment {
   duration_s?: number
   /** meme: what it shows. */
   meme?: Meme
+  /** activity: its poll, word cloud or Boss Round (the slide editor's; see SlideActivity). */
+  activity?: SlideActivity
   title: string
   /** What's in it, in a sentence or two: the Slack agenda and the Run tab. Not on the shared screen once there are cards. */
   detail: string
@@ -172,6 +194,10 @@ export interface Meeting {
   rehearsalStartedAt?: string | null
   /** False until migration 047 is applied: "Rehearse live" then says so. */
   rehearsalReady?: boolean
+  /** Whether Kers' first draft is kept, for the editor's "Reset to Kers draft" (migration 049). */
+  hasDraft?: boolean
+  /** False until migration 049 is applied: no draft is kept, and meme uploads are off. */
+  draftReady?: boolean
 }
 
 /** What GET /api/admin/meeting returns: polled by the presenter screen, meeting mode and the board's card. */
@@ -273,6 +299,8 @@ export const LIMITS = {
   title: 80, detail: 400, note: 300, owner: 60, recap: 4000, segments: 40, notes: 200, point: 200, opener: 240, points: 3, topics: 3,
   // Cue and cards: the shared screen fits six cards and a one-line cue at 1920 x 1080.
   cue: 120, cards: 6, cardTitle: 120, cardText: 180, source: 60, label: 40, url: 500, section: 40, memeText: 90, src: 200,
+  // An activity's question and a poll's options (meeting_activities: prompt 1-200, options 2-4).
+  prompt: 200, option: 80, options: 4, config: 4000,
 } as const
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -295,6 +323,7 @@ export function cleanAgenda(raw: unknown): Segment[] {
     // Only an activity slide (or an old segment, which may have one) is timed.
     const duration = !slide || slide === 'activity' ? cleanDuration(r.duration_s) : undefined
     const meme = slide === 'meme' ? cleanMeme(r.meme) : null
+    const activity = !slide || slide === 'activity' ? cleanActivity(r.activity) : null
     return {
       id: str(r.id, 40) || `seg-${i}`,
       kind: kinds.includes(r.kind as SegmentKind) ? (r.kind as SegmentKind) : 'custom',
@@ -303,6 +332,7 @@ export function cleanAgenda(raw: unknown): Segment[] {
       ...(of ? { of } : {}),
       ...(duration !== undefined ? { duration_s: duration } : {}),
       ...(meme ? { meme } : {}),
+      ...(activity ? { activity } : {}),
       title: str(r.title, LIMITS.title) || (slide ? '' : 'Untitled'),
       detail: str(r.detail, LIMITS.detail),
       // Slides aren't timed: 0 is allowed for them.
@@ -315,11 +345,38 @@ export function cleanAgenda(raw: unknown): Segment[] {
   })
 }
 
-/** A meme as the file or the editor sent it: an image under /meet/memes/, or Kers panels. Null when empty. */
+/**
+ * An activity slide's activity as the editor sent it, cut down. Null when it
+ * isn't one. An empty prompt or a poll short of options is kept (the editor
+ * is mid-way): such an activity is just not written to meeting_activities
+ * until it's complete (lib/meet/agendaEdit.ts activityComplete).
+ */
+export function cleanActivity(raw: unknown): SlideActivity | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const r = raw as Record<string, unknown>
+  if (!ACTIVITY_KINDS.includes(r.kind as ActivityKind)) return null
+  const kind = r.kind as ActivityKind
+  const prompt = str(r.prompt, LIMITS.prompt)
+  const options = kind === 'poll' && Array.isArray(r.options) ? r.options.slice(0, LIMITS.options).map(o => (typeof o === 'string' ? o.slice(0, LIMITS.option) : '')) : []
+  const config = r.config && typeof r.config === 'object' && !Array.isArray(r.config) && JSON.stringify(r.config).length <= LIMITS.config ? (r.config as Record<string, unknown>) : null
+  return { kind, prompt, ...(kind === 'poll' ? { options } : {}), ...(config && Object.keys(config).length ? { config } : {}) }
+}
+
+/** Where an uploaded meme lives: the public `meeting-memes` bucket (migration 049). */
+export const MEME_BUCKET = 'meeting-memes'
+const LOCAL_MEME = /^\/meet\/memes\/[\w.\-]+\.(png|jpe?g|gif|webp|svg)$/i
+const UPLOADED_MEME = new RegExp(`^https://[a-z0-9-]+\\.supabase\\.co/storage/v1/object/public/${MEME_BUCKET}/[\\w.\\-]+\\.(png|jpe?g|gif|webp)$`, 'i')
+
+/** Whether a meme image's src is one we serve: a file under /meet/memes/, or an upload in the meme bucket. */
+export function memeSrcOk(src: string): boolean {
+  return LOCAL_MEME.test(src) || UPLOADED_MEME.test(src)
+}
+
+/** A meme as the file or the editor sent it: an image (under /meet/memes/ or uploaded), or Kers panels. Null when empty. */
 export function cleanMeme(raw: unknown): Meme | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
-  const src = typeof r.src === 'string' && /^\/meet\/memes\/[\w.\-]+\.(png|jpe?g|gif|webp|svg)$/i.test(r.src.trim()) ? r.src.trim().slice(0, LIMITS.src) : ''
+  const src = typeof r.src === 'string' && r.src.trim().length <= LIMITS.src && memeSrcOk(r.src.trim()) ? r.src.trim() : ''
   const panels = (Array.isArray(r.panels) ? r.panels : [])
     .map(p => {
       const q = (p ?? {}) as Record<string, unknown>

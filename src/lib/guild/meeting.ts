@@ -73,6 +73,8 @@ export async function getMeeting(cycleId: string): Promise<Meeting> {
     rehearsalCode: data?.rehearsal_code ?? null,
     rehearsalStartedAt: data?.rehearsal_started_at ?? null,
     rehearsalReady: !data || 'rehearsal_code' in data,
+    hasDraft: Array.isArray(data?.agenda_draft) && data.agenda_draft.length > 0,
+    draftReady: !data || 'agenda_draft' in data,
   }
 }
 

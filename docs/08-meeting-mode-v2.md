@@ -57,6 +57,7 @@ Planned 2026-11-13, after the November meeting. Ship before the December meeting
   - Edits save automatically to the meetings row, with undo for the last 20 changes.
   - "Reset to Kers draft" goes back to his version.
 - **Locking:** editing locks on Start. During the meeting the presenter can only skip slides.
+- **Built (2026-11-13):** "Edit slides" in Preview slides (or `/meet/present?rehearse=1&edit=1`). Pure logic in `src/lib/meet/agendaEdit.ts` (add, move, delete, undo, lock, activity-row plan); server side in `src/lib/guild/meetingEditor.ts`; UI in `components/meet/SlideEditor.tsx`, previewing with the presenter's own `SlideBody.tsx`. API actions `save_agenda`, `reset_agenda`, `rewrite_slide`, and `POST /api/admin/meeting/meme`. Activity slides carry their poll / cloud in the agenda (`activity`), and saving creates or updates their `meeting_activities` rows. Migration 049 keeps Kers' draft (`agenda_draft`) and adds the `meeting-memes` bucket.
 
 ## Batch 4: Boss stages, month recap, extras
 - **Boss Round** has three stages. Each is its own activity slide, with its own ring and a reveal after it:
@@ -85,7 +86,7 @@ Planned 2026-11-13, after the November meeting. Ship before the December meeting
 - UI: `src/components/meet/` — PresenterScreen, ActivityPanel (screen side), PhoneActivity (phone side), MeetRoom (/meet), StartMeetingCard (board card), TopicBody, SegmentCards, tiles, BossEditor (CodeMirror), MemeSlide, PresenterKers, useMeetingLive / useMeetingChannel (realtime).
 - Banner: `src/components/layout/MeetingLiveBanner.tsx`. Board Kers: `src/components/kers/`.
 - API: `src/app/api/admin/meeting/route.ts` (start/end/goto/open/close/rehearse_*), `.../report(/image)`, `src/app/api/meet/live/route.ts`, `src/app/api/meet/...`.
-- DB: migrations 045–047 in `supabase/migrations/`. New ones start at 048.
+- DB: migrations 045–049 in `supabase/migrations/`. New ones start at 050.
 - Agenda content: `docs/agendas/2026-11.json`, scripts `scripts/apply-agenda.mjs`, `scripts/seed-meeting-activities.mjs`. Standard: `docs/07-*`.
 
 ### Rules
