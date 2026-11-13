@@ -194,6 +194,8 @@ export const CARD_PAD_X = 28
 const CARD_CHROME = 24 + 20 + 10 + 64 + 18 + 30 + 24
 const CARD_MIN = 280
 export const REPORT_TILE_H = 76
+/** One Boss Round stage's row on its card. */
+export const REPORT_STAGE_H = 66
 export const REPORT_TILE_GAP = 10
 /** The most activity cards an image shows. */
 export const REPORT_CARDS = 6
@@ -208,6 +210,7 @@ export function reportBodyHeight(a: ReportActivity, width: number): number {
     return rows * REPORT_TILE_H + Math.max(0, rows - 1) * REPORT_TILE_GAP
   }
   if (a.kind === 'cloud') return reportCloud(a.words ?? [], width - CARD_PAD_X * 2).height
+  if (a.stages?.length) return a.stages.length * REPORT_STAGE_H
   return 90
 }
 

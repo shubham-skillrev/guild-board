@@ -19,6 +19,15 @@ export const BOSS_TEST_MS = 2000
 export const BOSS_INTRO_MS = 20_000
 export const BOSS_LINE = 'You lot tell me what to write all day. Let’s see if you can still code.'
 
+/** A watcher's cheers on the write stage: one per this long (faster taps are dropped), and at most CHEER_MAX a round. */
+export const CHEER_GAP_MS = 1500
+export const CHEER_MAX = 40
+
+/** Whether one more cheer counts: `n` so far, the last at `last` (ms, 0 for none). */
+export function cheerAllowed(n: number, last: number, now: number): boolean {
+  return n < CHEER_MAX && (!last || now - last >= CHEER_GAP_MS)
+}
+
 export interface BossCase {
   args: unknown[]
   expected: unknown

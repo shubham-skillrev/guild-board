@@ -193,7 +193,7 @@ export function PresenterView({
   // The activity this slide is about: an activity slide's own, a results slide's `of`.
   const key = seg ? activityKeyFor(agenda, seg.id) : null
   const sample = rehearsalActs && key && rehearsalActs[key] ? rehearseActivity(rehearsalActs[key], rehearsed[key], t, REHEARSE_ROOM) : null
-  const activity = !live || !seg ? null : rehearsing ? (sample ? withAnswer(sample, mine[sample.id]) : null) : segmentActivity(state, seg)
+  const activity = !live || !seg ? null : rehearsing ? (sample ? withAnswer(sample, mine[sample.id], rehearsalActs?.[key!]?.config) : null) : segmentActivity(state, seg)
   const participants = rehearsing ? REHEARSE_ROOM : state.room?.participants ?? 0
   const boss = activity ? bossPhase(activity, t) : null
   const presenting = rehearsing || (live && (local || meeting.presenterId === state.me))

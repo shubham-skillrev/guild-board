@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowArcLeft,
   ArrowArcRight,
@@ -45,6 +45,8 @@ import {
   type History,
 } from '@/lib/meet/agendaEdit'
 import type { PublicActivity } from '@/lib/meet/activity'
+import { BOSS_PROBLEMS } from '@/lib/meet/boss'
+import { blankCount, CODE_MAX, fillConfig, MAX_CHIPS, predictConfig, stageProblem, TOKEN_MAX } from '@/lib/meet/bossStages'
 import { activityKeyFor, KIND_LABELS, LIMITS, MEME_FACES, sectionsOf, slideKind, type Meeting, type MeetPost, type Meme, type Segment, type SlideActivity } from '@/lib/meeting'
 
 /** The preview is drawn at this size, then scaled to fit, so it lays out as the shared screen does. */
@@ -52,7 +54,7 @@ const STAGE_W = 1600
 const STAGE_H = 900
 
 const SLIDE_NAMES: Record<string, string> = { title: 'Title', content: 'Content', activity: 'Activity', results: 'Results', text: 'Text', meme: 'Meme' }
-const ACTIVITY_NAMES: Record<SlideActivity['kind'], string> = { poll: 'Poll', cloud: 'Word cloud', boss: 'Boss Round' }
+const ACTIVITY_NAMES: Record<SlideActivity['kind'], string> = { poll: 'Poll', cloud: 'Word cloud', boss: 'Boss · Write it', predict: 'Boss · Predict', fill: 'Boss · Fill the blank' }
 
 type SaveState = { saving: boolean; error: string | null; at: string | null }
 
@@ -136,6 +138,7 @@ export function SlideEditor({ cycleId, label, meeting, stored, posts, board, ser
         setSave({ saving: false, error: null, at: data.savedAt ?? new Date().toISOString() })
         onSaved(data.agenda ?? body)
         if (data.sync?.kept?.length) toast('Some answered activities kept their options (people already voted).', 'info')
+        if (data.sync?.needs050?.length) toast('Boss Round stages aren’t saved to the room yet: apply migration 050.', 'error')
         return true
       } catch (err) {
         setSave(s => ({ ...s, saving: false, error: err instanceof Error ? err.message : 'Could not save' }))
@@ -421,6 +424,7 @@ function AddMenu({ onAdd, board, cycleId, memeUploads, full }: { onAdd: (kind: A
               {(['poll', 'cloud'] as const).map(k => (
                 <MenuItem key={k} onClick={() => pick(k)} hint="with its results slide">{ADD_LABELS[k]}</MenuItem>
               ))}
+              <MenuItem onClick={() => pick('boss')} hint="6 slides">{ADD_LABELS.boss}</MenuItem>
               <MenuItem onClick={() => setOpen('topic')} hint={`${board.length} posts`}>{ADD_LABELS.topic}</MenuItem>
               <MenuItem onClick={() => pick('text')}>{ADD_LABELS.text}</MenuItem>
               <MenuItem onClick={() => pick('title')}>{ADD_LABELS.title}</MenuItem>
@@ -746,12 +750,104 @@ function ActivityFields({ seg, set }: { seg: Segment; set: (p: Partial<Segment>,
           {filled < 2 && <p className="mt-1 text-[11px] text-vermillion">A poll needs at least two options.</p>}
         </div>
       )}
-      {a.kind === 'boss' && <p className="text-[11px] text-ink-muted">The Boss Round’s problem is set separately.</p>}
+      {(a.kind === 'predict' || a.kind === 'fill') && <StageFields a={a} put={put} />}
+      {a.kind === 'boss' && (
+        <Field label="Problem" hint="Laptops write it and run its tests; phones watch and cheer.">
+          <select
+            value={String(Number((a.config as { problem?: unknown } | undefined)?.problem) || '')}
+            onChange={e => put({ config: { ...(a.config ?? {}), problem: Number(e.target.value) } }, 'problem')}
+            className="h-8 w-full rounded-(--radius-control) border border-border bg-sumi px-2 text-footnote text-ink"
+          >
+            <option value="">Pick a problem</option>
+            {BOSS_PROBLEMS.map(p => <option key={p.id} value={p.id}>{p.title} · {p.cases.length} tests</option>)}
+          </select>
+        </Field>
+      )}
       <Field label="Timer" hint={`${formatClock(MIN_DURATION_S * 1000)} to ${formatClock(MAX_DURATION_S * 1000)}. Default for a ${ACTIVITY_NAMES[a.kind].toLowerCase()}: ${formatClock(DEFAULT_DURATION_S[a.kind] * 1000)}.`}>
         <DurationInput key={seg.duration_s ?? 'default'} value={seg.duration_s} fallback={def} shown={current} onChange={v => set({ duration_s: v }, 'duration')} />
       </Field>
     </div>
   )
+}
+
+/**
+ * A Boss Round quiz stage's own fields (lib/meet/bossStages.ts): the code, and
+ * either the answer tiles with the right one picked (predict), or the right
+ * token per blank and the decoy chips (fill). The right answers stay on the
+ * server until the stage closes.
+ */
+function StageFields({ a, put }: { a: SlideActivity; put: (p: Partial<SlideActivity>, field: string) => void }) {
+  const group = useId()
+  const config = (a.config ?? {}) as Record<string, unknown>
+  const setConfig = (p: Record<string, unknown>, field: string) => put({ config: { ...config, ...p } }, field)
+  const problem = stageProblem(a.kind, (a.options ?? []).map(o => o.trim()).filter(Boolean), a.config)
+  const code = a.kind === 'predict' ? predictConfig(config).code : fillConfig(config).code
+  const codeField = (
+    <Field label="Code" hint={a.kind === 'fill' ? 'Mark each blank with ___ (one or two).' : 'Shown on the screen and every phone.'}>
+      <Textarea rows={6} value={code} maxLength={CODE_MAX} spellCheck={false} onChange={e => setConfig({ code: e.target.value }, 'code')} className="font-mono text-[12px] leading-relaxed" />
+    </Field>
+  )
+  if (a.kind === 'predict') {
+    const options = a.options ?? []
+    const answer = predictConfig(config).answer
+    return (
+      <div className="space-y-4">
+        {codeField}
+        <div>
+          <Label className="mb-1">Answers · pick the right one</Label>
+          <ol className="space-y-1.5" role="radiogroup" aria-label="The right answer">
+            {options.map((o, i) => (
+              <li key={i} className="flex items-center gap-1.5">
+                <input type="radio" name={group} checked={answer === i} onChange={() => setConfig({ answer: i }, 'answer')} aria-label={`Answer ${i + 1} is right`} className="size-4 shrink-0 accent-[var(--color-matcha)]" />
+                <Input aria-label={`Answer ${i + 1}`} value={o} maxLength={LIMITS.option} onChange={e => put({ options: options.map((x, j) => (j === i ? e.target.value : x)) }, `option${i}`)} className="h-8 py-0 font-mono" />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={X}
+                  disabled={options.length <= 2}
+                  onClick={() => put({ options: options.filter((_, j) => j !== i), config: { ...config, answer: answer === null || answer === i ? null : answer > i ? answer - 1 : answer } }, 'options')}
+                  aria-label={`Remove answer ${i + 1}`}
+                />
+              </li>
+            ))}
+          </ol>
+          {options.length < LIMITS.options && <Button variant="ghost" size="sm" icon={Plus} onClick={() => put({ options: [...options, ''] }, 'options')} className="mt-1.5">Answer</Button>}
+        </div>
+        {problem && <p className="text-[11px] text-vermillion">{problem} It isn’t saved to the room until then.</p>}
+      </div>
+    )
+  }
+  const f = fillConfig(config)
+  const blanks = blankCount(f.code)
+  const answers = Array.from({ length: blanks }, (_, i) => f.answers[i] ?? '')
+  return (
+    <div className="space-y-4">
+      {codeField}
+      {blanks > 0 && (
+        <div>
+          <Label className="mb-1">The right {blanks === 1 ? 'token' : 'tokens'}</Label>
+          <ol className="space-y-1.5">
+            {answers.map((t, i) => (
+              <li key={i}>
+                <Input aria-label={`Blank ${i + 1}`} placeholder={`Blank ${i + 1}`} value={t} maxLength={TOKEN_MAX} onChange={e => setConfig({ answers: answers.map((x, j) => (j === i ? e.target.value : x)) }, `blank${i}`)} className="h-8 py-0 font-mono" />
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+      <Field label="Decoy chips" hint={`Wrong tokens beside the right ones, comma separated. Up to ${MAX_CHIPS} chips in all; phones see them shuffled.`}>
+        <DecoyInput key={f.decoys.join(',')} value={f.decoys} onChange={decoys => setConfig({ decoys }, 'decoys')} />
+      </Field>
+      {problem && <p className="text-[11px] text-vermillion">{problem} It isn’t saved to the room until then.</p>}
+    </div>
+  )
+}
+
+/** Decoys as one comma-separated line, split on blur (so a half-typed comma doesn't drop a chip). */
+function DecoyInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const [text, setText] = useState(value.join(', '))
+  const commitText = () => onChange([...new Set(text.split(',').map(t => t.trim().slice(0, TOKEN_MAX)).filter(Boolean))].slice(0, MAX_CHIPS))
+  return <Input value={text} onChange={e => setText(e.target.value)} onBlur={commitText} onKeyDown={e => { if (e.key === 'Enter') commitText() }} className="h-8 py-0 font-mono" placeholder="map, forEach, find" />
 }
 
 /** m:ss (or plain seconds), clamped on blur; empty means the kind's default. */

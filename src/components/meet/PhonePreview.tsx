@@ -62,6 +62,7 @@ export function PhonePreview({
   const offline: MeetRoomOffline = useMemo(
     () => ({
       room,
+      phone: true,
       post: async (body: Record<string, unknown>) => {
         if (body.action === 'join') return { ...initial, joined: { kind: 'member', name: null } }
         const id = String(body.activity_id)

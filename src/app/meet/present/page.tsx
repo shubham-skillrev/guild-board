@@ -45,7 +45,9 @@ export default async function PresentPage({ searchParams }: Props) {
   if (rehearse) {
     rehearsal = {}
     for (const row of (activities?.data ?? []) as ActivityRow[]) {
-      rehearsal[row.segment_id] = { ...aggregate(row, []), status: 'ready', openedAt: null, closedAt: null }
+      // As stored, the Boss stages' answers included: admins only, and the rehearsal hides them until a stage closes (lib/meet/rehearse.ts).
+      const config = row.config && typeof row.config === 'object' && !Array.isArray(row.config) ? (row.config as Record<string, unknown>) : {}
+      rehearsal[row.segment_id] = { ...aggregate(row, []), config, status: 'ready', openedAt: null, closedAt: null }
     }
   }
   return (

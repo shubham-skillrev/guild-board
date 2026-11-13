@@ -10,6 +10,7 @@ import { activityKeyFor, agendaPostIds, hollowRun, meetingLive, phoneAgenda, typ
 import { gotoPlan, navBlocked, type ActivityRef } from '@/lib/meet/slides'
 import { roomOpenTo, rowRehearsing, wipeRehearsal } from '@/lib/meet/liveRehearsal'
 import { meetPosts } from '@/lib/guild/meetingPrep'
+import { cheerAllowed } from '@/lib/meet/boss'
 import { closesAtFor, dueToClose, durationFor, extendClosesAt, missing048, tooLate } from '@/lib/meet/timer'
 import {
   aggregate,
@@ -292,7 +293,9 @@ export async function respond(admin: Admin, cycleId: string, participant: Partic
   if (!cleaned.ok) return { ok: false, status: 400, error: cleaned.error }
 
   switch ((activity as ActivityRow).kind) {
-    case 'poll': {
+    case 'poll':
+    case 'predict':
+    case 'fill': {
       // One vote, locked on the first tap: slot 0 is unique per participant,
       // so a second vote (another tab, a double tap) is refused by the
       // database and answered with the vote that counts.
@@ -329,6 +332,14 @@ export async function respond(admin: Admin, cycleId: string, participant: Partic
       break
     }
     case 'boss': {
+      if (cleaned.value.cheer === true) return cheer(admin, cycleId, participant, activityId)
+      if (cleaned.value.started === true) {
+        // "Started typing" (slot 2), once: the screen's "N coding". Never replaces a run.
+        const { error } = await admin.from('meeting_responses').upsert({ activity_id: activityId, participant_id: participant.id, slot: 2, value: { started: true } }, { onConflict: 'activity_id,participant_id,slot', ignoreDuplicates: true })
+        if (error) return { ok: false, status: 500, error: 'Could not save that. Try again.' }
+        nudgeRoom(cycleId)
+        return { ok: true, mine: await mineFor(admin, participant.id, activityId) }
+      }
       // Runs are taken until the round closes (its countdown, or the presenter; refused above once it has).
       // Slot 0 like a poll: each run replaces the last.
       const { error } = await admin
@@ -339,6 +350,25 @@ export async function respond(admin: Admin, cycleId: string, participant: Partic
     }
   }
 
+  nudgeRoom(cycleId)
+  return { ok: true, mine: await mineFor(admin, participant.id, activityId) }
+}
+
+/**
+ * A phone watching the write stage cheers (slot 1, `{ n }`, counted up).
+ * Rate-limited per person: one per CHEER_GAP_MS (a faster tap is taken and
+ * dropped quietly) and at most CHEER_MAX a round. The screen shows the
+ * room's total, nothing else.
+ */
+async function cheer(admin: Admin, cycleId: string, participant: Participant, activityId: string): Promise<RespondResult> {
+  const { data } = await admin.from('meeting_responses').select('value, updated_at').eq('activity_id', activityId).eq('participant_id', participant.id).eq('slot', 1).maybeSingle()
+  const n = Math.max(0, Math.floor(Number((data?.value as { n?: unknown } | null)?.n) || 0))
+  const last = data?.updated_at ? new Date(data.updated_at as string).getTime() : 0
+  if (!cheerAllowed(n, last, Date.now())) return { ok: true, mine: await mineFor(admin, participant.id, activityId) }
+  const { error } = await admin
+    .from('meeting_responses')
+    .upsert({ activity_id: activityId, participant_id: participant.id, slot: 1, value: { n: n + 1 }, updated_at: new Date().toISOString() }, { onConflict: 'activity_id,participant_id,slot' })
+  if (error) return { ok: false, status: 500, error: 'Could not cheer. Try again.' }
   nudgeRoom(cycleId)
   return { ok: true, mine: await mineFor(admin, participant.id, activityId) }
 }

@@ -3,7 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { openCycle } from '@/lib/guild/demos'
 import { getMeeting } from '@/lib/guild/meeting'
 import { rehearsalOn } from '@/lib/meet/liveRehearsal'
-import { meetingReport, type MeetingReport } from '@/lib/meet/report'
+import { meetingRecap, meetingReport, type MeetingRecap, type MeetingReport } from '@/lib/meet/report'
+import { meetingDone } from '@/lib/meeting'
 import type { ActivityRow } from '@/lib/meet/activity'
 
 export type ReportLoad =
@@ -16,7 +17,7 @@ export type ReportLoad =
  * Only the participant's user_id is read (member or guest), never a name.
  * Refused while a live rehearsal runs: its answers aren't the meeting.
  */
-export async function loadMeetingReport(cycleId: string | null): Promise<ReportLoad> {
+export async function loadMeetingReport(cycleId: string | null): Promise<ReportLoad & { done?: boolean }> {
   const admin = createAdminClient()
   const cycle = cycleId ? (await admin.from('cycles').select('id, label, meeting_at').eq('id', cycleId).maybeSingle()).data : await openCycle(admin)
   if (!cycle) return { ok: false, status: 404, error: 'No such month' }
@@ -39,5 +40,17 @@ export async function loadMeetingReport(cycleId: string | null): Promise<ReportL
     activities,
     responses: responses as { activity_id: string; participant_id: string; slot: number; value: unknown }[],
   })
-  return { ok: true, report, cycle: { id: cycle.id, label: cycle.label } }
+  return { ok: true, report, cycle: { id: cycle.id, label: cycle.label }, done: meetingDone(meeting, cycle.meeting_at) }
+}
+
+/**
+ * A past month's recap for the board (components/board/MeetingRecap.tsx):
+ * the report cut down (lib/meet/report.ts meetingRecap). Null unless that
+ * month's meeting actually ran and ended, with someone in it or something
+ * answered. Counts only, like the report.
+ */
+export async function loadMeetingRecap(cycleId: string): Promise<MeetingRecap | null> {
+  const r = await loadMeetingReport(cycleId)
+  if (!r.ok || !r.done) return null
+  return meetingRecap(r.report)
 }

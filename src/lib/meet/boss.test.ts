@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { BOSS_INTRO_MS, BOSS_PROBLEMS, bossPhase, bossProblem, bossVerdict, deepEqual, judge, summarise, WORKER_SOURCE, type BossProblem, type WorkerReply } from './boss.ts'
+import { BOSS_INTRO_MS, BOSS_PROBLEMS, CHEER_GAP_MS, CHEER_MAX, cheerAllowed, bossPhase, bossProblem, bossVerdict, deepEqual, judge, summarise, WORKER_SOURCE, type BossProblem, type WorkerReply } from './boss.ts'
 import { aggregate, cleanResponse, type ActivityRow } from './activity.ts'
 
 /**
@@ -119,9 +119,9 @@ test('boss aggregate: pass rate of those trying, one run per person', () => {
     { participant_id: 'p3', slot: 0, value: { passed: true, tests: 6, of: 6 } },
     { participant_id: 'p3', slot: 0, value: { passed: true, tests: 6, of: 6 } }, // a duplicate must not count twice
   ])
-  assert.deepEqual(a.tally, { passed: 2, trying: 3, pct: 66 })
+  assert.deepEqual(a.tally, { passed: 2, trying: 3, pct: 66, coding: 1, cheers: 0 })
   assert.equal(a.total, 3)
-  assert.deepEqual(aggregate(boss, []).tally, { passed: 0, trying: 0, pct: 0 })
+  assert.deepEqual(aggregate(boss, []).tally, { passed: 0, trying: 0, pct: 0, coding: 0, cheers: 0 })
   // 99.5% is not everyone.
   const many = Array.from({ length: 200 }, (_, i) => ({ participant_id: `p${i}`, slot: 0, value: { passed: i > 0 } }))
   assert.equal(aggregate(boss, many).tally?.pct, 99)
@@ -138,4 +138,27 @@ test('Kers: intro, then running until it is closed, then a verdict by pass rate'
   assert.equal(bossPhase({ ...a, status: 'ready' }, opened), null)
   assert.equal(bossVerdict(62, 8), '62% of you can still code. I’m mildly impressed.')
   for (const [pct, trying] of [[0, 0], [0, 4], [10, 10], [40, 10], [80, 10], [100, 1], [100, 9]]) assert.ok(bossVerdict(pct, trying).length > 0)
+})
+
+test('write stage: "started" marks count as coding, cheers add up, neither counts as a run', () => {
+  const a = aggregate(boss, [
+    { participant_id: 'p1', slot: 0, value: { passed: true, tests: 6, of: 6 } },
+    { participant_id: 'p1', slot: 2, value: { started: true } },
+    { participant_id: 'p2', slot: 2, value: { started: true } },
+    { participant_id: 'p3', slot: 2, value: { started: true } },
+    { participant_id: 'w1', slot: 1, value: { n: 3 } },
+    { participant_id: 'w2', slot: 1, value: { n: 2 } },
+  ])
+  assert.deepEqual(a.tally, { passed: 1, trying: 1, pct: 100, coding: 2, cheers: 5 })
+  assert.equal(a.answered, 1)
+  assert.deepEqual(cleanResponse(boss, { cheer: true }), { ok: true, value: { cheer: true } })
+  assert.deepEqual(cleanResponse(boss, { started: true }), { ok: true, value: { started: true } })
+  assert.equal(cleanResponse(boss, { cheer: 'yes' }).ok, false)
+})
+
+test('cheers are rate-limited and capped', () => {
+  assert.equal(cheerAllowed(0, 0, 1000), true)
+  assert.equal(cheerAllowed(1, 1000, 1000 + CHEER_GAP_MS - 1), false)
+  assert.equal(cheerAllowed(1, 1000, 1000 + CHEER_GAP_MS), true)
+  assert.equal(cheerAllowed(CHEER_MAX, 0, 1000), false)
 })

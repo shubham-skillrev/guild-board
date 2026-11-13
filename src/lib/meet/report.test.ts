@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isRatingPoll, meetingReport, REPORT_WORDS, type ReportInput } from './report.ts'
+import { isRatingPoll, meetingRecap, meetingReport, reportCards, REPORT_WORDS, type ReportInput } from './report.ts'
+import { reportGrid } from './results.ts'
 import type { ActivityRow } from './activity.ts'
 
 const CYCLE = '11111111-1111-4111-8111-111111111111'
@@ -94,4 +95,57 @@ test('a busy cloud lists only the top words', () => {
   const many = Array.from({ length: 20 }, (_, i) => ({ activity_id: 'a-cloud', participant_id: `p${i}`, slot: 0, value: { word: `w${i}` } }))
   const r = meetingReport({ ...input, responses: many })
   assert.equal(r.activities[0].words?.length, REPORT_WORDS)
+})
+
+const staged: ReportInput = {
+  ...input,
+  agenda: [
+    ...input.agenda.slice(0, 3),
+    { id: 'boss-predict', slide: 'activity', section: 'Boss Round' },
+    { id: 'boss-fill', slide: 'activity', section: 'Boss Round' },
+    ...input.agenda.slice(3),
+  ],
+  activities: [
+    ...input.activities,
+    act('a-predict', 'boss-predict', 'predict', 'What does this print?', { options: ['3', '4', 'undefined', 'TypeError'], config: { code: 'x', answer: 1 } }),
+    act('a-fill', 'boss-fill', 'fill', 'Fill the blanks', { config: { code: 'a.___()', answers: ['map'], decoys: ['filter'] } }),
+  ],
+  responses: [
+    ...input.responses,
+    { activity_id: 'a-predict', participant_id: P[0], slot: 0, value: { option: 1 } },
+    { activity_id: 'a-predict', participant_id: P[1], slot: 0, value: { option: 1 } },
+    { activity_id: 'a-predict', participant_id: P[2], slot: 0, value: { option: 0 } },
+    { activity_id: 'a-fill', participant_id: P[0], slot: 0, value: { tokens: ['map'] } },
+    { activity_id: 'a-fill', participant_id: P[1], slot: 0, value: { tokens: ['filter'] } },
+  ],
+}
+
+test('Boss Round stages: % right per stage, as one card on the image', () => {
+  const r = meetingReport(staged)
+  assert.deepEqual(r.stages.map(s => [s.kind, s.correct, s.answered, s.pct]), [['predict', 2, 3, 66], ['fill', 1, 2, 50], ['boss', 1, 2, 50]])
+  assert.deepEqual(r.activities.find(a => a.kind === 'predict')?.quiz, { correct: 2, answered: 3, pct: 66 })
+  const cards = reportCards(r)
+  assert.equal(cards.filter(c => c.stages).length, 1)
+  assert.ok(!cards.some(c => c.kind === 'predict' || c.kind === 'fill'))
+  const card = cards.find(c => c.stages)!
+  assert.deepEqual(card.stages!.map(s => s.label), ['Predict the output', 'Fill the blank', 'Write it'])
+  assert.equal(reportGrid(cards).rows.flatMap(x => x.cards).length, cards.length)
+  // An old single Boss Round keeps its own card, and reads as "Boss Round".
+  const old = meetingReport(input)
+  assert.deepEqual(reportCards(old), old.activities)
+  assert.deepEqual(old.stages.map(s => [s.label, s.pct]), [['Boss Round', 50]])
+})
+
+test('month recap: people, highlights, Boss %, rating; nothing when the meeting never ran', () => {
+  const recap = meetingRecap(meetingReport(staged))!
+  assert.deepEqual(recap.people, { members: 2, guests: 1, total: 3 })
+  assert.deepEqual(recap.highlights, [
+    { kind: 'cloud', prompt: 'The tool you’d refuse to give up', words: ['vim', 'tmux'], answered: 2 },
+    { kind: 'poll', prompt: 'Production code to a hosted AI model?', top: 'Enterprise only', pct: 67, answered: 3 },
+  ])
+  assert.deepEqual(recap.stages.map(s => s.pct), [66, 50, 50])
+  assert.deepEqual(recap.rating, { top: '😍 Loved it', pct: 50, answered: 2 })
+  assert.equal(meetingRecap(meetingReport({ ...input, participants: [], responses: [] })), null)
+  const text = JSON.stringify(recap)
+  for (const secret of [USER_A, USER_B, ...P, 'Zanzibar', CYCLE]) assert.ok(!text.includes(secret), `recap leaks ${secret}`)
 })

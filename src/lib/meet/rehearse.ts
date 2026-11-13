@@ -8,6 +8,7 @@
 
 import type { PublicActivity } from './activity.ts'
 import { expired } from './timer.ts'
+import { fillConfig, gradeFill, gradePredict, predictConfig, publicConfig } from './bossStages.ts'
 
 /** How many people the rehearsal pretends are in the room. */
 export const REHEARSE_ROOM = 20
@@ -56,7 +57,9 @@ export function rehearseActivity(
   const closesAt = local?.closesAt ?? null
   const status = local?.status === 'open' && expired(closesAt, now) ? 'closed' : local?.status ?? 'ready'
   const openedAt = local?.openedAt ?? null
-  const base: PublicActivity = { ...a, status, openedAt, closedAt: status === 'closed' ? new Date(now).toISOString() : null, closesAt, answered: 0, total: 0, counts: null, words: null, tally: null }
+  // A Boss stage's right answer shows only once it has closed, as live (bossStages.ts publicConfig).
+  const config = a.kind === 'predict' || a.kind === 'fill' ? publicConfig(a.kind, a.config, status, a.id) : a.config
+  const base: PublicActivity = { ...a, config, status, openedAt, closedAt: status === 'closed' ? new Date(now).toISOString() : null, closesAt, answered: 0, total: 0, counts: null, words: null, tally: null }
   if (status === 'ready' || !openedAt) {
     if (a.kind === 'poll') base.counts = a.options.map(() => 0)
     return base
@@ -79,10 +82,27 @@ export function rehearseActivity(
       base.answered = Math.min(answered, Math.ceil(base.total / 2))
       break
     }
+    case 'predict':
+    case 'fill': {
+      // Answers come in; the score and (predict) the split show once it closes, as live.
+      base.answered = base.total = answered
+      if (status === 'closed') {
+        const correct = Math.round(answered * 0.6)
+        base.tally = { correct, answered, pct: answered ? Math.floor((correct / answered) * 100) : 0 }
+        if (a.kind === 'predict') {
+          const right = predictConfig(a.config).answer ?? 0
+          const wrong = a.options.map((_, i) => i).filter(i => i !== right)
+          const rest = split(answered - correct, wrong.map((_, j) => [0.5, 0.3, 0.2][j % 3]))
+          base.counts = a.options.map((_, i) => (i === right ? correct : rest[wrong.indexOf(i)] ?? 0))
+        }
+      }
+      break
+    }
     case 'boss': {
       const trying = Math.round(room * 0.8 * progress)
       const passed = Math.round(trying * 0.6 * progress)
-      base.tally = { passed, trying, pct: trying ? Math.floor((passed / trying) * 100) : 0 }
+      const started = Math.round(room * 0.5 * Math.min(1, progress * 3))
+      base.tally = { passed, trying, pct: trying ? Math.floor((passed / trying) * 100) : 0, coding: Math.max(0, Math.max(started, trying) - passed), cheers: Math.round(14 * progress) }
       base.answered = base.total = trying
       break
     }
@@ -90,15 +110,34 @@ export function rehearseActivity(
   return base
 }
 
+/** Whether one locked quiz answer is right, against the stage's config with its answer. */
+function quizRight(kind: 'predict' | 'fill', config: unknown, value: Record<string, unknown> | undefined): boolean {
+  return kind === 'predict' ? gradePredict(value?.option, predictConfig(config).answer) : gradeFill(value?.tokens, fillConfig(config).answers)
+}
+
 /**
  * One more person's answers (the rehearsing admin's own phone preview, or
  * preview) on top of an activity's sample answers, counted the way
- * the server's aggregate would: a vote, up to three words, a run's result.
+ * the server's aggregate would: a vote, up to three words, a run's result,
+ * a Boss quiz answer (graded against `full`, the stage's config with its
+ * answer: the activity itself carries it only once closed).
  */
-export function withAnswer(a: PublicActivity, values: Record<string, unknown>[] | null | undefined): PublicActivity {
+export function withAnswer(a: PublicActivity, values: Record<string, unknown>[] | null | undefined, full?: Record<string, unknown>): PublicActivity {
   if (!values?.length || a.status === 'ready') return a
   const out: PublicActivity = { ...a, answered: a.answered + 1 }
   switch (a.kind) {
+    case 'predict':
+    case 'fill': {
+      out.total = a.total + 1
+      if (a.status === 'closed' && a.tally) {
+        const right = quizRight(a.kind, full ?? a.config, values[0])
+        const correct = (a.tally.correct ?? 0) + (right ? 1 : 0)
+        out.tally = { correct, answered: out.answered, pct: Math.floor((correct / out.answered) * 100) }
+        const option = Number(values[0]?.option)
+        if (a.kind === 'predict' && a.counts && Number.isInteger(option) && option >= 0 && option < a.counts.length) out.counts = a.counts.map((c, i) => (i === option ? c + 1 : c))
+      }
+      break
+    }
     case 'poll': {
       const option = Number(values[0]?.option)
       if (!Number.isInteger(option) || !a.counts || option < 0 || option >= a.counts.length) return a
@@ -120,10 +159,13 @@ export function withAnswer(a: PublicActivity, values: Record<string, unknown>[] 
       break
     }
     case 'boss': {
+      // Only a run counts (a "started" mark or a cheer doesn't).
+      const run = values.find(v => typeof v.tests === 'number')
+      if (!run) return a
       const { passed = 0, trying = 0 } = a.tally ?? {}
-      const p = passed + (values[0]?.passed === true ? 1 : 0)
+      const p = passed + (run.passed === true ? 1 : 0)
       const t = trying + 1
-      out.tally = { passed: p, trying: t, pct: Math.floor((p / t) * 100) }
+      out.tally = { ...a.tally, passed: p, trying: t, pct: Math.floor((p / t) * 100) }
       out.total = t
       break
     }
@@ -133,8 +175,10 @@ export function withAnswer(a: PublicActivity, values: Record<string, unknown>[] 
 
 /** The answers a local phone keeps for one activity after sending `value` (what POST /api/meet would return as `mine`). */
 export function addAnswer(kind: PublicActivity['kind'], before: Record<string, unknown>[], value: Record<string, unknown>): Record<string, unknown>[] {
-  // A poll vote locks on the first tap, as on the server (lib/meet/room.ts respond).
-  if (kind === 'poll') return before.length ? before : [value]
+  // A poll vote (and a Boss quiz answer) locks on the first tap, as on the server (lib/meet/room.ts respond).
+  if (kind === 'poll' || kind === 'predict' || kind === 'fill') return before.length ? before : [value]
+  // The write stage keeps its last run; a cheer or a "started" mark never replaces it.
+  if (kind === 'boss') return value.cheer === true || value.started === true ? before : [value]
   if (kind !== 'cloud') return [value]
   const w = String(value.word ?? '')
   if (!w || before.some(v => v.word === w)) return before

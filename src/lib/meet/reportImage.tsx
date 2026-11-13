@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og'
-import { NO_ANSWERS, type MeetingReport, type ReportActivity } from '@/lib/meet/report'
+import { NO_ANSWERS, reportCards, type MeetingReport, type ReportActivity } from '@/lib/meet/report'
 import {
   CARD_PAD_X,
   fillWidth,
@@ -9,6 +9,7 @@ import {
   REPORT_GAP,
   REPORT_HALF,
   REPORT_PAD,
+  REPORT_STAGE_H,
   REPORT_TILE_GAP,
   REPORT_TILE_H,
   reportCloud,
@@ -22,7 +23,7 @@ import {
 
 /** Portrait, 1200 wide: reads whole in a Slack preview and on a phone. Taller with more (or bigger) activities. */
 export function reportSize(r: Pick<MeetingReport, 'activities' | 'rating'>): { width: number; height: number } {
-  return reportImageSize(r.activities, !!r.rating)
+  return reportImageSize(reportCards(r), !!r.rating)
 }
 const INK = '#16181D'
 const SOFT = '#4A4D55'
@@ -32,7 +33,7 @@ const SAFFRON = SAFFRON_HEX
 const GRAPE = '#6C3A5C'
 /** Soft pastels, one per card, in turn. */
 const PASTELS = ['#EEF6F0', '#F3EEF8', '#FDF3E7', '#EAF1FA', '#FBEFF2', '#F1F4E6']
-const KIND: Record<ReportActivity['kind'], string> = { poll: 'Poll', cloud: 'Word cloud', boss: 'Kers’ Boss Round' }
+const KIND: Record<ReportActivity['kind'], string> = { poll: 'Poll', cloud: 'Word cloud', boss: 'Kers’ Boss Round', predict: 'Boss Round · Predict', fill: 'Boss Round · Fill the blank' }
 
 /**
  * The post-meeting report as one PNG (1200 wide) for the guild's Slack
@@ -47,7 +48,8 @@ export function reportImage(r: MeetingReport): ImageResponse {
 }
 
 export function ReportCard({ r }: { r: MeetingReport }) {
-  const acts = r.activities
+  // A Boss Round in stages is one card, each stage's % on it.
+  const acts = reportCards(r)
   const grid = reportGrid(acts)
   return (
     <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', background: GROUND, color: INK, padding: `56px ${REPORT_PAD}px`, fontFamily: 'sans-serif' }}>
@@ -96,12 +98,12 @@ function Eyebrow({ text }: { text: string }) {
 }
 
 function ActivityCard({ a, bg, width, height }: { a: ReportActivity; bg: string; width: number; height: number }) {
-  const answered = `${a.answered} ${a.kind === 'boss' ? 'tried' : 'answered'}`
+  const answered = `${a.answered} ${a.kind === 'boss' && !a.stages ? 'tried' : 'answered'}`
   const inner = width - CARD_PAD_X * 2
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width, height, background: bg, borderRadius: 24, padding: `24px ${CARD_PAD_X}px` }}>
       <Eyebrow text={`${KIND[a.kind]}${a.section && !KIND[a.kind].includes(a.section) ? ` · ${a.section}` : ''}`} />
-      <div style={{ display: 'flex', flexShrink: 0, fontSize: 26, fontWeight: 700, marginTop: 10, lineHeight: 1.2, maxHeight: 64, overflow: 'hidden' }}>{a.kind === 'boss' && a.boss ? a.boss.problem : a.prompt}</div>
+      <div style={{ display: 'flex', flexShrink: 0, fontSize: 26, fontWeight: 700, marginTop: 10, lineHeight: 1.2, maxHeight: 64, overflow: 'hidden' }}>{a.stages ? 'Three stages, % right' : a.kind === 'boss' && a.boss ? a.boss.problem : a.prompt}</div>
       <div style={{ display: 'flex', flexDirection: 'column', marginTop: 18 }}>
         {a.empty ? (
           <div style={{ display: 'flex', fontSize: 24, color: MUTED }}>{NO_ANSWERS}</div>
@@ -109,6 +111,13 @@ function ActivityCard({ a, bg, width, height }: { a: ReportActivity; bg: string;
           <Tiles bars={a.options} width={inner} wide={width > REPORT_HALF} />
         ) : a.kind === 'cloud' && a.words ? (
           <Cloud words={a.words} width={inner} />
+        ) : a.stages ? (
+          <Stages stages={a.stages} />
+        ) : a.quiz ? (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}>
+            <span style={{ fontSize: 80, fontWeight: 700, letterSpacing: -3, lineHeight: 1 }}>{`${a.quiz.pct}%`}</span>
+            <span style={{ fontSize: 22, color: SOFT }}>{`got it right (${a.quiz.correct} of ${a.quiz.answered})`}</span>
+          </div>
         ) : a.boss ? (
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 16 }}>
             <span style={{ fontSize: 80, fontWeight: 700, letterSpacing: -3, lineHeight: 1 }}>{`${a.boss.pct}%`}</span>
@@ -117,6 +126,25 @@ function ActivityCard({ a, bg, width, height }: { a: ReportActivity; bg: string;
         ) : null}
       </div>
       <div style={{ display: 'flex', fontSize: 18, color: SOFT, marginTop: 'auto' }}>{a.empty ? '' : answered}</div>
+    </div>
+  )
+}
+
+/** The Boss Round's stages: a row each, its name and % on one line, a soft bar to that % under it. */
+function Stages({ stages }: { stages: NonNullable<ReportActivity['stages']> }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {stages.map((s, i) => (
+        <div key={i} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: REPORT_STAGE_H }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 21, color: INK }}>{`${s.label}  ·  ${s.correct} of ${s.answered}`}</span>
+            <span style={{ fontSize: 30, fontWeight: 700, letterSpacing: -1 }}>{`${s.pct}%`}</span>
+          </div>
+          <div style={{ display: 'flex', height: 8, marginTop: 6, borderRadius: 999, background: 'rgba(22,24,29,0.08)', overflow: 'hidden' }}>
+            {fillWidth(s.pct) > 0 && <div style={{ display: 'flex', width: `${fillWidth(s.pct)}%`, height: '100%', background: '#16774F', borderRadius: 999 }} />}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

@@ -4,8 +4,8 @@
  *
  *   duration   per activity slide, `duration_s` on its agenda item (the
  *              slide editor sets it); missing: the kind's default (poll and
- *              word cloud 2:10, Boss Round 5:00). Each Boss stage (Batch 4)
- *              is its own activity slide, so each has its own
+ *              word cloud 2:10; the Boss Round's stages, each its own
+ *              activity slide (Batch 4): predict 1:00, fill 1:30, write 5:00)
  *   closes_at  stored on the meeting_activities row when it opens (migration
  *              048). The server is the source of truth: clients only draw it,
  *              corrected by their clock skew, and once it has passed the
@@ -19,7 +19,7 @@
 import type { ActivityKind } from './activity.ts'
 
 /** Each kind's time when its slide doesn't set one, in seconds. */
-export const DEFAULT_DURATION_S: Record<ActivityKind, number> = { poll: 130, cloud: 130, boss: 300 }
+export const DEFAULT_DURATION_S: Record<ActivityKind, number> = { poll: 130, cloud: 130, boss: 300, predict: 60, fill: 90 }
 /** What the editor allows. */
 export const MIN_DURATION_S = 10
 export const MAX_DURATION_S = 30 * 60

@@ -108,13 +108,21 @@ export interface Meme {
 export interface SlideActivity {
   kind: ActivityKind
   prompt: string
-  /** poll: 2-4 options. */
+  /** poll: 2-4 options. predict: its 2-4 answer tiles. */
   options?: string[]
-  /** boss: its problem (lib/meet/boss.ts). Kept as stored. */
+  /**
+   * boss: its problem (lib/meet/boss.ts). predict: { code, answer } (the
+   * right tile). fill: { code, answers, decoys } (lib/meet/bossStages.ts).
+   * Kept as stored; the right answers never reach a phone before the stage
+   * closes (the room sends bossStages.ts publicConfig).
+   */
   config?: Record<string, unknown>
 }
 
-export const ACTIVITY_KINDS: ActivityKind[] = ['poll', 'cloud', 'boss']
+export const ACTIVITY_KINDS: ActivityKind[] = ['poll', 'cloud', 'boss', 'predict', 'fill']
+
+/** Activity kinds with options (tiles): a poll's, a predict stage's answers. */
+export const hasOptions = (kind: ActivityKind) => kind === 'poll' || kind === 'predict'
 
 /**
  * One slide of the agenda. The agenda is a flat, ordered list of slides;
@@ -357,9 +365,9 @@ export function cleanActivity(raw: unknown): SlideActivity | null {
   if (!ACTIVITY_KINDS.includes(r.kind as ActivityKind)) return null
   const kind = r.kind as ActivityKind
   const prompt = str(r.prompt, LIMITS.prompt)
-  const options = kind === 'poll' && Array.isArray(r.options) ? r.options.slice(0, LIMITS.options).map(o => (typeof o === 'string' ? o.slice(0, LIMITS.option) : '')) : []
+  const options = hasOptions(kind) && Array.isArray(r.options) ? r.options.slice(0, LIMITS.options).map(o => (typeof o === 'string' ? o.slice(0, LIMITS.option) : '')) : []
   const config = r.config && typeof r.config === 'object' && !Array.isArray(r.config) && JSON.stringify(r.config).length <= LIMITS.config ? (r.config as Record<string, unknown>) : null
-  return { kind, prompt, ...(kind === 'poll' ? { options } : {}), ...(config && Object.keys(config).length ? { config } : {}) }
+  return { kind, prompt, ...(hasOptions(kind) ? { options } : {}), ...(config && Object.keys(config).length ? { config } : {}) }
 }
 
 /** Where an uploaded meme lives: the public `meeting-memes` bucket (migration 049). */

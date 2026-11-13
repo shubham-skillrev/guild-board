@@ -16,6 +16,16 @@ import { cleanAgenda, cleanMeme, KIND_LABELS, LIMITS, MEME_FACES, type MeetPost,
 
 type Admin = ReturnType<typeof createAdminClient>
 
+/**
+ * Whether an error only means migration 050 isn't applied: the Boss Round's
+ * stage kinds (predict, fill) break meeting_activities' original kind check.
+ */
+export function missing050(error: { message?: string; code?: string } | null | undefined): boolean {
+  return !!error && /meeting_activities_kind_check/.test(error.message ?? '')
+}
+
+export const NEEDS_050 = 'Boss Round stages need migration 050: apply it, then edit the slide again.'
+
 /** Whether an error only means migration 049 (agenda_draft) isn't applied. */
 export function missing049(error: { message?: string } | null | undefined): boolean {
   return !!error && /agenda_draft/.test(error.message ?? '')
@@ -49,6 +59,8 @@ export interface SyncResult {
   incomplete: string[]
   /** False before migration 046: no rows are written. */
   ready: boolean
+  /** Boss stage slides (predict / fill) not written: migration 050 isn't applied. */
+  needs050?: string[]
   error?: string
 }
 
@@ -62,13 +74,34 @@ export async function syncActivities(cycleId: string, agenda: Segment[], known?:
   const { rows, ready } = known ? { rows: known, ready: true } : await activityRows(admin, cycleId)
   if (!ready) return { created: 0, updated: 0, removed: 0, kept: [], incomplete: [], ready: false }
   const plan: ActivityPlan = planActivities(agenda, rows, await answerCounts(admin, rows.map(r => r.id)))
-  const fail = (e: { message: string } | null) => (e ? e.message : null)
+  const needs050: string[] = []
+  // Before 050 a stage kind breaks the kind check: those slides wait, everything else still saves.
+  const fail = (e: { message: string } | null, slide?: string) => {
+    if (e && missing050(e)) {
+      if (slide) needs050.push(slide)
+      return null
+    }
+    return e ? e.message : null
+  }
+  const slideOf = new Map(rows.map(r => [r.id, r.segment_id]))
+  const stage = (k: unknown) => k === 'predict' || k === 'fill'
   let error: string | null = null
   if (plan.remove.length) error ??= fail((await admin.from('meeting_activities').delete().in('id', plan.remove)).error)
-  for (const u of plan.update) error ??= fail((await admin.from('meeting_activities').update(u.patch).eq('id', u.id)).error)
-  if (plan.insert.length) error ??= fail((await admin.from('meeting_activities').insert(plan.insert.map(r => ({ ...r, cycle_id: cycleId, status: 'ready' })))).error)
+  for (const u of plan.update) error ??= fail((await admin.from('meeting_activities').update(u.patch).eq('id', u.id)).error, slideOf.get(u.id))
+  const plain = plan.insert.filter(r => !stage(r.kind))
+  if (plain.length) error ??= fail((await admin.from('meeting_activities').insert(plain.map(r => ({ ...r, cycle_id: cycleId, status: 'ready' })))).error)
+  for (const r of plan.insert.filter(r => stage(r.kind))) error ??= fail((await admin.from('meeting_activities').insert({ ...r, cycle_id: cycleId, status: 'ready' })).error, r.segment_id)
   if (error) console.warn('meeting editor: activity sync failed', error)
-  return { created: plan.insert.length, updated: plan.update.length, removed: plan.remove.length, kept: plan.kept, incomplete: plan.incomplete, ready: true, ...(error ? { error } : {}) }
+  return {
+    created: plan.insert.length - needs050.filter(id => plan.insert.some(r => r.segment_id === id)).length,
+    updated: plan.update.length,
+    removed: plan.remove.length,
+    kept: plan.kept,
+    incomplete: plan.incomplete,
+    ready: true,
+    ...(needs050.length ? { needs050 } : {}),
+    ...(error ? { error } : {}),
+  }
 }
 
 /**
@@ -174,6 +207,7 @@ export async function rewriteSlide(raw: unknown, monthLabel: string): Promise<Pa
   const title = plain(out.title, LIMITS.title)
   const cue = plain(out.cue, LIMITS.cue)
   const suggestion: Partial<Segment> = { ...(title ? { title } : {}), ...(cue ? { cue } : {}) }
+  // A Boss stage's code and answers are the admin's; only a poll or cloud (or a stage's question) is reworded.
   if (s.activity && s.activity.kind !== 'boss') {
     const prompt = plain(out.prompt, LIMITS.prompt)
     const options = Array.isArray(out.options) ? out.options.map(o => plain(o, LIMITS.option)).filter(Boolean) : []

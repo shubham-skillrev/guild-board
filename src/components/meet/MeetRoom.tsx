@@ -63,6 +63,8 @@ export interface MeetRoomOffline {
   /** Answers as POST /api/meet would: the joined view, or `{ mine }`, `{ blocked, message }`. */
   post: typeof post
   room?: RoomState | null
+  /** Draw it as a phone whatever the window (the write stage's watch view). */
+  phone?: boolean
 }
 
 export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: MeetRoomOffline }) {
@@ -221,7 +223,7 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
     if (room?.activity?.status === 'open') {
       body = (
         <div key={`act-${room.activity.id}`} className="gb-swap-in">
-          <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={send} toast={toast} now={now} onExpire={isOffline ? undefined : refresh} />
+          <PhoneActivity key={room.activity.id} activity={room.activity} mine={view.mine?.activityId === room.activity.id ? view.mine : null} onMine={setMine} post={send} toast={toast} now={now} onExpire={isOffline ? undefined : refresh} phone={offline?.phone} />
           {notes && <YourNotes notes={notes} />}
         </div>
       )
@@ -231,14 +233,14 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
       const mineAct = room?.activity && room.activity.segmentId === key ? room.activity : null
       body = (
         <div key={`seg-${seg.id}:${mineAct?.status ?? ''}`} className="gb-swap-in">
-          <PhoneSlide seg={seg} agenda={view.agenda!} index={segIdx} posts={view.posts ?? {}} notes={notes} activity={mineAct} mine={pickOf(view.mine, mineAct)} />
+          <PhoneSlide seg={seg} agenda={view.agenda!} index={segIdx} posts={view.posts ?? {}} notes={notes} activity={mineAct} mine={pickOf(view.mine, mineAct)} mineValue={mineAct && view.mine?.activityId === mineAct.id ? view.mine.values[0] ?? null : null} />
         </div>
       )
     } else if (!room?.warm) {
       body = <Notice kers="thinking" title="Kers is setting up…" text={people(room?.participants ?? 0)} />
     } else {
-      const verdict = room?.activity?.kind === 'boss' && room.activity.status === 'closed'
-      body = <Notice kers="watching" title="Watch the screen." text={verdict ? 'The round is closed. Kers’ verdict is on the screen.' : 'The next poll or word cloud shows up here when it opens.'} />
+      const verdict = (room?.activity?.kind === 'boss' || room?.activity?.kind === 'predict' || room?.activity?.kind === 'fill') && room.activity.status === 'closed'
+      body = <Notice kers="watching" title="Watch the screen." text={verdict ? 'That stage is closed. The answer is on the screen.' : 'The next poll or word cloud shows up here when it opens.'} />
     }
   }
 
@@ -271,7 +273,7 @@ export function MeetRoom({ initial, offline }: { initial: MeetView; offline?: Me
  * tappable (a source, a board post, in a new tab); the next section is a
  * line at the bottom so nobody wonders what's coming.
  */
-function PhoneSlide({ seg, agenda, index, posts, notes, activity, mine }: { seg: PublicSegment; agenda: PublicSegment[]; index: number; posts: Record<string, MeetPost>; notes: PresenterNotes[string] | null; activity: PublicActivity | null; mine: number | null }) {
+function PhoneSlide({ seg, agenda, index, posts, notes, activity, mine, mineValue }: { seg: PublicSegment; agenda: PublicSegment[]; index: number; posts: Record<string, MeetPost>; notes: PresenterNotes[string] | null; activity: PublicActivity | null; mine: number | null; mineValue: Record<string, unknown> | null }) {
   const kind = slideKind(seg, !!activity)
   const sections = sectionsOf(agenda)
   const here = sections.findIndex(x => index >= x.start && index < x.start + x.slides)
@@ -316,7 +318,7 @@ function PhoneSlide({ seg, agenda, index, posts, notes, activity, mine }: { seg:
       <div className="pt-5">
         {eyebrow(kind === 'results' ? 'Results on screen' : activity?.status === 'closed' ? 'Closed' : 'Opens in a moment')}
         <h1 className="mt-2 text-[24px] font-semibold leading-tight tracking-[-0.02em] text-ink text-balance @3xl:text-[36px]">{kind === 'results' ? seg.cue || seg.title : activity?.prompt ?? seg.title}</h1>
-        {activity && activity.status !== 'ready' && <div className="mt-5"><ActivityResults activity={activity} mine={mine} /></div>}
+        {activity && activity.status !== 'ready' && <div className="mt-5"><ActivityResults activity={activity} mine={mine} mineValue={mineValue} /></div>}
       </div>
     )
   } else if (topic) {
@@ -370,7 +372,7 @@ function YourNotes({ notes }: { notes: PresenterNotes[string] }) {
 
 /** This person's poll vote on `activity`, for "you picked" on its results. */
 function pickOf(mine: Mine | null | undefined, activity: PublicActivity | null): number | null {
-  if (!activity || activity.kind !== 'poll' || mine?.activityId !== activity.id) return null
+  if (!activity || (activity.kind !== 'poll' && activity.kind !== 'predict') || mine?.activityId !== activity.id) return null
   const o = mine.values[0]?.option
   return typeof o === 'number' ? o : null
 }

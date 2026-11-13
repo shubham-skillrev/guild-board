@@ -14,6 +14,7 @@ import { SubmitModal } from '@/components/topics/SubmitModal'
 import { ShareIntent } from '@/components/topics/ShareIntent'
 import { MeetingPill } from '@/components/layout/MeetingPill'
 import { OutcomesRecap } from '@/components/board/OutcomesRecap'
+import { MeetingRecap } from '@/components/board/MeetingRecap'
 import { ShowTellBanner } from '@/components/showtell/ShowTellBanner'
 import { KersSlot } from '@/components/board/KersSlot'
 import { StartMeetingCard } from '@/components/meet/StartMeetingCard'
@@ -47,8 +48,8 @@ export default function BoardPage() {
 
   const [allCycles, setAllCycles] = useState<Cycle[]>([])
   const [selectedCycleId, setSelectedCycleId] = useState<string | null>(null)
-  const [archiveTopics, setArchiveTopics] = useState<Topic[]>([])
-  const [archiveLoading, setArchiveLoading] = useState(false)
+  // A past month's topics, keyed by the month they're for (so a switch never shows the last month's).
+  const [archive, setArchive] = useState<{ id: string; topics: Topic[] } | null>(null)
   const [showSubmit, setShowSubmit] = useState(false)
 
   useEffect(() => {
@@ -62,17 +63,17 @@ export default function BoardPage() {
   }, [])
 
   useEffect(() => {
-    if (!selectedCycleId || selectedCycleId === cycle?.id) {
-      setArchiveTopics([])
-      return
-    }
-    setArchiveLoading(true)
+    if (!selectedCycleId || selectedCycleId === cycle?.id) return
+    let on = true
     fetch(`/api/topics?cycle_id=${selectedCycleId}`)
       .then(r => r.json())
-      .then(data => setArchiveTopics(Array.isArray(data) ? data : data.topics ?? []))
-      .catch(() => setArchiveTopics([]))
-      .finally(() => setArchiveLoading(false))
+      .then(data => { if (on) setArchive({ id: selectedCycleId, topics: Array.isArray(data) ? data : data.topics ?? [] }) })
+      .catch(() => { if (on) setArchive({ id: selectedCycleId, topics: [] }) })
+    return () => { on = false }
   }, [selectedCycleId, cycle?.id])
+  const viewingArchive = !!selectedCycleId && selectedCycleId !== cycle?.id
+  const archiveTopics = viewingArchive && archive?.id === selectedCycleId ? archive.topics : []
+  const archiveLoading = viewingArchive && archive?.id !== selectedCycleId
 
   const activeCycleId = cycle?.id ?? null
   const viewingCycleId = selectedCycleId ?? activeCycleId
@@ -243,6 +244,11 @@ export default function BoardPage() {
               </div>
             )}
 
+            {/* A past month: how its meeting went, above its discussions (only once it ran). */}
+            {!isViewingActive && viewingCycleId && (
+              <MeetingRecap key={viewingCycleId} cycleId={viewingCycleId} label={viewingCycle?.label ?? ''} />
+            )}
+
             {isLoading ? (
               <CardSkeleton />
             ) : !viewingCycle ? (
@@ -273,7 +279,7 @@ export default function BoardPage() {
               />
             ) : (
               <TopicList
-                topics={displayTopics as any}
+                topics={displayTopics}
                 phase={displayPhase}
                 cycleId={viewingCycleId!}
                 currentUserId={user?.id}

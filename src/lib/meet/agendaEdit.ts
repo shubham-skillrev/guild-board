@@ -4,7 +4,7 @@
  * history, the lock, and how a saved agenda maps onto meeting_activities.
  *
  *   add       poll / word cloud (each with its results slide right after),
- *             a topic from the board, a text or title slide, a meme. A new
+ *             the Boss Round (its three stages, each with its results), a topic from the board, a text or title slide, a meme. A new
  *             slide joins the section of the slide it's added after
  *   move      one slide, anywhere (drag on the rail, or the up/down buttons)
  *   delete    a slide; an activity slide takes its results slides with it
@@ -22,16 +22,18 @@
  * components may import it.
  */
 
-import { meetingLive, slideKind, type Meme, type MeetPost, type Segment, type SegmentKind, type SlideActivity } from '../meeting.ts'
+import { hasOptions, meetingLive, slideKind, type Meme, type MeetPost, type Segment, type SegmentKind, type SlideActivity } from '../meeting.ts'
 import { optionsOf, type ActivityKind, type ActivityStatus, type PublicActivity } from './activity.ts'
 import { rehearsalOn } from './liveRehearsal.ts'
+import { STAGE_LABELS, STAGE_SAMPLES, stageProblem } from './bossStages.ts'
 
 /** What `+ Add` offers. */
-export type AddKind = 'poll' | 'cloud' | 'topic' | 'text' | 'title' | 'meme'
+export type AddKind = 'poll' | 'cloud' | 'boss' | 'topic' | 'text' | 'title' | 'meme'
 
 export const ADD_LABELS: Record<AddKind, string> = {
   poll: 'Poll',
   cloud: 'Word cloud',
+  boss: 'Boss Round (3 stages)',
   topic: 'Topic from the board',
   text: 'Text',
   title: 'Title',
@@ -100,6 +102,24 @@ export function makeSlides(kind: AddKind, agenda: Pick<Segment, 'id'>[], ctx: Ad
         { ...base, id, slide: 'activity', title: kind === 'poll' ? 'Vote' : 'One word', cue: kind === 'poll' ? 'Vote on your phone.' : 'One word on your phone. Nobody sees who typed what.', activity },
         { ...base, id: results, slide: 'results', of: id, title: kind === 'poll' ? 'The room says' : 'In your words', cue: kind === 'poll' ? 'Smallest camp: defend it.' : 'Biggest word wins.' },
       ]
+    }
+    case 'boss': {
+      // Three stages, each an activity slide with its own ring and its reveal right after.
+      const bossBase = { ...base, kind: 'boss' as const, section: 'Boss Round' }
+      const out: Segment[] = []
+      const taken = () => [...agenda, ...out]
+      const stage = (k: 'predict' | 'fill' | 'boss', title: string, cue: string, resultsTitle: string, resultsCue: string, activity: SlideActivity) => {
+        const id = uniqueId(taken(), k === 'boss' ? 'boss-write' : `boss-${k}`)
+        out.push({ ...bossBase, id, slide: 'activity', title, cue, activity })
+        out.push({ ...bossBase, id: uniqueId(taken(), `${id}-results`), slide: 'results', of: id, title: resultsTitle, cue: resultsCue })
+      }
+      const p = STAGE_SAMPLES.predict
+      const f = STAGE_SAMPLES.fill
+      const w = STAGE_SAMPLES.boss
+      stage('predict', STAGE_LABELS.predict, 'Tap your answer on your phone. One tap locks it.', 'Who called it', 'Anyone want to explain it?', { kind: 'predict', prompt: p.prompt, options: [...p.options], config: { ...p.config } })
+      stage('fill', STAGE_LABELS.fill, 'Tap the chips on your phone to fill the gaps.', 'The answer', 'Who had another way?', { kind: 'fill', prompt: f.prompt, config: { ...f.config, answers: [...f.config.answers], decoys: [...f.config.decoys] } })
+      stage('boss', STAGE_LABELS.boss, 'Laptops: write it and run the tests. Phones: cheer them on.', 'Kers’ verdict', 'Who passed? Show us how.', { kind: 'boss', prompt: w.prompt, config: { ...w.config } })
+      return out
     }
     case 'topic': {
       const post = ctx.post
@@ -210,13 +230,21 @@ export interface ActivityFields {
   config: Record<string, unknown>
 }
 
-/** An activity slide's activity, ready for its row: null while incomplete (no prompt, a poll short of two options). */
+/**
+ * An activity slide's activity, ready for its row: null while incomplete (no
+ * prompt, a poll short of two options, a Boss stage without its code or its
+ * right answer: bossStages.ts stageProblem).
+ */
 export function activityComplete(a: SlideActivity | null | undefined): ActivityFields | null {
   if (!a) return null
   const prompt = a.prompt.trim()
   if (!prompt) return null
-  const options = a.kind === 'poll' ? (a.options ?? []).map(o => o.trim()).filter(Boolean).slice(0, 4) : []
-  if (a.kind === 'poll' && options.length < 2) return null
+  // A predict stage's right answer is an index into its tiles: they're kept in place (blanks included) so it still points right.
+  const raw = hasOptions(a.kind) ? (a.options ?? []).map(o => o.trim()).slice(0, 4) : []
+  if (a.kind === 'predict' && raw.some(o => !o)) return null
+  const options = raw.filter(Boolean)
+  if (hasOptions(a.kind) && options.length < 2) return null
+  if (stageProblem(a.kind, options, a.config)) return null
   return { kind: a.kind, prompt, options, config: a.config ?? {} }
 }
 
@@ -245,7 +273,8 @@ const isActivitySlide = (s: Segment) => slideKind(s, !!s.activity) === 'activity
  * What saving `agenda` does to the month's meeting_activities (`answers`:
  * how many responses each row has, by row id):
  *
- *   - a complete activity slide with no row: insert it
+ *   - a complete activity slide with no row: insert it (a Boss stage needs
+ *     migration 050's kinds: meetingEditor.ts says so if it's missing)
  *   - one whose row differs: update it, unless someone answered (or it's
  *     open): then only a changed prompt goes through (a typo fix), never a
  *     new kind or options, so the answers stay what they were
@@ -305,7 +334,7 @@ export function withActivities(agenda: Segment[], rows: Pick<ActivityRowLite, 's
     const activity: SlideActivity = {
       kind: row.kind,
       prompt: row.prompt,
-      ...(row.kind === 'poll' ? { options: optionsOf(row.options) } : {}),
+      ...(hasOptions(row.kind) ? { options: optionsOf(row.options) } : {}),
       ...(Object.keys(config).length ? { config } : {}),
     }
     return { ...s, activity }
@@ -329,7 +358,7 @@ export function rehearsalActivities(agenda: Segment[], stored: Record<string, Pu
         segmentId: s.id,
         kind: a.kind,
         prompt: a.prompt || 'Your question',
-        options: a.kind === 'poll' ? (a.options ?? []).filter(o => o.trim()).slice(0, 4) : [],
+        options: a.kind === 'predict' ? (a.options ?? []).slice(0, 4) : a.kind === 'poll' ? (a.options ?? []).filter(o => o.trim()).slice(0, 4) : [],
         config: a.config ?? row?.config ?? {},
         status: 'ready',
         openedAt: null,

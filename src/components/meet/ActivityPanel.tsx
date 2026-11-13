@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ArrowRight, ChartBar, CloudSun, Code, Play } from '@phosphor-icons/react/dist/ssr'
+import { ArrowRight, ChartBar, CloudSun, Code, Eye, Play, PuzzlePiece } from '@phosphor-icons/react/dist/ssr'
 import type { Icon as PhosphorIcon } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/Button'
 import { Icon } from '@/components/ui/Icon'
@@ -12,9 +12,13 @@ import { activityKeyFor, type MeetingState, type Segment } from '@/lib/meeting'
 import { PollResultTiles, WordCloud } from '@/components/meet/Results'
 import { CountdownRing, useCountdown } from '@/components/meet/CountdownRing'
 import { EXTEND_S } from '@/lib/meet/timer'
+import { isQuiz } from '@/lib/meet/bossStages'
+import { StageQuestion, StageReveal } from '@/components/meet/BossStages'
 
-const KIND_NAME: Record<ActivityKind, string> = { poll: 'Poll', cloud: 'Word cloud', boss: 'Boss Round' }
-const KIND_ICON: Record<ActivityKind, PhosphorIcon> = { poll: ChartBar, cloud: CloudSun, boss: Code }
+export const KIND_NAME: Record<ActivityKind, string> = { poll: 'Poll', cloud: 'Word cloud', boss: 'Boss Round', predict: 'Predict the output', fill: 'Fill the blank' }
+const KIND_ICON: Record<ActivityKind, PhosphorIcon> = { poll: ChartBar, cloud: CloudSun, boss: Code, predict: Eye, fill: PuzzlePiece }
+/** The presenter's close button, by kind. */
+const CLOSE_LABEL: Record<ActivityKind, string> = { poll: 'Close voting', cloud: 'Close the cloud', boss: 'Close the round', predict: 'Close answers', fill: 'Close answers' }
 const EASE = 'ease-[cubic-bezier(0.23,1,0.32,1)]'
 
 type Call = (action: string, payload?: Record<string, unknown>, done?: string) => Promise<unknown>
@@ -32,13 +36,14 @@ export function segmentActivity(state: MeetingState, segment: Segment): PublicAc
  * closed, and this person's own vote marked "you picked" (`mine`). Cloud:
  * the same pastel cloud, smaller. Boss: the pass rate and Kers' verdict.
  */
-export function ActivityResults({ activity: a, mine = null }: { activity: PublicActivity; mine?: number | null }) {
+export function ActivityResults({ activity: a, mine = null, mineValue = null }: { activity: PublicActivity; mine?: number | null; mineValue?: Record<string, unknown> | null }) {
   const name = KIND_NAME[a.kind]
   const votes = (a.counts ?? []).reduce((n, c) => n + c, 0)
   const { passed = 0, trying = 0, pct = 0 } = a.tally ?? {}
   const summary =
     a.kind === 'poll' ? `${votes} ${votes === 1 ? 'vote' : 'votes'}`
     : a.kind === 'cloud' ? `${a.answered} ${a.answered === 1 ? 'person' : 'people'} · ${a.total} ${a.total === 1 ? 'word' : 'words'}`
+    : isQuiz(a.kind) ? `${a.answered} answered`
     : `${passed} of ${trying} passed`
   return (
     <section aria-label={`${name} results`}>
@@ -49,6 +54,7 @@ export function ActivityResults({ activity: a, mine = null }: { activity: Public
       <div className="mt-3">
         {a.kind === 'poll' && <PollResultTiles activity={a} size="phone" mine={mine} />}
         {a.kind === 'cloud' && <WordCloud activity={a} size="phone" />}
+        {isQuiz(a.kind) && (a.status === 'closed' ? <StageReveal activity={a} size="phone" mine={mineValue} /> : <p className="text-footnote text-ink-muted">The answer shows when time’s up.</p>)}
         {a.kind === 'boss' && (
           <div className="flex items-center gap-4">
             <p className="num shrink-0 text-[26px] font-semibold tracking-[-0.03em] text-matcha">{trying ? `${pct}%` : '–'}</p>
@@ -111,7 +117,7 @@ export function ActivityHero({
   const open = a.status === 'open'
   const ready = a.status === 'ready'
   const problem = a.kind === 'boss' ? bossProblem(a.config) : null
-  const verb = a.kind === 'poll' ? 'Voting' : a.kind === 'cloud' ? 'Words' : 'The round'
+  const verb = a.kind === 'poll' ? 'Voting' : a.kind === 'cloud' ? 'Words' : isQuiz(a.kind) ? 'Answers' : 'The round'
   const unit = a.kind === 'boss' ? 'trying' : 'answered'
 
   return (
@@ -147,20 +153,20 @@ export function ActivityHero({
             {open ? (
               <>
               {/* While it's open the slide can't change (lib/meet/slides.ts navBlocked): say how to move on. */}
-              <span className="text-footnote text-ink-muted">{a.kind === 'boss' ? 'Close the round' : a.kind === 'poll' ? 'Close voting' : 'Close the cloud'} to move on</span>
+              <span className="text-footnote text-ink-muted">{CLOSE_LABEL[a.kind]} to move on</span>
               {countdown && (
                 <Button variant="ghost" disabled={!!busy} onClick={() => call('extend_activity', { activity_id: a.id })} aria-label={`Add ${EXTEND_S} seconds`}>
                   +{EXTEND_S}s
                 </Button>
               )}
               <Button size="md" icon={a.kind === 'boss' ? undefined : ArrowRight} disabled={!!busy} onClick={onClose} className="h-12! px-6! text-[17px]!">
-                {a.kind === 'boss' ? 'Close the round' : a.kind === 'poll' ? 'Close voting' : 'Close the cloud'}
+                {CLOSE_LABEL[a.kind]}
                 {onResults !== undefined && <span className="sr-only">, then show the results</span>}
               </Button>
               </>
             ) : ready ? (
               <Button icon={Play} disabled={!!busy} onClick={() => call('open_activity', { activity_id: a.id })} className="h-12! px-6! text-[17px]!">
-                {busy === 'open_activity' ? 'Opening…' : `Open the ${KIND_NAME[a.kind].toLowerCase()}`}
+                {busy === 'open_activity' ? 'Opening…' : isQuiz(a.kind) ? 'Open it' : `Open the ${KIND_NAME[a.kind].toLowerCase()}`}
               </Button>
             ) : (
               <>
@@ -183,6 +189,7 @@ export function ActivityHero({
       <div className="mt-10 flex min-h-0 flex-1 flex-col">
         {a.kind === 'poll' && <ScreenPoll activity={a} at={t ?? 0} />}
         {a.kind === 'cloud' && <WordCloud activity={a} />}
+        {isQuiz(a.kind) && (a.status === 'closed' ? <StageReveal activity={a} size="screen" /> : <StageQuestion activity={a} />)}
         {a.kind === 'boss' && <BossTally activity={a} participants={participants} verdict={false} />}
       </div>
     </section>
@@ -201,7 +208,7 @@ export function ResultsHero({ activity: a, title, cue, participants }: { activit
     <section aria-label={`${KIND_NAME[a.kind]} results`} className="flex min-h-0 flex-1 flex-col">
       <p className="eyebrow flex items-center gap-2.5">
         <Icon icon={KIND_ICON[a.kind]} size="sm" />
-        <span>{a.kind === 'boss' ? 'Results' : a.prompt}</span>
+        <span>{a.kind === 'boss' ? 'Results' : isQuiz(a.kind) ? KIND_NAME[a.kind] : a.prompt}</span>
         <span aria-hidden className="text-ink-muted">·</span>
         <span className="tabular">{a.answered} {a.kind === 'boss' ? 'tried' : 'answered'}</span>
       </p>
@@ -209,6 +216,7 @@ export function ResultsHero({ activity: a, title, cue, participants }: { activit
       <div className="mt-8 flex min-h-0 flex-1 flex-col">
         {a.kind === 'poll' && <div className="max-w-[88rem]"><PollResultTiles activity={a} size="screen" final /></div>}
         {a.kind === 'cloud' && <WordCloud activity={a} />}
+        {isQuiz(a.kind) && <StageReveal activity={a} size="screen" />}
         {a.kind === 'boss' && <BossTally activity={a} participants={participants} verdict />}
       </div>
     </section>
@@ -240,13 +248,15 @@ function ScreenPoll({ activity, at }: { activity: PublicActivity; at: number }) 
  * counts drawn as dots. No clock: Kers' verdict shows once it's closed.
  */
 function BossTally({ activity, participants, verdict }: { activity: PublicActivity; participants: number; verdict: boolean }) {
-  const { passed = 0, trying = 0, pct = 0 } = activity.tally ?? {}
+  const { passed = 0, trying = 0, pct = 0, coding, cheers = 0 } = activity.tally ?? {}
   const closed = activity.status === 'closed'
+  // "Coding": started typing or ran, not passed yet (an old round's tally has none: those still trying).
+  const still = coding ?? Math.max(0, trying - passed)
   const blank = !closed && passed === 0
-  const room = Math.max(participants, trying, 1)
+  const room = Math.max(participants, trying, passed + still, 1)
   const shown = Math.min(room, 60)
   const passedDots = Math.round((passed / room) * shown)
-  const tryingDots = Math.round((trying / room) * shown)
+  const tryingDots = Math.round((Math.min(room, passed + still) / room) * shown)
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="grid max-w-[72rem] grid-cols-2 gap-5">
@@ -284,8 +294,9 @@ function BossTally({ activity, participants, verdict }: { activity: PublicActivi
           </ul>
           <p className="mt-auto flex flex-wrap gap-x-5 gap-y-1 pt-4 font-mono text-[15px] tabular text-ink-muted">
             <span className="inline-flex items-center gap-2"><span aria-hidden className="size-3 rounded-full bg-matcha" /><Tween value={passed} /> passed</span>
-            <span className="inline-flex items-center gap-2"><span aria-hidden className="size-3 rounded-full border-2 border-ink/45" /><Tween value={Math.max(0, trying - passed)} /> still trying</span>
-            <span className="inline-flex items-center gap-2"><span aria-hidden className="size-3 rounded-full bg-fill-strong" /><Tween value={Math.max(0, participants - trying)} /> watching</span>
+            <span className="inline-flex items-center gap-2"><span aria-hidden className="size-3 rounded-full border-2 border-ink/45" /><Tween value={still} /> coding</span>
+            <span className="inline-flex items-center gap-2"><span aria-hidden className="size-3 rounded-full bg-fill-strong" /><Tween value={Math.max(0, participants - still - passed)} /> watching</span>
+            {cheers > 0 && <span className="inline-flex items-center gap-2"><Tween value={cheers} /> {cheers === 1 ? 'cheer' : 'cheers'}</span>}
           </p>
         </div>
       </div>

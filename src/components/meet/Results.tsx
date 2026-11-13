@@ -45,12 +45,15 @@ export function PollResultTiles({
   shown = true,
   final = activity.status === 'closed',
   mine = null,
+  correct = null,
 }: {
   activity: Pick<PublicActivity, 'options' | 'counts' | 'status'>
   size: 'screen' | 'phone'
   shown?: boolean
   final?: boolean
   mine?: number | null
+  /** A Boss Round predict stage: the right tile, ringed instead of the most picked. */
+  correct?: number | null
 }) {
   const screen = size === 'screen'
   const { tiles } = pollTiles(activity.options, activity.counts, mine)
@@ -65,7 +68,9 @@ export function PollResultTiles({
     <ul className={cn('grid', screen ? 'gap-4' : 'gap-2.5')} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
       {tiles.map(t => {
         const tile = tileFor(t.i)
-        const ring = final && shown && t.lead
+        const quiz = correct !== null
+        const ring = final && shown && (quiz ? t.i === correct : t.lead)
+        const strong = quiz ? t.i === correct : t.lead
         return (
           <li
             key={t.i}
@@ -88,20 +93,24 @@ export function PollResultTiles({
               <OptionShape i={t.i} size={screen ? 34 : 22} />
               <span className="min-w-0 flex-1">
                 <span className={cn('block font-medium leading-snug text-ink text-balance', screen ? 'text-[clamp(21px,1.35vw,26px)] tracking-[-0.015em]' : 'text-[15px]')}>{t.label}</span>
-                {t.mine && <span className={cn('mt-0.5 block font-mono uppercase tracking-[0.14em] text-ink-muted', screen ? 'text-[12px]' : 'text-[10.5px]')}>you picked</span>}
+                {(t.mine || (ring && quiz)) && (
+                  <span className={cn('mt-0.5 block font-mono uppercase tracking-[0.14em] text-ink-muted', screen ? 'text-[12px]' : 'text-[10.5px]')}>
+                    {[ring && quiz ? 'right answer' : '', t.mine ? 'you picked' : ''].filter(Boolean).join(' · ')}
+                  </span>
+                )}
               </span>
               <span
                 className={cn(
                   'num shrink-0 tracking-[-0.03em] transition-opacity duration-500',
                   screen ? 'text-[clamp(28px,2vw,40px)]' : 'text-[24px]',
                   shown ? 'opacity-100' : 'opacity-0',
-                  t.lead && shown ? 'font-semibold text-ink' : 'text-ink-soft',
+                  strong && shown ? 'font-semibold text-ink' : 'text-ink-soft',
                 )}
               >
                 {t.pct}%
               </span>
             </span>
-            {ring && <span className="sr-only">Most votes</span>}
+            {ring && !quiz && <span className="sr-only">Most votes</span>}
           </li>
         )
       })}

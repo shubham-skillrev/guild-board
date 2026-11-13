@@ -13,9 +13,15 @@
  */
 
 import { bossProblem } from './boss.ts'
+import { cleanFill, fillConfig, publicConfig, quizTally } from './bossStages.ts'
 import type { MeetPost, PresenterNotes, PublicSegment } from '../meeting.ts'
 
-export type ActivityKind = 'poll' | 'cloud' | 'boss'
+/**
+ * poll, word cloud, and the Boss Round's stages (./bossStages.ts): `predict`
+ * (predict the output), `fill` (fill the blank) and `boss` (write it, the
+ * original Boss Round; an old agenda's single Boss slide is one of these).
+ */
+export type ActivityKind = 'poll' | 'cloud' | 'boss' | 'predict' | 'fill'
 export type ActivityStatus = 'ready' | 'open' | 'closed'
 
 /** The presenter screen hides poll counts this long after a poll opens. */
@@ -59,7 +65,11 @@ export interface PublicActivity {
   kind: ActivityKind
   prompt: string
   options: string[]
-  /** Kind-specific setup (the Boss Round's problem, Phase 3). */
+  /**
+   * Kind-specific setup (the Boss Round's problem; a stage's code, chips).
+   * A quiz stage's right answer is only here once it has closed
+   * (bossStages.ts publicConfig).
+   */
   config: Record<string, unknown>
   status: ActivityStatus
   openedAt: string | null
@@ -70,11 +80,16 @@ export interface PublicActivity {
   answered: number
   /** Answers in total (cloud: words; poll: votes). */
   total: number
-  /** poll: votes per option, in option order. */
+  /** poll: votes per option, in option order. predict: the same, once closed (null while open: no steering). */
   counts: number[] | null
   /** cloud: merged words, most typed first, at most CLOUD_SHOWN. */
   words: { word: string; n: number }[] | null
-  /** boss: people whose latest run passed every test, people who ran at all, and passed as a floored % of trying. */
+  /**
+   * boss: people whose latest run passed every test (`passed`), people who
+   * ran at all (`trying`), passed as a floored % of trying (`pct`), people
+   * still at it (`coding`: started or ran, not passed) and the room's cheers.
+   * predict / fill: `correct`, `answered`, `pct`, once closed (null before).
+   */
   tally: Record<string, number> | null
 }
 
@@ -175,16 +190,24 @@ export type Cleaned = { ok: true; value: Record<string, unknown> } | { ok: false
 export function cleanResponse(activity: Pick<ActivityRow, 'kind' | 'options'> & { config?: unknown }, raw: unknown): Cleaned {
   const r = objectOf(raw)
   switch (activity.kind) {
-    case 'poll': {
+    case 'poll':
+    case 'predict': {
       const option = whole(r.option)
       const n = optionsOf(activity.options).length
       return Number.isInteger(option) && option >= 0 && option < n ? { ok: true, value: { option } } : { ok: false, error: 'Pick one of the options.' }
+    }
+    case 'fill': {
+      const tokens = cleanFill(fillConfig(activity.config), r)
+      return tokens ? { ok: true, value: { tokens } } : { ok: false, error: 'Fill every blank first.' }
     }
     case 'cloud': {
       const word = cleanWord(r.word)
       return word ? { ok: true, value: { word } } : { ok: false, error: 'Type a word first.' }
     }
     case 'boss': {
+      // A phone watching the write stage cheers; a laptop says it started typing (the screen's "coding").
+      if (r.cheer === true) return { ok: true, value: { cheer: true } }
+      if (r.started === true) return { ok: true, value: { started: true } }
       // A run's result only, never the code: { passed, tests, of }.
       const problem = bossProblem(activity.config)
       if (!problem) return { ok: false, error: 'This Boss Round has no problem set.' }
@@ -207,7 +230,8 @@ export function aggregate(activity: ActivityRow, rows: ResponseRow[]): PublicAct
     kind: activity.kind,
     prompt: activity.prompt,
     options,
-    config: objectOf(activity.config),
+    // A quiz stage's answer stays on the server until it closes.
+    config: publicConfig(activity.kind, activity.config, activity.status, activity.id),
     status: activity.status,
     openedAt: activity.opened_at,
     closedAt: activity.closed_at,
@@ -247,18 +271,46 @@ export function aggregate(activity: ActivityRow, rows: ResponseRow[]): PublicAct
       out.words = words.sort((a, b) => b.n - a.n || a.word.localeCompare(b.word)).slice(0, CLOUD_SHOWN)
       break
     }
+    case 'predict':
+    case 'fill': {
+      // One locked answer per person (slot 0). Graded here, from what they tapped. Nothing until it closes.
+      const t = quizTally(activity.kind, activity.config, rows)
+      out.answered = out.total = t.answered
+      if (activity.status === 'closed') {
+        out.tally = { ...t }
+        if (activity.kind === 'predict') {
+          const counts = options.map(() => 0)
+          const seen = new Set<string>()
+          for (const r of rows) {
+            if (r.slot !== 0 || seen.has(r.participant_id)) continue
+            seen.add(r.participant_id)
+            const o = Number(objectOf(r.value).option)
+            if (Number.isInteger(o) && o >= 0 && o < counts.length) counts[o]++
+          }
+          out.counts = counts
+        }
+      }
+      break
+    }
     case 'boss': {
       // Each person's latest run (slot 0, replaced on every run), once per person.
+      // Slot 1 is a watcher's cheers ({ n }), slot 2 a laptop's "started typing".
       const seen = new Set<string>()
+      const started = new Set<string>()
       let passed = 0
+      let cheers = 0
       for (const r of rows) {
+        const v = objectOf(r.value)
+        if (r.slot === 1) { cheers += Math.max(0, Math.floor(Number(v.n) || 0)); continue }
+        if (r.slot === 2) { started.add(r.participant_id); continue }
         if (r.slot !== 0 || seen.has(r.participant_id)) continue
         seen.add(r.participant_id)
-        if (objectOf(r.value).passed === true) passed++
+        started.add(r.participant_id)
+        if (v.passed === true) passed++
       }
       const trying = seen.size
-      out.tally = { passed, trying, pct: trying ? Math.floor((passed / trying) * 100) : 0 }
-      out.total = trying
+      out.tally = { passed, trying, pct: trying ? Math.floor((passed / trying) * 100) : 0, coding: Math.max(0, started.size - passed), cheers }
+      out.answered = out.total = trying
       break
     }
   }

@@ -1,6 +1,8 @@
 // ROUTE: GET  /api/meet  -> MeetView (lib/meet/activity.ts): the room and this person's place in it
 //        POST /api/meet  { action: 'join', name? }                 members by session; guests by name
 //                        { action: 'respond', activity_id, value } poll { option } / cloud { word }
+//                          / predict { option } / fill { tokens } / boss { passed, tests, of }
+//                          or { started } (typing) or { cheer } (a phone watching; rate-limited)
 // AUTH: public (src/proxy.ts). Members are recognised by their session, guests
 //       by the httpOnly `gb_meet` cookie set on join (its SHA-256 is stored).
 //       Joining and answering only while the meeting is live, or during a
