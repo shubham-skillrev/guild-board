@@ -144,6 +144,26 @@ export interface WipeDb {
   from(table: string): unknown
 }
 
+/** An activity as it was before it ever opened: ready, untimed (048), no hidden words (051). */
+export const ACTIVITY_RESET: Record<string, unknown> = { status: 'ready', opened_at: null, closed_at: null, closes_at: null, hidden_words: [] }
+/** Columns a later migration added: dropped from the reset when the database doesn't have them yet. */
+const OPTIONAL_RESET_COLUMNS = ['closes_at', 'hidden_words']
+
+/**
+ * Every activity of the month back to ACTIVITY_RESET (the rehearsal wipe and
+ * the hollow-run reset). A column the database doesn't have yet (048, 051)
+ * is left out and the update tried again. Returns the error, if any.
+ */
+export async function resetActivities(db: WipeDb, cycleId: string): Promise<DbError> {
+  const patch = { ...ACTIVITY_RESET }
+  for (;;) {
+    const { error } = await (db.from('meeting_activities') as Table).update({ ...patch }).eq('cycle_id', cycleId)
+    const col = error ? OPTIONAL_RESET_COLUMNS.find(c => c in patch && error.message.includes(c)) : undefined
+    if (!col) return error
+    delete patch[col]
+  }
+}
+
 /**
  * End the rehearsal. The code goes first, so nobody joins mid-wipe; then
  * (`all`) the participants (their answers cascade), every activity back to
@@ -161,10 +181,8 @@ export async function wipeRehearsal(db: WipeDb, cycleId: string, mode: 'all' | '
   // Their questions, votes and reactions cascade with them (migration 051); the questions go explicitly too.
   const qs = await t('meeting_questions').delete().eq('cycle_id', cycleId)
   errors.push(qs.error)
-  // Every activity back to ready, its hidden cloud words cleared (051; before it, without the column).
-  let acts = await t('meeting_activities').update({ status: 'ready', opened_at: null, closed_at: null, hidden_words: [] }).eq('cycle_id', cycleId)
-  if (acts.error && /hidden_words/.test(acts.error.message)) acts = await t('meeting_activities').update({ status: 'ready', opened_at: null, closed_at: null }).eq('cycle_id', cycleId)
-  errors.push(acts.error)
+  // Every activity back to ready, its countdown and hidden cloud words cleared (048 / 051; before them, without the columns).
+  errors.push(await resetActivities(db, cycleId))
   let meeting = await t('meetings').update({ presenter_id: null, current_segment: null, segment_started_at: null, started_at: null, ended_at: null }).eq('cycle_id', cycleId)
   // Before 045 there's no presenter to clear.
   if (meeting.error && /presenter_id|current_segment|segment_started_at/.test(meeting.error.message)) meeting = await t('meetings').update({ started_at: null, ended_at: null }).eq('cycle_id', cycleId)

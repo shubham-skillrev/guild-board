@@ -122,8 +122,8 @@ const staged: ReportInput = {
 
 test('Boss Round stages: % right per stage, as one card on the image', () => {
   const r = meetingReport(staged)
-  assert.deepEqual(r.stages.map(s => [s.kind, s.correct, s.answered, s.pct]), [['predict', 2, 3, 66], ['fill', 1, 2, 50], ['boss', 1, 2, 50]])
-  assert.deepEqual(r.activities.find(a => a.kind === 'predict')?.quiz, { correct: 2, answered: 3, pct: 66 })
+  assert.deepEqual(r.stages.map(s => [s.kind, s.correct, s.answered, s.pct]), [['predict', 2, 3, 67], ['fill', 1, 2, 50], ['boss', 1, 2, 50]])
+  assert.deepEqual(r.activities.find(a => a.kind === 'predict')?.quiz, { correct: 2, answered: 3, pct: 67 })
   const cards = reportCards(r)
   assert.equal(cards.filter(c => c.stages).length, 1)
   assert.ok(!cards.some(c => c.kind === 'predict' || c.kind === 'fill'))
@@ -143,7 +143,7 @@ test('month recap: people, highlights, Boss %, rating; nothing when the meeting 
     { kind: 'cloud', prompt: 'The tool you’d refuse to give up', words: ['vim', 'tmux'], answered: 2 },
     { kind: 'poll', prompt: 'Production code to a hosted AI model?', top: 'Enterprise only', pct: 67, answered: 3 },
   ])
-  assert.deepEqual(recap.stages.map(s => s.pct), [66, 50, 50])
+  assert.deepEqual(recap.stages.map(s => s.pct), [67, 50, 50])
   assert.deepEqual(recap.rating, { top: '😍 Loved it', pct: 50, answered: 2 })
   assert.equal(meetingRecap(meetingReport({ ...input, participants: [], responses: [] })), null)
   const text = JSON.stringify(recap)

@@ -18,6 +18,7 @@ import {
   remainingMs,
   ringHeat,
   ringStage,
+  settleExpired,
   tooLate,
   totalMs,
 } from './timer.ts'
@@ -132,4 +133,18 @@ test('rehearsal: an open activity past its closesAt reads as closed', () => {
   assert.equal(rehearseActivity(a, local, T0 + 60_000).closesAt, local.closesAt)
   assert.equal(rehearseActivity(a, local, T0 + 130_000).status, 'closed')
   assert.equal(rehearseActivity(a, { status: 'open', openedAt: iso(T0) }, T0 + 1e9).status, 'open', 'untimed stays open')
+})
+
+test('settleExpired: an open activity past its countdown reads as closed, so the slide lock lets go', async () => {
+  const { navBlocked } = await import('./slides.ts')
+  const now = Date.parse('2026-12-01T10:00:00Z')
+  const agenda = [{ id: 'a', slide: 'activity' as const }, { id: 'b', slide: 'content' as const }]
+  const rows = [{ id: 'x', segment_id: 'a', status: 'open' as const, closes_at: '2026-12-01T09:59:59Z' }]
+  assert.equal(navBlocked(agenda, 'a', 'b', rows), true)
+  assert.equal(navBlocked(agenda, 'a', 'b', settleExpired(rows, now)), false)
+  // Still running, untimed (before 048) or already closed: unchanged.
+  const running = [{ ...rows[0], closes_at: '2026-12-01T10:00:30Z' }]
+  assert.equal(navBlocked(agenda, 'a', 'b', settleExpired(running, now)), true)
+  assert.deepEqual(settleExpired([{ id: 'y', segment_id: 'a', status: 'open' }], now), [{ id: 'y', segment_id: 'a', status: 'open' }])
+  assert.equal(rows[0].status, 'open')
 })

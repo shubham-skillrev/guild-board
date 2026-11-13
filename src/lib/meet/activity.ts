@@ -8,13 +8,14 @@
  * (components/meet/ActivityPanel.tsx). The Boss Round's problems live in
  * ./boss.ts.
  *
- * Imports only ./boss.ts, ./bossStages.ts and ./profanity.ts, by path, so the unit tests run it straight under
+ * Imports only ./boss.ts, ./bossStages.ts, ./profanity.ts and ./results.ts, by path, so the unit tests run it straight under
  * `node --test`.
  */
 
 import { bossProblem } from './boss.ts'
 import { isBlocked } from './profanity.ts'
-import { cleanFill, fillConfig, publicConfig, quizTally } from './bossStages.ts'
+import { cleanFill, fillConfig, predictConfig, publicConfig, quizTally } from './bossStages.ts'
+import { sharesOf } from './results.ts'
 import type { MeetPost, PresenterNotes, PublicSegment } from '../meeting.ts'
 import type { PublicQuestion } from './questions.ts'
 import type { ReactionTotals } from './reactions.ts'
@@ -343,6 +344,10 @@ export function aggregate(activity: ActivityRow, rows: ResponseRow[]): PublicAct
             if (Number.isInteger(o) && o >= 0 && o < counts.length) counts[o]++
           }
           out.counts = counts
+          // The score is the right tile's share, worked out as the tiles' are (results.ts sharesOf):
+          // the reveal never reads 66% beside a 67% tile.
+          const answer = predictConfig(activity.config).answer
+          if (answer !== null && answer < counts.length && t.answered) out.tally.pct = sharesOf(counts)[answer]
         }
       }
       break

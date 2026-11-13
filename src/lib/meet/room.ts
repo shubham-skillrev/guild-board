@@ -8,10 +8,10 @@ import { openCycle } from '@/lib/guild/demos'
 import { isBlocked } from '@/lib/meet/profanity'
 import { activityKeyFor, agendaPostIds, hollowRun, meetingLive, phoneAgenda, type Segment } from '@/lib/meeting'
 import { gotoPlan, navBlocked, type ActivityRef } from '@/lib/meet/slides'
-import { roomOpenTo, rowRehearsing, wipeRehearsal } from '@/lib/meet/liveRehearsal'
+import { resetActivities, roomOpenTo, rowRehearsing, wipeRehearsal } from '@/lib/meet/liveRehearsal'
 import { meetPosts } from '@/lib/guild/meetingPrep'
 import { cheerAllowed } from '@/lib/meet/boss'
-import { closesAtFor, dueToClose, durationFor, extendClosesAt, missing048, tooLate } from '@/lib/meet/timer'
+import { closesAtFor, dueToClose, durationFor, extendClosesAt, missing048, settleExpired, tooLate } from '@/lib/meet/timer'
 import { buildQueue, type PublicQuestion } from '@/lib/meet/questions'
 import { sumReactions, type ReactionTotals } from '@/lib/meet/reactions'
 import {
@@ -498,11 +498,8 @@ export async function resetHollowRun(admin: Admin, cycleId: string, m: { started
     console.warn('resetHollowRun failed', error.message)
     return false
   }
-  if (ids.length) {
-    // Hidden cloud words go too (migration 051; before it, the column isn't there to clear).
-    const r = await admin.from('meeting_activities').update({ status: 'ready', opened_at: null, closed_at: null, hidden_words: [] }).eq('cycle_id', cycleId)
-    if (r.error && missing051(r.error)) await admin.from('meeting_activities').update({ status: 'ready', opened_at: null, closed_at: null }).eq('cycle_id', cycleId)
-  }
+  // The countdown and hidden cloud words go too (048 / 051; before them, those columns aren't there to clear).
+  if (ids.length) await resetActivities(admin, cycleId)
   // Nobody joined, so no question can exist; cleared anyway so a reset is always a clean slate (051).
   await admin.from('meeting_questions').delete().eq('cycle_id', cycleId)
   nudgeRoom(cycleId)
@@ -566,9 +563,11 @@ async function openTimed(admin: Admin, id: string, kind: ActivityKind, slide: Se
 /** Whether moving from `current` to `target` is refused: the current slide's activity is still open (lib/meet/slides.ts navBlocked). */
 export async function gotoLocked(admin: Admin, cycleId: string, agenda: Segment[], current: string | null | undefined, target: string): Promise<boolean> {
   if (!current) return false
-  const { data, error } = await admin.from('meeting_activities').select('id, segment_id, status').eq('cycle_id', cycleId).eq('segment_id', current)
+  // select('*'): closes_at only exists from migration 048 on.
+  const { data, error } = await admin.from('meeting_activities').select('*').eq('cycle_id', cycleId).eq('segment_id', current)
   if (error) return false
-  return navBlocked(agenda, current, target, (data ?? []) as ActivityRef[])
+  // A countdown that ran out holds nothing, even before a read has closed it (goto closes it next).
+  return navBlocked(agenda, current, target, settleExpired((data ?? []) as (ActivityRef & { closes_at?: string | null })[], Date.now()))
 }
 
 /** Open one activity (closing any other): the presenter's one button. Its countdown starts afresh (its slide's time in `agenda`). */

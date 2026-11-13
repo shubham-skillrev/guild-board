@@ -38,9 +38,14 @@ function failed(error: { message?: string; code?: string } | null, what: string)
 export async function react(admin: Admin, cycleId: string, participant: Participant, raw: unknown): Promise<{ ok: true; sent: boolean } | Fail> {
   if (!isReaction(raw)) return { ok: false, status: 400, error: 'No such reaction.' }
   const kind: Reaction = raw
-  const seed = await admin.from('meeting_reactions').upsert({ participant_id: participant.id, cycle_id: cycleId }, { onConflict: 'participant_id', ignoreDuplicates: true })
-  if (seed.error) return failed(seed.error, 'react')
-  const { data, error } = await admin.from('meeting_reactions').select('fire, laugh, clap, last_at').eq('participant_id', participant.id).maybeSingle()
+  const read = () => admin.from('meeting_reactions').select('fire, laugh, clap, last_at').eq('participant_id', participant.id).maybeSingle()
+  let { data, error } = await read()
+  // Their first reaction: the row is made once (not on every tap: two queries a tap, not three).
+  if (!error && !data) {
+    const seed = await admin.from('meeting_reactions').upsert({ participant_id: participant.id, cycle_id: cycleId }, { onConflict: 'participant_id', ignoreDuplicates: true })
+    if (seed.error) return failed(seed.error, 'react')
+    ;({ data, error } = await read())
+  }
   if (error || !data) return failed(error, 'react')
   const now = Date.now()
   const last = data.last_at ? new Date(data.last_at as string).getTime() : 0

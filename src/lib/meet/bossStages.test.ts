@@ -99,7 +99,8 @@ test('a closed stage scores % right, one answer per person, anonymous', () => {
     { participant_id: 'p3', slot: 0, value: { option: 0 } }, // a duplicate never counts twice
   ]
   const closed = aggregate({ ...predict, status: 'closed' }, rows)
-  assert.deepEqual(closed.tally, { correct: 2, answered: 3, pct: 66 })
+  // The right tile's share, as the tiles round it (2 of 3: 67, never 66 beside a 67% tile).
+  assert.deepEqual(closed.tally, { correct: 2, answered: 3, pct: 67 })
   assert.deepEqual(closed.counts, [1, 2, 0, 0])
   const open = aggregate(predict, rows)
   assert.equal(open.answered, 3)

@@ -125,6 +125,15 @@ export function dueToClose<T extends { status: string; closes_at?: string | null
   return rows.filter(r => r.status === 'open' && expired(r.closes_at, now))
 }
 
+/**
+ * The rows as they stand at `now`: an open one whose countdown ran out reads
+ * as closed (the server closes it on its next read anyway). So the slide
+ * lock (slides.ts navBlocked) never holds the presenter on a slide at 0:00.
+ */
+export function settleExpired<T extends { status: string; closes_at?: string | null }>(rows: T[], now: number): T[] {
+  return rows.map(r => (r.status === 'open' && expired(r.closes_at, now) ? { ...r, status: 'closed' } : r))
+}
+
 /** Whether an error only means migration 048 (closes_at) isn't applied. */
 export function missing048(error: { message?: string } | null | undefined): boolean {
   return !!error && /closes_at/.test(error.message ?? '')

@@ -15,6 +15,7 @@ import {
   roomOpenTo,
   rowRehearsing,
   wipeRehearsal,
+  resetActivities,
 } from './liveRehearsal.ts'
 
 const now = Date.parse('2026-11-12T15:00:00Z')
@@ -133,7 +134,7 @@ test('wipeRehearsal all: code first, then people (answers cascade), activities t
       ['meetings', 'update', { rehearsal_code: null, rehearsal_started_at: null }],
       ['meeting_participants', 'delete', null],
       ['meeting_questions', 'delete', null],
-      ['meeting_activities', 'update', { status: 'ready', opened_at: null, closed_at: null, hidden_words: [] }],
+      ['meeting_activities', 'update', { status: 'ready', opened_at: null, closed_at: null, closes_at: null, hidden_words: [] }],
       ['meetings', 'update', { presenter_id: null, current_segment: null, segment_started_at: null, started_at: null, ended_at: null }],
     ],
   )
@@ -173,7 +174,26 @@ test('wipeRehearsal: before 051 the questions table and hidden_words are skipped
   assert.equal(await wipeRehearsal(db, 'c1', 'all'), null)
   const acts = db.calls.filter(c => c.table === 'meeting_activities')
   assert.deepEqual(acts.map(c => c.arg), [
-    { status: 'ready', opened_at: null, closed_at: null, hidden_words: [] },
-    { status: 'ready', opened_at: null, closed_at: null },
+    { status: 'ready', opened_at: null, closed_at: null, closes_at: null, hidden_words: [] },
+    { status: 'ready', opened_at: null, closed_at: null, closes_at: null },
   ])
+})
+
+test('wipeRehearsal: before 048 and 051 both optional columns drop out, one at a time', async () => {
+  const db = fakeDb((table, op, arg) => {
+    const a = (arg as Record<string, unknown>) ?? {}
+    if (table === 'meeting_activities' && 'closes_at' in a) return { message: "Could not find the 'closes_at' column of 'meeting_activities' in the schema cache", code: 'PGRST204' }
+    if (table === 'meeting_activities' && 'hidden_words' in a) return { message: "Could not find the 'hidden_words' column of 'meeting_activities' in the schema cache", code: 'PGRST204' }
+    return null
+  })
+  assert.equal(await wipeRehearsal(db, 'c1', 'all'), null)
+  const acts = db.calls.filter(c => c.table === 'meeting_activities')
+  assert.deepEqual(acts.at(-1)?.arg, { status: 'ready', opened_at: null, closed_at: null })
+  assert.equal(acts.length, 3)
+})
+
+test('resetActivities: any other error is returned, not retried', async () => {
+  const db = fakeDb(table => (table === 'meeting_activities' ? { message: 'permission denied' } : null))
+  assert.match((await resetActivities(db, 'c1'))?.message ?? '', /permission/)
+  assert.equal(db.calls.length, 1)
 })
